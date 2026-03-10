@@ -1,0 +1,149 @@
+# Kerpta — Docker Compose (dev & prod)
+# Usage dev  : docker compose up --build
+# Usage prod : SECRET_KEY=xxx POSTGRES_PASSWORD=xxx docker compose up -d
+#
+# Variables obligatoires en prod (via .env ou variables d'env) :
+#   SECRET_KEY, POSTGRES_PASSWORD, SUPABASE_JWT_SECRET
+# Tout le reste a des valeurs par défaut utilisables en dev.
+
+services:
+
+  # ── Base de données ─────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       ${POSTGRES_DB:-kerpta}
+      POSTGRES_USER:     ${POSTGRES_USER:-kerpta}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kerpta_dev}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kerpta}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Cache / Queue ───────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── API FastAPI ─────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false        # pas obligatoire si tout passe par l'env Docker
+    environment:
+      DATABASE_URL:        postgresql+asyncpg://${POSTGRES_USER:-kerpta}:${POSTGRES_PASSWORD:-kerpta_dev}@postgres:5432/${POSTGRES_DB:-kerpta}
+      REDIS_URL:           redis://redis:6379/0
+      CELERY_BROKER_URL:   redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      SECRET_KEY:          ${SECRET_KEY:-changeme_dev_only}
+      DEBUG:               ${DEBUG:-true}
+      SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET:-}
+      APP_BASE_URL:        ${APP_BASE_URL:-http://localhost:3000}
+      AUTH_BASE_URL:       ${AUTH_BASE_URL:-http://localhost:9999}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app     # hot-reload en dev ; retirez ce volume en prod
+      - .env:/app/.env:rw  # le wizard écrit dans .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # ── Worker Celery ───────────────────────────────────────────────────────────
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL:        postgresql+asyncpg://${POSTGRES_USER:-kerpta}:${POSTGRES_PASSWORD:-kerpta_dev}@postgres:5432/${POSTGRES_DB:-kerpta}
+      REDIS_URL:           redis://redis:6379/0
+      CELERY_BROKER_URL:   redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      SECRET_KEY:          ${SECRET_KEY:-changeme_dev_only}
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - api
+      - redis
+    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=2
+
+  # ── Frontend React (nginx reverse proxy) ────────────────────────────────────
+  # En dev  : Vite dev server avec hot-reload
+  # En prod : build statique servi par nginx + proxy vers api:8000
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    # En dev, remplacer l'image buildée par le dev server Vite :
+    #   docker compose run --rm --service-ports frontend sh -c "npm install && npm run dev -- --host"
+
+  # ── Supabase Auth (GoTrue) ──────────────────────────────────────────────────
+  supabase-auth:
+    image: supabase/gotrue:v2.158.1
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      GOTRUE_DB_DRIVER:       postgres
+      GOTRUE_DB_DATABASE_URL: postgresql://${POSTGRES_USER:-kerpta}:${POSTGRES_PASSWORD:-kerpta_dev}@postgres:5432/${POSTGRES_DB:-kerpta}
+      GOTRUE_SITE_URL:        ${APP_BASE_URL:-http://localhost:3000}
+      GOTRUE_API_EXTERNAL_URL: ${AUTH_BASE_URL:-http://localhost:9999}
+      GOTRUE_JWT_SECRET:      ${SUPABASE_JWT_SECRET:-changeme_dev_only_32chars_minimum}
+      GOTRUE_DISABLE_SIGNUP:  "false"
+      # Email/password désactivé — OAuth uniquement
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "false"
+      PORT: "9999"
+    ports:
+      - "9999:9999"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ── DocuSeal — signature électronique (optionnel) ───────────────────────────
+  # Décommenter si le module e-signature est activé pour l'instance.
+  # docuseal:
+  #   image: docuseal/docuseal:latest
+  #   restart: unless-stopped
+  #   volumes:
+  #     - docuseal_data:/data
+  #   environment:
+  #     DATABASE_URL:     ${DATABASE_URL}
+  #     SECRET_KEY_BASE:  ${DOCUSEAL_SECRET_KEY}
+  #   ports:
+  #     - "3001:3000"
+
+volumes:
+  postgres_data:
+  redis_data:
+  # docuseal_data:

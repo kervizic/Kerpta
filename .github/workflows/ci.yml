@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  backend:
+    name: Backend (pytest + mypy + ruff)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: kerpta_test
+          POSTGRES_USER: kerpta
+          POSTGRES_PASSWORD: kerpta_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Installer les dépendances
+        run: pip install -r backend/requirements.txt
+        working-directory: .
+
+      - name: Vérification du formatage (ruff)
+        run: ruff check app/ && ruff format --check app/
+        working-directory: backend
+
+      - name: Vérification des types (mypy)
+        run: mypy app/ --strict --ignore-missing-imports
+        working-directory: backend
+
+      - name: Tests (pytest)
+        env:
+          DATABASE_URL: postgresql+asyncpg://kerpta:kerpta_test@localhost:5432/kerpta_test
+          SECRET_KEY: test-secret-key-32-chars-minimum
+          SUPABASE_JWT_SECRET: test-jwt-secret
+          APP_ENV: test
+        run: pytest tests/ -v --cov=app --cov-report=term-missing --cov-fail-under=80
+        working-directory: backend
+
+  frontend:
+    name: Frontend (vitest + type-check)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Installer les dépendances
+        run: npm ci
+        working-directory: frontend
+
+      - name: Vérification des types (tsc)
+        run: npm run type-check
+        working-directory: frontend
+
+      - name: Tests (vitest)
+        run: npm run test
+        working-directory: frontend

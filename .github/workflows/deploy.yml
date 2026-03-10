@@ -1,0 +1,60 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    name: Tests complets avant déploiement
+    uses: ./.github/workflows/ci.yml
+
+  build-and-push:
+    name: Build Docker → GHCR
+    needs: test
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build et push image API
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: ghcr.io/kervizic/kerpta-api:latest
+
+      - name: Build et push image Frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: ghcr.io/kervizic/kerpta-frontend:latest
+
+  deploy:
+    name: Déploiement OVH VPS
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.OVH_SERVER_IP }}
+          username: deploy
+          key: ${{ secrets.OVH_SSH_PRIVATE_KEY }}
+          script: |
+            cd /opt/kerpta
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            docker compose -f docker-compose.prod.yml exec -T api alembic upgrade head
+            docker image prune -f

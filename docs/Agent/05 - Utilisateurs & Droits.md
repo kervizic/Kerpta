@@ -183,15 +183,73 @@ async def list_payslips(user, membership, org_id, db):
 
 ---
 
+## Authentification — OAuth uniquement
+
+**Il n'y a pas de login email/mot de passe dans Kerpta.** La connexion se fait exclusivement via OAuth (Google, Microsoft, Apple). Aucun mot de passe n'est jamais créé, stocké ou transmis.
+
+Configuration Supabase Auth (variables d'environnement) :
+```bash
+GOTRUE_EXTERNAL_EMAIL_ENABLED=false    # désactive email/password
+GOTRUE_DISABLE_SIGNUP=false            # inscription libre autorisée — sécurité gérée par la couche Kerpta
+GOTRUE_EXTERNAL_GOOGLE_ENABLED=true    # ou false selon config
+GOTRUE_EXTERNAL_AZURE_ENABLED=true     # Microsoft
+GOTRUE_EXTERNAL_APPLE_ENABLED=true     # Apple
+```
+
+**Raison :** OAuth transfère la gestion des mots de passe, du 2FA et de la récupération de compte à des fournisseurs spécialisés (Google, Microsoft). Cela supprime toute surface d'attaque liée aux mots de passe côté Kerpta.
+
+> `GOTRUE_DISABLE_SIGNUP=false` : un utilisateur inconnu peut créer un compte GoTrue via OAuth. Il ne peut accéder à aucune donnée tant qu'il n'a pas soit créé son organisation, soit vu sa demande de rattachement approuvée. La restriction d'accès est dans la couche Kerpta, pas dans GoTrue.
+
+---
+
 ## Flux utilisateur
 
-### Inscription
+### Inscription en libre-service (nouvel utilisateur sans invitation)
 ```
-"Commencer gratuitement"
-→ OAuth (Google / Microsoft / Apple) ou email
-→ Onboarding étape 1 : Créer société (nom, SIRET, forme juridique)
-→ Onboarding étape 2 : Régime TVA
-→ Dashboard — utilisateur devient owner de l'organisation
+kerpta.fr/signup
+→ "Connexion avec Google / Microsoft / Apple"
+→ OAuth callback → compte créé dans GoTrue + ligne users créée
+→ Kerpta détecte : aucune organization_membership → wizard d'onboarding
+
+Wizard — choix :
+  [Créer mon entreprise]
+    → Saisie nom, SIRET, forme juridique, régime TVA
+    → Organisation créée → membership owner ajouté → Dashboard
+
+  [Rejoindre une structure existante]
+    → Recherche par nom ou SIRET
+    → Sélection de l'organisation + message optionnel
+    → organization_join_requests {status: pending} créé
+    → Email de notification à l'owner/admin
+    → Page d'attente : "Votre demande est en cours de traitement"
+```
+
+### Inscription via invitation (collaborateur invité)
+```
+Lien d'invitation reçu par email ou partagé
+→ "Connexion avec Google / Microsoft / Apple"
+→ OAuth callback → compte créé ou récupéré
+→ Token d'invitation validé → organization_membership créé avec le rôle prévu
+→ Dashboard de l'organisation
+```
+
+### Demande de rattachement à une organisation supplémentaire (utilisateur existant)
+```
+Menu compte (avatar) → "Mes organisations" → [+ Rejoindre une autre structure]
+→ Recherche par nom ou SIRET
+→ Sélection + message optionnel
+→ organization_join_requests {status: pending} créé
+→ L'utilisateur continue à travailler dans ses organisations existantes
+```
+
+Cas d'usage : un owner peut être aussi salarié d'une autre entreprise. Un comptable peut gérer plusieurs clients/structures.
+
+### Traitement d'une demande de rattachement (owner / membre avec `members:manage`)
+```
+Paramètres → Membres → onglet "Demandes en attente"
+→ Voir le profil du demandeur + son message
+→ [Accepter] → choisir le rôle attribué → membership créé → email au demandeur
+→ [Refuser] → email de refus au demandeur (nouvelle demande possible après 30j)
 ```
 
 ### Invitation d'un collaborateur
@@ -203,13 +261,21 @@ Paramètres → Membres → [+ Inviter]
 → Option B : lien générique → partager librement
 → Lien valable 7 jours
 → Destinataire clique le lien :
-    Si compte existant → rejoint directement
-    Si pas de compte  → s'inscrit puis rejoint
+    Redirigé vers "Connexion avec Google / Microsoft / Apple"
+    OAuth callback → compte créé ou récupéré → rejoint l'organisation
+```
+
+### Sélecteur d'organisation (multi-société)
+```
+Sidebar (en haut) : [Logo] [Nom de l'org active ▾]
+→ Clic → liste déroulante de toutes les organisations du compte
+→ Clic sur une org → switch immédiat, contexte de données changé
+→ [+ Rejoindre une autre structure] en bas de la liste
 ```
 
 ### Transfert de propriété
 ```
-Paramètres → Membres → [···] sur un member → "Transférer la propriété"
+Paramètres → Membres → [···] sur un membre → "Transférer la propriété"
 → Confirmation en 2 étapes
 → L'ancien owner devient accountant
 ```
@@ -223,7 +289,7 @@ Paramètres → Membres → [···] sur un member → "Transférer la propriét
 - Usage unique : invalidé dès acceptation
 - Révocable avant utilisation
 - Si email ciblé : vérification que l'email correspond au compte connecté
-- Format URL : `https://app.kerpta.fr/invite/{token_32_chars}`
+- Format URL : `https://kerpta.fr/invite/{token_32_chars}`
 
 ---
 
@@ -247,7 +313,7 @@ Accès uniquement via `admin.kerpta.fr` (domaine séparé, jamais exposé dans l
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  Membres de SARL Dupont                         [+ Inviter]    │
+│  Membres de SARL Dupont             [+ Inviter]  [Demandes (2)]│
 ├────────────────────────────────────────────────────────────────┤
 │  Jean Dupont       jean@dupont.fr   Owner        —             │
 │  Marie Martin      marie@m.fr       Accountant   [···]         │
@@ -258,8 +324,16 @@ Accès uniquement via `admin.kerpta.fr` (domaine séparé, jamais exposé dans l
 │  INVITATIONS EN ATTENTE                                        │
 │  thomas@ex.fr      Commercial  Expire dans 5j   [Annuler]      │
 │  Lien générique    Employee    Expire dans 2j   [Annuler]      │
+├────────────────────────────────────────────────────────────────┤
+│  DEMANDES DE RATTACHEMENT                                      │
+│  Alice Durand      alice@d.fr   "Comptable indép. — 3 clients" │
+│                    [Accepter ▾]  [Refuser]                     │
+│  Marc Petit        marc@p.fr    "Nouveau salarié confirmé"     │
+│                    [Accepter ▾]  [Refuser]                     │
 └────────────────────────────────────────────────────────────────┘
 ```
 
 - ✦ `Custom` affiche un tooltip avec la liste des tokens actifs au hover
 - Menu `···` : Modifier les permissions / Changer le rôle / Retirer de l'organisation
+- `[Accepter ▾]` ouvre un sélecteur de rôle avant de confirmer
+- Badge `[Demandes (2)]` visible uniquement pour les membres avec `members:manage`

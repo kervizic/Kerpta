@@ -1,0 +1,59 @@
+# Kerpta — Backend Python 3.12
+
+# Web framework
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+python-multipart==0.0.20
+
+# Templates (wizard d'installation)
+jinja2==3.1.4
+
+# Variables d'environnement
+python-dotenv==1.0.1
+
+# Base de données
+sqlalchemy[asyncio]==2.0.36
+asyncpg==0.30.0
+alembic==1.14.0
+
+# Validation
+pydantic==2.10.3
+pydantic-settings==2.6.1
+
+# Auth (JWT Supabase)
+pyjwt==2.10.0
+
+# Tâches asynchrones
+celery==5.4.0
+redis==5.2.0
+
+# Email (Resend)
+resend==2.5.0
+
+# PDF / Factur-X
+factur-x==1.22
+playwright==1.49.0
+
+# OCR (Mindee)
+mindee==4.21.0
+
+# Storage
+boto3==1.35.85        # S3-compatible (OVH, AWS, Scaleway)
+google-auth==2.36.0   # Google Drive OAuth
+google-api-python-client==2.154.0
+msal==1.31.0          # Microsoft OneDrive
+dropbox==12.0.2       # Dropbox
+
+# Utilitaires
+python-dateutil==2.9.0
+babel==2.16.0
+cryptography==44.0.0  # AES-256 pour credentials storage
+
+# Dev / qualité
+pytest==8.3.4
+pytest-asyncio==0.24.0
+pytest-cov==6.0.0
+httpx==0.28.1         # client HTTP pour les tests FastAPI
+mypy==1.13.0
+ruff==0.8.4
+factory-boy==3.3.1

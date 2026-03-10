@@ -64,8 +64,6 @@ kerpta/
 │   │   ├── models/         ← modèles SQLAlchemy
 │   │   ├── schemas/        ← schémas Pydantic (DTOs)
 │   │   ├── services/       ← TOUTE la logique métier ici
-│   │   ├── storage/        ← StorageAdapter (abstraction fichiers)
-│   │   ├── setup/          ← assistant premier démarrage (Jinja2)
 │   │   └── tasks/          ← tâches Celery
 │   ├── tests/
 │   ├── migrations/         ← fichiers Alembic
@@ -144,7 +142,7 @@ kerpta/
 - Toute facture générée = fichier Factur-X EN 16931 (pas un simple PDF)
 - Taux TVA valides : `0`, `2.1`, `5.5`, `10`, `20`
 - Devise unique : EUR
-- Plan Comptable Général 2025 — voir `docs/04-accounting.md`
+- Plan Comptable Général 2025 — voir [[05 - Comptabilité Française]]
 
 ---
 
@@ -168,11 +166,8 @@ kerpta/
 | Base de données | PostgreSQL 18 + RLS                                                  |
 | Queue           | Redis + Celery + Celery Beat                                         |
 | PDF/Factur-X    | Playwright + lib `factur-x`                                          |
-| Stockage        | StorageAdapter par organisation (FTP/SFTP/GDrive/OneDrive/Dropbox/S3) |
+| Stockage        | Délégué au provider de l'organisation (FTP/SFTP/Google Drive/OneDrive/Dropbox/S3) — pas de MinIO |
 | Hébergement     | VPS OVH — Docker Compose                                             |
-
-> ⚠️ MinIO n'est PAS utilisé — le stockage est délégué au provider configuré par chaque organisation.
-> Auth : OAuth uniquement (Google/Microsoft/Apple) — pas d'email/mot de passe.
 
 ---
 
@@ -180,12 +175,11 @@ kerpta/
 
 | Fichier repo | Contenu |
 |---|---|
-| `docs/Agent/01 - Vision & Modules.md` | Fonctionnalités, règles métier par module |
-| `docs/Agent/02 - Base de Données.md` | Schéma complet, tables, relations, index |
-| `docs/Agent/03 - Interface Utilisateur.md` | Design system, composants, wireframes |
-| `docs/Agent/04 - Comptabilité Française.md` | PCG, TVA, FEC, bilan, déclarations |
-| `docs/Agent/05 - Utilisateurs & Droits.md` | 12 tokens de permission, rôles, invitations |
-| `docs/Agent/06 - Facturation Électronique.md` | Factur-X EN 16931, PDP, e-reporting |
-| `docs/Agent/07 - Infrastructure & DevOps.md` | Docker, OVH, CI/CD, installation, déploiement |
-| `docs/Agent/08 - Roadmap.md` | Phases de développement, priorités |
-| `docs/Agent/00 - Contexte Implémenté.md` | Décisions d'architecture et features ajoutées |
+| `docs/01-vision-modules.md` | Fonctionnalités, règles métier par module |
+| `docs/02-database.md` | Schéma complet, tables, relations, index |
+| `docs/03-ui.md` | Design system, composants, wireframes |
+| `docs/04-accounting.md` | PCG, TVA, FEC, bilan, déclarations |
+| `docs/05-users-rights.md` | 12 tokens de permission, rôles, invitations |
+| `docs/06-e-invoicing.md` | Factur-X EN 16931, PDP, e-reporting |
+| `docs/07-infra-devops.md` | Docker, OVH, CI/CD, installation, déploiement |
+| `docs/08-roadmap.md` | Phases de développement, priorités |

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="fr" class="h-full bg-slate-50">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Installation — Kerpta{% endblock %}</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            kerpta: {
+              50:  '#f0f4ff',
+              100: '#dce6fd',
+              200: '#b9cdfb',
+              500: '#4f6ef7',
+              600: '#3b55e6',
+              700: '#2d44cc',
+              900: '#1a2980',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Alpine.js CDN -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+  <style>
+    [x-cloak] { display: none !important; }
+    .step-active  { @apply bg-kerpta-600 text-white; }
+    .step-done    { @apply bg-kerpta-200 text-kerpta-700; }
+    .step-pending { @apply bg-slate-200 text-slate-500; }
+  </style>
+</head>
+
+<body class="h-full flex flex-col items-center justify-start pt-12 px-4">
+
+  <!-- En-tête logo -->
+  <div class="mb-8 text-center">
+    <div class="inline-flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-kerpta-600 flex items-center justify-center shadow">
+        <span class="text-white font-bold text-xl">K</span>
+      </div>
+      <span class="text-2xl font-bold text-slate-800 tracking-tight">Kerpta</span>
+    </div>
+    <p class="mt-1 text-sm text-slate-500">Assistant d'installation</p>
+  </div>
+
+  <!-- Barre de progression -->
+  <div class="flex items-center gap-2 mb-10">
+    {% set steps = [
+      (1, "Base de données"),
+      (2, "OAuth"),
+      (3, "Administrateur"),
+    ] %}
+    {% for num, label in steps %}
+      {% if num < current_step %}
+        <div class="flex items-center gap-1.5">
+          <div class="w-8 h-8 rounded-full bg-kerpta-200 flex items-center justify-center text-kerpta-700 text-sm font-semibold">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/>
+            </svg>
+          </div>
+          <span class="text-xs font-medium text-kerpta-700 hidden sm:inline">{{ label }}</span>
+        </div>
+      {% elif num == current_step %}
+        <div class="flex items-center gap-1.5">
+          <div class="w-8 h-8 rounded-full bg-kerpta-600 flex items-center justify-center text-white text-sm font-semibold shadow">
+            {{ num }}
+          </div>
+          <span class="text-xs font-semibold text-kerpta-700 hidden sm:inline">{{ label }}</span>
+        </div>
+      {% else %}
+        <div class="flex items-center gap-1.5">
+          <div class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-400 text-sm font-medium">
+            {{ num }}
+          </div>
+          <span class="text-xs text-slate-400 hidden sm:inline">{{ label }}</span>
+        </div>
+      {% endif %}
+
+      {% if not loop.last %}
+        <div class="w-12 h-px {% if num < current_step %}bg-kerpta-300{% else %}bg-slate-200{% endif %}"></div>
+      {% endif %}
+    {% endfor %}
+  </div>
+
+  <!-- Carte principale -->
+  <div class="w-full max-w-2xl bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden">
+    <!-- En-tête de l'étape -->
+    <div class="px-8 pt-8 pb-6 border-b border-slate-100">
+      <h1 class="text-xl font-bold text-slate-900">{% block step_title %}{% endblock %}</h1>
+      <p class="mt-1 text-sm text-slate-500">{% block step_subtitle %}{% endblock %}</p>
+    </div>
+
+    <!-- Corps -->
+    <div class="px-8 py-8">
+      {% if error %}
+        <div class="mb-6 flex items-start gap-3 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+          <svg class="mt-0.5 w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+          </svg>
+          <span>{{ error }}</span>
+        </div>
+      {% endif %}
+
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <p class="mt-8 text-xs text-slate-400">
+    Kerpta — Logiciel de comptabilité libre (AGPL-3.0)
+  </p>
+
+</body>
+</html>
