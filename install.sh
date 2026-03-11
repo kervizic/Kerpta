@@ -117,8 +117,7 @@ AUTH_BASE_URL=https://auth.${DOMAIN}
 POSTGRES_DB=kerpta
 POSTGRES_USER=kerpta
 POSTGRES_PASSWORD=${DB_PASS}
-# Port lié à localhost uniquement (inaccessible depuis l'extérieur)
-POSTGRES_PORT=127.0.0.1:5432
+POSTGRES_PORT=5432
 
 # ─── Supabase Auth (GoTrue) ───────────────────────────────────────────────────
 SUPABASE_JWT_SECRET=${JWT_SECRET}
@@ -169,7 +168,7 @@ CELERY_BROKER_URL=redis://redis:6379/0
 CELERY_RESULT_BACKEND=redis://redis:6379/1
 
 # ─── CORS ─────────────────────────────────────────────────────────────────────
-CORS_ORIGINS=["https://${DOMAIN}","https://www.${DOMAIN}"]
+CORS_ORIGINS=https://${DOMAIN},https://www.${DOMAIN}
 EOF
 
 # Protéger le fichier : lisible uniquement par le propriétaire
@@ -207,8 +206,16 @@ echo "  Démarrage des services..."
 docker compose up -d
 
 echo ""
-echo "  Attente que les services soient prêts..."
-sleep 20
+echo "  Attente que les services soient prêts (jusqu'à 60 secondes)..."
+# Attente active : vérifie l'API toutes les 5 secondes
+API_READY=false
+for i in $(seq 1 12); do
+    sleep 5
+    if curl -sf "http://localhost:8000/setup/api/status" >/dev/null 2>&1; then
+        API_READY=true
+        break
+    fi
+done
 
 # Vérification rapide
 SERVICES_OK=true

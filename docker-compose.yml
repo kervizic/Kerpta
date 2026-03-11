@@ -19,6 +19,9 @@ services:
     # Pas de ports exposés — accès uniquement via réseau Docker interne
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      # Script d'init : crée le rôle "postgres" exigé par les migrations GoTrue
+      # (ne s'exécute qu'au premier démarrage, quand le volume est vide)
+      - ./docker/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kerpta}"]
       interval: 10s
