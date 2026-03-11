@@ -320,9 +320,11 @@ async def save_oauth_config(
         client_id = cfg.get("client_id", "").strip()
         client_secret = cfg.get("client_secret", "").strip()
 
-        # Si le champ secret est vide, conserver le secret existant en base
+        # Si le champ secret est vide, conserver le secret existant en base puis en env
         if not client_secret:
             client_secret = existing_oauth.get(provider, {}).get("client_secret", "")
+        if not client_secret:
+            client_secret = os.getenv(f"GOTRUE_EXTERNAL_{provider.upper()}_SECRET", "").strip()
 
         oauth_config[provider] = {
             "enabled": enabled,
