@@ -99,7 +99,7 @@
     {% for key, label in providers.items() %}
     {% set pcfg = saved_oauth.get(key, {}) %}
     <div
-      x-data="providerCard({{ {'enabled': pcfg.get('enabled', False), 'client_id': pcfg.get('client_id', ''), 'has_secret': bool(pcfg.get('client_secret', ''))} | tojson }})"
+      x-data="providerCard({{ {'enabled': pcfg.get('enabled', False), 'client_id': pcfg.get('client_id', ''), 'has_secret': (pcfg.get('client_secret', '') != '')} | tojson }})"
       class="rounded-xl border transition"
       :class="enabled ? 'border-kerpta-300 bg-kerpta-50' : 'border-slate-200 bg-white'"
     >

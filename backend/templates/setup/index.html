@@ -41,11 +41,13 @@
 
   <!-- Données OAuth injectées côté serveur (JSON) -->
   <script id="saved-oauth" type="application/json">{{ saved_oauth_json | safe }}</script>
+  <!-- URL auth injectée séparément pour éviter les conflits de guillemets dans x-data -->
+  <script>window._kerptaAuthUrl = {{ prefill.auth_base_url | tojson }};</script>
 
   <!-- Carte principale -->
   <div
     class="w-full max-w-3xl bg-white rounded-2xl shadow-lg border border-slate-100"
-    x-data="setupWizard('{{ tab }}', {{ setup_step }}, {{ 'true' if db_reachable else 'false' }}, {{ prefill.auth_base_url | tojson }}, {{ saved_oauth_json | safe }})"
+    x-data="setupWizard('{{ tab }}', {{ setup_step }}, {{ 'true' if db_reachable else 'false' }})"
     x-init="init()"
   >
 
@@ -608,15 +610,11 @@
 const savedOauth = JSON.parse(document.getElementById('saved-oauth').textContent || '{}')
 
 // ── Wizard (onglets) ───────────────────────────────────────────────────────
-function setupWizard(initialTab, setupStep, dbReachable, initialAuthUrl, initialOauth) {
-  // Merge server-side saved oauth into the module-level savedOauth
-  if (initialOauth && typeof initialOauth === 'object') {
-    Object.assign(savedOauth, initialOauth)
-  }
+function setupWizard(initialTab, setupStep, dbReachable) {
   return {
     tab: initialTab,
     step: setupStep,
-    authUrl: initialAuthUrl || '',
+    authUrl: window._kerptaAuthUrl || '',
 
     init() {
       // Si retour OAuth (hash #access_token), basculer sur l'onglet admin
