@@ -88,6 +88,8 @@ services:
       SUPABASE_JWT_SECRET:   ${SUPABASE_JWT_SECRET:-}
       APP_BASE_URL:          ${APP_BASE_URL:-http://localhost:3000}
       AUTH_BASE_URL:         ${AUTH_BASE_URL:-http://localhost:9999}
+      # URL interne Docker pour health-check GoTrue (contourne hairpin NAT VPS)
+      GOTRUE_INTERNAL_URL:   http://supabase-auth:9999
       # Pré-remplissage du wizard /setup/dbb
       POSTGRES_HOST:         postgres
       POSTGRES_PORT:         "5432"

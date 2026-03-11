@@ -194,23 +194,36 @@ def restart_auth_service() -> None:
 async def check_auth_service_health(auth_url: str) -> dict[str, Any]:
     """Vérifie que GoTrue est accessible (GET /auth/v1/health).
 
+    Utilise d'abord GOTRUE_INTERNAL_URL (réseau Docker interne) pour éviter
+    les problèmes de hairpin NAT sur VPS, puis tombe en fallback sur auth_url.
+
     Returns:
         {"ok": True}  si GoTrue répond 200
         {"ok": False, "reason": "..."} sinon
     """
     import httpx
 
-    if not auth_url:
+    # Préférer l'URL interne Docker (http://supabase-auth:9999) si disponible.
+    # L'URL externe (https://auth.kerpta.fr) n'est souvent pas routable depuis
+    # l'intérieur du réseau Docker sur un VPS (pas de hairpin NAT).
+    internal_url = os.getenv("GOTRUE_INTERNAL_URL", "").strip()
+    urls_to_try = [u for u in [internal_url, auth_url.strip()] if u]
+
+    if not urls_to_try:
         return {"ok": False, "reason": "auth_url non configuré"}
 
-    try:
-        async with httpx.AsyncClient(timeout=3.0) as client:
-            r = await client.get(f"{auth_url.rstrip('/')}/auth/v1/health")
-            if r.status_code == 200:
-                return {"ok": True}
-            return {"ok": False, "reason": f"HTTP {r.status_code}"}
-    except Exception as exc:  # noqa: BLE001
-        return {"ok": False, "reason": str(exc)}
+    last_error = "aucune URL disponible"
+    async with httpx.AsyncClient(timeout=3.0) as client:
+        for url in urls_to_try:
+            try:
+                r = await client.get(f"{url.rstrip('/')}/auth/v1/health")
+                if r.status_code == 200:
+                    return {"ok": True}
+                last_error = f"HTTP {r.status_code} sur {url}"
+            except Exception as exc:  # noqa: BLE001
+                last_error = str(exc)
+
+    return {"ok": False, "reason": last_error}
 
 
 # ── Étape 2 — OAuth ───────────────────────────────────────────────────────────
