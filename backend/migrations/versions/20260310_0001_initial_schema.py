@@ -432,6 +432,59 @@ def upgrade() -> None:
         ),
     )
 
+    # ── quotes (avant invoices — invoices.quote_id référence quotes) ─────────
+    op.create_table(
+        "quotes",
+        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
+        sa.Column(
+            "organization_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("organizations.id"),
+            nullable=False,
+        ),
+        sa.Column(
+            "client_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("clients.id"),
+            nullable=False,
+        ),
+        sa.Column("number", sa.String(50), unique=True, nullable=False),
+        sa.Column("document_type", sa.String(100), server_default="Devis", nullable=False),
+        sa.Column("show_quantity", sa.Boolean, server_default="true", nullable=False),
+        sa.Column("status", sa.String(20), server_default="draft", nullable=False),
+        sa.Column("issue_date", sa.Date, nullable=False),
+        sa.Column("expiry_date", sa.Date, nullable=True),
+        sa.Column("currency", sa.CHAR(3), server_default="EUR", nullable=False),
+        sa.Column("subtotal_ht", sa.Numeric(15, 2), server_default="0", nullable=False),
+        sa.Column("total_vat", sa.Numeric(15, 2), server_default="0", nullable=False),
+        sa.Column("total_ttc", sa.Numeric(15, 2), server_default="0", nullable=False),
+        sa.Column("discount_type", sa.String(10), server_default="none", nullable=False),
+        sa.Column("discount_value", sa.Numeric(15, 2), server_default="0", nullable=False),
+        sa.Column("notes", sa.Text, nullable=True),
+        sa.Column("footer", sa.Text, nullable=True),
+        # Pas de FK vers invoices : un devis peut générer N factures (acomptes, soldes…)
+        # La relation est portée par invoices.quote_id → quotes.id
+        sa.Column("pdf_url", sa.Text, nullable=True),
+        sa.Column("sent_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("accepted_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("signature_status", sa.String(20), server_default="none", nullable=False),
+        sa.Column("signature_request_id", sa.String(255), nullable=True),
+        sa.Column("signed_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("signed_pdf_url", sa.Text, nullable=True),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
+    )
+
     # ── invoices ─────────────────────────────────────────────────────────────
     op.create_table(
         "invoices",
@@ -451,7 +504,7 @@ def upgrade() -> None:
         sa.Column(
             "quote_id",
             postgresql.UUID(as_uuid=True),
-            # FK ajoutée en différé après la création de quotes (dépendance circulaire)
+            sa.ForeignKey("quotes.id"),
             nullable=True,
         ),
         sa.Column("number", sa.String(50), unique=True, nullable=False),
@@ -495,70 +548,6 @@ def upgrade() -> None:
             server_default=sa.func.now(),
             nullable=False,
         ),
-    )
-
-    # ── quotes ───────────────────────────────────────────────────────────────
-    op.create_table(
-        "quotes",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column(
-            "organization_id",
-            postgresql.UUID(as_uuid=True),
-            sa.ForeignKey("organizations.id"),
-            nullable=False,
-        ),
-        sa.Column(
-            "client_id",
-            postgresql.UUID(as_uuid=True),
-            sa.ForeignKey("clients.id"),
-            nullable=False,
-        ),
-        sa.Column("number", sa.String(50), unique=True, nullable=False),
-        sa.Column("document_type", sa.String(100), server_default="Devis", nullable=False),
-        sa.Column("show_quantity", sa.Boolean, server_default="true", nullable=False),
-        sa.Column("status", sa.String(20), server_default="draft", nullable=False),
-        sa.Column("issue_date", sa.Date, nullable=False),
-        sa.Column("expiry_date", sa.Date, nullable=True),
-        sa.Column("currency", sa.CHAR(3), server_default="EUR", nullable=False),
-        sa.Column("subtotal_ht", sa.Numeric(15, 2), server_default="0", nullable=False),
-        sa.Column("total_vat", sa.Numeric(15, 2), server_default="0", nullable=False),
-        sa.Column("total_ttc", sa.Numeric(15, 2), server_default="0", nullable=False),
-        sa.Column("discount_type", sa.String(10), server_default="none", nullable=False),
-        sa.Column("discount_value", sa.Numeric(15, 2), server_default="0", nullable=False),
-        sa.Column("notes", sa.Text, nullable=True),
-        sa.Column("footer", sa.Text, nullable=True),
-        sa.Column(
-            "invoice_id",
-            postgresql.UUID(as_uuid=True),
-            sa.ForeignKey("invoices.id"),
-            nullable=True,
-        ),
-        sa.Column("pdf_url", sa.Text, nullable=True),
-        sa.Column("sent_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("accepted_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("signature_status", sa.String(20), server_default="none", nullable=False),
-        sa.Column("signature_request_id", sa.String(255), nullable=True),
-        sa.Column("signed_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("signed_pdf_url", sa.Text, nullable=True),
-        sa.Column(
-            "created_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.func.now(),
-            nullable=False,
-        ),
-        sa.Column(
-            "updated_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.func.now(),
-            nullable=False,
-        ),
-    )
-
-    # FK différée : invoices.quote_id → quotes.id (dépendance circulaire résolue)
-    op.create_foreign_key(
-        "fk_invoices_quote_id",
-        "invoices", "quotes",
-        ["quote_id"], ["id"],
     )
 
     # ── quote_lines ──────────────────────────────────────────────────────────
@@ -1295,8 +1284,8 @@ def downgrade() -> None:
         "client_purchase_orders",
         "invoice_lines",
         "quote_lines",
-        "quotes",
         "invoices",
+        "quotes",
         "product_components",
         "product_purchase_links",
         "client_product_variants",

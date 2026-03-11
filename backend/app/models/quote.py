@@ -50,9 +50,8 @@ class Quote(Base, UUIDPrimaryKeyMixin, TimestampUpdateMixin):
     )
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     footer: Mapped[str | None] = mapped_column(Text, nullable=True)
-    invoice_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("invoices.id"), nullable=True
-    )
+    # Pas de FK vers invoices : un devis peut générer N factures (acomptes, soldes…)
+    # La relation est portée par Invoice.quote_id → quotes.id
     pdf_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     sent_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
