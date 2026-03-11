@@ -29,6 +29,12 @@ command -v openssl >/dev/null 2>&1 || error "openssl n'est pas disponible."
 [ -f "docker-compose.yml" ]        || error "Ce script doit être lancé depuis la racine du projet."
 
 # ── .env déjà présent ? ───────────────────────────────────────────────────────
+# Docker crée un répertoire .env si "docker compose up" est lancé avant install.sh
+if [ -d ".env" ]; then
+    warning ".env est un répertoire (créé par Docker avant l'installation)."
+    warning "Suppression et remplacement par le fichier de configuration…"
+    rm -rf .env
+fi
 if [ -f ".env" ]; then
     warning ".env existe déjà."
     read -rp "  Écraser et regénérer ? [o/N] : " OVERWRITE
