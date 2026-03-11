@@ -684,7 +684,7 @@ function providerCard(providerKey) {
     open: !!cfg.enabled,
     clientId: cfg.client_id || '',
     clientSecret: '',
-    hasSecret: !!(cfg.client_secret),
+    hasSecret: !!(cfg.has_secret),
     issuerUrl: cfg.issuer_url || '',
   }
 }

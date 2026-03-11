@@ -148,6 +148,19 @@ async def _build_context(
 
     callback_url = f"{base_url.rstrip('/')}/setup/"
 
+    # Sanitiser : ne jamais exposer les secrets en clair dans le HTML
+    # Le JS n'a besoin que de has_secret (bool) pour afficher le bon placeholder
+    safe_oauth = {
+        provider: {
+            "enabled": cfg.get("enabled", False),
+            "client_id": cfg.get("client_id", ""),
+            "client_secret": "",           # toujours vide côté client
+            "has_secret": bool(cfg.get("client_secret", "")),
+            "issuer_url": cfg.get("issuer_url", ""),
+        }
+        for provider, cfg in saved_oauth.items()
+    }
+
     return {
         "request": request,
         "tab": tab,
@@ -155,7 +168,7 @@ async def _build_context(
         "db_reachable": status_data["db_reachable"],
         "prefill": prefill,
         "providers": _PROVIDER_LABELS,
-        "saved_oauth_json": json.dumps(saved_oauth),
+        "saved_oauth_json": json.dumps(safe_oauth),
         "enabled_providers": enabled_providers,
         "auth_url": auth_url.rstrip("/"),
         "callback_url": callback_url,
