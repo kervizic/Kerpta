@@ -6,11 +6,22 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Dépendances système pour asyncpg et Playwright
+# Dépendances système
+# - gcc / libpq-dev : compilation asyncpg
+# - WeasyPrint : pango + cairo + gdk-pixbuf (rendu HTML→PDF sans navigateur)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libpq-dev \
     curl \
+    libpango-1.0-0 \
+    libpangoft2-1.0-0 \
+    libpangocairo-1.0-0 \
+    libgdk-pixbuf-2.0-0 \
+    libcairo2 \
+    libglib2.0-0 \
+    libffi-dev \
+    shared-mime-info \
+    fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
 
 # Dépendances Python
@@ -19,10 +30,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Code applicatif
 COPY . .
-
-# Playwright pour la génération PDF (Factur-X)
-# À activer quand le module PDF sera implémenté (nécessite Debian bookworm ou ubuntu)
-# RUN playwright install chromium --with-deps
 
 EXPOSE 8000
 
