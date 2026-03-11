@@ -61,9 +61,19 @@ def _write_env(updates: dict[str, str]) -> None:
 
     lines: list[str] = []
     for key, val in env.items():
-        # Encadre les valeurs contenant des espaces ou caractères spéciaux
+        # Encadre les valeurs contenant des espaces ou caractères spéciaux.
+        # Stratégie de quoting :
+        #   - guillemets doubles internes  → encadrer en guillemets simples
+        #   - guillemets simples internes  → encadrer en guillemets doubles
+        #   - les deux types              → guillemets doubles + échappement \\"
         if re.search(r'[\s#"\'\\]', val):
-            val = f'"{val}"'
+            if '"' in val and "'" not in val:
+                val = f"'{val}'"
+            elif "'" in val and '"' not in val:
+                val = f'"{val}"'
+            else:
+                escaped = val.replace("\\", "\\\\").replace('"', '\\"')
+                val = f'"{escaped}"'
         lines.append(f"{key}={val}")
 
     ENV_FILE.write_text("\n".join(lines) + "\n", encoding="utf-8")
