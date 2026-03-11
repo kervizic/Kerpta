@@ -16,8 +16,7 @@ services:
       POSTGRES_DB:       ${POSTGRES_DB:-kerpta}
       POSTGRES_USER:     ${POSTGRES_USER:-kerpta}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kerpta_dev}
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+    # Pas de ports exposés — accès uniquement via réseau Docker interne
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
