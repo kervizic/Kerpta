@@ -237,7 +237,7 @@ async def save_oauth_config(
         await db.execute(
             text(
                 "UPDATE platform_config "
-                "SET oauth_config = :cfg::jsonb, base_url = :base, auth_url = :auth, "
+                "SET oauth_config = CAST(:cfg AS jsonb), base_url = :base, auth_url = :auth, "
                 "    setup_step = 3, updated_at = NOW() "
                 "WHERE id = :id"
             ),
