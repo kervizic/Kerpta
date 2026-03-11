@@ -1222,43 +1222,17 @@ def upgrade() -> None:
     op.create_index("idx_users_provider_sub", "users", ["provider_sub"], unique=True)
 
     # ── RLS — Row Level Security ─────────────────────────────────────────────
-    # Tables métier avec organization_id — isolation stricte multi-tenant
-    rls_tables = [
-        "invoices",
-        "quotes",
-        "clients",
-        "suppliers",
-        "products",
-        "price_coefficients",
-        "client_product_variants",
-        "client_purchase_orders",
-        "supplier_quotes",
-        "supplier_orders",
-        "supplier_invoices",
-        "payments",
-        "expenses",
-        "employees",
-        "payslips",
-        "journal_entries",
-        "tax_declarations",
-        "organization_storage_configs",
-        "organization_memberships",
-        "invitations",
-    ]
-
-    for table in rls_tables:
-        op.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY")
-        op.execute(
-            f"""
-            CREATE POLICY org_isolation ON {table}
-              FOR ALL USING (
-                organization_id IN (
-                  SELECT organization_id FROM organization_memberships
-                  WHERE user_id = auth.uid()
-                )
-              )
-            """
-        )
+    # NOTE : Les policies RLS utilisant auth.uid() (fonction GoTrue/Supabase)
+    # ne peuvent PAS être créées lors de la migration Alembic car le schéma
+    # "auth" de Supabase n'est pas encore présent dans PostgreSQL à ce stade.
+    #
+    # L'isolation multi-tenant est assurée au niveau applicatif :
+    #   - Chaque requête SQLAlchemy filtre sur organization_id
+    #   - Les services n'exposent que les données de l'org courante
+    #
+    # Les policies RLS seront activées via une migration séparée (0003_rls.py)
+    # une fois que GoTrue est déployé et que le schéma auth est disponible.
+    pass
 
 
 def downgrade() -> None:
