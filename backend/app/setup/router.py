@@ -6,11 +6,11 @@
 
 Routes :
   GET  /setup/               → redirect vers l'étape courante
-  GET  /setup/step1          → formulaire BDD
-  POST /setup/step1          → valider + enregistrer BDD
-  GET  /setup/step2          → formulaire OAuth
-  POST /setup/step2          → enregistrer config OAuth
-  GET  /setup/step3          → page création admin (boutons OAuth)
+  GET  /setup/dbb            → formulaire BDD
+  POST /setup/dbb            → valider + enregistrer BDD
+  GET  /setup/oauth          → formulaire OAuth
+  POST /setup/oauth          → enregistrer config OAuth
+  GET  /setup/admin          → page création admin (boutons OAuth)
   POST /setup/api/finalize   → endpoint JSON : crée l'admin après callback OAuth
   GET  /setup/api/status     → JSON : statut setup (utilisé par middleware)
   POST /setup/api/test-db    → JSON : teste une connexion DB
@@ -78,18 +78,19 @@ async def setup_index(db: AsyncSession = Depends(get_db)) -> RedirectResponse:
         return RedirectResponse(url="/setup/step1", status_code=302)
     if status_data["setup_completed"] and status_data["has_admin"]:
         return RedirectResponse(url="/", status_code=302)
+    _step_paths = {1: "dbb", 2: "oauth", 3: "admin"}
     step = status_data["setup_step"]
-    return RedirectResponse(url=f"/setup/step{step}", status_code=302)
+    return RedirectResponse(url=f"/setup/{_step_paths.get(step, 'dbb')}", status_code=302)
 
 
 # ── Étape 1 — Base de données ─────────────────────────────────────────────────
 
 
-@router.get("/step1", response_class=HTMLResponse)
+@router.get("/dbb", response_class=HTMLResponse)
 async def step1_get(request: Request) -> HTMLResponse:
     prefill = _env_prefill()
     return templates.TemplateResponse(
-        "setup/step1_database.html",
+        "setup/dbb.html",
         {
             "request": request,
             "prefill": prefill,
@@ -98,7 +99,7 @@ async def step1_get(request: Request) -> HTMLResponse:
     )
 
 
-@router.post("/step1", response_class=HTMLResponse)
+@router.post("/dbb", response_class=HTMLResponse)
 async def step1_post(
     request: Request,
     db_host: str = Form(...),
@@ -122,7 +123,7 @@ async def step1_post(
             {"db_host": db_host, "db_port": str(db_port), "db_name": db_name, "db_user": db_user}
         )
         return templates.TemplateResponse(
-            "setup/step1_database.html",
+            "setup/dbb.html",
             {"request": request, "prefill": prefill, "error": test["error"]},
             status_code=422,
         )
@@ -145,12 +146,12 @@ async def step1_post(
             {"db_host": db_host, "db_port": str(db_port), "db_name": db_name, "db_user": db_user}
         )
         return templates.TemplateResponse(
-            "setup/step1_database.html",
+            "setup/dbb.html",
             {"request": request, "prefill": prefill, "error": str(exc)},
             status_code=500,
         )
 
-    return RedirectResponse(url="/setup/step2", status_code=303)
+    return RedirectResponse(url="/setup/oauth", status_code=303)
 
 
 # ── Étape 2 — OAuth ───────────────────────────────────────────────────────────
@@ -169,11 +170,11 @@ _PROVIDER_LABELS = {
 }
 
 
-@router.get("/step2", response_class=HTMLResponse)
+@router.get("/oauth", response_class=HTMLResponse)
 async def step2_get(request: Request) -> HTMLResponse:
     prefill = _env_prefill()
     return templates.TemplateResponse(
-        "setup/step2_oauth.html",
+        "setup/oauth.html",
         {
             "request": request,
             "providers": _PROVIDER_LABELS,
@@ -183,7 +184,7 @@ async def step2_get(request: Request) -> HTMLResponse:
     )
 
 
-@router.post("/step2", response_class=HTMLResponse)
+@router.post("/oauth", response_class=HTMLResponse)
 async def step2_post(
     request: Request,
     db: AsyncSession = Depends(get_db),
@@ -195,7 +196,7 @@ async def step2_post(
     if not base_url or not auth_url:
         prefill = _env_prefill()
         return templates.TemplateResponse(
-            "setup/step2_oauth.html",
+            "setup/oauth.html",
             {
                 "request": request,
                 "providers": _PROVIDER_LABELS,
@@ -234,13 +235,13 @@ async def step2_post(
         providers=providers,
         custom_oidc=custom_oidc,
     )
-    return RedirectResponse(url="/setup/step3", status_code=303)
+    return RedirectResponse(url="/setup/admin", status_code=303)
 
 
 # ── Étape 3 — Administrateur principal ────────────────────────────────────────
 
 
-@router.get("/step3", response_class=HTMLResponse)
+@router.get("/admin", response_class=HTMLResponse)
 async def step3_get(
     request: Request,
     db: AsyncSession = Depends(get_db),
@@ -271,10 +272,10 @@ async def step3_get(
         enabled_providers.append({"key": "oidc", "label": "Fournisseur personnalisé"})
 
     # URL de callback après auth OAuth
-    callback_url = f"{base_url}/setup/step3"
+    callback_url = f"{base_url}/setup/admin"
 
     return templates.TemplateResponse(
-        "setup/step3_admin.html",
+        "setup/admin.html",
         {
             "request": request,
             "enabled_providers": enabled_providers,
