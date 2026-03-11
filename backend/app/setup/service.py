@@ -441,6 +441,10 @@ async def save_oauth_config(
             env_updates[f"GOTRUE_EXTERNAL_{key}_ENABLED"] = "true"
             env_updates[f"GOTRUE_EXTERNAL_{key}_CLIENT_ID"] = client_id
             env_updates[f"GOTRUE_EXTERNAL_{key}_SECRET"] = client_secret
+            # REDIRECT_URI requis par GoTrue pour initialiser le provider OAuth
+            env_updates[f"GOTRUE_EXTERNAL_{key}_REDIRECT_URI"] = (
+                f"{auth_url.rstrip('/')}/auth/v1/callback"
+            )
         else:
             env_updates[f"GOTRUE_EXTERNAL_{key}_ENABLED"] = "false"
 
