@@ -21,7 +21,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Playwright pour la génération PDF (Factur-X)
-RUN playwright install chromium --with-deps
+# À activer quand le module PDF sera implémenté (nécessite Debian bookworm ou ubuntu)
+# RUN playwright install chromium --with-deps
 
 EXPOSE 8000
 
