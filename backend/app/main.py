@@ -5,10 +5,15 @@
 """Point d'entrée principal de l'API Kerpta.
 
 Au démarrage, un middleware vérifie si le setup d'installation est terminé.
-Si ce n'est pas le cas, toutes les requêtes (sauf /setup/* et /health) sont
-redirigées vers /setup/ pour compléter la configuration.
+Si ce n'est pas le cas, toutes les requêtes (sauf /setup/*, /health et
+/api/v1/platform/*) sont redirigées vers /setup/ pour compléter la config.
+
+Variable d'environnement :
+  KERPTA_DEV_RESET_CONTENT=true  →  supprime et re-seed platform_content
+                                     à chaque démarrage (dev uniquement).
 """
 
+import logging
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -21,7 +26,10 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.config import settings
+from app.platform.router import router as platform_router
 from app.setup.router import router as setup_router
+
+_log = logging.getLogger(__name__)
 
 # ── Répertoire des templates Jinja2 ──────────────────────────────────────────
 _TEMPLATES_DIR = Path(__file__).resolve().parents[1] / "templates"
@@ -34,25 +42,30 @@ class SetupRedirectMiddleware(BaseHTTPMiddleware):
     """Redirige vers /setup/ si l'installation n'est pas terminée.
 
     Les chemins suivants sont toujours autorisés (whitelist) :
-    - /setup/* (le wizard lui-même)
-    - /health  (healthcheck Docker / CI)
-    - /api/docs, /api/redoc, /openapi.json (swagger — dev uniquement)
-    - /static/* (assets statiques)
+    - /setup/*          — le wizard lui-même
+    - /health           — healthcheck Docker / CI
+    - /api/v1/platform  — API publique de la page vitrine (accessible avant setup)
+    - /api/docs, /api/redoc, /openapi.json — swagger (dev uniquement)
+    - /static/*         — assets statiques
     """
 
-    WHITELIST_PREFIXES = ("/setup", "/health", "/static", "/api/docs", "/api/redoc", "/openapi.json")
+    WHITELIST_PREFIXES = (
+        "/setup",
+        "/health",
+        "/static",
+        "/api/v1/platform",
+        "/api/docs",
+        "/api/redoc",
+        "/openapi.json",
+    )
 
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
 
-        # Toujours autoriser les chemins de la whitelist
         if any(path.startswith(prefix) for prefix in self.WHITELIST_PREFIXES):
             return await call_next(request)
 
-        # Vérifie le statut du setup via la base de données
         try:
-            # Import différé pour éviter les problèmes de démarrage si la DB
-            # n'est pas encore configurée (étape 1 du wizard)
             from sqlalchemy import text
             from app.core.database import AsyncSessionLocal
 
@@ -61,16 +74,13 @@ class SetupRedirectMiddleware(BaseHTTPMiddleware):
 
             async with AsyncSessionLocal() as db:
                 result = await db.execute(
-                    text(
-                        "SELECT setup_completed FROM platform_config LIMIT 1"
-                    )
+                    text("SELECT setup_completed FROM platform_config LIMIT 1")
                 )
                 row = result.fetchone()
                 if row is None or not row[0]:
                     return RedirectResponse(url="/setup/", status_code=302)
 
         except Exception:
-            # DB inaccessible → redirection vers le wizard
             return RedirectResponse(url="/setup/dbb", status_code=302)
 
         return await call_next(request)
@@ -81,7 +91,20 @@ class SetupRedirectMiddleware(BaseHTTPMiddleware):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Gestion du cycle de vie de l'application."""
+    """Gestion du cycle de vie — reset contenu si KERPTA_DEV_RESET_CONTENT=true."""
+    if os.getenv("KERPTA_DEV_RESET_CONTENT", "").lower() == "true":
+        db_url = settings.DATABASE_URL
+        if db_url:
+            try:
+                from app.platform.service import reset_and_seed_content
+                await reset_and_seed_content(db_url)
+                _log.warning(
+                    "[DEV] platform_content réinitialisé (KERPTA_DEV_RESET_CONTENT=true)"
+                )
+            except Exception as exc:  # noqa: BLE001
+                _log.error("[DEV] Échec reset contenu : %s", exc)
+        else:
+            _log.warning("[DEV] KERPTA_DEV_RESET_CONTENT ignoré : DATABASE_URL non configuré")
     yield
 
 
@@ -103,12 +126,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Le middleware de setup doit être ajouté APRÈS CORS pour être exécuté en premier
 app.add_middleware(SetupRedirectMiddleware)
 
 # ── Routers ───────────────────────────────────────────────────────────────────
 
 app.include_router(setup_router)
+app.include_router(platform_router)
 
 # Les routes métier seront enregistrées ici au fur et à mesure des modules :
 # from app.api.routes import invoices, quotes, clients, ...
