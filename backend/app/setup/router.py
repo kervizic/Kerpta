@@ -172,14 +172,31 @@ _PROVIDER_LABELS = {
 
 
 @router.get("/oauth", response_class=HTMLResponse)
-async def step2_get(request: Request) -> HTMLResponse:
+async def step2_get(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> HTMLResponse:
+    from sqlalchemy import text
+
     prefill = _env_prefill()
+    saved_oauth: dict = {}
+    try:
+        result = await db.execute(
+            text("SELECT oauth_config FROM platform_config LIMIT 1")
+        )
+        row = result.fetchone()
+        if row and row[0]:
+            saved_oauth = row[0]
+    except Exception:  # noqa: BLE001
+        pass  # DB pas encore configurée (étape 1 non complétée)
+
     return templates.TemplateResponse(
         "setup/oauth.html",
         {
             "request": request,
             "providers": _PROVIDER_LABELS,
             "prefill": prefill,
+            "saved_oauth": saved_oauth,
             "error": None,
         },
     )
@@ -241,11 +258,11 @@ async def step2_post(
         # platform_config absent → étape 1 non complétée
         return RedirectResponse(url="/setup/dbb", status_code=303)
 
-    # Redémarre GoTrue (bloquant ~1 s pour l'envoi du signal Docker)
-    # puis attend qu'il soit de nouveau opérationnel (max ~30 s).
-    # Le navigateur voit le formulaire "en chargement" — pas de polling côté client.
-    await asyncio.to_thread(service.restart_auth_service)
-    await service.wait_for_auth_service()
+    # Déclenche le redémarrage de GoTrue en arrière-plan (non-bloquant).
+    # On redirige immédiatement — GoTrue sera prêt avant que l'utilisateur
+    # ait le temps de lire la page et de cliquer sur un bouton OAuth (~10 s).
+    import threading
+    threading.Thread(target=service.restart_auth_service, daemon=True).start()
 
     return RedirectResponse(url="/setup/admin", status_code=303)
 

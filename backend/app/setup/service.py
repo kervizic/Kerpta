@@ -226,6 +226,29 @@ async def check_auth_service_health(auth_url: str) -> dict[str, Any]:
     return {"ok": False, "reason": last_error}
 
 
+async def wait_for_auth_service(max_attempts: int = 15, delay: float = 2.0) -> bool:
+    """Attend que GoTrue soit opérationnel après redémarrage (max ≈ 30 s).
+
+    Ajoute d'abord 3 s de pause pour laisser GoTrue recevoir SIGTERM et
+    commencer son arrêt, puis sonde /auth/v1/health toutes les `delay` secondes.
+
+    Returns True si GoTrue répond 200 avant le timeout, False sinon.
+    """
+    import asyncio
+
+    # Petite pause pour que GoTrue ait le temps de commencer à s'arrêter
+    # avant qu'on commence à vérifier s'il est de nouveau disponible.
+    await asyncio.sleep(3)
+
+    for _ in range(max_attempts):
+        health = await check_auth_service_health("")
+        if health["ok"]:
+            return True
+        await asyncio.sleep(delay)
+
+    return False  # timeout — l'admin page affichera un message d'erreur GoTrue
+
+
 # ── Étape 2 — OAuth ───────────────────────────────────────────────────────────
 
 
@@ -259,6 +282,20 @@ async def save_oauth_config(
         custom_oidc: Config OIDC propriétaire optionnelle
                      {enabled, client_id, client_secret, issuer_url}.
     """
+    # Récupère la config existante pour préserver les secrets non re-saisis
+    try:
+        result = await db.execute(
+            text("SELECT id, oauth_config FROM platform_config LIMIT 1")
+        )
+    except Exception as exc:
+        raise RuntimeError(
+            "La table platform_config n'existe pas — l'étape 1 (BDD) n'a pas encore été complétée."
+        ) from exc
+    row = result.fetchone()
+    existing_oauth: dict = {}
+    if row and row[1]:
+        existing_oauth = row[1]
+
     oauth_config: dict[str, Any] = {}
 
     env_updates: dict[str, str] = {
@@ -274,45 +311,43 @@ async def save_oauth_config(
         client_id = cfg.get("client_id", "").strip()
         client_secret = cfg.get("client_secret", "").strip()
 
+        # Si le champ secret est vide, conserver le secret existant en base
+        if not client_secret:
+            client_secret = existing_oauth.get(provider, {}).get("client_secret", "")
+
         oauth_config[provider] = {
             "enabled": enabled,
             "client_id": client_id,
             "client_secret": client_secret,
         }
 
+        key = provider.upper()
         if enabled and client_id and client_secret:
-            key = provider.upper()
             # GoTrue env var convention : GOTRUE_EXTERNAL_<PROVIDER>_ENABLED …
             env_updates[f"GOTRUE_EXTERNAL_{key}_ENABLED"] = "true"
             env_updates[f"GOTRUE_EXTERNAL_{key}_CLIENT_ID"] = client_id
             env_updates[f"GOTRUE_EXTERNAL_{key}_SECRET"] = client_secret
         else:
-            key = provider.upper()
             env_updates[f"GOTRUE_EXTERNAL_{key}_ENABLED"] = "false"
 
     # Provider OIDC personnalisé
     if custom_oidc and custom_oidc.get("enabled"):
+        oidc_secret = custom_oidc.get("client_secret", "").strip()
+        if not oidc_secret:
+            oidc_secret = existing_oauth.get("custom_oidc", {}).get("client_secret", "")
         oauth_config["custom_oidc"] = {
             "enabled": True,
             "client_id": custom_oidc.get("client_id", ""),
-            "client_secret": custom_oidc.get("client_secret", ""),
+            "client_secret": oidc_secret,
             "issuer_url": custom_oidc.get("issuer_url", ""),
         }
         env_updates["GOTRUE_EXTERNAL_OIDC_ENABLED"] = "true"
         env_updates["GOTRUE_EXTERNAL_OIDC_CLIENT_ID"] = custom_oidc.get("client_id", "")
-        env_updates["GOTRUE_EXTERNAL_OIDC_SECRET"] = custom_oidc.get("client_secret", "")
+        env_updates["GOTRUE_EXTERNAL_OIDC_SECRET"] = oidc_secret
         env_updates["GOTRUE_EXTERNAL_OIDC_URL"] = custom_oidc.get("issuer_url", "")
 
     _write_env(env_updates)
 
-    # Mise à jour de platform_config
-    try:
-        result = await db.execute(text("SELECT id FROM platform_config LIMIT 1"))
-    except Exception as exc:
-        raise RuntimeError(
-            "La table platform_config n'existe pas — l'étape 1 (BDD) n'a pas encore été complétée."
-        ) from exc
-    row = result.fetchone()
     if row:
         await db.execute(
             text(

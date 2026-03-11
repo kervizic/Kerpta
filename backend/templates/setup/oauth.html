@@ -97,8 +97,9 @@
 
   <div class="grid grid-cols-1 gap-4">
     {% for key, label in providers.items() %}
+    {% set pcfg = saved_oauth.get(key, {}) %}
     <div
-      x-data="{ open: false, enabled: false }"
+      x-data="providerCard({{ {'enabled': pcfg.get('enabled', False), 'client_id': pcfg.get('client_id', ''), 'has_secret': bool(pcfg.get('client_secret', ''))} | tojson }})"
       class="rounded-xl border transition"
       :class="enabled ? 'border-kerpta-300 bg-kerpta-50' : 'border-slate-200 bg-white'"
     >
@@ -162,7 +163,7 @@
         x-transition:enter-end="opacity-100 translate-y-0"
         class="px-4 pb-4 border-t border-kerpta-100"
       >
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3" x-data="{ clientId: '', clientSecret: '', testState: null }">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
           <div>
             <label class="block text-xs font-medium text-slate-600 mb-1" for="{{ key }}_client_id">
               Client ID
@@ -186,7 +187,7 @@
               name="{{ key }}_client_secret"
               type="password"
               x-model="clientSecret"
-              placeholder="••••••••••••"
+              :placeholder="hasSecret ? '🔒 Laisser vide pour conserver le secret' : '••••••••••••'"
               class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900
                      placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-kerpta-500 focus:border-transparent transition"
             />
@@ -196,7 +197,7 @@
           <div class="sm:col-span-2 flex items-center gap-3">
             <button
               type="button"
-              @click="testState = (clientId.trim() && clientSecret.trim()) ? 'ok' : 'missing'"
+              @click="testState = (clientId.trim() && (clientSecret.trim() || hasSecret)) ? 'ok' : 'missing'"
               class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5
                      text-xs font-medium text-slate-600 hover:bg-slate-50 transition"
             >
@@ -231,8 +232,9 @@
     {% endfor %}
 
     <!-- Provider OIDC personnalisé -->
+    {% set oidc_cfg = saved_oauth.get('custom_oidc', {}) %}
     <div
-      x-data="{ open: false, enabled: false }"
+      x-data="providerCard({{ {'enabled': oidc_cfg.get('enabled', False), 'client_id': oidc_cfg.get('client_id', ''), 'has_secret': bool(oidc_cfg.get('client_secret', ''))} | tojson }})"
       class="rounded-xl border-2 border-dashed transition"
       :class="enabled ? 'border-kerpta-300 bg-kerpta-50' : 'border-slate-200 bg-white'"
     >
@@ -279,18 +281,21 @@
           <div>
             <label class="block text-xs font-medium text-slate-600 mb-1" for="custom_oidc_client_id">Client ID</label>
             <input id="custom_oidc_client_id" name="custom_oidc_client_id" type="text" placeholder="votre-client-id"
+              value="{{ oidc_cfg.get('client_id', '') }}"
               class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400
                      focus:outline-none focus:ring-2 focus:ring-kerpta-500 focus:border-transparent transition"/>
           </div>
           <div>
             <label class="block text-xs font-medium text-slate-600 mb-1" for="custom_oidc_client_secret">Client Secret</label>
-            <input id="custom_oidc_client_secret" name="custom_oidc_client_secret" type="password" placeholder="••••••••••••"
+            <input id="custom_oidc_client_secret" name="custom_oidc_client_secret" type="password"
+              :placeholder="hasSecret ? '🔒 Laisser vide pour conserver le secret' : '••••••••••••'"
               class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400
                      focus:outline-none focus:ring-2 focus:ring-kerpta-500 focus:border-transparent transition"/>
           </div>
           <div class="sm:col-span-2">
             <label class="block text-xs font-medium text-slate-600 mb-1" for="custom_oidc_issuer_url">Issuer URL (discovery endpoint)</label>
             <input id="custom_oidc_issuer_url" name="custom_oidc_issuer_url" type="url"
+              value="{{ oidc_cfg.get('issuer_url', '') }}"
               placeholder="https://sso.example.com/realms/master"
               class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400
                      focus:outline-none focus:ring-2 focus:ring-kerpta-500 focus:border-transparent transition"/>
@@ -359,6 +364,17 @@
 function oauthForm() {
   return {
     authUrl: '{{ prefill.auth_base_url | default("", true) }}',
+  }
+}
+
+function providerCard(cfg) {
+  return {
+    enabled: cfg.enabled,
+    open: cfg.enabled,
+    clientId: cfg.client_id,
+    clientSecret: '',
+    hasSecret: cfg.has_secret,
+    testState: null,
   }
 }
 </script>
