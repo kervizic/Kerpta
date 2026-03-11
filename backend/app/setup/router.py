@@ -352,6 +352,56 @@ async def api_test_db(request: Request) -> JSONResponse:
     return JSONResponse(result)
 
 
+@router.get("/api/debug-auth")
+async def api_debug_auth() -> JSONResponse:
+    """Diagnostic : env GOTRUE_EXTERNAL_* du conteneur kerpta-auth + .env local.
+
+    Secrets masqués — endpoint temporaire pour déboguer le 404 GoTrue.
+    """
+    import http.client
+    import json as _json
+    import socket as _socket
+
+    class _UnixConn(http.client.HTTPConnection):
+        def connect(self) -> None:
+            self.sock = _socket.socket(_socket.AF_UNIX, _socket.SOCK_STREAM)
+            self.sock.settimeout(5)
+            self.sock.connect("/var/run/docker.sock")
+
+    # Vars dans le conteneur kerpta-auth (via Docker API)
+    container_env: dict = {}
+    container_error: str = ""
+    try:
+        conn = _UnixConn("localhost")
+        conn.request("GET", "/v1.41/containers/kerpta-auth/json")
+        resp = conn.getresponse()
+        raw = resp.read()
+        if resp.status == 200:
+            info = _json.loads(raw)
+            for item in info.get("Config", {}).get("Env", []):
+                if "=" in item:
+                    k, _, v = item.partition("=")
+                    if k.startswith("GOTRUE_EXTERNAL_"):
+                        container_env[k] = "***" if "SECRET" in k else v
+        else:
+            container_error = f"HTTP {resp.status}"
+    except Exception as exc:  # noqa: BLE001
+        container_error = str(exc)
+
+    # Vars dans .env (fichier local)
+    dotenv_vars = {
+        k: ("***" if "SECRET" in k else v)
+        for k, v in service._read_env().items()
+        if k.startswith("GOTRUE_EXTERNAL_")
+    }
+
+    return JSONResponse({
+        "container_gotrue_external": container_env,
+        "container_error": container_error,
+        "dotenv_gotrue_external": dotenv_vars,
+    })
+
+
 @router.post("/api/finalize")
 async def api_finalize(
     request: Request,

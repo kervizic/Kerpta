@@ -16,12 +16,15 @@ Responsabilités :
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import subprocess
 import uuid
 from pathlib import Path
 from typing import Any
+
+_log = logging.getLogger(__name__)
 
 import asyncpg
 from sqlalchemy import select, text
@@ -214,10 +217,16 @@ def restart_auth_service() -> None:
             k: v for k, v in _read_env().items()
             if k.startswith("GOTRUE_EXTERNAL_")
         }
+        _log.info(
+            "[restart_auth] vars GOTRUE_EXTERNAL_* à injecter : %s",
+            {k: ("***" if "SECRET" in k else v) for k, v in env_updates.items()},
+        )
 
         # 1. Inspecter le conteneur courant pour récupérer toute sa config
         status, info = _api("GET", "/v1.41/containers/kerpta-auth/json")
+        _log.info("[restart_auth] inspect kerpta-auth → HTTP %s", status)
         if status != 200:
+            _log.error("[restart_auth] conteneur introuvable (HTTP %s) : %s", status, info)
             return
 
         # Fusionner l'env actuel avec les nouvelles vars
@@ -229,14 +238,25 @@ def restart_auth_service() -> None:
         existing_env.update(env_updates)
         new_env_list = [f"{k}={v}" for k, v in existing_env.items()]
 
+        # Log de contrôle : vars GOTRUE_EXTERNAL_* qui seront dans le nouveau conteneur
+        final_gotrue = {
+            k: ("***" if "SECRET" in k else v)
+            for k, v in existing_env.items()
+            if k.startswith("GOTRUE_EXTERNAL_")
+        }
+        _log.info("[restart_auth] env GOTRUE_EXTERNAL_* dans le nouveau conteneur : %s", final_gotrue)
+
         networks: dict = info.get("NetworkSettings", {}).get("Networks", {})
+        _log.info("[restart_auth] réseaux : %s", list(networks.keys()))
 
         # 2. Arrêter le conteneur
-        _api("POST", "/v1.41/containers/kerpta-auth/stop?t=10")
+        s, r = _api("POST", "/v1.41/containers/kerpta-auth/stop?t=10")
+        _log.info("[restart_auth] stop → HTTP %s", s)
         time.sleep(2)
 
         # 3. Supprimer le conteneur
-        _api("DELETE", "/v1.41/containers/kerpta-auth")
+        s, r = _api("DELETE", "/v1.41/containers/kerpta-auth")
+        _log.info("[restart_auth] delete → HTTP %s", s)
 
         # 4. Créer un nouveau conteneur avec l'env mis à jour
         cfg = info.get("Config", {})
@@ -258,7 +278,9 @@ def restart_auth_service() -> None:
             "NetworkingConfig": networking,
         }
         status, result = _api("POST", "/v1.41/containers/create?name=kerpta-auth", create_body)
+        _log.info("[restart_auth] create → HTTP %s : %s", status, result)
         if status not in (200, 201):
+            _log.error("[restart_auth] échec création conteneur HTTP %s : %s", status, result)
             return
 
         container_id: str = result.get("Id", "kerpta-auth")
@@ -266,17 +288,19 @@ def restart_auth_service() -> None:
         # Reconnecter aux réseaux supplémentaires
         for net_name, net_cfg in list(networks.items())[1:]:
             aliases = net_cfg.get("Aliases") or []
-            _api(
+            s, r = _api(
                 "POST",
                 f"/v1.41/networks/{net_name}/connect",
                 {"Container": container_id, "EndpointConfig": {"Aliases": aliases}},
             )
+            _log.info("[restart_auth] connect réseau %s → HTTP %s", net_name, s)
 
         # 5. Démarrer le nouveau conteneur
-        _api("POST", f"/v1.41/containers/{container_id}/start")
+        s, r = _api("POST", f"/v1.41/containers/{container_id}/start")
+        _log.info("[restart_auth] start → HTTP %s — terminé", s)
 
-    except Exception:  # noqa: BLE001
-        pass  # non-fatal : le wizard continue, l'admin page gère le timeout
+    except Exception as exc:  # noqa: BLE001
+        _log.exception("[restart_auth] erreur inattendue : %s", exc)
 
 
 async def check_auth_service_health(auth_url: str) -> dict[str, Any]:
