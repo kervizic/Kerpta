@@ -142,10 +142,9 @@ def _run_alembic_upgrade() -> None:
 
 
 async def _ensure_platform_config(db_url: str) -> None:
-    """Crée l'entrée singleton platform_config si elle n'existe pas encore."""
+    """Crée ou met à jour l'entrée singleton platform_config après validation BDD."""
     engine = create_async_engine(db_url, echo=False)
     async with engine.begin() as conn:
-        # Vérifie si un enregistrement existe déjà
         result = await conn.execute(
             text("SELECT id FROM platform_config LIMIT 1")
         )
@@ -154,9 +153,19 @@ async def _ensure_platform_config(db_url: str) -> None:
             await conn.execute(
                 text(
                     "INSERT INTO platform_config (id, setup_completed, setup_step, updated_at) "
-                    "VALUES (:id, false, 1, NOW())"
+                    "VALUES (:id, false, 2, NOW())"
                 ),
                 {"id": str(uuid.uuid4())},
+            )
+        else:
+            # Avance l'étape à 2 minimum (sans rétrograder si déjà plus avancé)
+            await conn.execute(
+                text(
+                    "UPDATE platform_config "
+                    "SET setup_step = GREATEST(setup_step, 2), updated_at = NOW() "
+                    "WHERE id = :id"
+                ),
+                {"id": str(row[0])},
             )
     await engine.dispose()
 

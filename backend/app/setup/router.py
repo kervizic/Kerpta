@@ -157,17 +157,17 @@ async def setup_main(
 
 @router.get("/dbb", response_class=RedirectResponse)
 async def step1_compat() -> RedirectResponse:
-    return RedirectResponse(url="/setup/?tab=bdd", status_code=302)
+    return RedirectResponse(url="/setup/", status_code=302)
 
 
 @router.get("/oauth", response_class=RedirectResponse)
 async def step2_compat() -> RedirectResponse:
-    return RedirectResponse(url="/setup/?tab=oauth", status_code=302)
+    return RedirectResponse(url="/setup/", status_code=302)
 
 
 @router.get("/admin", response_class=RedirectResponse)
 async def step3_compat() -> RedirectResponse:
-    return RedirectResponse(url="/setup/?tab=admin", status_code=302)
+    return RedirectResponse(url="/setup/", status_code=302)
 
 
 # ── Étape 1 — Base de données ─────────────────────────────────────────────────
@@ -212,7 +212,7 @@ async def step1_post(
         )
         return templates.TemplateResponse("setup/index.html", ctx, status_code=500)
 
-    return RedirectResponse(url="/setup/?tab=oauth", status_code=303)
+    return RedirectResponse(url="/setup/", status_code=303)
 
 
 # ── Étape 2 — OAuth ───────────────────────────────────────────────────────────
@@ -258,11 +258,11 @@ async def step2_post(
             providers=providers, custom_oidc=custom_oidc,
         )
     except RuntimeError:
-        return RedirectResponse(url="/setup/?tab=bdd", status_code=303)
+        return RedirectResponse(url="/setup/", status_code=303)
 
     import threading
     threading.Thread(target=service.restart_auth_service, daemon=True).start()
-    return RedirectResponse(url="/setup/?tab=admin", status_code=303)
+    return RedirectResponse(url="/setup/", status_code=303)
 
 
 # ── API JSON ───────────────────────────────────────────────────────────────────

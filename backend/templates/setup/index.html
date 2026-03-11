@@ -192,6 +192,8 @@
           <div class="sm:col-span-2">
             <label class="block text-xs font-medium text-slate-600 mb-1.5" for="db_password">Mot de passe</label>
             <input id="db_password" name="db_password" type="password"
+              value="{{ prefill.db_password }}"
+              autocomplete="off"
               placeholder="••••••••••••"
               class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400
                      focus:outline-none focus:ring-2 focus:ring-kerpta-500 focus:border-transparent transition"/>
