@@ -27,13 +27,13 @@ import asyncpg
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
-# Chemin du .env — résolu depuis la racine du projet
-ENV_FILE = Path(__file__).resolve().parents[3] / ".env"
+# Chemin du .env — /app/.env dans Docker (parents[2] = /app)
+ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
 
-# Chemin de l'exécutable alembic (dans le venv)
-ALEMBIC_BIN = Path(__file__).resolve().parents[3] / ".venv" / "bin" / "alembic"
+# Chemin de l'exécutable alembic (dans le venv ou dans le PATH Docker)
+ALEMBIC_BIN = Path(__file__).resolve().parents[2] / ".venv" / "bin" / "alembic"
 if not ALEMBIC_BIN.exists():
-    ALEMBIC_BIN = Path("alembic")  # fallback PATH
+    ALEMBIC_BIN = Path("alembic")  # fallback PATH (Docker : alembic installé globalement)
 
 
 # ── Helpers .env ──────────────────────────────────────────────────────────────

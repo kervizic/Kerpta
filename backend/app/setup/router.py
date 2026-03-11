@@ -130,14 +130,26 @@ async def step1_post(
     # Génère un SECRET_KEY si pas encore défini
     secret_key = os.getenv("SECRET_KEY") or secrets.token_hex(32)
 
-    await service.save_database_config(
-        host=db_host,
-        port=db_port,
-        database=db_name,
-        user=db_user,
-        password=db_password,
-        secret_key=secret_key,
-    )
+    try:
+        await service.save_database_config(
+            host=db_host,
+            port=db_port,
+            database=db_name,
+            user=db_user,
+            password=db_password,
+            secret_key=secret_key,
+        )
+    except Exception as exc:  # noqa: BLE001
+        prefill = _env_prefill()
+        prefill.update(
+            {"db_host": db_host, "db_port": str(db_port), "db_name": db_name, "db_user": db_user}
+        )
+        return templates.TemplateResponse(
+            "setup/step1_database.html",
+            {"request": request, "prefill": prefill, "error": str(exc)},
+            status_code=500,
+        )
+
     return RedirectResponse(url="/setup/step2", status_code=303)
 
 
