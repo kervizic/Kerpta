@@ -70,6 +70,35 @@ _PROVIDER_LABELS = {
     "salesforce": "Salesforce",
 }
 
+# Correspondance provider → préfixe GOTRUE_EXTERNAL_* dans le .env
+_PROVIDER_ENV_KEYS = {
+    "google":     "GOOGLE",
+    "microsoft":  "MICROSOFT",
+    "apple":      "APPLE",
+    "github":     "GITHUB",
+    "linkedin":   "LINKEDIN",
+    "facebook":   "FACEBOOK",
+    "twitter":    "TWITTER",
+    "discord":    "DISCORD",
+    "salesforce": "SALESFORCE",
+}
+
+
+def _oauth_from_env() -> dict:
+    """Lit la config OAuth depuis les vars GOTRUE_EXTERNAL_* du .env comme fallback."""
+    result: dict = {}
+    for provider, env_key in _PROVIDER_ENV_KEYS.items():
+        client_id = os.getenv(f"GOTRUE_EXTERNAL_{env_key}_CLIENT_ID", "").strip()
+        secret = os.getenv(f"GOTRUE_EXTERNAL_{env_key}_SECRET", "").strip()
+        enabled = os.getenv(f"GOTRUE_EXTERNAL_{env_key}_ENABLED", "false").strip().lower() == "true"
+        if client_id or secret:
+            result[provider] = {
+                "enabled": enabled,
+                "client_id": client_id,
+                "client_secret": secret,
+            }
+    return result
+
 
 async def _build_context(
     request: Request,
@@ -98,6 +127,11 @@ async def _build_context(
                 auth_url = row[2] or auth_url
         except Exception:  # noqa: BLE001
             pass
+
+    # Fallback : pré-remplir depuis GOTRUE_EXTERNAL_* pour les providers absents de la BDD
+    for provider, cfg in _oauth_from_env().items():
+        if provider not in saved_oauth or not saved_oauth[provider].get("client_id"):
+            saved_oauth[provider] = cfg
 
     prefill = _env_prefill()
     prefill["app_base_url"] = base_url
