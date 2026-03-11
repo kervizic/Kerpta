@@ -241,7 +241,12 @@ async def save_oauth_config(
     _write_env(env_updates)
 
     # Mise à jour de platform_config
-    result = await db.execute(text("SELECT id FROM platform_config LIMIT 1"))
+    try:
+        result = await db.execute(text("SELECT id FROM platform_config LIMIT 1"))
+    except Exception as exc:
+        raise RuntimeError(
+            "La table platform_config n'existe pas — l'étape 1 (BDD) n'a pas encore été complétée."
+        ) from exc
     row = result.fetchone()
     if row:
         await db.execute(

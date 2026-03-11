@@ -228,13 +228,17 @@ async def step2_post(
             "issuer_url": str(form.get("custom_oidc_issuer_url", "")).strip(),
         }
 
-    await service.save_oauth_config(
-        db=db,
-        base_url=base_url,
-        auth_url=auth_url,
-        providers=providers,
-        custom_oidc=custom_oidc,
-    )
+    try:
+        await service.save_oauth_config(
+            db=db,
+            base_url=base_url,
+            auth_url=auth_url,
+            providers=providers,
+            custom_oidc=custom_oidc,
+        )
+    except RuntimeError as exc:
+        # platform_config absent → étape 1 non complétée
+        return RedirectResponse(url="/setup/dbb", status_code=303)
     return RedirectResponse(url="/setup/admin", status_code=303)
 
 
