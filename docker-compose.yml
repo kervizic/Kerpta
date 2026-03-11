@@ -55,8 +55,9 @@ services:
       GOTRUE_JWT_SECRET:       ${SUPABASE_JWT_SECRET:-changeme_dev_only_32chars_minimum}
       # Restreint les redirects OAuth à notre domaine uniquement
       GOTRUE_URI_ALLOW_LIST:   ${APP_BASE_URL:-http://localhost:3000}/**
-      # Désactivé par défaut ; le wizard le passe à "true" après création de l'admin
-      GOTRUE_DISABLE_SIGNUP:   ${GOTRUE_DISABLE_SIGNUP:-false}
+      # false = nouveaux utilisateurs autorisés via OAuth
+      # L'autorisation fine (qui a accès à quoi) est gérée par Kerpta côté app
+      GOTRUE_DISABLE_SIGNUP:   "false"
       GOTRUE_EXTERNAL_EMAIL_ENABLED: "false"
       PORT: "9999"
     ports:
