@@ -14,7 +14,9 @@ services:
   # ── Base de données ─────────────────────────────────────────────────────────
   postgres:
     container_name: kerpta-postgres
-    image: postgres:alpine
+    image: kerpta/postgres
+    build:
+      context: ./docker/postgres
     restart: unless-stopped
     <<: *kerpta-labels
     environment:
@@ -33,7 +35,9 @@ services:
   # ── Cache / Queue ───────────────────────────────────────────────────────────
   redis:
     container_name: kerpta-redis
-    image: redis:alpine
+    image: kerpta/redis
+    build:
+      context: ./docker/redis
     restart: unless-stopped
     <<: *kerpta-labels
     command: redis-server --appendonly yes
@@ -48,7 +52,9 @@ services:
   # ── Supabase Auth (GoTrue) ──────────────────────────────────────────────────
   supabase-auth:
     container_name: kerpta-auth
-    image: supabase/gotrue:v2.158.1
+    image: kerpta/auth
+    build:
+      context: ./docker/auth
     restart: unless-stopped
     <<: *kerpta-labels
     env_file:
