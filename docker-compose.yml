@@ -97,8 +97,9 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./backend:/app     # hot-reload en dev ; retirez en prod
-      - .env:/app/.env:rw  # le wizard écrit dans .env
+      - ./backend:/app                                # hot-reload en dev ; retirez en prod
+      - .env:/app/.env:rw                             # le wizard écrit dans .env
+      - /var/run/docker.sock:/var/run/docker.sock:ro  # restart GoTrue après config OAuth
     depends_on:
       postgres:
         condition: service_healthy

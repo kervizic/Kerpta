@@ -9,10 +9,23 @@
 {% endblock %}
 
 {% block content %}
-<div x-data="adminSetup('{{ auth_url }}', '{{ callback_url }}')" x-init="checkHash()">
+<div x-data="adminSetup('{{ auth_url }}', '{{ callback_url }}')" x-init="onInit()">
+
+  <!-- État : vérification GoTrue en cours (polling) -->
+  <div x-cloak x-show="state === 'checking'" class="py-8 text-center">
+    <div class="inline-flex flex-col items-center gap-4">
+      <svg class="w-10 h-10 text-kerpta-500 animate-spin" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+      </svg>
+      <div>
+        <p class="text-slate-600 font-medium" x-text="statusMsg">Vérification du service d'authentification…</p>
+        <p class="text-sm text-slate-400 mt-1">Redémarrage en cours après la configuration OAuth</p>
+      </div>
+    </div>
+  </div>
 
   <!-- État : en attente du clic OAuth -->
-  <div x-show="state === 'idle'">
+  <div x-cloak x-show="state === 'idle'">
 
     {% if enabled_providers %}
       <p class="mb-5 text-sm text-slate-600">
@@ -113,9 +126,55 @@
 <script>
 function adminSetup(authUrl, callbackUrl) {
   return {
-    state: 'idle',
-    statusMsg: 'Connexion en cours…',
+    state: 'checking',   // checking → idle (ou error si timeout)
+    statusMsg: 'Vérification du service d\'authentification…',
     errorMsg: '',
+
+    /**
+     * Point d'entrée appelé par x-init.
+     * Si l'URL contient un fragment OAuth (#access_token=…), on traite le
+     * callback directement. Sinon, on attend que GoTrue soit prêt.
+     */
+    async onInit() {
+      const hash = window.location.hash
+      if (hash && (hash.includes('access_token') || hash.includes('error'))) {
+        // Retour du callback OAuth — traiter le token immédiatement
+        await this.handleCallback()
+      } else {
+        // Première visite — attendre que GoTrue soit opérationnel
+        await this.waitForAuth()
+      }
+    },
+
+    /**
+     * Interroge /setup/api/auth-health toutes les 2 s jusqu'à ce que GoTrue
+     * réponde 200 (max 60 s). GoTrue vient d'être redémarré après l'étape 2.
+     */
+    async waitForAuth() {
+      this.state = 'checking'
+      const maxAttempts = 30   // 30 × 2 s = 60 s
+      for (let i = 0; i < maxAttempts; i++) {
+        try {
+          const r = await fetch('/setup/api/auth-health')
+          const data = await r.json()
+          if (data.ok) {
+            this.state = 'idle'
+            return
+          }
+        } catch (e) {
+          // GoTrue pas encore prêt — continuer
+        }
+        const remaining = maxAttempts - i - 1
+        this.statusMsg = `Démarrage du service d'authentification… (${i + 1}/${maxAttempts})`
+        await new Promise(resolve => setTimeout(resolve, 2000))
+      }
+      // Timeout : montrer un message d'erreur avec commande manuelle
+      this.state = 'error'
+      this.errorMsg =
+        'Le service d\'authentification n\'a pas répondu dans les délais. ' +
+        'Relancez-le manuellement sur le serveur : ' +
+        'docker compose restart supabase-auth'
+    },
 
     /**
      * Redirige vers Supabase Auth pour le provider choisi.
@@ -131,17 +190,14 @@ function adminSetup(authUrl, callbackUrl) {
     },
 
     /**
-     * Appelé au chargement de la page après le callback OAuth.
-     * Supabase Auth écrit le token dans le fragment URL (#access_token=...).
+     * Traite le fragment URL après callback OAuth.
+     * Supabase Auth écrit le token dans #access_token=xxx&token_type=bearer&...
      */
-    async checkHash() {
+    async handleCallback() {
       const hash = window.location.hash
-      if (!hash || !hash.includes('access_token')) return
-
       this.state = 'processing'
       this.statusMsg = 'Finalisation du compte administrateur…'
 
-      // Parse le fragment
       const params = new URLSearchParams(hash.substring(1))
       const accessToken = params.get('access_token')
       const errorDesc = params.get('error_description')
@@ -169,7 +225,6 @@ function adminSetup(authUrl, callbackUrl) {
         const data = await res.json()
         if (data.ok) {
           this.state = 'success'
-          // Nettoie le hash puis redirige
           history.replaceState(null, '', window.location.pathname)
           setTimeout(() => { window.location.href = data.redirect || '/' }, 1500)
         } else {

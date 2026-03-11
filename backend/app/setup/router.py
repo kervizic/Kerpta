@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import os
 import secrets
+import threading
 import uuid
 from typing import Any
 
@@ -239,6 +240,11 @@ async def step2_post(
     except RuntimeError as exc:
         # platform_config absent → étape 1 non complétée
         return RedirectResponse(url="/setup/dbb", status_code=303)
+
+    # Redémarre GoTrue en arrière-plan pour qu'il recharge la config OAuth
+    # (GOTRUE_EXTERNAL_* écrites dans .env par save_oauth_config)
+    threading.Thread(target=service.restart_auth_service, daemon=True).start()
+
     return RedirectResponse(url="/setup/admin", status_code=303)
 
 
@@ -298,6 +304,28 @@ async def api_status(db: AsyncSession = Depends(get_db)) -> JSONResponse:
     """Statut du setup — utilisé par le middleware de redirection."""
     data = await service.get_setup_status(db)
     return JSONResponse(data)
+
+
+@router.get("/api/auth-health")
+async def api_auth_health(db: AsyncSession = Depends(get_db)) -> JSONResponse:
+    """Vérifie que GoTrue est opérationnel — utilisé par l'étape 3 (polling JS).
+
+    L'admin page appelle cet endpoint toutes les 2 s après l'étape 2 jusqu'à
+    ce que GoTrue soit prêt (il redémarre pour recharger la config OAuth).
+    """
+    try:
+        result = await db.execute(
+            text("SELECT auth_url FROM platform_config LIMIT 1")
+        )
+        row = result.fetchone()
+    except Exception:  # noqa: BLE001
+        return JSONResponse({"ok": False, "reason": "BDD non configurée"})
+
+    if not row or not row[0]:
+        return JSONResponse({"ok": False, "reason": "auth_url non configuré"})
+
+    health = await service.check_auth_service_health(row[0])
+    return JSONResponse(health)
 
 
 @router.post("/api/test-db")

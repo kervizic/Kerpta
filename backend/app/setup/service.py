@@ -161,6 +161,58 @@ async def _ensure_platform_config(db_url: str) -> None:
     await engine.dispose()
 
 
+# ── Restart GoTrue ────────────────────────────────────────────────────────────
+
+
+def restart_auth_service() -> None:
+    """Redémarre kerpta-auth via l'API Docker Unix socket (sans docker CLI).
+
+    Appellé dans un thread daemon après save_oauth_config pour que GoTrue
+    recharge ses variables d'environnement OAuth (GOTRUE_EXTERNAL_*).
+    Échoue silencieusement si le socket Docker n'est pas disponible.
+    """
+    import http.client
+    import socket as _socket
+
+    class _UnixConn(http.client.HTTPConnection):
+        def connect(self) -> None:
+            self.sock = _socket.socket(_socket.AF_UNIX, _socket.SOCK_STREAM)
+            self.sock.settimeout(5)
+            self.sock.connect("/var/run/docker.sock")
+
+    try:
+        conn = _UnixConn("localhost")
+        # t=10 : GoTrue a 10 s pour s'arrêter proprement avant SIGKILL
+        conn.request("POST", "/v1.41/containers/kerpta-auth/restart?t=10")
+        resp = conn.getresponse()
+        resp.read()  # consomme le body pour libérer la connexion
+        conn.close()
+    except Exception:  # noqa: BLE001
+        pass  # non-fatal : le wizard continue, l'admin page gère le timeout
+
+
+async def check_auth_service_health(auth_url: str) -> dict[str, Any]:
+    """Vérifie que GoTrue est accessible (GET /auth/v1/health).
+
+    Returns:
+        {"ok": True}  si GoTrue répond 200
+        {"ok": False, "reason": "..."} sinon
+    """
+    import httpx
+
+    if not auth_url:
+        return {"ok": False, "reason": "auth_url non configuré"}
+
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            r = await client.get(f"{auth_url.rstrip('/')}/auth/v1/health")
+            if r.status_code == 200:
+                return {"ok": True}
+            return {"ok": False, "reason": f"HTTP {r.status_code}"}
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "reason": str(exc)}
+
+
 # ── Étape 2 — OAuth ───────────────────────────────────────────────────────────
 
 
