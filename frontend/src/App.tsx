@@ -1,23 +1,7 @@
-import { useEffect } from 'react'
-
+// App principale Kerpta — le routing setup est géré par FastAPI + nginx,
+// pas par React. Si le setup n'est pas terminé, FastAPI redirige vers
+// /setup/dbb avant que cette app ne soit servie.
 export default function App() {
-  useEffect(() => {
-    // Vérifie si le setup est terminé au chargement de l'app
-    fetch('/setup/api/status')
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.setup_completed || !data.has_admin) {
-          const stepPaths: Record<number, string> = { 1: 'dbb', 2: 'oauth', 3: 'admin' }
-          const step = data.setup_step ?? 1
-          window.location.href = `/setup/${stepPaths[step] ?? 'dbb'}`
-        }
-      })
-      .catch(() => {
-        // DB inaccessible → wizard étape BDD
-        window.location.href = '/setup/dbb'
-      })
-  }, [])
-
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: 'sans-serif' }}>
       <div style={{ textAlign: 'center' }}>
