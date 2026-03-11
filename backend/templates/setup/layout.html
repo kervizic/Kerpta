@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr" class="h-full bg-slate-50">
+<html lang="fr" class="bg-slate-50">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -39,7 +39,7 @@
   </style>
 </head>
 
-<body class="h-full flex flex-col items-center justify-start pt-12 px-4">
+<body class="min-h-screen flex flex-col items-center justify-start pt-12 px-4 pb-12">
 
   <!-- En-tête logo -->
   <div class="mb-8 text-center">
@@ -92,7 +92,7 @@
   </div>
 
   <!-- Carte principale -->
-  <div class="w-full max-w-2xl bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden">
+  <div class="w-full max-w-2xl bg-white rounded-2xl shadow-lg border border-slate-100">
     <!-- En-tête de l'étape -->
     <div class="px-8 pt-8 pb-6 border-b border-slate-100">
       <h1 class="text-xl font-bold text-slate-900">{% block step_title %}{% endblock %}</h1>
