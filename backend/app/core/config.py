@@ -6,7 +6,7 @@ import json
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Literal
+from typing import Any, Literal
 
 
 class Settings(BaseSettings):
@@ -52,8 +52,10 @@ class Settings(BaseSettings):
     CELERY_BROKER_URL: str = "redis://redis:6379/0"
     CELERY_RESULT_BACKEND: str = "redis://redis:6379/1"
 
-    # CORS — accepte JSON array OU liste séparée par des virgules
-    CORS_ORIGINS: list[str] = ["http://localhost:5173"]
+    # CORS — type Any pour contourner le json.loads() automatique de pydantic_settings
+    # sur les types complexes (list). Le validator gère tous les formats possibles :
+    # JSON array, crochets sans guillemets, virgules.
+    CORS_ORIGINS: Any = ["http://localhost:5173"]
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
@@ -63,11 +65,16 @@ class Settings(BaseSettings):
         if isinstance(v, str):
             v = v.strip()
             if v.startswith("["):
-                return json.loads(v)
-            # Valeur vide ou placeholder
-            if not v or v in ("-", "[]"):
+                try:
+                    # JSON valide : ["http://..."]
+                    result = json.loads(v)
+                    if isinstance(result, list):
+                        return result
+                except json.JSONDecodeError:
+                    # Crochets sans guillemets : [http://a.com,https://b.com]
+                    v = v.strip("[]")
+            if not v or v in ("-",):
                 return []
-            # Séparée par des virgules : "http://a.com,https://b.com"
             return [origin.strip() for origin in v.split(",") if origin.strip()]
         return []
 
