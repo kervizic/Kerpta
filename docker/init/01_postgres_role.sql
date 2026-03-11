@@ -1,19 +1,9 @@
 -- Kerpta — Script d'initialisation PostgreSQL
--- Exécuté automatiquement par postgres:18-alpine au premier démarrage
+-- Exécuté automatiquement par postgres:alpine au premier démarrage
 -- (uniquement si le répertoire data est vide)
 --
--- Objectif : GoTrue (Supabase Auth) exige que le rôle "postgres" existe pour
--- y accorder des permissions via ses migrations RLS.
--- Notre superuser étant "kerpta" (défini via POSTGRES_USER), on crée le rôle
--- "postgres" comme alias superuser pour satisfaire GoTrue.
+-- Objectif : GoTrue (Supabase Auth) exige que le schéma "auth" existe avant
+-- de lancer ses propres migrations. On le pré-crée ici pour éviter l'erreur :
+--   ERROR: schema "auth" does not exist (SQLSTATE 3F000)
 
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'postgres') THEN
-        CREATE ROLE postgres WITH SUPERUSER;
-        RAISE NOTICE 'Rôle postgres créé (alias superuser pour GoTrue).';
-    ELSE
-        RAISE NOTICE 'Rôle postgres déjà existant — aucune action.';
-    END IF;
-END
-$$;
+CREATE SCHEMA IF NOT EXISTS auth;

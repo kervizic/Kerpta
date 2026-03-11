@@ -75,7 +75,7 @@ async def setup_index(db: AsyncSession = Depends(get_db)) -> RedirectResponse:
     """Redirige vers la bonne étape selon l'état du setup."""
     status_data = await service.get_setup_status(db)
     if not status_data["db_reachable"]:
-        return RedirectResponse(url="/setup/step1", status_code=302)
+        return RedirectResponse(url="/setup/dbb", status_code=302)
     if status_data["setup_completed"] and status_data["has_admin"]:
         return RedirectResponse(url="/", status_code=302)
     _step_paths = {1: "dbb", 2: "oauth", 3: "admin"}

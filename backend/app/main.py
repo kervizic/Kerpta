@@ -57,7 +57,7 @@ class SetupRedirectMiddleware(BaseHTTPMiddleware):
             from app.core.database import AsyncSessionLocal
 
             if not settings.DATABASE_URL:
-                return RedirectResponse(url="/setup/step1", status_code=302)
+                return RedirectResponse(url="/setup/dbb", status_code=302)
 
             async with AsyncSessionLocal() as db:
                 result = await db.execute(
@@ -71,7 +71,7 @@ class SetupRedirectMiddleware(BaseHTTPMiddleware):
 
         except Exception:
             # DB inaccessible → redirection vers le wizard
-            return RedirectResponse(url="/setup/step1", status_code=302)
+            return RedirectResponse(url="/setup/dbb", status_code=302)
 
         return await call_next(request)
 
