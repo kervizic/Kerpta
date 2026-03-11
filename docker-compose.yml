@@ -2,21 +2,19 @@
 # Usage dev  : docker compose up --build
 # Usage prod : POSTGRES_PASSWORD=xxx docker compose up -d
 #
-# Variables obligatoires en prod (via .env ou variables d'env) :
+# Variables obligatoires en prod (via .env ou install.sh) :
 #   SECRET_KEY, POSTGRES_PASSWORD, SUPABASE_JWT_SECRET
-# Tout le reste a des valeurs par défaut utilisables en dev.
 
 services:
 
   # ── Base de données ─────────────────────────────────────────────────────────
   postgres:
+    container_name: kerpta-postgres
     image: postgres:alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB:       ${POSTGRES_DB:-kerpta}
-      # On garde le superuser postgres par défaut — GoTrue en a besoin pour
-      # ses migrations RLS (GRANT ... TO postgres).
-      POSTGRES_USER:     postgres
+      POSTGRES_USER:     postgres          # superuser par défaut — exigé par GoTrue
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kerpta_dev}
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -28,6 +26,7 @@ services:
 
   # ── Cache / Queue ───────────────────────────────────────────────────────────
   redis:
+    container_name: kerpta-redis
     image: redis:alpine
     restart: unless-stopped
     command: redis-server --appendonly yes
@@ -39,8 +38,36 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── Supabase Auth (GoTrue) ──────────────────────────────────────────────────
+  supabase-auth:
+    container_name: kerpta-auth
+    image: supabase/gotrue
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      GOTRUE_DB_DRIVER:        postgres
+      GOTRUE_DB_DATABASE_URL:  postgresql://postgres:${POSTGRES_PASSWORD:-kerpta_dev}@postgres:5432/${POSTGRES_DB:-kerpta}
+      GOTRUE_SITE_URL:         ${APP_BASE_URL:-http://localhost:3000}
+      API_EXTERNAL_URL:        ${AUTH_BASE_URL:-http://localhost:9999}
+      GOTRUE_API_EXTERNAL_URL: ${AUTH_BASE_URL:-http://localhost:9999}
+      GOTRUE_JWT_SECRET:       ${SUPABASE_JWT_SECRET:-changeme_dev_only_32chars_minimum}
+      # Restreint les redirects OAuth à notre domaine uniquement
+      GOTRUE_URI_ALLOW_LIST:   ${APP_BASE_URL:-http://localhost:3000}/**
+      # Désactivé par défaut ; le wizard le passe à "true" après création de l'admin
+      GOTRUE_DISABLE_SIGNUP:   ${GOTRUE_DISABLE_SIGNUP:-false}
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "false"
+      PORT: "9999"
+    ports:
+      - "9999:9999"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   # ── API FastAPI ─────────────────────────────────────────────────────────────
   api:
+    container_name: kerpta-api
     image: kerpta/api
     build:
       context: ./backend
@@ -48,7 +75,7 @@ services:
     restart: unless-stopped
     env_file:
       - path: .env
-        required: false        # pas obligatoire si tout passe par l'env Docker
+        required: false
     environment:
       DATABASE_URL:          postgresql+asyncpg://postgres:${POSTGRES_PASSWORD:-kerpta_dev}@postgres:5432/${POSTGRES_DB:-kerpta}
       REDIS_URL:             redis://redis:6379/0
@@ -59,8 +86,7 @@ services:
       SUPABASE_JWT_SECRET:   ${SUPABASE_JWT_SECRET:-}
       APP_BASE_URL:          ${APP_BASE_URL:-http://localhost:3000}
       AUTH_BASE_URL:         ${AUTH_BASE_URL:-http://localhost:9999}
-      # Variables individuelles pour pré-remplir le wizard de setup (/setup/dbb)
-      # "postgres" = nom DNS du service sur le réseau Docker interne
+      # Pré-remplissage du wizard /setup/dbb
       POSTGRES_HOST:         postgres
       POSTGRES_PORT:         "5432"
       POSTGRES_DB:           ${POSTGRES_DB:-kerpta}
@@ -69,7 +95,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./backend:/app     # hot-reload en dev ; retirez ce volume en prod
+      - ./backend:/app     # hot-reload en dev ; retirez en prod
       - .env:/app/.env:rw  # le wizard écrit dans .env
     depends_on:
       postgres:
@@ -80,6 +106,7 @@ services:
 
   # ── Worker Celery ───────────────────────────────────────────────────────────
   worker:
+    container_name: kerpta-worker
     image: kerpta/worker
     build:
       context: ./backend
@@ -101,10 +128,9 @@ services:
       - redis
     command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=2
 
-  # ── Frontend React (nginx reverse proxy) ────────────────────────────────────
-  # En dev  : Vite dev server avec hot-reload
-  # En prod : build statique servi par nginx + proxy vers api:8000
+  # ── Frontend React ───────────────────────────────────────────────────────────
   frontend:
+    container_name: kerpta-frontend
     image: kerpta/frontend
     build:
       context: ./frontend
@@ -114,44 +140,17 @@ services:
       - "3000:3000"
     depends_on:
       - api
-    # En dev, remplacer l'image buildée par le dev server Vite :
-    #   docker compose run --rm --service-ports frontend sh -c "npm install && npm run dev -- --host"
-
-  # ── Supabase Auth (GoTrue) ──────────────────────────────────────────────────
-  supabase-auth:
-    image: supabase/gotrue
-    restart: unless-stopped
-    env_file:
-      - path: .env
-        required: false
-    environment:
-      GOTRUE_DB_DRIVER:        postgres
-      GOTRUE_DB_DATABASE_URL:  postgresql://postgres:${POSTGRES_PASSWORD:-kerpta_dev}@postgres:5432/${POSTGRES_DB:-kerpta}
-      GOTRUE_SITE_URL:         ${APP_BASE_URL:-http://localhost:3000}
-      # GoTrue v2 requiert API_EXTERNAL_URL (sans préfixe) ET GOTRUE_API_EXTERNAL_URL
-      API_EXTERNAL_URL:        ${AUTH_BASE_URL:-http://localhost:9999}
-      GOTRUE_API_EXTERNAL_URL: ${AUTH_BASE_URL:-http://localhost:9999}
-      GOTRUE_JWT_SECRET:       ${SUPABASE_JWT_SECRET:-changeme_dev_only_32chars_minimum}
-      GOTRUE_DISABLE_SIGNUP:   "false"
-      # Email/password désactivé — OAuth uniquement
-      GOTRUE_EXTERNAL_EMAIL_ENABLED: "false"
-      PORT: "9999"
-    ports:
-      - "9999:9999"
-    depends_on:
-      postgres:
-        condition: service_healthy
 
   # ── DocuSeal — signature électronique (optionnel) ───────────────────────────
-  # Décommenter si le module e-signature est activé pour l'instance.
   # docuseal:
-  #   image: docuseal/docuseal:latest
+  #   container_name: kerpta-docuseal
+  #   image: docuseal/docuseal
   #   restart: unless-stopped
   #   volumes:
   #     - docuseal_data:/data
   #   environment:
-  #     DATABASE_URL:     ${DATABASE_URL}
-  #     SECRET_KEY_BASE:  ${DOCUSEAL_SECRET_KEY}
+  #     DATABASE_URL:    ${DATABASE_URL}
+  #     SECRET_KEY_BASE: ${DOCUSEAL_SECRET_KEY}
   #   ports:
   #     - "3001:3000"
 
