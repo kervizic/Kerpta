@@ -148,27 +148,28 @@ function adminSetup(authUrl, callbackUrl) {
      * Supabase Auth écrit le token dans #access_token=xxx&token_type=bearer&...
      */
     async handleCallback() {
-      const hash = window.location.hash
       this.state = 'processing'
       this.statusMsg = 'Finalisation du compte administrateur…'
 
-      const params = new URLSearchParams(hash.substring(1))
-      const accessToken = params.get('access_token')
-      const errorDesc = params.get('error_description')
-
-      if (errorDesc) {
-        this.state = 'error'
-        this.errorMsg = decodeURIComponent(errorDesc.replace(/\+/g, ' '))
-        return
-      }
-
-      if (!accessToken) {
-        this.state = 'error'
-        this.errorMsg = 'Token d\'accès introuvable dans la réponse OAuth.'
-        return
-      }
-
       try {
+        const hash = window.location.hash
+        const params = new URLSearchParams(hash.substring(1))
+        const accessToken = params.get('access_token')
+        // URLSearchParams décode déjà les % — ne pas appeler decodeURIComponent dessus
+        const errorDesc = params.get('error_description') || params.get('error')
+
+        if (errorDesc) {
+          this.state = 'error'
+          this.errorMsg = errorDesc
+          return
+        }
+
+        if (!accessToken) {
+          this.state = 'error'
+          this.errorMsg = 'Token d\'accès introuvable dans la réponse OAuth. Fragment reçu : ' + (hash || '(vide)')
+          return
+        }
+
         const res = await fetch('/setup/api/finalize', {
           method: 'POST',
           headers: {
@@ -176,14 +177,25 @@ function adminSetup(authUrl, callbackUrl) {
             'Authorization': `Bearer ${accessToken}`,
           },
         })
-        const data = await res.json()
+
+        // Lire le body en texte d'abord pour éviter l'erreur Safari sur res.json()
+        const text = await res.text()
+        let data
+        try {
+          data = JSON.parse(text)
+        } catch {
+          this.state = 'error'
+          this.errorMsg = `Réponse invalide du serveur (HTTP ${res.status}) : ${text.substring(0, 200)}`
+          return
+        }
+
         if (data.ok) {
           this.state = 'success'
           history.replaceState(null, '', window.location.pathname)
           setTimeout(() => { window.location.href = data.redirect || '/' }, 1500)
         } else {
           this.state = 'error'
-          this.errorMsg = data.error || 'Erreur inconnue lors de la finalisation.'
+          this.errorMsg = data.error || data.detail || 'Erreur inconnue lors de la finalisation.'
         }
       } catch (e) {
         this.state = 'error'

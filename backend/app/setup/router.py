@@ -414,7 +414,11 @@ async def api_finalize(
 
     token = auth_header[7:]
     try:
-        payload = jwt.decode(token, options={"verify_signature": False})
+        payload = jwt.decode(
+            token,
+            algorithms=["HS256", "RS256", "ES256"],
+            options={"verify_signature": False},
+        )
     except Exception as exc:  # noqa: BLE001
         return JSONResponse({"ok": False, "error": f"Token invalide : {exc}"}, status_code=401)
 
@@ -430,9 +434,15 @@ async def api_finalize(
     full_name: str | None = user_meta.get("full_name") or user_meta.get("name")
     avatar_url: str | None = user_meta.get("avatar_url") or user_meta.get("picture")
 
-    await service.finalize_setup(
-        db=db, supabase_user_id=user_id, email=email,
-        full_name=full_name, avatar_url=avatar_url,
-    )
+    try:
+        await service.finalize_setup(
+            db=db, supabase_user_id=user_id, email=email,
+            full_name=full_name, avatar_url=avatar_url,
+        )
+    except Exception as exc:  # noqa: BLE001
+        return JSONResponse(
+            {"ok": False, "error": f"Erreur lors de la création de l'administrateur : {exc}"},
+            status_code=500,
+        )
 
     return JSONResponse({"ok": True, "redirect": "/"})
