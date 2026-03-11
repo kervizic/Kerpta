@@ -451,7 +451,7 @@ def upgrade() -> None:
         sa.Column(
             "quote_id",
             postgresql.UUID(as_uuid=True),
-            sa.ForeignKey("quotes.id"),
+            # FK ajoutée en différé après la création de quotes (dépendance circulaire)
             nullable=True,
         ),
         sa.Column("number", sa.String(50), unique=True, nullable=False),
@@ -552,6 +552,13 @@ def upgrade() -> None:
             server_default=sa.func.now(),
             nullable=False,
         ),
+    )
+
+    # FK différée : invoices.quote_id → quotes.id (dépendance circulaire résolue)
+    op.create_foreign_key(
+        "fk_invoices_quote_id",
+        "invoices", "quotes",
+        ["quote_id"], ["id"],
     )
 
     # ── quote_lines ──────────────────────────────────────────────────────────
