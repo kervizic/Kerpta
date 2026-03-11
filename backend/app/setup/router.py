@@ -18,9 +18,9 @@ Routes :
 
 from __future__ import annotations
 
+import asyncio
 import os
 import secrets
-import threading
 import uuid
 from typing import Any
 
@@ -241,9 +241,11 @@ async def step2_post(
         # platform_config absent → étape 1 non complétée
         return RedirectResponse(url="/setup/dbb", status_code=303)
 
-    # Redémarre GoTrue en arrière-plan pour qu'il recharge la config OAuth
-    # (GOTRUE_EXTERNAL_* écrites dans .env par save_oauth_config)
-    threading.Thread(target=service.restart_auth_service, daemon=True).start()
+    # Redémarre GoTrue (bloquant ~1 s pour l'envoi du signal Docker)
+    # puis attend qu'il soit de nouveau opérationnel (max ~30 s).
+    # Le navigateur voit le formulaire "en chargement" — pas de polling côté client.
+    await asyncio.to_thread(service.restart_auth_service)
+    await service.wait_for_auth_service()
 
     return RedirectResponse(url="/setup/admin", status_code=303)
 
