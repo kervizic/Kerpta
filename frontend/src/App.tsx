@@ -7,13 +7,14 @@ export default function App() {
       .then((res) => res.json())
       .then((data) => {
         if (!data.setup_completed || !data.has_admin) {
+          const stepPaths: Record<number, string> = { 1: 'dbb', 2: 'oauth', 3: 'admin' }
           const step = data.setup_step ?? 1
-          window.location.href = `/setup/step${step}`
+          window.location.href = `/setup/${stepPaths[step] ?? 'dbb'}`
         }
       })
       .catch(() => {
-        // DB inaccessible → wizard étape 1
-        window.location.href = '/setup/step1'
+        // DB inaccessible → wizard étape BDD
+        window.location.href = '/setup/dbb'
       })
   }, [])
 
