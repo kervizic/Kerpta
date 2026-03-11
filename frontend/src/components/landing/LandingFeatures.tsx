@@ -1,10 +1,11 @@
 // Kerpta — Section Fonctionnalités
+import type { ComponentType } from 'react'
 import {
   FileText, ShoppingCart, Landmark, Users, PenTool,
   BarChart3, Globe, HardDrive,
 } from 'lucide-react'
 
-const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+const ICON_MAP: Record<string, ComponentType<{ className?: string }>> = {
   FileText, ShoppingCart, Landmark, Users, PenTool, BarChart3, Globe, HardDrive,
 }
 

@@ -1,4 +1,5 @@
 // Kerpta — Pied de page
+import type { ElementType } from 'react'
 import { Github, BookOpen, Bug } from 'lucide-react'
 
 interface FooterLink {
@@ -13,7 +14,7 @@ interface FooterContent {
   license_text?: string
 }
 
-const ICON_MAP: Record<string, React.ElementType> = {
+const ICON_MAP: Record<string, ElementType> = {
   Github,
   BookOpen,
   Bug,

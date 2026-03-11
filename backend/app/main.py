@@ -91,9 +91,37 @@ class SetupRedirectMiddleware(BaseHTTPMiddleware):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Gestion du cycle de vie — reset contenu si KERPTA_DEV_RESET_CONTENT=true."""
+    """Gestion du cycle de vie.
+
+    Au démarrage :
+    1. Lance alembic upgrade head pour appliquer les nouvelles migrations.
+    2. Si KERPTA_DEV_RESET_CONTENT=true, supprime et re-seed platform_content.
+    """
+    import subprocess
+
+    db_url = settings.DATABASE_URL
+
+    # ── 1. Migrations Alembic ─────────────────────────────────────────────────
+    if db_url:
+        try:
+            result = subprocess.run(
+                ["alembic", "upgrade", "head"],
+                cwd="/app",
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            if result.returncode == 0:
+                _log.info("[startup] Migrations Alembic appliquées avec succès")
+            else:
+                _log.warning("[startup] Alembic a retourné une erreur : %s", result.stderr)
+        except FileNotFoundError:
+            _log.warning("[startup] Commande alembic introuvable — migrations ignorées")
+        except Exception as exc:  # noqa: BLE001
+            _log.warning("[startup] Impossible de lancer alembic : %s", exc)
+
+    # ── 2. Reset contenu vitrine (dev uniquement) ─────────────────────────────
     if os.getenv("KERPTA_DEV_RESET_CONTENT", "").lower() == "true":
-        db_url = settings.DATABASE_URL
         if db_url:
             try:
                 from app.platform.service import reset_and_seed_content
@@ -105,6 +133,7 @@ async def lifespan(app: FastAPI):
                 _log.error("[DEV] Échec reset contenu : %s", exc)
         else:
             _log.warning("[DEV] KERPTA_DEV_RESET_CONTENT ignoré : DATABASE_URL non configuré")
+
     yield
 
 

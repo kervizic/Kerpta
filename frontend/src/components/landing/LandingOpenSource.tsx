@@ -1,4 +1,5 @@
 // Kerpta — Section Installation open source
+import type { ElementType } from 'react'
 import { Terminal, Github, Server, Package, Globe, Copy, Check } from 'lucide-react'
 import { useState } from 'react'
 
@@ -22,7 +23,7 @@ interface OpenSourceContent {
   steps?: Step[]
 }
 
-const ICON_MAP: Record<string, React.ElementType> = {
+const ICON_MAP: Record<string, ElementType> = {
   Server,
   Package,
   Globe,
