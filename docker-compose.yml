@@ -5,6 +5,10 @@
 # Variables obligatoires en prod (via .env ou install.sh) :
 #   SECRET_KEY, POSTGRES_PASSWORD, SUPABASE_JWT_SECRET
 
+x-kerpta-labels: &kerpta-labels
+  labels:
+    com.kerpta.project: kerpta
+
 services:
 
   # ── Base de données ─────────────────────────────────────────────────────────
@@ -12,6 +16,7 @@ services:
     container_name: kerpta-postgres
     image: postgres:alpine
     restart: unless-stopped
+    <<: *kerpta-labels
     environment:
       POSTGRES_DB:       ${POSTGRES_DB:-kerpta}
       POSTGRES_USER:     postgres          # superuser par défaut — exigé par GoTrue
@@ -30,6 +35,7 @@ services:
     container_name: kerpta-redis
     image: redis:alpine
     restart: unless-stopped
+    <<: *kerpta-labels
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
@@ -44,6 +50,7 @@ services:
     container_name: kerpta-auth
     image: supabase/gotrue:v2.158.1
     restart: unless-stopped
+    <<: *kerpta-labels
     env_file:
       - path: .env
         required: false
@@ -75,6 +82,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
+    <<: *kerpta-labels
     env_file:
       - path: .env
         required: false
@@ -117,6 +125,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
+    <<: *kerpta-labels
     env_file:
       - path: .env
         required: false
@@ -141,6 +150,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     restart: unless-stopped
+    <<: *kerpta-labels
     ports:
       - "3000:3000"
     depends_on:
@@ -151,6 +161,7 @@ services:
   #   container_name: kerpta-docuseal
   #   image: docuseal/docuseal
   #   restart: unless-stopped
+  #   <<: *kerpta-labels
   #   volumes:
   #     - docuseal_data:/data
   #   environment:
