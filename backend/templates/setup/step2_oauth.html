@@ -79,6 +79,7 @@
           name="auth_url"
           type="url"
           required
+          x-model="authUrl"
           placeholder="https://auth.kerpta.fr"
           value="{{ prefill.auth_base_url }}"
           class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900
@@ -300,12 +301,31 @@
 
   </div><!-- /grid providers -->
 
-  <!-- Note info -->
+  <!-- Note info — URL de callback dynamique -->
   <div class="mt-5 rounded-lg bg-kerpta-50 border border-kerpta-200 px-4 py-3 text-xs text-kerpta-700">
-    <p class="font-semibold mb-1">💡 Configuration dans la console du fournisseur</p>
-    <p>
-      Pour chaque provider activé, ajoutez cette URL de callback dans la console OAuth :
-      <code class="font-mono bg-kerpta-100 px-1 rounded">{BASE_URL}/auth/v1/callback</code>
+    <p class="font-semibold mb-2">💡 Configuration dans la console du fournisseur</p>
+    <p class="mb-2">Pour chaque provider activé, ajoutez cette URL de callback :</p>
+    <div class="flex items-center gap-2" x-data="{ copied: false }">
+      <code
+        class="flex-1 font-mono bg-kerpta-100 px-2 py-1.5 rounded text-kerpta-800 break-all"
+        x-text="(authUrl || '').replace(/\\/+$/, '') + '/auth/v1/callback'"
+      ></code>
+      <button
+        type="button"
+        @click="navigator.clipboard.writeText((authUrl || '').replace(/\/+$/, '') + '/auth/v1/callback'); copied = true; setTimeout(() => copied = false, 2000)"
+        class="shrink-0 p-1.5 rounded-lg hover:bg-kerpta-200 transition"
+        title="Copier"
+      >
+        <svg x-show="!copied" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+        </svg>
+        <svg x-show="copied" x-cloak class="w-3.5 h-3.5 text-green-600" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/>
+        </svg>
+      </button>
+    </div>
+    <p x-show="!authUrl" x-cloak class="mt-1.5 text-kerpta-500 italic">
+      ↑ Renseignez l'URL Supabase Auth pour voir l'URL de callback.
     </p>
   </div>
 
@@ -337,7 +357,9 @@
 
 <script>
 function oauthForm() {
-  return {}
+  return {
+    authUrl: '{{ prefill.auth_base_url | default("", true) }}',
+  }
 }
 </script>
 {% endblock %}
