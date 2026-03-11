@@ -503,13 +503,12 @@ async def finalize_setup(
     await db.execute(
         text(
             """
-            INSERT INTO users (id, email, full_name, avatar_url, is_platform_admin, created_at, updated_at)
-            VALUES (:id, :email, :name, :avatar, true, NOW(), NOW())
+            INSERT INTO users (id, email, full_name, avatar_url, is_platform_admin, created_at)
+            VALUES (:id, :email, :name, :avatar, true, NOW())
             ON CONFLICT (id) DO UPDATE
               SET is_platform_admin = true,
                   email = EXCLUDED.email,
-                  full_name = EXCLUDED.full_name,
-                  updated_at = NOW()
+                  full_name = EXCLUDED.full_name
             """
         ),
         {

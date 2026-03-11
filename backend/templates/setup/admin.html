@@ -15,7 +15,16 @@
   <div x-show="state === 'idle'">
 
     {% if enabled_providers %}
-      <p class="mb-5 text-sm text-slate-600">
+
+      <!-- Avertissement GoTrue indisponible -->
+      <div x-show="!authReady" x-cloak class="mb-5 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 flex items-center gap-3">
+        <svg class="w-5 h-5 text-amber-500 shrink-0 animate-spin" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+        <p class="text-sm text-amber-800">Service d'authentification en cours de démarrage… (<span x-text="authCheckCount"></span>)</p>
+      </div>
+
+      <p x-show="authReady" class="mb-5 text-sm text-slate-600">
         Cliquez sur l'un des fournisseurs OAuth configurés pour vous connecter :
       </p>
 
@@ -23,10 +32,13 @@
         {% for provider in enabled_providers %}
         <button
           type="button"
-          @click="loginWith('{{ provider.key }}')"
-          class="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3.5
-                 text-sm font-medium text-slate-800 hover:border-kerpta-400 hover:bg-kerpta-50
-                 transition shadow-sm"
+          @click="authReady && loginWith('{{ provider.key }}')"
+          :disabled="!authReady"
+          :class="authReady
+            ? 'border-slate-200 bg-white hover:border-kerpta-400 hover:bg-kerpta-50 text-slate-800 cursor-pointer'
+            : 'border-slate-100 bg-slate-50 text-slate-400 cursor-not-allowed'"
+          class="flex items-center gap-3 rounded-xl border px-4 py-3.5
+                 text-sm font-medium transition shadow-sm"
         >
           {# Icônes inline selon le provider #}
           {% if provider.key == 'google' %}
@@ -116,18 +128,44 @@ function adminSetup(authUrl, callbackUrl) {
     state: 'idle',
     statusMsg: '',
     errorMsg: '',
+    authReady: false,
+    authCheckCount: 0,
 
     /**
      * Appelé par x-init au chargement de la page.
-     * Si l'URL contient un fragment OAuth (#access_token=…), on traite le
-     * callback. Sinon, GoTrue est déjà prêt (le serveur a attendu son
-     * redémarrage avant de rediriger ici depuis l'étape 2).
+     * - Si l'URL contient un fragment OAuth (#access_token=…), traite le callback.
+     * - Sinon, démarre le polling GoTrue pour activer les boutons dès que le
+     *   service d'authentification est disponible.
      */
     async onInit() {
       const hash = window.location.hash
       if (hash && (hash.includes('access_token') || hash.includes('error'))) {
+        this.authReady = true  // on a un token, GoTrue a forcément répondu
         await this.handleCallback()
+      } else {
+        await this.pollAuthReady()
       }
+    },
+
+    /**
+     * Sonde /setup/api/auth-health toutes les 3 s jusqu'à ce que GoTrue
+     * soit opérationnel (max 20 tentatives ≈ 60 s).
+     */
+    async pollAuthReady() {
+      const MAX = 20
+      for (let i = 0; i < MAX; i++) {
+        this.authCheckCount = i + 1
+        try {
+          const r = await fetch('/setup/api/auth-health')
+          if (r.ok) {
+            const data = await r.json()
+            if (data.ok) { this.authReady = true; return }
+          }
+        } catch { /* réseau pas encore prêt */ }
+        await new Promise(resolve => setTimeout(resolve, 3000))
+      }
+      // Timeout — on débloque quand même pour ne pas bloquer l'admin
+      this.authReady = true
     },
 
     /**
