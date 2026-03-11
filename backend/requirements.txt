@@ -28,14 +28,14 @@ celery==5.4.0
 redis==5.2.0
 
 # Email (Resend)
-resend==2.5.0
+resend==2.5.1
 
 # PDF / Factur-X
-factur-x==1.22
+factur-x==3.9
 playwright==1.49.0
 
 # OCR (Mindee)
-mindee==4.21.0
+mindee==4.9.0
 
 # Storage
 boto3==1.35.85        # S3-compatible (OVH, AWS, Scaleway)
