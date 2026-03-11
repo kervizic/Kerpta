@@ -2,8 +2,10 @@
 # Copyright (C) 2026 Emmanuel Kervizic
 # Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
+import json
+
 from pydantic import field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Literal
 
 
@@ -18,7 +20,8 @@ class Settings(BaseSettings):
     # Application
     APP_NAME: str = "Kerpta"
     APP_ENV: Literal["development", "production", "test"] = "development"
-    SECRET_KEY: str
+    # Valeur par défaut utilisée jusqu'à ce que le wizard écrive la vraie clé dans .env
+    SECRET_KEY: str = "setup-pending-change-me"
     DEBUG: bool = False
 
     # Base de données
@@ -49,8 +52,24 @@ class Settings(BaseSettings):
     CELERY_BROKER_URL: str = "redis://redis:6379/0"
     CELERY_RESULT_BACKEND: str = "redis://redis:6379/1"
 
-    # CORS
+    # CORS — accepte JSON array OU liste séparée par des virgules
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]
+
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v: object) -> list[str]:
+        if isinstance(v, list):
+            return v
+        if isinstance(v, str):
+            v = v.strip()
+            if v.startswith("["):
+                return json.loads(v)
+            # Valeur vide ou placeholder
+            if not v or v in ("-", "[]"):
+                return []
+            # Séparée par des virgules : "http://a.com,https://b.com"
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return []
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
