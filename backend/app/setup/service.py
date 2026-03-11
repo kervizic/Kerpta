@@ -174,28 +174,107 @@ async def _ensure_platform_config(db_url: str) -> None:
 
 
 def restart_auth_service() -> None:
-    """Redémarre kerpta-auth via l'API Docker Unix socket (sans docker CLI).
+    """Recrée kerpta-auth via l'API Docker Unix socket pour que GoTrue
+    recharge les variables GOTRUE_EXTERNAL_* depuis .env.
 
-    Appellé dans un thread daemon après save_oauth_config pour que GoTrue
-    recharge ses variables d'environnement OAuth (GOTRUE_EXTERNAL_*).
+    Un simple `docker restart` ne suffit pas : docker-compose lit env_file
+    uniquement à la création du conteneur. Il faut stop → rm → create → start.
     Échoue silencieusement si le socket Docker n'est pas disponible.
     """
     import http.client
+    import json as _json
     import socket as _socket
+    import time
 
     class _UnixConn(http.client.HTTPConnection):
         def connect(self) -> None:
             self.sock = _socket.socket(_socket.AF_UNIX, _socket.SOCK_STREAM)
-            self.sock.settimeout(5)
+            self.sock.settimeout(15)
             self.sock.connect("/var/run/docker.sock")
 
+    def _api(method: str, path: str, body: dict | None = None) -> tuple[int, Any]:
+        c = _UnixConn("localhost")
+        headers: dict[str, str] = {}
+        data: bytes | None = None
+        if body is not None:
+            data = _json.dumps(body).encode()
+            headers = {"Content-Type": "application/json", "Content-Length": str(len(data))}
+        c.request(method, path, body=data, headers=headers)
+        r = c.getresponse()
+        raw = r.read()
+        try:
+            parsed = _json.loads(raw) if raw else {}
+        except Exception:  # noqa: BLE001
+            parsed = {}
+        return r.status, parsed
+
     try:
-        conn = _UnixConn("localhost")
-        # t=10 : GoTrue a 10 s pour s'arrêter proprement avant SIGKILL
-        conn.request("POST", "/v1.41/containers/kerpta-auth/restart?t=10")
-        resp = conn.getresponse()
-        resp.read()  # consomme le body pour libérer la connexion
-        conn.close()
+        # Nouvelles vars GOTRUE_EXTERNAL_* depuis .env (écrites par save_oauth_config)
+        env_updates = {
+            k: v for k, v in _read_env().items()
+            if k.startswith("GOTRUE_EXTERNAL_")
+        }
+
+        # 1. Inspecter le conteneur courant pour récupérer toute sa config
+        status, info = _api("GET", "/v1.41/containers/kerpta-auth/json")
+        if status != 200:
+            return
+
+        # Fusionner l'env actuel avec les nouvelles vars
+        existing_env: dict[str, str] = {}
+        for item in info.get("Config", {}).get("Env", []):
+            if "=" in item:
+                k, _, v = item.partition("=")
+                existing_env[k] = v
+        existing_env.update(env_updates)
+        new_env_list = [f"{k}={v}" for k, v in existing_env.items()]
+
+        networks: dict = info.get("NetworkSettings", {}).get("Networks", {})
+
+        # 2. Arrêter le conteneur
+        _api("POST", "/v1.41/containers/kerpta-auth/stop?t=10")
+        time.sleep(2)
+
+        # 3. Supprimer le conteneur
+        _api("DELETE", "/v1.41/containers/kerpta-auth")
+
+        # 4. Créer un nouveau conteneur avec l'env mis à jour
+        cfg = info.get("Config", {})
+        host_cfg = info.get("HostConfig", {})
+        first_net = next(iter(networks), None)
+        networking: dict = {}
+        if first_net:
+            aliases = networks[first_net].get("Aliases") or []
+            networking = {"EndpointsConfig": {first_net: {"Aliases": aliases}}}
+
+        create_body: dict = {
+            "Image": cfg.get("Image"),
+            "Env": new_env_list,
+            "Cmd": cfg.get("Cmd"),
+            "Entrypoint": cfg.get("Entrypoint"),
+            "Labels": cfg.get("Labels", {}),
+            "ExposedPorts": cfg.get("ExposedPorts", {}),
+            "HostConfig": host_cfg,
+            "NetworkingConfig": networking,
+        }
+        status, result = _api("POST", "/v1.41/containers/create?name=kerpta-auth", create_body)
+        if status not in (200, 201):
+            return
+
+        container_id: str = result.get("Id", "kerpta-auth")
+
+        # Reconnecter aux réseaux supplémentaires
+        for net_name, net_cfg in list(networks.items())[1:]:
+            aliases = net_cfg.get("Aliases") or []
+            _api(
+                "POST",
+                f"/v1.41/networks/{net_name}/connect",
+                {"Container": container_id, "EndpointConfig": {"Aliases": aliases}},
+            )
+
+        # 5. Démarrer le nouveau conteneur
+        _api("POST", f"/v1.41/containers/{container_id}/start")
+
     except Exception:  # noqa: BLE001
         pass  # non-fatal : le wizard continue, l'admin page gère le timeout
 
