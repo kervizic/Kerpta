@@ -1,11 +1,13 @@
 # Kerpta — Docker Compose (dev & prod)
-# Usage dev  : docker compose up --build
+# Usage dev  : docker compose up -d
 # Usage prod : POSTGRES_PASSWORD=xxx docker compose up -d
 #
 # Variables obligatoires en prod (via .env ou install.sh) :
 #   SECRET_KEY, POSTGRES_PASSWORD, SUPABASE_JWT_SECRET
 
-x-kerpta-labels: &kerpta-labels
+# pull_policy: build → jamais de pull Docker Hub, toujours build local
+x-kerpta-base: &kerpta-base
+  pull_policy: build
   labels:
     com.kerpta.project: kerpta
 
@@ -18,7 +20,7 @@ services:
     build:
       context: ./docker/postgres
     restart: unless-stopped
-    <<: *kerpta-labels
+    <<: *kerpta-base
     environment:
       POSTGRES_DB:       ${POSTGRES_DB:-kerpta}
       POSTGRES_USER:     postgres          # superuser par défaut — exigé par GoTrue
@@ -39,7 +41,7 @@ services:
     build:
       context: ./docker/redis
     restart: unless-stopped
-    <<: *kerpta-labels
+    <<: *kerpta-base
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
@@ -56,7 +58,7 @@ services:
     build:
       context: ./docker/auth
     restart: unless-stopped
-    <<: *kerpta-labels
+    <<: *kerpta-base
     env_file:
       - path: .env
         required: false
@@ -88,7 +90,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
-    <<: *kerpta-labels
+    <<: *kerpta-base
     env_file:
       - path: .env
         required: false
@@ -131,7 +133,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
-    <<: *kerpta-labels
+    <<: *kerpta-base
     env_file:
       - path: .env
         required: false
@@ -156,7 +158,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     restart: unless-stopped
-    <<: *kerpta-labels
+    <<: *kerpta-base
     ports:
       - "3000:3000"
     depends_on:
@@ -165,9 +167,11 @@ services:
   # ── DocuSeal — signature électronique (optionnel) ───────────────────────────
   # docuseal:
   #   container_name: kerpta-docuseal
-  #   image: docuseal/docuseal
+  #   image: kerpta/docuseal
+  #   build:
+  #     context: ./docker/docuseal
   #   restart: unless-stopped
-  #   <<: *kerpta-labels
+  #   <<: *kerpta-base
   #   volumes:
   #     - docuseal_data:/data
   #   environment:
