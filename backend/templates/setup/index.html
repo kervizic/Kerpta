@@ -45,7 +45,7 @@
   <!-- Carte principale -->
   <div
     class="w-full max-w-3xl bg-white rounded-2xl shadow-lg border border-slate-100"
-    x-data="setupWizard('{{ tab }}', {{ setup_step }}, {{ 'true' if db_reachable else 'false' }})"
+    x-data="setupWizard('{{ tab }}', {{ setup_step }}, {{ 'true' if db_reachable else 'false' }}, {{ prefill.auth_base_url | tojson }}, {{ saved_oauth_json | safe }})"
     x-init="init()"
   >
 
@@ -608,11 +608,15 @@
 const savedOauth = JSON.parse(document.getElementById('saved-oauth').textContent || '{}')
 
 // ── Wizard (onglets) ───────────────────────────────────────────────────────
-function setupWizard(initialTab, setupStep, dbReachable) {
+function setupWizard(initialTab, setupStep, dbReachable, initialAuthUrl, initialOauth) {
+  // Merge server-side saved oauth into the module-level savedOauth
+  if (initialOauth && typeof initialOauth === 'object') {
+    Object.assign(savedOauth, initialOauth)
+  }
   return {
     tab: initialTab,
     step: setupStep,
-    authUrl: '',
+    authUrl: initialAuthUrl || '',
 
     init() {
       // Si retour OAuth (hash #access_token), basculer sur l'onglet admin
@@ -625,7 +629,7 @@ function setupWizard(initialTab, setupStep, dbReachable) {
     go(t) {
       if (!this.canGo(t)) return
       this.tab = t
-      history.replaceState(null, '', '?tab=' + t)
+      history.replaceState(null, '', window.location.pathname)
     },
 
     canGo(t) {
