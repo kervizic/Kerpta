@@ -39,26 +39,53 @@ _TIMEOUT = 15.0
 # ── Sync d'un SIREN ─────────────────────────────────────────────────────────
 
 
-async def _fetch_siren(siren: str) -> dict | None:
-    """Appelle l'API recherche-entreprises pour un SIREN donné."""
+async def _fetch_from_api(q: str, per_page: int = 1) -> list[dict]:
+    """Appelle l'API recherche-entreprises avec retry."""
     try:
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
             resp = await client.get(
                 f"{REC_ENT_BASE}/search",
-                params={"q": siren, "per_page": 1},
+                params={"q": q, "per_page": per_page},
                 headers={"Accept": "application/json"},
             )
             if resp.status_code == 404:
-                return None
+                return []
             resp.raise_for_status()
-            results = resp.json().get("results", [])
-            return results[0] if results else None
-    except httpx.RequestError as exc:
-        _log.warning("[sirene_sync] Erreur réseau pour SIREN %s : %s", siren, exc)
+            return resp.json().get("results", [])
+    except (httpx.RequestError, httpx.HTTPStatusError) as exc:
+        _log.warning("[sirene_sync] Erreur API pour q=%s : %s", q, exc)
+        return []
+
+
+async def _fetch_siren(siren: str) -> dict | None:
+    """Récupère une entreprise par SIREN avec fallback par nom pour les établissements.
+
+    L'API retourne matching_etablissements=[] lors d'une recherche par SIREN.
+    Parade : si vide et >1 établissement, relancer par dénomination.
+    """
+    results = await _fetch_from_api(siren, per_page=1)
+    if not results:
         return None
-    except httpx.HTTPStatusError as exc:
-        _log.warning("[sirene_sync] HTTP %s pour SIREN %s", exc.response.status_code, siren)
-        return None
+
+    item = results[0]
+    matching = item.get("matching_etablissements") or []
+    nb_ouverts = item.get("nombre_etablissements_ouverts", 0)
+    nom = item.get("nom_raison_sociale") or item.get("nom_complet") or ""
+
+    # Fallback par nom si matching_etablissements vide
+    if not matching and nb_ouverts > 1 and nom:
+        try:
+            results_by_name = await _fetch_from_api(nom, per_page=5)
+            for candidate in results_by_name:
+                if candidate.get("siren") == siren:
+                    item["matching_etablissements"] = (
+                        candidate.get("matching_etablissements") or []
+                    )
+                    break
+        except Exception:
+            pass  # pas critique — on garde le siège seul
+
+    return item
 
 
 def _build_address(etab: dict) -> dict:
