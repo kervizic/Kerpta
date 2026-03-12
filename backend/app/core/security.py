@@ -74,16 +74,12 @@ async def require_platform_admin(
     )
     row = result.fetchone()
 
-    # L'utilisateur existe déjà en base
-    if row is not None:
-        if not row[0]:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Accès réservé aux administrateurs plateforme",
-            )
+    # L'utilisateur existe déjà en base et est admin → OK direct
+    if row is not None and row[0]:
         return user_id
 
-    # L'utilisateur n'est pas encore en base → bootstrap si aucun admin n'existe
+    # L'utilisateur n'est pas admin (pas en base OU is_platform_admin=false)
+    # → bootstrap si et seulement si aucun admin n'existe encore
     admin_count_result = await db.execute(
         text("SELECT COUNT(*) FROM users WHERE is_platform_admin = true")
     )
