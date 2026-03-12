@@ -46,8 +46,7 @@ class OAuthUpdateRequest(BaseModel):
 
 
 class ApiKeysUpdateRequest(BaseModel):
-    insee_consumer_key: str = ""
-    insee_consumer_secret: str = ""
+    insee_api_key: str = ""
 
 
 # ── GET /providers — public ───────────────────────────────────────────────────
@@ -112,17 +111,13 @@ async def get_api_keys(
             "client_secret": ("••••" + secret[-4:]) if len(secret) > 4 else ("••••" if secret else ""),
         }
 
+    raw_key = api_keys.get("insee_api_key", "")
     return {
         "auth_url": auth_url,
         "oauth_config": masked_oauth,
         "api_keys": {
-            "insee_consumer_key": api_keys.get("insee_consumer_key", ""),
-            # Secret INSEE : masqué comme OAuth
-            "insee_consumer_secret": (
-                ("••••" + api_keys.get("insee_consumer_secret", "")[-4:])
-                if len(api_keys.get("insee_consumer_secret", "")) > 4
-                else ("••••" if api_keys.get("insee_consumer_secret") else "")
-            ),
+            # Clé API INSEE — masquée sauf les 4 derniers caractères
+            "insee_api_key": ("••••" + raw_key[-4:]) if len(raw_key) > 4 else ("••••" if raw_key else ""),
         },
     }
 
@@ -194,10 +189,8 @@ async def update_api_keys(
     existing: dict = (row[0] or {}) if row else {}
 
     updates: dict = dict(existing)
-    if body.insee_consumer_key:
-        updates["insee_consumer_key"] = body.insee_consumer_key
-    if body.insee_consumer_secret:
-        updates["insee_consumer_secret"] = body.insee_consumer_secret
+    if body.insee_api_key:
+        updates["insee_api_key"] = body.insee_api_key
 
     await db.execute(
         text("UPDATE platform_config SET api_keys = :keys"),
@@ -217,38 +210,48 @@ async def test_insee_connection(
     db: AsyncSession = Depends(get_db),
     _admin: object = Depends(require_platform_admin),
 ) -> dict:
-    """Teste la connexion à l'API INSEE via OAuth2 client_credentials."""
+    """Teste la connexion à l'API Sirene INSEE (GET /siren) avec la clé API.
+
+    L'API Sirene utilise une simple clé API dans le header X-INSEE-Api-Key-Integration.
+    On effectue une requête sur un SIREN connu pour valider la clé.
+    """
     result = await db.execute(
         text("SELECT api_keys FROM platform_config LIMIT 1")
     )
     row = result.fetchone()
     api_keys: dict = (row[0] or {}) if row else {}
 
-    consumer_key = api_keys.get("insee_consumer_key", "")
-    consumer_secret = api_keys.get("insee_consumer_secret", "")
+    api_key = api_keys.get("insee_api_key", "")
 
-    if not consumer_key or not consumer_secret:
+    if not api_key:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Consumer Key ou Consumer Secret manquant — enregistrez d'abord les clés",
+            detail="Clé API INSEE manquante — enregistrez d'abord la clé",
         )
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.post(
-                "https://api.insee.fr/token",
-                data={"grant_type": "client_credentials"},
-                auth=(consumer_key, consumer_secret),
-                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            # Test avec un SIREN INSEE lui-même (1 = INSEE)
+            response = await client.get(
+                "https://api.insee.fr/api-sirene/3.11/siren/120027016",
+                headers={
+                    "X-INSEE-Api-Key-Integration": api_key,
+                    "Accept": "application/json",
+                },
             )
 
         if response.status_code == 200:
             data = response.json()
-            return {
-                "ok": True,
-                "expires_in": data.get("expires_in"),
-                "token_type": data.get("token_type", "Bearer"),
-            }
+            denomination = (
+                data.get("uniteLegale", {})
+                .get("periodesUniteLegale", [{}])[0]
+                .get("denominationUniteLegale", "")
+            )
+            return {"ok": True, "denomination": denomination, "http_status": 200}
+        elif response.status_code == 401:
+            return {"ok": False, "error": "Clé API invalide ou expirée (401 Unauthorized)"}
+        elif response.status_code == 403:
+            return {"ok": False, "error": "Accès refusé — vérifiez les droits de votre abonnement (403)"}
         else:
             return {
                 "ok": False,

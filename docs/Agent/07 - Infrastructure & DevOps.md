@@ -357,24 +357,24 @@ ln -s /etc/nginx/sites-available/kerpta /etc/nginx/sites-enabled/
 nginx -t && systemctl reload nginx
 ```
 
-### 6. Variables d'environnement `/opt/kerpta/.env`
+### 6. Installation automatique (recommandée)
+
+Le script `install.sh` génère automatiquement le `.env`, les secrets aléatoires (JWT, clés de chiffrement…) et valide la configuration :
+
 ```bash
 su - deploy && cd /opt/kerpta
 git clone https://github.com/kervizic/kerpta.git .
-cp .env.example .env
-nano .env  # remplir les valeurs
+bash install.sh
 ```
 
-Variables clés à renseigner avant le premier démarrage :
-```bash
-SECRET_KEY=            # openssl rand -hex 32
-SUPABASE_JWT_SECRET=   # openssl rand -hex 32
-RESEND_API_KEY=
-STORAGE_ENCRYPTION_KEY=  # openssl rand -hex 32
-MINDEE_API_KEY=           # optionnel au lancement
-```
+Le script demande interactivement le nom de domaine, génère tous les secrets via `openssl rand -hex 32` et produit un `.env` complet.
 
-> `DATABASE_URL` et les variables OAuth sont configurées via l'assistant de premier démarrage (`/setup`) — elles n'ont pas besoin d'être renseignées manuellement dans `.env`.
+> **Installation manuelle (avancé)** — si vous préférez gérer le `.env` vous-même :
+> ```bash
+> cp .env.example .env
+> nano .env  # remplir SECRET_KEY, SUPABASE_JWT_SECRET, STORAGE_ENCRYPTION_KEY
+> ```
+> `DATABASE_URL` et les variables OAuth sont configurées via l'assistant de premier démarrage (`/setup`).
 
 ### 7. Premier lancement
 ```bash

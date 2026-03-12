@@ -16,7 +16,7 @@ interface AppShellProps {
 function PageSpinner() {
   return (
     <div className="flex-1 flex items-center justify-center">
-      <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
     </div>
   )
 }
@@ -25,7 +25,7 @@ function DashboardPlaceholder() {
   return (
     <div className="flex-1 flex items-center justify-center">
       <div className="text-center">
-        <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mx-auto mb-4">
+        <div className="w-16 h-16 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center mx-auto mb-4">
           <span className="text-3xl">📊</span>
         </div>
         <h2 className="text-xl font-semibold text-white mb-2">Tableau de bord</h2>

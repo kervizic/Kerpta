@@ -94,7 +94,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center px-4">
       {/* Gradient de fond */}
       <div className="absolute inset-0 -z-10 overflow-hidden">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-indigo-600/20 rounded-full blur-3xl" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-orange-600/20 rounded-full blur-3xl" />
       </div>
 
       {/* Card */}
@@ -108,7 +108,7 @@ export default function LoginPage() {
         <div className="bg-slate-900/50 border border-white/5 rounded-2xl p-6">
           {loading && (
             <div className="flex justify-center py-8">
-              <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
             </div>
           )}
 

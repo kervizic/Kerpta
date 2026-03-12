@@ -3,7 +3,7 @@
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
 // Section 1 : Providers OAuth (Google, Microsoft, GitHub, …)
-// Section 2 : INSEE / Sirene API (Consumer Key + Consumer Secret)
+// Section 2 : INSEE / Sirene API (clé API unique — header X-INSEE-Api-Key-Integration)
 
 import { useEffect, useState } from 'react'
 import { apiClient } from '@/lib/api'
@@ -30,8 +30,7 @@ interface ApiKeysData {
   auth_url: string
   oauth_config: Record<string, ProviderCfg>
   api_keys: {
-    insee_consumer_key: string
-    insee_consumer_secret: string
+    insee_api_key: string
   }
 }
 
@@ -86,7 +85,7 @@ function InputField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-white/5 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 transition"
+        className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-white/5 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 transition"
       />
     </div>
   )
@@ -110,7 +109,7 @@ function ProviderRow({
     <div
       className={`rounded-xl border transition-all ${
         config.enabled
-          ? 'border-indigo-500/30 bg-indigo-500/5'
+          ? 'border-orange-500/30 bg-orange-500/5'
           : 'border-white/5 bg-slate-800/30'
       }`}
     >
@@ -129,7 +128,7 @@ function ProviderRow({
               if (next) setExpanded(true)
             }}
             className={`relative inline-flex w-10 h-5.5 rounded-full transition-colors focus:outline-none ${
-              config.enabled ? 'bg-indigo-600' : 'bg-slate-700'
+              config.enabled ? 'bg-orange-600' : 'bg-slate-700'
             }`}
             style={{ minWidth: '2.5rem', height: '1.375rem' }}
           >
@@ -185,8 +184,7 @@ export default function ConfigApiKeysPage() {
   const [restarting, setRestarting] = useState(false)
 
   // État local INSEE
-  const [inseeKey, setInseeKey] = useState('')
-  const [inseeSecret, setInseeSecret] = useState('')
+  const [inseeApiKey, setInseeApiKey] = useState('')
   const [inseeSaving, setInseeSaving] = useState(false)
   const [inseeSaveStatus, setInseeSaveStatus] = useState<{ ok: boolean; msg: string } | null>(null)
   const [inseeTesting, setInseeTesting] = useState(false)
@@ -203,8 +201,7 @@ export default function ConfigApiKeysPage() {
           initial[key] = d.oauth_config[key] ?? { enabled: false, client_id: '', client_secret: '' }
         }
         setProviders(initial)
-        setInseeKey(d.api_keys.insee_consumer_key)
-        setInseeSecret(d.api_keys.insee_consumer_secret)
+        setInseeApiKey(d.api_keys.insee_api_key)
       })
       .catch(() => {
         /* 401 → apiClient intercepteur redirige vers /login */
@@ -231,11 +228,8 @@ export default function ConfigApiKeysPage() {
     setInseeSaving(true)
     setInseeSaveStatus(null)
     try {
-      await apiClient.put('/config/api-keys', {
-        insee_consumer_key: inseeKey,
-        insee_consumer_secret: inseeSecret,
-      })
-      setInseeSaveStatus({ ok: true, msg: 'Clés INSEE enregistrées' })
+      await apiClient.put('/config/api-keys', { insee_api_key: inseeApiKey })
+      setInseeSaveStatus({ ok: true, msg: 'Clé INSEE enregistrée' })
     } catch {
       setInseeSaveStatus({ ok: false, msg: 'Erreur lors de l\'enregistrement' })
     } finally {
@@ -247,12 +241,14 @@ export default function ConfigApiKeysPage() {
     setInseeTesting(true)
     setInseeTestStatus(null)
     try {
-      const { data: result } = await apiClient.post<{ ok: boolean; expires_in?: number; error?: string }>(
-        '/config/api-keys/insee-test'
-      )
+      const { data: result } = await apiClient.post<{
+        ok: boolean
+        denomination?: string
+        http_status?: number
+        error?: string
+      }>('/config/api-keys/insee-test')
       if (result.ok) {
-        const days = result.expires_in ? Math.round(result.expires_in / 86400) : 7
-        setInseeTestStatus({ ok: true, msg: `Connexion réussie — token valide ${days} jours` })
+        setInseeTestStatus({ ok: true, msg: `Connexion réussie ✓` })
       } else {
         setInseeTestStatus({ ok: false, msg: result.error ?? 'Échec de la connexion' })
       }
@@ -266,7 +262,7 @@ export default function ConfigApiKeysPage() {
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
@@ -276,8 +272,8 @@ export default function ConfigApiKeysPage() {
       <div className="max-w-2xl mx-auto">
         {/* En-tête */}
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
-            <KeyRound className="w-5 h-5 text-indigo-400" />
+          <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
+            <KeyRound className="w-5 h-5 text-orange-400" />
           </div>
           <div>
             <h1 className="text-xl font-bold text-white">Clés API</h1>
@@ -320,7 +316,7 @@ export default function ConfigApiKeysPage() {
             <button
               onClick={saveOAuth}
               disabled={oauthSaving}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-semibold transition"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white text-sm font-semibold transition"
             >
               {oauthSaving && <Loader2 className="w-4 h-4 animate-spin" />}
               Enregistrer les providers
@@ -345,32 +341,27 @@ export default function ConfigApiKeysPage() {
               href="https://portail-api.insee.fr"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition"
+              className="inline-flex items-center gap-1.5 text-xs text-orange-400 hover:text-orange-300 transition"
             >
               Portail INSEE
               <ExternalLink className="w-3 h-3" />
             </a>
           </div>
 
-          <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-xl p-4 mb-4 text-xs text-slate-400 leading-relaxed">
-            <strong className="text-slate-300">Flux OAuth2 client_credentials</strong> — Inscrivez-vous
-            sur le portail INSEE et créez une application pour obtenir votre Consumer Key et Consumer
-            Secret. Le token généré (Bearer) est valide 7 jours et se renouvelle automatiquement.
+          <div className="bg-slate-800/50 border border-white/5 rounded-xl p-4 mb-4 text-xs text-slate-400 leading-relaxed">
+            <strong className="text-slate-300">Authentification par clé API</strong> — Inscrivez-vous
+            sur le portail INSEE, créez une application et abonnez-vous à l'API Sirene. La clé est
+            transmise dans le header <code className="text-orange-300 bg-slate-700 px-1 rounded">X-INSEE-Api-Key-Integration</code>{' '}
+            à validité illimitée (révocable depuis le portail).
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+          <div className="mb-4">
             <InputField
-              label="Consumer Key"
-              value={inseeKey}
-              onChange={setInseeKey}
-              placeholder="votre_consumer_key"
-            />
-            <InputField
-              label="Consumer Secret"
-              value={inseeSecret}
-              onChange={setInseeSecret}
+              label="Clé API INSEE"
+              value={inseeApiKey}
+              onChange={setInseeApiKey}
               type="password"
-              placeholder={inseeSecret.startsWith('••••') ? inseeSecret : 'votre_consumer_secret'}
+              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
             />
           </div>
 
@@ -378,7 +369,7 @@ export default function ConfigApiKeysPage() {
             <button
               onClick={saveInsee}
               disabled={inseeSaving}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-semibold transition"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white text-sm font-semibold transition"
             >
               {inseeSaving && <Loader2 className="w-4 h-4 animate-spin" />}
               Enregistrer

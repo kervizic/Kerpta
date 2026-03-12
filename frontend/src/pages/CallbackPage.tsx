@@ -76,7 +76,7 @@ export default function CallbackPage() {
           <p className="text-slate-400 text-sm mb-6">{error}</p>
           <button
             onClick={() => navigate('/login')}
-            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition"
+            className="px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold transition"
           >
             Réessayer
           </button>
@@ -88,7 +88,7 @@ export default function CallbackPage() {
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center">
       <div className="text-center">
-        <div className="w-10 h-10 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <div className="w-10 h-10 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
         <p className="text-slate-400 text-sm">Connexion en cours…</p>
       </div>
     </div>

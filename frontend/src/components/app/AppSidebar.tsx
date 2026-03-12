@@ -34,7 +34,7 @@ export function AppSidebar({ currentPath }: AppSidebarProps) {
       <div className="px-5 py-5 border-b border-white/5">
         <div className="flex items-center gap-2">
           <span className="text-lg font-bold text-white">Kerpta</span>
-          <span className="text-xs font-medium bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded px-1.5 py-0.5">
+          <span className="text-xs font-medium bg-orange-500/20 text-orange-300 border border-orange-500/30 rounded px-1.5 py-0.5">
             Admin
           </span>
         </div>
@@ -59,7 +59,7 @@ export function AppSidebar({ currentPath }: AppSidebarProps) {
                     onClick={() => navigate(item.href)}
                     className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                       isActive
-                        ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/20'
+                        ? 'bg-orange-500/15 text-orange-300 border border-orange-500/20'
                         : 'text-slate-400 hover:text-white hover:bg-white/5'
                     }`}
                   >
@@ -84,7 +84,7 @@ export function AppSidebar({ currentPath }: AppSidebarProps) {
                 className="w-8 h-8 rounded-full object-cover bg-slate-700"
               />
             ) : (
-              <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-300 text-sm font-semibold">
+              <div className="w-8 h-8 rounded-full bg-orange-500/20 flex items-center justify-center text-orange-300 text-sm font-semibold">
                 {user.name.charAt(0).toUpperCase()}
               </div>
             )}

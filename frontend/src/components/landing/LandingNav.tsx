@@ -17,7 +17,7 @@ export function LandingNav() {
         {/* Logo */}
         <a href="/" className="flex items-center gap-2">
           <span className="text-xl font-bold tracking-tight text-white">Kerpta</span>
-          <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+          <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-500/20 text-orange-300 border border-orange-500/30">
             AGPL-3.0
           </span>
         </a>
@@ -46,7 +46,7 @@ export function LandingNav() {
           {/* Bouton Se connecter */}
           <button
             onClick={handleLogin}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition-all shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold transition-all shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40"
           >
             Se connecter
           </button>

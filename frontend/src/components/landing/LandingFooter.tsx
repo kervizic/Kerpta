@@ -37,7 +37,7 @@ export function LandingFooter({ content }: { content: Record<string, unknown> })
           <div className="flex flex-col items-center md:items-start gap-2">
             <div className="flex items-center gap-2">
               {/* Logo Kerpta — K stylisé */}
-              <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center">
+              <div className="w-7 h-7 rounded-lg bg-orange-600 flex items-center justify-center">
                 <span className="text-white font-bold text-sm leading-none">K</span>
               </div>
               <span className="text-white font-semibold">Kerpta</span>

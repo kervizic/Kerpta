@@ -11,12 +11,12 @@ const ICON_MAP: Record<string, ComponentType<{ className?: string }>> = {
 
 const COLOR_MAP: Record<string, { bg: string; text: string; ring: string }> = {
   blue:    { bg: 'bg-blue-500/10',    text: 'text-blue-400',    ring: 'ring-blue-500/20' },
-  violet:  { bg: 'bg-violet-500/10',  text: 'text-violet-400',  ring: 'ring-violet-500/20' },
+  amber:  { bg: 'bg-amber-500/10',  text: 'text-amber-400',  ring: 'ring-amber-500/20' },
   emerald: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', ring: 'ring-emerald-500/20' },
   orange:  { bg: 'bg-orange-500/10',  text: 'text-orange-400',  ring: 'ring-orange-500/20' },
   pink:    { bg: 'bg-pink-500/10',    text: 'text-pink-400',    ring: 'ring-pink-500/20' },
   cyan:    { bg: 'bg-cyan-500/10',    text: 'text-cyan-400',    ring: 'ring-cyan-500/20' },
-  indigo:  { bg: 'bg-indigo-500/10',  text: 'text-indigo-400',  ring: 'ring-indigo-500/20' },
+  orange:  { bg: 'bg-orange-500/10',  text: 'text-orange-400',  ring: 'ring-orange-500/20' },
   slate:   { bg: 'bg-slate-500/10',   text: 'text-slate-400',   ring: 'ring-slate-500/20' },
 }
 

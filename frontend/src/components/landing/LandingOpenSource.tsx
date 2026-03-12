@@ -67,7 +67,7 @@ function CodeBlock({ code }: { code: string }) {
               <span>&nbsp;</span>
             ) : (
               <>
-                <span className="text-indigo-400 select-none mr-2">$</span>
+                <span className="text-orange-400 select-none mr-2">$</span>
                 <span>{line}</span>
               </>
             )}
@@ -169,9 +169,9 @@ export function LandingOpenSource({ content }: { content: Record<string, unknown
             </a>
 
             {/* Licence */}
-            <div className="rounded-2xl bg-indigo-600/5 border border-indigo-500/20 p-5 text-center">
+            <div className="rounded-2xl bg-orange-600/5 border border-orange-500/20 p-5 text-center">
               <p className="text-xs text-slate-500 mb-1">Licence</p>
-              <p className="text-lg font-bold text-indigo-300">{license}</p>
+              <p className="text-lg font-bold text-orange-300">{license}</p>
               <p className="text-xs text-slate-500 mt-1">
                 Libre d'utilisation, modification et redistribution
               </p>
@@ -182,13 +182,13 @@ export function LandingOpenSource({ content }: { content: Record<string, unknown
           <div className="lg:col-span-3">
             <div className="relative space-y-6">
               {/* Ligne verticale de connexion */}
-              <div className="absolute left-4 top-8 bottom-8 w-px bg-gradient-to-b from-indigo-500/40 via-indigo-500/20 to-transparent pointer-events-none" />
+              <div className="absolute left-4 top-8 bottom-8 w-px bg-gradient-to-b from-orange-500/40 via-orange-500/20 to-transparent pointer-events-none" />
 
               {steps.map((step) => (
                 <div key={step.step} className="relative pl-12">
                   {/* Numéro */}
-                  <div className="absolute left-0 top-0 w-8 h-8 rounded-full bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center">
-                    <span className="text-xs font-bold text-indigo-400">{step.step}</span>
+                  <div className="absolute left-0 top-0 w-8 h-8 rounded-full bg-orange-600/20 border border-orange-500/40 flex items-center justify-center">
+                    <span className="text-xs font-bold text-orange-400">{step.step}</span>
                   </div>
 
                   <h3 className="text-sm font-semibold text-white mb-0.5 pt-1">{step.title}</h3>
