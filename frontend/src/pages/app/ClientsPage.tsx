@@ -393,13 +393,13 @@ function CreateClientForm() {
     setError('')
 
     try {
+      const cleanSiren = siren.replace(/\s/g, '')
       const result = await orgPost<{ id: string }>('/clients', {
         type,
         name,
         country_code: type === 'company' ? countryCode : 'FR',
         siret: siret.replace(/\s/g, '') || undefined,
-        // company_siren envoyé seulement si le SIREN existe dans le cache local
-        // (le sync Celery nightly le remplira — ne pas envoyer sinon FK violation)
+        company_siren: cleanSiren.length === 9 ? cleanSiren : undefined,
         vat_number: vatNumber || undefined,
         email: contactEmail || undefined,
         phone: contactPhone || undefined,
