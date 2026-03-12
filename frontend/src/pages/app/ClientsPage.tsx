@@ -393,13 +393,13 @@ function CreateClientForm() {
     setError('')
 
     try {
-      const cleanSiren = siren.replace(/\s/g, '')
       const result = await orgPost<{ id: string }>('/clients', {
         type,
         name,
         country_code: type === 'company' ? countryCode : 'FR',
         siret: siret.replace(/\s/g, '') || undefined,
-        company_siren: cleanSiren.length === 9 ? cleanSiren : undefined,
+        // company_siren envoyé seulement si le SIREN existe dans le cache local
+        // (le sync Celery nightly le remplira — ne pas envoyer sinon FK violation)
         vat_number: vatNumber || undefined,
         email: contactEmail || undefined,
         phone: contactPhone || undefined,
@@ -617,7 +617,7 @@ function CreateClientForm() {
               {companyDetails.etablissements_actifs.length > 0 && (
                 <div>
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                    Établissements actifs ({companyDetails.nombre_etablissements_actifs})
+                    Établissements actifs ({companyDetails.etablissements_actifs.length}{companyDetails.nombre_etablissements_actifs > companyDetails.etablissements_actifs.length ? ` / ${companyDetails.nombre_etablissements_actifs} au total` : ''})
                   </p>
                   <div className="space-y-2">
                     {companyDetails.etablissements_actifs.map((etab) => {
