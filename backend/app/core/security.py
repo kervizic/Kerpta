@@ -7,8 +7,11 @@ from uuid import UUID
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.database import get_db
 
 bearer_scheme = HTTPBearer()
 
@@ -47,3 +50,21 @@ def get_current_user_id(
             detail="Token sans sujet",
         )
     return UUID(sub)
+
+
+async def require_platform_admin(
+    db: AsyncSession = Depends(get_db),
+    user_id: UUID = Depends(get_current_user_id),
+) -> UUID:
+    """Vérifie que l'utilisateur courant est administrateur de la plateforme."""
+    result = await db.execute(
+        text("SELECT is_platform_admin FROM users WHERE id = :id"),
+        {"id": user_id},
+    )
+    row = result.fetchone()
+    if row is None or not row[0]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès réservé aux administrateurs plateforme",
+        )
+    return user_id

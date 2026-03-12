@@ -29,6 +29,11 @@ class PlatformConfig(Base, UUIDPrimaryKeyMixin, TimestampUpdateMixin):
         JSONB, nullable=True, comment="Config OAuth par provider"
     )
 
+    # Ajouté par la migration 0004
+    api_keys: Mapped[dict | None] = mapped_column(
+        JSONB, nullable=True, comment="Clés API externes (INSEE, etc.)"
+    )
+
 
 class PlatformAdminLog(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     """Journal d'audit des actions super-admin."""

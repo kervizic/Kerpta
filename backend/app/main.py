@@ -25,6 +25,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from app.config.router import router as config_router
 from app.core.config import settings
 from app.platform.router import router as platform_router
 from app.setup.router import router as setup_router
@@ -54,6 +55,7 @@ class SetupRedirectMiddleware(BaseHTTPMiddleware):
         "/health",
         "/static",
         "/api/v1/platform",
+        "/api/v1/config/providers",  # endpoint public (page login)
         "/api/docs",
         "/api/redoc",
         "/openapi.json",
@@ -161,6 +163,7 @@ app.add_middleware(SetupRedirectMiddleware)
 
 app.include_router(setup_router)
 app.include_router(platform_router)
+app.include_router(config_router)
 
 # Les routes métier seront enregistrées ici au fur et à mesure des modules :
 # from app.api.routes import invoices, quotes, clients, ...

@@ -1,5 +1,14 @@
 // Kerpta — Navigation de la page vitrine
+// Copyright (C) 2026 Emmanuel Kervizic
+// Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
+
 import { Github } from 'lucide-react'
+import { navigate } from '@/hooks/useRoute'
+
+function handleLogin() {
+  const token = localStorage.getItem('supabase_access_token')
+  navigate(token ? '/app' : '/login')
+}
 
 export function LandingNav() {
   return (
@@ -13,8 +22,8 @@ export function LandingNav() {
           </span>
         </a>
 
-        {/* Liens */}
-        <div className="flex items-center gap-6">
+        {/* Liens + bouton connexion */}
+        <div className="flex items-center gap-4">
           <a href="#features" className="hidden sm:block text-sm text-slate-400 hover:text-white transition">
             Fonctionnalités
           </a>
@@ -28,11 +37,19 @@ export function LandingNav() {
             href="https://github.com/kervizic/kerpta"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-white transition"
+            className="hidden sm:flex items-center gap-1.5 text-sm text-slate-400 hover:text-white transition"
           >
             <Github className="w-4 h-4" />
-            <span className="hidden sm:inline">GitHub</span>
+            <span>GitHub</span>
           </a>
+
+          {/* Bouton Se connecter */}
+          <button
+            onClick={handleLogin}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition-all shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40"
+          >
+            Se connecter
+          </button>
         </div>
       </div>
     </nav>
