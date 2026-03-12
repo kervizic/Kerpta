@@ -201,6 +201,9 @@ function CreateStep({
   const [searching, setSearching] = useState(false)
   const [lookupResult, setLookupResult] = useState<CompanyLookup | null>(null)
   const [searchError, setSearchError] = useState('')
+  // Mode manuel : activé quand l'API INSEE est indisponible (502/réseau)
+  const [manualMode, setManualMode] = useState(false)
+  const [apiUnavailable, setApiUnavailable] = useState(false)
 
   const [name, setName] = useState('')
   const [legalForm, setLegalForm] = useState('')
@@ -221,6 +224,8 @@ function CreateStep({
     setSearching(true)
     setSearchError('')
     setLookupResult(null)
+    setApiUnavailable(false)
+    setManualMode(false)
     try {
       const { data } = await apiClient.get<CompanyLookup[]>(`/companies/search?q=${clean}`)
       if (!data.length) {
@@ -238,7 +243,12 @@ function CreateStep({
         setVatRegime('none')
       }
     } catch (err) {
-      setSearchError(httpError(err, 'Erreur lors de la recherche'))
+      const msg = httpError(err, 'Erreur lors de la recherche')
+      setSearchError(msg)
+      // Proposer le mode manuel si l'API gouvernementale est indisponible
+      if (axios.isAxiosError(err) && (err.response?.status === 502 || !err.response)) {
+        setApiUnavailable(true)
+      }
     } finally {
       setSearching(false)
     }
@@ -246,7 +256,8 @@ function CreateStep({
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
-    if (!lookupResult) return
+    if (!lookupResult && !manualMode) return
+    if (manualMode && !name.trim()) return
     setSaving(true)
     setSaveError('')
     try {
@@ -318,7 +329,20 @@ function CreateStep({
             Rechercher
           </button>
         </div>
-        {searchError && <p className="text-xs text-red-600 mt-1.5">{searchError}</p>}
+        {searchError && (
+          <div className="mt-1.5 space-y-1.5">
+            <p className="text-xs text-red-600">{searchError}</p>
+            {apiUnavailable && !manualMode && (
+              <button
+                type="button"
+                onClick={() => { setManualMode(true); setSearchError('') }}
+                className="text-xs text-orange-600 hover:text-orange-700 underline underline-offset-2"
+              >
+                Le service INSEE est indisponible — saisir manuellement →
+              </button>
+            )}
+          </div>
+        )}
         <p className="text-xs text-gray-400 mt-1.5">
           Vous ne connaissez pas votre SIREN ?{' '}
           <a href="https://www.pappers.fr" target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:underline">Pappers</a>
@@ -349,9 +373,36 @@ function CreateStep({
         </div>
       )}
 
-      {/* Formulaire complémentaire — affiché seulement après lookup réussi */}
-      {lookupResult ? (
+      {/* Mode manuel — bannière */}
+      {manualMode && !lookupResult && (
+        <div className="mb-5 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2">
+          <span className="text-amber-500 text-sm shrink-0">⚠️</span>
+          <div className="text-xs text-amber-700">
+            <p className="font-semibold mb-0.5">Saisie manuelle (service INSEE indisponible)</p>
+            <p>Les informations ne seront pas vérifiées automatiquement. Vous pouvez les compléter ultérieurement depuis Ma structure.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Formulaire complémentaire — affiché après lookup réussi OU en mode manuel */}
+      {(lookupResult || manualMode) ? (
         <form onSubmit={(e) => void handleCreate(e)} className="space-y-4">
+          {/* Nom de la structure — uniquement en mode manuel (en mode auto, déjà dans le bandeau vert) */}
+          {manualMode && !lookupResult && (
+            <div>
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                Nom de la structure <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                placeholder="Ma Société SAS"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+              />
+            </div>
+          )}
           <div>
             <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
               Régime TVA
@@ -410,7 +461,7 @@ function CreateStep({
           </button>
         </form>
       ) : (
-        !searching && !searchError && (
+        !searching && !searchError && !apiUnavailable && (
           <p className="text-sm text-gray-400 text-center py-2">
             Recherchez votre SIREN pour continuer.
           </p>

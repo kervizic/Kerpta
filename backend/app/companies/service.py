@@ -18,6 +18,7 @@ Détection automatique du type de requête :
   Autre       → recherche par dénomination
 """
 
+import asyncio
 import logging
 import re
 from typing import Literal
@@ -125,17 +126,29 @@ def extract_siren_from_tva(tva: str) -> str:
 
 
 async def _fetch_companies(q: str, per_page: int = 10) -> list[dict]:
-    """Effectue une requête vers l'API recherche-entreprises.api.gouv.fr."""
-    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-        resp = await client.get(
-            f"{REC_ENT_BASE}/search",
-            params={"q": q, "per_page": per_page},
-            headers={"Accept": "application/json"},
-        )
-        if resp.status_code == 404:
-            return []
-        resp.raise_for_status()
-        return resp.json().get("results", [])
+    """Effectue une requête vers l'API recherche-entreprises.api.gouv.fr.
+
+    Retry 3× avec backoff exponentiel (1s, 2s) en cas d'erreur réseau ou 5xx.
+    """
+    last_exc: Exception = RuntimeError("no attempt")
+    for attempt in range(3):
+        try:
+            async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+                resp = await client.get(
+                    f"{REC_ENT_BASE}/search",
+                    params={"q": q, "per_page": per_page},
+                    headers={"Accept": "application/json"},
+                )
+                if resp.status_code == 404:
+                    return []
+                resp.raise_for_status()
+                return resp.json().get("results", [])
+        except (httpx.HTTPStatusError, httpx.RequestError) as exc:
+            last_exc = exc
+            _log.warning("[companies] tentative %d/3 échouée : %s", attempt + 1, exc)
+            if attempt < 2:
+                await asyncio.sleep(1.0 * (attempt + 1))
+    raise last_exc
 
 
 def _build_address_from_siege(siege: dict) -> Address:
