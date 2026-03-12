@@ -14,6 +14,7 @@ Routes exposées :
 
 import asyncio
 import logging
+import uuid as _uuid
 from typing import Any
 from uuid import UUID
 
@@ -219,10 +220,29 @@ async def update_api_keys(
     if body.insee_api_key:
         updates["insee_api_key"] = body.insee_api_key
 
-    await db.execute(
-        text("UPDATE platform_config SET api_keys = :keys"),
+    # UPSERT : mise à jour si une ligne existe, création minimale sinon
+    # (cas d'une instance sans assistant d'installation complété)
+    result = await db.execute(
+        text(
+            """
+            UPDATE platform_config
+               SET api_keys = :keys, updated_at = now()
+            """
+        ),
         {"keys": updates},
     )
+    if result.rowcount == 0:
+        await db.execute(
+            text(
+                """
+                INSERT INTO platform_config
+                    (id, api_keys, setup_completed, setup_step, created_at, updated_at)
+                VALUES
+                    (:id, :keys, false, 1, now(), now())
+                """
+            ),
+            {"id": str(_uuid.uuid4()), "keys": updates},
+        )
     await db.commit()
 
     _log.info("[config] Clés API mises à jour")
