@@ -147,6 +147,14 @@ export default function OrgSettingsPage() {
     async function load() {
       setLoading(true)
       setLoadError(null)
+      // Reset des données de l'org précédente
+      setCurrentLogo(null)
+      setLogoPreview(null)
+      setLogoFile(null)
+      setLogoError(null)
+      setLogoSuccess(false)
+      setEtablissements([])
+      setNombreEtabsTotal(0)
       try {
         const { data } = await apiClient.get<OrgDetail>(`/organizations/${activeOrg!.org_id}`)
         setOrg(data)
