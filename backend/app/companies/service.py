@@ -216,8 +216,24 @@ async def search_companies(q: str) -> list[CompanySearchResult]:
     ]
 
 
+def _matching_etab_to_etablissement(etab: dict, siege_siret: str | None) -> Etablissement:
+    """Convertit un matching_etablissement de l'API en Etablissement."""
+    siret = etab.get("siret", "")
+    is_siege = (siret == siege_siret) if siege_siret else bool(etab.get("est_siege"))
+    adresse = _build_address_from_siege(etab)
+    return Etablissement(
+        siret=siret,
+        nic=siret[-5:] if len(siret) >= 5 else "",
+        siege=is_siege,
+        etat=etab.get("etat_administratif", "A"),
+        activite_principale=etab.get("activite_principale") or None,
+        date_creation=etab.get("date_debut") or None,
+        adresse=adresse,
+    )
+
+
 async def get_company_details(siren: str) -> CompanyDetails | None:
-    """Retourne les détails d'une entreprise active via son SIREN."""
+    """Retourne les détails d'une entreprise active via son SIREN, avec tous ses établissements."""
     results = await _fetch_companies(siren, per_page=1)
     if not results:
         return None
@@ -229,19 +245,42 @@ async def get_company_details(siren: str) -> CompanyDetails | None:
     siege = item.get("siege") or {}
     nat_jur = item.get("nature_juridique") or None
     effectifs_code = item.get("tranche_effectif_salarie") or None
+    siege_siret = siege.get("siret") if siege else None
 
+    # Établissement siège
     siege_etab: Etablissement | None = None
     if siege:
         adresse = _build_address_from_siege(siege)
         siege_etab = Etablissement(
-            siret=siege.get("siret", ""),
-            nic=siege.get("siret", "")[-5:] if siege.get("siret") else "",
+            siret=siege_siret or "",
+            nic=siege_siret[-5:] if siege_siret and len(siege_siret) >= 5 else "",
             siege=True,
             etat="A",
             activite_principale=siege.get("activite_principale"),
             date_creation=item.get("date_creation"),
             adresse=adresse,
         )
+
+    # Tous les établissements actifs depuis matching_etablissements
+    matching: list[dict] = item.get("matching_etablissements") or []
+    etabs_actifs: list[Etablissement] = []
+    sirets_seen: set[str] = set()
+
+    # D'abord le siège (priorité en tête de liste)
+    if siege_etab:
+        etabs_actifs.append(siege_etab)
+        if siege_siret:
+            sirets_seen.add(siege_siret)
+
+    # Puis les autres établissements actifs
+    for etab in matching:
+        if etab.get("etat_administratif") != "A":
+            continue
+        siret = etab.get("siret", "")
+        if siret and siret in sirets_seen:
+            continue
+        sirets_seen.add(siret)
+        etabs_actifs.append(_matching_etab_to_etablissement(etab, siege_siret))
 
     return CompanyDetails(
         siren=item.get("siren", siren),
@@ -257,7 +296,7 @@ async def get_company_details(siren: str) -> CompanyDetails | None:
         tranche_effectifs_libelle=EFFECTIFS.get(effectifs_code or ""),
         categorie_entreprise=item.get("categorie_entreprise"),
         siege=siege_etab,
-        etablissements_actifs=[siege_etab] if siege_etab else [],
+        etablissements_actifs=etabs_actifs,
         nombre_etablissements_actifs=item.get("nombre_etablissements_ouverts", 0),
     )
 

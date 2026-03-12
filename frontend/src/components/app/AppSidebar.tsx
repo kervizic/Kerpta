@@ -6,13 +6,13 @@ import { useState, type ReactNode } from 'react'
 import {
   KeyRound,
   LogOut,
-  Settings,
   ChevronDown,
   ChevronUp,
   Building2,
   Users,
   Check,
   Building,
+  Settings2,
 } from 'lucide-react'
 import { navigate } from '@/hooks/useRoute'
 import { useAuthStore, type OrgMembership } from '@/stores/authStore'
@@ -26,15 +26,23 @@ interface NavItem {
   label: string
   href: string
   icon: ReactNode
-  adminOnly?: boolean
 }
 
-const CONFIG_NAV_ITEMS: NavItem[] = [
+// Items de la section "Mon organisation" (owner/admin uniquement)
+const ORG_NAV_ITEMS: NavItem[] = [
+  {
+    label: 'Ma structure',
+    href: '/app/org/settings',
+    icon: <Building className="w-4 h-4" />,
+  },
+]
+
+// Items de la section "Config Kerpta" (platform admin uniquement)
+const KERPTA_NAV_ITEMS: NavItem[] = [
   {
     label: 'Clés API',
     href: '/app/config/api-keys',
     icon: <KeyRound className="w-4 h-4" />,
-    adminOnly: true,
   },
 ]
 
@@ -62,7 +70,6 @@ function OrgSelector({
 
   return (
     <div>
-      {/* Organisation active — bouton toggle */}
       <button
         onClick={() => setOpen((v) => !v)}
         className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-gray-100 transition"
@@ -91,16 +98,12 @@ function OrgSelector({
         )}
       </button>
 
-      {/* Liste inline — s'affiche dans le flux, pas de bulle */}
       {open && (
         <div className="mt-1 border-t border-gray-100 pt-1">
           {orgs.map((o) => (
             <button
               key={o.org_id}
-              onClick={() => {
-                onSelect(o.org_id)
-                setOpen(false)
-              }}
+              onClick={() => { onSelect(o.org_id); setOpen(false) }}
               className={`w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-left transition ${
                 o.org_id === activeOrgId ? 'bg-orange-50' : 'hover:bg-gray-50'
               }`}
@@ -146,13 +149,70 @@ function OrgSelector({
   )
 }
 
-// ── Accordéon de configuration (admin) — fermé par défaut ────────────────────
+// ── Bouton de navigation ──────────────────────────────────────────────────────
 
-function ConfigAccordion({ currentPath, isAdmin, onClose }: { currentPath: string; isAdmin: boolean | null; onClose?: () => void }) {
+function NavBtn({
+  item,
+  currentPath,
+  onClose,
+}: {
+  item: NavItem
+  currentPath: string
+  onClose?: () => void
+}) {
+  const isActive = currentPath === item.href
+  return (
+    <button
+      onClick={() => { navigate(item.href); onClose?.() }}
+      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+        isActive
+          ? 'bg-orange-50 text-orange-700 border border-orange-200'
+          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+      }`}
+    >
+      {item.icon}
+      {item.label}
+    </button>
+  )
+}
+
+// ── Section libellée (label + items) ─────────────────────────────────────────
+
+function NavSection({
+  label,
+  items,
+  currentPath,
+  onClose,
+}: {
+  label: string
+  items: NavItem[]
+  currentPath: string
+  onClose?: () => void
+}) {
+  return (
+    <div className="space-y-0.5">
+      <div className="px-3 py-1 mt-2">
+        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+          {label}
+        </span>
+      </div>
+      {items.map((item) => (
+        <NavBtn key={item.href} item={item} currentPath={currentPath} onClose={onClose} />
+      ))}
+    </div>
+  )
+}
+
+// ── Accordéon Config Kerpta (platform admin) — fermé par défaut ───────────────
+
+function KertpaConfigAccordion({
+  currentPath,
+  onClose,
+}: {
+  currentPath: string
+  onClose?: () => void
+}) {
   const [open, setOpen] = useState(false)
-  const visibleItems = CONFIG_NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin)
-
-  if (!isAdmin || visibleItems.length === 0) return null
 
   return (
     <div className="border-t border-gray-100 pt-2">
@@ -160,8 +220,8 @@ function ConfigAccordion({ currentPath, isAdmin, onClose }: { currentPath: strin
         onClick={() => setOpen((v) => !v)}
         className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-xs font-semibold text-gray-400 uppercase tracking-wider hover:text-gray-600 hover:bg-gray-50 transition"
       >
-        <Settings className="w-3.5 h-3.5" />
-        <span className="flex-1 text-left">Configuration</span>
+        <Settings2 className="w-3.5 h-3.5 shrink-0" />
+        <span className="flex-1 text-left">Config Kerpta</span>
         {open ? (
           <ChevronUp className="w-3.5 h-3.5" />
         ) : (
@@ -170,24 +230,11 @@ function ConfigAccordion({ currentPath, isAdmin, onClose }: { currentPath: strin
       </button>
       {open && (
         <ul className="mt-0.5 space-y-0.5">
-          {visibleItems.map((item) => {
-            const isActive = currentPath === item.href
-            return (
-              <li key={item.href}>
-                <button
-                  onClick={() => { navigate(item.href); onClose?.() }}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                    isActive
-                      ? 'bg-orange-50 text-orange-700 border border-orange-200'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                  }`}
-                >
-                  {item.icon}
-                  {item.label}
-                </button>
-              </li>
-            )
-          })}
+          {KERPTA_NAV_ITEMS.map((item) => (
+            <li key={item.href}>
+              <NavBtn item={item} currentPath={currentPath} onClose={onClose} />
+            </li>
+          ))}
         </ul>
       )}
     </div>
@@ -204,7 +251,8 @@ export function AppSidebar({ currentPath, onClose }: AppSidebarProps) {
 
   return (
     <aside className="w-60 shrink-0 h-screen sticky top-0 bg-white border-r border-gray-200 flex flex-col">
-      {/* Logo Kerpta — toujours visible, lien vers le site principal */}
+
+      {/* Logo Kerpta */}
       <div className="px-4 py-3 border-b border-gray-100">
         <a href="/" className="flex items-center gap-2 group">
           <div className="w-6 h-6 rounded-md bg-orange-600 flex items-center justify-center shrink-0">
@@ -225,33 +273,31 @@ export function AppSidebar({ currentPath, onClose }: AppSidebarProps) {
         )}
       </div>
 
-      {/* Navigation principale */}
-      <nav className="flex-1 px-3 py-4 overflow-y-auto space-y-0.5">
-        {/* Ma structure — visible si membre d'une org */}
+      {/* Navigation principale — scrollable */}
+      <nav className="flex-1 px-3 py-3 overflow-y-auto">
+
+        {/* Section Mon organisation (owner/admin seulement) */}
         {activeOrg && isOrgOwnerOrAdmin && (
-          <button
-            onClick={() => { navigate('/app/org/settings'); onClose?.() }}
-            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-              currentPath === '/app/org/settings'
-                ? 'bg-orange-50 text-orange-700 border border-orange-200'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-            }`}
-          >
-            <Building className="w-4 h-4" />
-            Ma structure
-          </button>
+          <NavSection
+            label="Mon organisation"
+            items={ORG_NAV_ITEMS}
+            currentPath={currentPath}
+            onClose={onClose}
+          />
         )}
 
-        {/* Message chargement */}
+        {/* Chargement */}
         {isAdmin === null && (
-          <p className="text-xs text-gray-400 px-2 py-2">Chargement…</p>
+          <p className="text-xs text-gray-400 px-2 py-2 mt-2">Chargement…</p>
         )}
       </nav>
 
-      {/* Configuration — accordéon en bas, fermé par défaut */}
-      <div className="px-3 pb-2">
-        <ConfigAccordion currentPath={currentPath} isAdmin={isAdmin} onClose={onClose} />
-      </div>
+      {/* Section Config Kerpta — platform admin uniquement */}
+      {isAdmin && (
+        <div className="px-3 pb-2">
+          <KertpaConfigAccordion currentPath={currentPath} onClose={onClose} />
+        </div>
+      )}
 
       {/* Profil + déconnexion */}
       <div className="px-3 py-4 border-t border-gray-200">
@@ -282,6 +328,7 @@ export function AppSidebar({ currentPath, onClose }: AppSidebarProps) {
           Déconnexion
         </button>
       </div>
+
     </aside>
   )
 }

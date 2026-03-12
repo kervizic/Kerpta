@@ -51,6 +51,7 @@ interface CompanyDetails {
   denomination?: string | null
   siege?: EtablissementOut | null
   etablissements_actifs?: EtablissementOut[]
+  nombre_etablissements_actifs?: number
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -84,6 +85,7 @@ export default function OrgSettingsPage() {
 
   const [org, setOrg] = useState<OrgDetail | null>(null)
   const [etablissements, setEtablissements] = useState<EtablissementOut[]>([])
+  const [nombreEtabsTotal, setNombreEtabsTotal] = useState<number>(0)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
 
@@ -118,11 +120,11 @@ export default function OrgSettingsPage() {
         if (data.org_siren) {
           try {
             const { data: company } = await apiClient.get<CompanyDetails>(`/companies/${data.org_siren}`)
-            if (company?.etablissements_actifs?.length) {
-              setEtablissements(company.etablissements_actifs)
-            } else if (company?.siege) {
-              setEtablissements([company.siege])
-            }
+            const etabs = company?.etablissements_actifs?.length
+              ? company.etablissements_actifs
+              : company?.siege ? [company.siege] : []
+            setEtablissements(etabs)
+            setNombreEtabsTotal(company?.nombre_etablissements_actifs ?? etabs.length)
           } catch {
             // Pas critique — on affiche juste les données locales
           }
@@ -340,58 +342,112 @@ export default function OrgSettingsPage() {
         </section>
 
         {/* Établissements + choix pour la facturation */}
-        {etablissements.length > 0 && (
-          <section className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
+        <section className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
+          <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">
               Établissements
             </h2>
+            {nombreEtabsTotal > 0 && (
+              <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                {nombreEtabsTotal} actif{nombreEtabsTotal > 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+
+          {etablissements.length === 0 && !org.org_siren && (
             <p className="text-xs text-gray-400">
-              Sélectionnez l'établissement qui apparaîtra sur vos factures.
+              Aucun SIREN renseigné — les établissements ne peuvent pas être récupérés.
             </p>
-            <div className="space-y-2">
-              {etablissements.map((etab) => {
-                const isSelected = billingSiret === etab.siret || (!billingSiret && etab.siege)
-                return (
-                  <button
-                    key={etab.siret}
-                    onClick={() => setBillingSiret(etab.siret)}
-                    className={`w-full text-left px-4 py-3 rounded-xl border transition ${
-                      isSelected
-                        ? 'border-orange-400 bg-orange-50'
-                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-sm text-gray-900">{etab.siret}</span>
-                          {etab.siege && (
-                            <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-medium">
-                              Siège
+          )}
+
+          {etablissements.length === 0 && org.org_siren && (
+            <p className="text-xs text-gray-400">
+              Aucun établissement actif trouvé dans le registre INSEE.
+            </p>
+          )}
+
+          {etablissements.length > 0 && (
+            <>
+              <p className="text-xs text-gray-500">
+                Cochez l'établissement à faire apparaître sur vos devis, factures et bons de commande.
+              </p>
+              <div className="space-y-2">
+                {etablissements.map((etab) => {
+                  const isSelected = billingSiret
+                    ? billingSiret === etab.siret
+                    : etab.siege
+                  const siretFormatted = etab.siret.length === 14
+                    ? `${etab.siret.slice(0, 3)} ${etab.siret.slice(3, 6)} ${etab.siret.slice(6, 9)} ${etab.siret.slice(9)}`
+                    : etab.siret
+                  return (
+                    <button
+                      key={etab.siret}
+                      onClick={() => setBillingSiret(etab.siret)}
+                      className={`w-full text-left px-4 py-3 rounded-xl border-2 transition ${
+                        isSelected
+                          ? 'border-orange-400 bg-orange-50'
+                          : 'border-gray-200 hover:border-orange-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        {/* Radio visuel */}
+                        <div className={`mt-0.5 w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center transition ${
+                          isSelected ? 'border-orange-500 bg-orange-500' : 'border-gray-300'
+                        }`}>
+                          {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-mono text-sm text-gray-900 tracking-wide">
+                              {siretFormatted}
                             </span>
+                            {etab.siege && (
+                              <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-medium shrink-0">
+                                Siège social
+                              </span>
+                            )}
+                            {isSelected && (
+                              <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium shrink-0">
+                                Facturation
+                              </span>
+                            )}
+                          </div>
+                          {etab.adresse && (
+                            <p className="text-xs text-gray-400 mt-1">
+                              {formatAddress(etab.adresse)}
+                            </p>
+                          )}
+                          {etab.activite_principale && (
+                            <p className="text-xs text-gray-400 mt-0.5">
+                              Code APE : {etab.activite_principale}
+                            </p>
                           )}
                         </div>
-                        {etab.adresse && (
-                          <p className="text-xs text-gray-400 mt-0.5 truncate">
-                            {formatAddress(etab.adresse)}
-                          </p>
-                        )}
-                        {etab.activite_principale && (
-                          <p className="text-xs text-gray-400 mt-0.5">
-                            APE : {etab.activite_principale}
-                          </p>
-                        )}
                       </div>
-                      {isSelected && (
-                        <CheckCircle className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
-                      )}
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-          </section>
-        )}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Note si l'API ne retourne pas tous les établissements */}
+              {nombreEtabsTotal > etablissements.length && (
+                <p className="text-xs text-gray-400 flex items-center gap-1">
+                  <Info className="w-3 h-3 shrink-0" />
+                  {nombreEtabsTotal - etablissements.length} établissement(s) supplémentaire(s) non affiché(s) — consultez{' '}
+                  <a
+                    href={`https://www.pappers.fr/entreprise/${org.org_siren}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-orange-500 hover:underline"
+                  >
+                    Pappers
+                  </a>{' '}
+                  pour la liste complète.
+                </p>
+              )}
+            </>
+          )}
+        </section>
 
         {/* Bouton Enregistrer */}
         <div className="flex items-center gap-3">
