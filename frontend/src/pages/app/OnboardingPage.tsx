@@ -419,7 +419,7 @@ function JoinStep({
       })
       onSuccess(selected.org_name)
     } catch (err) {
-      setSendError(httpError(err, 'Erreur lors de l'envoi de la demande'))
+      setSendError(httpError(err, "Erreur lors de l'envoi de la demande"))
     } finally {
       setSending(false)
     }

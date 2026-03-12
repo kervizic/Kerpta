@@ -83,7 +83,7 @@ export default function InvitePage({ token }: { token: string }) {
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const d = err.response?.data as { detail?: string } | undefined
-        setError(d?.detail ?? 'Erreur lors de l'acceptation')
+        setError(d?.detail ?? "Erreur lors de l'acceptation")
       } else {
         setError('Erreur de connexion')
       }
@@ -188,7 +188,7 @@ export default function InvitePage({ token }: { token: string }) {
                 className="w-full flex items-center justify-center gap-2 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition"
               >
                 {accepting && <Loader2 className="w-4 h-4 animate-spin" />}
-                {accepting ? 'Acceptation…' : 'Accepter l'invitation →'}
+                {accepting ? 'Acceptation…' : "Accepter l'invitation →"}
               </button>
               <button
                 onClick={() => navigate('/app')}
