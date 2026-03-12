@@ -185,6 +185,7 @@ function ConfigAccordion({
   onClose,
   defaultOpen = false,
   topBorder = true,
+  storageKey,
 }: {
   label: string
   items: NavItem[]
@@ -192,13 +193,28 @@ function ConfigAccordion({
   onClose?: () => void
   defaultOpen?: boolean
   topBorder?: boolean
+  storageKey?: string
 }) {
-  const [open, setOpen] = useState(defaultOpen)
+  const [open, setOpen] = useState(() => {
+    if (storageKey) {
+      const saved = localStorage.getItem(storageKey)
+      if (saved !== null) return saved === 'true'
+    }
+    return defaultOpen
+  })
+
+  function toggle() {
+    setOpen((v) => {
+      const next = !v
+      if (storageKey) localStorage.setItem(storageKey, String(next))
+      return next
+    })
+  }
 
   return (
     <div className={topBorder ? 'border-t border-gray-100 pt-2' : 'pt-1'}>
       <button
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
         className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-xs font-semibold text-gray-400 uppercase tracking-wider hover:text-gray-600 hover:bg-gray-50 transition"
       >
         <Settings2 className="w-3.5 h-3.5 shrink-0" />
@@ -263,19 +279,20 @@ export function AppSidebar({ currentPath, onClose }: AppSidebarProps) {
       {/* Accordéons de configuration — en bas de la sidebar */}
       <div className="px-3 pb-2">
 
-        {/* Configuration organisation — owner/admin, ouvert par défaut */}
+        {/* Configuration organisation — owner/admin */}
         {activeOrg && isOrgOwnerOrAdmin && (
           <ConfigAccordion
             label="Configuration"
             items={ORG_CONFIG_ITEMS}
             currentPath={currentPath}
             onClose={onClose}
-            defaultOpen
+            defaultOpen={false}
+            storageKey="sidebar-config-org"
             topBorder
           />
         )}
 
-        {/* Config Kerpta — platform admin uniquement, fermé par défaut */}
+        {/* Config Kerpta — platform admin uniquement */}
         {isAdmin && (
           <ConfigAccordion
             label="Config Kerpta"
@@ -283,7 +300,8 @@ export function AppSidebar({ currentPath, onClose }: AppSidebarProps) {
             currentPath={currentPath}
             onClose={onClose}
             defaultOpen={false}
-            topBorder={activeOrg && isOrgOwnerOrAdmin ? true : true}
+            storageKey="sidebar-config-kerpta"
+            topBorder
           />
         )}
       </div>
