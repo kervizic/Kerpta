@@ -95,3 +95,6 @@ class Organization(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     storage_config: Mapped["OrganizationStorageConfig | None"] = relationship(
         back_populates="organization", uselist=False
     )
+    join_requests: Mapped[list["OrganizationJoinRequest"]] = relationship(
+        back_populates="organization", cascade="all, delete-orphan"
+    )

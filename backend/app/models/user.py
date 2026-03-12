@@ -8,6 +8,7 @@ from datetime import datetime
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import UniqueConstraint
 
 from app.core.database import Base
 from app.models.base import TimestampMixin, UUIDPrimaryKeyMixin
@@ -129,4 +130,42 @@ class Invitation(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     organization: Mapped["Organization"] = relationship(back_populates="invitations")
     creator: Mapped["User"] = relationship(
         foreign_keys=[created_by], back_populates="invitations_created"
+    )
+
+
+class OrganizationJoinRequest(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """Demande de rattachement à une organisation existante."""
+
+    __tablename__ = "organization_join_requests"
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+    )
+    message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="pending"
+    )  # pending/accepted/rejected
+    reviewed_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    role_assigned: Mapped[str | None] = mapped_column(
+        String(20), nullable=True
+    )  # renseigné à l'acceptation
+    cooldown_until: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )  # après refus : cooldown 30 jours
+
+    # Relations
+    organization: Mapped["Organization"] = relationship(back_populates="join_requests")
+    user: Mapped["User"] = relationship(foreign_keys=[user_id])
+    reviewer: Mapped["User | None"] = relationship(foreign_keys=[reviewed_by])
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "organization_id", name="uq_join_request_user_org"),
     )

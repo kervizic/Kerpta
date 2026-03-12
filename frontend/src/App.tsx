@@ -12,6 +12,7 @@ import LandingPage from '@/pages/LandingPage'
 const LoginPage = lazy(() => import('@/pages/LoginPage'))
 const CallbackPage = lazy(() => import('@/pages/CallbackPage'))
 const AppShell = lazy(() => import('@/components/app/AppShell'))
+const InvitePage = lazy(() => import('@/pages/InvitePage'))
 
 function LoadingScreen() {
   return (
@@ -23,6 +24,16 @@ function LoadingScreen() {
 
 export default function App() {
   const path = useRoute()
+
+  // /invite/{token} — acceptation d'invitation
+  if (path.startsWith('/invite/')) {
+    const token = path.slice('/invite/'.length)
+    return (
+      <Suspense fallback={<LoadingScreen />}>
+        <InvitePage token={token} />
+      </Suspense>
+    )
+  }
 
   return (
     <Suspense fallback={<LoadingScreen />}>

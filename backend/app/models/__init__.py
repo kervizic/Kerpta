@@ -5,7 +5,7 @@
 # Import de tous les modèles pour qu'Alembic les détecte automatiquement
 
 from app.models.base import Base  # noqa: F401
-from app.models.user import User, OrganizationMembership, Invitation  # noqa: F401
+from app.models.user import User, OrganizationMembership, Invitation, OrganizationJoinRequest  # noqa: F401
 from app.models.organization import Organization  # noqa: F401
 from app.models.client import Client, Supplier  # noqa: F401
 from app.models.product import (  # noqa: F401

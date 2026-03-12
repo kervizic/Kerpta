@@ -28,6 +28,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.companies.router import router as companies_router
 from app.config.router import router as config_router
 from app.core.config import settings
+from app.invitations.router import router as invitations_router
+from app.organizations.router import router as organizations_router
 from app.platform.router import router as platform_router
 from app.setup.router import router as setup_router
 
@@ -57,6 +59,7 @@ class SetupRedirectMiddleware(BaseHTTPMiddleware):
         "/static",
         "/api/v1/platform",
         "/api/v1/config/providers",  # endpoint public (page login)
+        "/api/v1/invitations",       # acceptation invitation sans setup complet
         "/api/docs",
         "/api/redoc",
         "/openapi.json",
@@ -166,6 +169,8 @@ app.include_router(setup_router)
 app.include_router(platform_router)
 app.include_router(config_router)
 app.include_router(companies_router)
+app.include_router(organizations_router)
+app.include_router(invitations_router)
 
 # Les routes métier seront enregistrées ici au fur et à mesure des modules :
 # from app.api.routes import invoices, quotes, clients, ...

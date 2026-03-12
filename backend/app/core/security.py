@@ -52,6 +52,56 @@ def get_current_user_id(
     return UUID(sub)
 
 
+async def get_current_user_info(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    db: AsyncSession = Depends(get_db),
+) -> tuple[UUID, str]:
+    """Décode le JWT et crée l'utilisateur en base si nécessaire.
+
+    Retourne (user_id, email).
+    À utiliser dans les routes qui créent des données liées à l'utilisateur
+    (création d'organisation, acceptation d'invitation, demande de rattachement).
+    """
+    payload = decode_supabase_jwt(credentials.credentials)
+    sub = payload.get("sub")
+    if not sub:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Token sans sujet")
+    user_id = UUID(sub)
+
+    email = (payload.get("email") or "").strip()
+    meta = payload.get("user_metadata") or {}
+    if not email and isinstance(meta, dict):
+        email = (meta.get("email") or "").strip()
+    if not email:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Email manquant dans le token")
+
+    full_name = ""
+    avatar_url = ""
+    if isinstance(meta, dict):
+        full_name = (meta.get("full_name") or meta.get("name") or "").strip()
+        avatar_url = (meta.get("avatar_url") or meta.get("picture") or "").strip()
+
+    await db.execute(
+        text("""
+            INSERT INTO users (id, email, full_name, avatar_url, last_login_at, created_at)
+            VALUES (:id, :email, :name, :avatar, now(), now())
+            ON CONFLICT (id) DO UPDATE SET
+                email      = EXCLUDED.email,
+                full_name  = COALESCE(EXCLUDED.full_name, users.full_name),
+                avatar_url = COALESCE(EXCLUDED.avatar_url, users.avatar_url),
+                last_login_at = now()
+        """),
+        {
+            "id": str(user_id),
+            "email": email,
+            "name": full_name or None,
+            "avatar": avatar_url or None,
+        },
+    )
+    await db.commit()
+    return user_id, email
+
+
 async def require_platform_admin(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     db: AsyncSession = Depends(get_db),

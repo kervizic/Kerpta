@@ -8,6 +8,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { AppSidebar } from './AppSidebar'
 
 const ConfigApiKeysPage = lazy(() => import('@/pages/app/ConfigApiKeysPage'))
+const OnboardingPage = lazy(() => import('@/pages/app/OnboardingPage'))
 
 interface AppShellProps {
   path: string
@@ -36,18 +37,42 @@ function DashboardPlaceholder() {
 }
 
 export default function AppShell({ path }: AppShellProps) {
-  const { token, fetchMe } = useAuthStore()
+  const { token, fetchMe, fetchOrgs, orgs } = useAuthStore()
 
   useEffect(() => {
     if (!token) {
       navigate('/login')
       return
     }
-    // Récupère les droits de l'utilisateur courant (is_platform_admin)
     void fetchMe()
-  }, [token, fetchMe])
+    void fetchOrgs()
+  }, [token, fetchMe, fetchOrgs])
 
   if (!token) return null
+
+  // Page onboarding : rendue sans sidebar
+  if (path === '/app/onboarding') {
+    return (
+      <Suspense fallback={<PageSpinner />}>
+        <OnboardingPage />
+      </Suspense>
+    )
+  }
+
+  // Attente du chargement des orgas
+  if (orgs === null) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  // Aucune orga → wizard d'onboarding obligatoire
+  if (orgs.length === 0) {
+    navigate('/app/onboarding')
+    return null
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
