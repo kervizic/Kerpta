@@ -420,6 +420,20 @@ async def _save_to_cache(siren: str, item: dict, matching: list[dict], db: Async
             {**e, "ape": e["activite_principale"], "now": now},
         )
 
+    # Fermer les établissements absents de la liste fraîche
+    # (disparus de l'API = probablement fermés ou radiés)
+    if sirets_seen:
+        await db.execute(
+            text("""
+                UPDATE establishments
+                SET status = 'closed', updated_at = now()
+                WHERE siren = :siren
+                  AND status = 'active'
+                  AND siret != ALL(:sirets)
+            """),
+            {"siren": siren, "sirets": list(sirets_seen)},
+        )
+
     await db.commit()
 
 
