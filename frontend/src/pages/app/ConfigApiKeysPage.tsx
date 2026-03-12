@@ -2,11 +2,9 @@
 // Copyright (C) 2026 Emmanuel Kervizic
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
-// Section 1 : Providers OAuth (Google, Microsoft, GitHub, …)
-// Section 2 : INSEE / Sirene API (clé API unique — header X-INSEE-Api-Key-Integration)
+// Section : Providers OAuth (Google, Microsoft, GitHub, …)
 
 import { useEffect, useState } from 'react'
-import axios from 'axios'
 import { apiClient } from '@/lib/api'
 import { useAuthStore } from '@/stores/authStore'
 import {
@@ -34,9 +32,6 @@ interface ProviderCfg {
 interface ApiKeysData {
   auth_url: string
   oauth_config: Record<string, ProviderCfg>
-  api_keys: {
-    insee_api_key: string
-  }
 }
 
 // Lien vers la console développeur de chaque provider
@@ -282,13 +277,6 @@ export default function ConfigApiKeysPage() {
   const [oauthStatus, setOauthStatus] = useState<{ ok: boolean; msg: string } | null>(null)
   const [restarting, setRestarting] = useState(false)
 
-  // État local INSEE
-  const [inseeApiKey, setInseeApiKey] = useState('')
-  const [inseeSaving, setInseeSaving] = useState(false)
-  const [inseeSaveStatus, setInseeSaveStatus] = useState<{ ok: boolean; msg: string } | null>(null)
-  const [inseeTesting, setInseeTesting] = useState(false)
-  const [inseeTestStatus, setInseeTestStatus] = useState<{ ok: boolean; msg: string } | null>(null)
-
   useEffect(() => {
     // isAdmin === null : fetchMe pas encore terminé → on attend
     if (isAdmin === null) return
@@ -305,7 +293,6 @@ export default function ConfigApiKeysPage() {
           initial[key] = d.oauth_config[key] ?? { enabled: false, client_id: '', client_secret: '' }
         }
         setProviders(initial)
-        setInseeApiKey(d.api_keys.insee_api_key)
       })
       .catch(() => {
         /* 401 → intercepteur redirige vers /login */
@@ -325,53 +312,6 @@ export default function ConfigApiKeysPage() {
       setOauthStatus({ ok: false, msg: "Erreur lors de l'enregistrement" })
     } finally {
       setOauthSaving(false)
-    }
-  }
-
-  function httpErrorMsg(err: unknown, fallback: string): string {
-    if (axios.isAxiosError(err)) {
-      const status = err.response?.status
-      if (status === 403) return 'Accès refusé (403) — rechargez la page'
-      if (status === 401) return 'Non authentifié (401) — reconnectez-vous'
-      if (status === 422) return err.response?.data?.detail ?? `Données invalides (422)`
-      if (status) return `Erreur serveur (${status})`
-      return 'Serveur inaccessible — vérifiez votre connexion'
-    }
-    return fallback
-  }
-
-  async function saveInsee() {
-    setInseeSaving(true)
-    setInseeSaveStatus(null)
-    try {
-      await apiClient.put('/config/api-keys', { insee_api_key: inseeApiKey })
-      setInseeSaveStatus({ ok: true, msg: 'Clé INSEE enregistrée' })
-    } catch (err) {
-      setInseeSaveStatus({ ok: false, msg: httpErrorMsg(err, "Erreur lors de l'enregistrement") })
-    } finally {
-      setInseeSaving(false)
-    }
-  }
-
-  async function testInsee() {
-    setInseeTesting(true)
-    setInseeTestStatus(null)
-    try {
-      const { data: result } = await apiClient.post<{
-        ok: boolean
-        denomination?: string
-        http_status?: number
-        error?: string
-      }>('/config/api-keys/insee-test')
-      if (result.ok) {
-        setInseeTestStatus({ ok: true, msg: `Connexion réussie ✓` })
-      } else {
-        setInseeTestStatus({ ok: false, msg: result.error ?? 'Échec de la connexion' })
-      }
-    } catch (err) {
-      setInseeTestStatus({ ok: false, msg: httpErrorMsg(err, 'Erreur réseau') })
-    } finally {
-      setInseeTesting(false)
     }
   }
 
@@ -476,80 +416,6 @@ export default function ConfigApiKeysPage() {
           </div>
         </section>
 
-        {/* Séparateur */}
-        <div className="border-t border-gray-200 mb-10" />
-
-        {/* ── Section INSEE ─────────────────────────────────────────────────── */}
-        <section>
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-base font-semibold text-gray-900">INSEE / Sirene API</h2>
-              <p className="text-sm text-gray-500 mt-0.5">
-                Recherche de sociétés par SIRET, SIREN, dénomination
-              </p>
-            </div>
-            <a
-              href="https://portail-api.insee.fr"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs text-orange-600 hover:text-orange-700 transition"
-            >
-              Portail INSEE
-              <ExternalLink className="w-3 h-3" />
-            </a>
-          </div>
-
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 text-xs text-blue-800 leading-relaxed">
-            <strong className="text-blue-900">Authentification par clé API</strong> — Inscrivez-vous
-            sur le portail INSEE, créez une application et abonnez-vous à l'API Sirene. La clé est
-            transmise dans le header{' '}
-            <code className="text-orange-600 bg-white border border-orange-200 px-1 rounded">
-              X-INSEE-Api-Key-Integration
-            </code>{' '}
-            à validité illimitée (révocable depuis le portail).
-          </div>
-
-          <div className="mb-4">
-            <InputField
-              label="Clé API INSEE"
-              value={inseeApiKey}
-              onChange={setInseeApiKey}
-              type="password"
-              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-            />
-          </div>
-
-          <div className="flex items-center gap-3 flex-wrap">
-            <button
-              onClick={saveInsee}
-              disabled={inseeSaving}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white text-sm font-semibold transition"
-            >
-              {inseeSaving && <Loader2 className="w-4 h-4 animate-spin" />}
-              Enregistrer
-            </button>
-
-            <button
-              onClick={testInsee}
-              disabled={inseeTesting}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50 text-gray-700 text-sm font-semibold transition"
-            >
-              {inseeTesting ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Check className="w-4 h-4" />
-              )}
-              Tester la connexion
-            </button>
-
-            {inseeSaveStatus && (
-              <StatusBadge ok={inseeSaveStatus.ok} message={inseeSaveStatus.msg} />
-            )}
-            {inseeTestStatus && (
-              <StatusBadge ok={inseeTestStatus.ok} message={inseeTestStatus.msg} />
-            )}
-          </div>
-        </section>
       </div>
     </div>
   )

@@ -36,6 +36,8 @@ class CompanySearchResult(BaseModel):
     etat: str  # "Actif" ou "Cessé"
     tva_intracom: str  # ex: "FR12838377331"
     siege_adresse: Address | None = None
+    siret_siege: str | None = None  # SIRET du siège social
+    ca: float | None = None  # CA annuel le plus récent (None si non déclaré)
 
 
 class CompanyDetails(BaseModel):

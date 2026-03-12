@@ -37,7 +37,7 @@ function DashboardPlaceholder() {
 }
 
 export default function AppShell({ path }: AppShellProps) {
-  const { token, fetchMe, fetchOrgs, orgs } = useAuthStore()
+  const { token, fetchMe, fetchOrgs, orgs, isAdmin } = useAuthStore()
 
   useEffect(() => {
     if (!token) {
@@ -68,10 +68,22 @@ export default function AppShell({ path }: AppShellProps) {
     )
   }
 
-  // Aucune orga → wizard d'onboarding obligatoire
+  // Aucune orga
   if (orgs.length === 0) {
-    navigate('/app/onboarding')
-    return null
+    // Admin plateforme sans orga → attendre que isAdmin soit résolu, puis laisser passer
+    if (isAdmin === null) {
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      )
+    }
+    // Non admin → onboarding obligatoire
+    if (!isAdmin) {
+      navigate('/app/onboarding')
+      return null
+    }
+    // Admin plateforme → accès direct à la config sans orga
   }
 
   return (

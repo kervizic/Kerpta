@@ -25,6 +25,26 @@ interface CompanyLookup {
     code_postal: string | null
     commune: string | null
   } | null
+  siret_siege: string | null
+  ca: number | null
+}
+
+// Correspondance libellé forme juridique → valeur du <select>
+const LEGAL_FORM_DROPDOWN: Record<string, string> = {
+  'Entrepreneur individuel': 'EI',
+  'Artisan-commerçant': 'EI',
+  'Agent commercial': 'EI',
+  EURL: 'EURL',
+  SARL: 'SARL',
+  SAS: 'SAS',
+  SASU: 'SAS',
+  SA: 'SA',
+  'SA cotée': 'SA',
+  SNC: 'SNC',
+  SCI: 'SCI',
+  'Société civile': 'SCI',
+  Association: 'Association',
+  'Association loi 1901': 'Association',
 }
 
 interface OrgSearchResult {
@@ -181,7 +201,13 @@ function CreateStep({
       const c = data[0]
       setLookupResult(c)
       setName(c.denomination ?? c.sigle ?? '')
-      setLegalForm(c.categorie_juridique_libelle ?? '')
+      // Pré-remplir la forme juridique si reconnue dans le dropdown
+      const mappedForm = LEGAL_FORM_DROPDOWN[c.categorie_juridique_libelle ?? ''] ?? ''
+      setLegalForm(mappedForm)
+      // Pré-remplir franchise de base si CA ≤ 36 800 € (seuil prestations de services)
+      if (c.ca !== null && c.ca > 0 && c.ca <= 36800) {
+        setVatRegime('none')
+      }
     } catch (err) {
       setSearchError(httpError(err, 'Erreur lors de la recherche'))
     } finally {

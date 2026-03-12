@@ -2,24 +2,19 @@
 # Copyright (C) 2026 Emmanuel Kervizic
 # Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
-"""Router de configuration de la plateforme (providers OAuth, clés API).
+"""Router de configuration de la plateforme (providers OAuth).
 
 Routes exposées :
   GET  /api/v1/config/providers         — public, retourne les providers actifs
-  GET  /api/v1/config/api-keys          — admin, retourne oauth_config + api_keys
+  GET  /api/v1/config/api-keys          — admin, retourne oauth_config
   PUT  /api/v1/config/oauth             — admin, met à jour les providers OAuth + redémarre GoTrue
-  PUT  /api/v1/config/api-keys          — admin, met à jour les clés API externes (INSEE)
-  POST /api/v1/config/api-keys/insee-test — admin, teste la connexion INSEE
 """
 
 import asyncio
-import json
 import logging
-import uuid as _uuid
 from typing import Any
 from uuid import UUID
 
-import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import text
@@ -46,10 +41,6 @@ class ProviderConfig(BaseModel):
 class OAuthUpdateRequest(BaseModel):
     providers: dict[str, ProviderConfig]
     custom_oidc: dict[str, Any] | None = None
-
-
-class ApiKeysUpdateRequest(BaseModel):
-    insee_api_key: str = ""
 
 
 # ── GET /me — utilisateur courant ─────────────────────────────────────────────
@@ -140,14 +131,9 @@ async def get_api_keys(
             "client_secret": ("••••" + secret[-4:]) if len(secret) > 4 else ("••••" if secret else ""),
         }
 
-    raw_key = api_keys.get("insee_api_key", "")
     return {
         "auth_url": auth_url,
         "oauth_config": masked_oauth,
-        "api_keys": {
-            # Clé API INSEE — masquée sauf les 4 derniers caractères
-            "insee_api_key": ("••••" + raw_key[-4:]) if len(raw_key) > 4 else ("••••" if raw_key else ""),
-        },
     }
 
 
@@ -198,121 +184,3 @@ async def update_oauth_config(
 
     _log.info("[config] OAuth mis à jour — GoTrue en cours de redémarrage")
     return {"ok": True, "restarting": True}
-
-
-# ── PUT /api-keys — platform_admin ───────────────────────────────────────────
-
-
-@router.put("/api-keys", status_code=status.HTTP_200_OK)
-async def update_api_keys(
-    body: ApiKeysUpdateRequest,
-    db: AsyncSession = Depends(get_db),
-    _admin: object = Depends(require_platform_admin),
-) -> dict:
-    """Met à jour les clés API externes (INSEE / Sirene) dans platform_config."""
-    # Récupère les clés existantes pour ne pas écraser ce qui n'est pas fourni
-    result = await db.execute(
-        text("SELECT api_keys FROM platform_config LIMIT 1")
-    )
-    row = result.fetchone()
-    existing: dict = (row[0] or {}) if row else {}
-
-    updates: dict = dict(existing)
-    if body.insee_api_key:
-        updates["insee_api_key"] = body.insee_api_key
-
-    # UPSERT : mise à jour si une ligne existe, création minimale sinon
-    # (cas d'une instance sans assistant d'installation complété)
-    # asyncpg nécessite json.dumps() + CAST(:x AS jsonb) pour les colonnes JSONB
-    keys_json = json.dumps(updates)
-    result = await db.execute(
-        text(
-            """
-            UPDATE platform_config
-               SET api_keys = CAST(:keys AS jsonb), updated_at = now()
-            """
-        ),
-        {"keys": keys_json},
-    )
-    if result.rowcount == 0:
-        await db.execute(
-            text(
-                """
-                INSERT INTO platform_config
-                    (id, api_keys, setup_completed, setup_step, created_at, updated_at)
-                VALUES
-                    (:id, CAST(:keys AS jsonb), false, 1, now(), now())
-                """
-            ),
-            {"id": str(_uuid.uuid4()), "keys": keys_json},
-        )
-    await db.commit()
-
-    _log.info("[config] Clés API mises à jour")
-    return {"ok": True}
-
-
-# ── POST /api-keys/insee-test — platform_admin ───────────────────────────────
-
-
-@router.post("/api-keys/insee-test", status_code=status.HTTP_200_OK)
-async def test_insee_connection(
-    db: AsyncSession = Depends(get_db),
-    _admin: object = Depends(require_platform_admin),
-) -> dict:
-    """Teste la connexion à l'API Sirene INSEE (GET /siren) avec la clé API.
-
-    L'API Sirene utilise une simple clé API dans le header X-INSEE-Api-Key-Integration.
-    On effectue une requête sur un SIREN connu pour valider la clé.
-    """
-    result = await db.execute(
-        text("SELECT api_keys FROM platform_config LIMIT 1")
-    )
-    row = result.fetchone()
-    api_keys: dict = (row[0] or {}) if row else {}
-
-    api_key = api_keys.get("insee_api_key", "")
-
-    if not api_key:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Clé API INSEE manquante — enregistrez d'abord la clé",
-        )
-
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            # Test avec un SIREN INSEE lui-même (1 = INSEE)
-            response = await client.get(
-                "https://api.insee.fr/api-sirene/3.11/siren/120027016",
-                headers={
-                    "X-INSEE-Api-Key-Integration": api_key,
-                    "Accept": "application/json",
-                },
-            )
-
-        if response.status_code == 200:
-            data = response.json()
-            denomination = (
-                data.get("uniteLegale", {})
-                .get("periodesUniteLegale", [{}])[0]
-                .get("denominationUniteLegale", "")
-            )
-            return {"ok": True, "denomination": denomination, "http_status": 200}
-        elif response.status_code == 401:
-            return {"ok": False, "error": "Clé API invalide ou expirée (401 Unauthorized)"}
-        elif response.status_code == 403:
-            return {"ok": False, "error": "Accès refusé — vérifiez les droits de votre abonnement (403)"}
-        else:
-            return {
-                "ok": False,
-                "error": f"INSEE a répondu {response.status_code}",
-                "detail": response.text[:200],
-            }
-
-    except httpx.ConnectError:
-        return {"ok": False, "error": "Impossible de joindre api.insee.fr"}
-    except httpx.TimeoutException:
-        return {"ok": False, "error": "Délai d'attente dépassé (10 s)"}
-    except Exception as exc:  # noqa: BLE001
-        _log.exception("[config] Erreur test INSEE : %s", exc)
-        return {"ok": False, "error": str(exc)}
