@@ -12,6 +12,7 @@ import {
   Users,
   Check,
   Building,
+  Settings,
   Settings2,
   LayoutDashboard,
   UserRound,
@@ -299,6 +300,7 @@ function SectionAccordion({
 
 function ConfigAccordion({
   label,
+  icon,
   items,
   currentPath,
   onClose,
@@ -307,6 +309,7 @@ function ConfigAccordion({
   storageKey,
 }: {
   label: string
+  icon?: ReactNode
   items: NavItem[]
   currentPath: string
   onClose?: () => void
@@ -336,7 +339,7 @@ function ConfigAccordion({
         onClick={toggle}
         className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-xs font-semibold text-gray-400 uppercase tracking-wider hover:text-gray-600 hover:bg-gray-50 transition"
       >
-        <Settings2 className="w-3.5 h-3.5 shrink-0" />
+        {icon ?? <Settings2 className="w-3.5 h-3.5 shrink-0" />}
         <span className="flex-1 text-left">{label}</span>
         {open ? (
           <ChevronUp className="w-3.5 h-3.5" />
@@ -411,6 +414,7 @@ export function AppSidebar({ currentPath, onClose }: AppSidebarProps) {
         {activeOrg && isOrgOwnerOrAdmin && (
           <ConfigAccordion
             label="Configuration"
+            icon={<Settings className="w-3.5 h-3.5 shrink-0" />}
             items={ORG_CONFIG_ITEMS}
             currentPath={currentPath}
             onClose={onClose}
