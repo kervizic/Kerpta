@@ -115,8 +115,9 @@ async def get_client(
     result = await db.execute(
         text("""
             SELECT c.id::text, c.type, c.name, c.siret, c.country_code,
-                   c.vat_number, c.email, c.phone, c.billing_address,
-                   c.shipping_address, c.payment_terms, c.notes,
+                   c.company_siren, c.vat_number, c.email, c.phone,
+                   c.billing_address, c.shipping_address,
+                   c.payment_terms, c.notes,
                    c.created_at, c.archived_at,
                    (SELECT COUNT(*) FROM quotes q WHERE q.client_id = c.id) AS quote_count,
                    (SELECT COUNT(*) FROM invoices i WHERE i.client_id = c.id) AS invoice_count,

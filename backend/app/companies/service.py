@@ -29,7 +29,7 @@ import httpx
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .schemas import Address, CompanyDetails, CompanySearchResult, Etablissement, FinanceYear
+from .schemas import Address, CompanyDetails, CompanySearchResult, Dirigeant, Etablissement, FinanceYear
 
 _log = logging.getLogger(__name__)
 
@@ -258,9 +258,44 @@ def _extract_finances(raw: dict) -> list[FinanceYear]:
     result = []
     for annee, data in sorted(finances.items(), reverse=True):
         ca = data.get("ca")
-        if ca and ca > 0:
-            result.append(FinanceYear(annee=annee, ca=float(ca)))
+        resultat_net = data.get("resultat_net")
+        if ca or resultat_net:
+            result.append(FinanceYear(
+                annee=annee,
+                ca=float(ca) if ca else None,
+                resultat_net=float(resultat_net) if resultat_net else None,
+            ))
     return result
+
+
+def _extract_dirigeants(raw: dict) -> list[Dirigeant]:
+    """Extrait les dirigeants depuis raw_data."""
+    dirigeants_raw = raw.get("dirigeants") or []
+    result = []
+    for d in dirigeants_raw:
+        result.append(Dirigeant(
+            nom=d.get("nom"),
+            prenoms=d.get("prenoms"),
+            qualite=d.get("qualite"),
+            nationalite=d.get("nationalite"),
+            annee_de_naissance=str(d["annee_de_naissance"]) if d.get("annee_de_naissance") else None,
+            type_dirigeant=d.get("type_dirigeant"),
+        ))
+    return result
+
+
+def _extract_complements(raw: dict) -> tuple[list[str], bool | None, bool | None, bool | None]:
+    """Extrait les compléments (IDCC, ESS, etc.) depuis raw_data.
+
+    Retourne (conventions_collectives, est_ess, est_association, est_qualiopi).
+    """
+    complements = raw.get("complements") or {}
+    idcc_list = complements.get("liste_idcc") or []
+    conventions = [str(code) for code in idcc_list]
+    est_ess = complements.get("est_ess")
+    est_association = complements.get("est_association")
+    est_qualiopi = complements.get("est_qualiopi")
+    return conventions, est_ess, est_association, est_qualiopi
 
 
 async def _load_from_cache(siren: str, db: AsyncSession) -> CompanyDetails | None:
@@ -336,12 +371,15 @@ async def _load_from_cache(siren: str, db: AsyncSession) -> CompanyDetails | Non
             siege_etab = etab
 
     nat_jur = c["legal_form_code"]
+    conventions, est_ess, est_association, est_qualiopi = _extract_complements(raw)
+
     return CompanyDetails(
         siren=siren,
         denomination=c["denomination"],
         nom_complet=raw.get("nom_complet"),
         sigle=c["sigle"],
         activite_principale=c["ape_code"],
+        section_activite_principale=raw.get("section_activite_principale"),
         categorie_juridique=nat_jur,
         categorie_juridique_libelle=c["legal_form"] or LEGAL_FORM.get(nat_jur or ""),
         date_creation=c["creation_date"],
@@ -351,8 +389,15 @@ async def _load_from_cache(siren: str, db: AsyncSession) -> CompanyDetails | Non
         tranche_effectifs_libelle=EFFECTIFS.get(effectifs_code or ""),
         tranche_effectifs_annee=str(effectifs_annee) if effectifs_annee else None,
         categorie_entreprise=raw.get("categorie_entreprise"),
+        caractere_employeur=raw.get("caractere_employeur"),
         nombre_etablissements=raw.get("nombre_etablissements_ouverts"),
+        dirigeants=_extract_dirigeants(raw),
         finances=_extract_finances(raw),
+        conventions_collectives=conventions,
+        est_ess=est_ess,
+        est_association=est_association,
+        est_qualiopi=est_qualiopi,
+        date_mise_a_jour=raw.get("date_mise_a_jour"),
         siege=siege_etab,
         etablissements_actifs=etabs_actifs,
         nombre_etablissements_actifs=len(etabs_actifs),
@@ -543,6 +588,7 @@ def _build_details_from_api(siren: str, item: dict, matching: list[dict]) -> Com
         etabs_actifs.append(_matching_etab_to_etablissement(etab, siege_siret))
 
     effectifs_annee = item.get("annee_tranche_effectif_salarie")
+    conventions, est_ess, est_association, est_qualiopi = _extract_complements(item)
 
     return CompanyDetails(
         siren=item.get("siren", siren),
@@ -550,6 +596,7 @@ def _build_details_from_api(siren: str, item: dict, matching: list[dict]) -> Com
         nom_complet=item.get("nom_complet"),
         sigle=item.get("sigle"),
         activite_principale=item.get("activite_principale"),
+        section_activite_principale=item.get("section_activite_principale"),
         categorie_juridique=nat_jur,
         categorie_juridique_libelle=LEGAL_FORM.get(nat_jur or "") or None,
         date_creation=item.get("date_creation"),
@@ -559,8 +606,15 @@ def _build_details_from_api(siren: str, item: dict, matching: list[dict]) -> Com
         tranche_effectifs_libelle=EFFECTIFS.get(effectifs_code or ""),
         tranche_effectifs_annee=str(effectifs_annee) if effectifs_annee else None,
         categorie_entreprise=item.get("categorie_entreprise"),
+        caractere_employeur=item.get("caractere_employeur"),
         nombre_etablissements=nb_ouverts,
+        dirigeants=_extract_dirigeants(item),
         finances=_extract_finances(item),
+        conventions_collectives=conventions,
+        est_ess=est_ess,
+        est_association=est_association,
+        est_qualiopi=est_qualiopi,
+        date_mise_a_jour=item.get("date_mise_a_jour"),
         siege=siege_etab,
         etablissements_actifs=etabs_actifs,
         nombre_etablissements_actifs=nb_ouverts,

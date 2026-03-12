@@ -40,11 +40,23 @@ class CompanySearchResult(BaseModel):
     ca: float | None = None  # CA annuel le plus récent (None si non déclaré)
 
 
+class Dirigeant(BaseModel):
+    """Dirigeant d'entreprise (données publiques RNE)."""
+
+    nom: str | None = None
+    prenoms: str | None = None
+    qualite: str | None = None        # "Gérant", "Président", etc.
+    nationalite: str | None = None
+    annee_de_naissance: str | None = None
+    type_dirigeant: str | None = None  # "personne physique" / "personne morale"
+
+
 class FinanceYear(BaseModel):
     """Données financières annuelles extraites de l'API."""
 
     annee: str
-    ca: float | None = None  # Chiffre d'affaires en euros
+    ca: float | None = None            # Chiffre d'affaires en euros
+    resultat_net: float | None = None  # Résultat net en euros
 
 
 class CompanyDetails(BaseModel):
@@ -55,17 +67,25 @@ class CompanyDetails(BaseModel):
     nom_complet: str | None = None
     sigle: str | None = None
     activite_principale: str | None = None
+    section_activite_principale: str | None = None    # Lettre section NAF ("H", "J", etc.)
     categorie_juridique: str | None = None
     categorie_juridique_libelle: str | None = None
     date_creation: str | None = None
     etat: str
     tva_intracom: str
-    tranche_effectifs: str | None = None          # Code : "01", "12", etc.
-    tranche_effectifs_libelle: str | None = None   # "10-19 salariés"
-    tranche_effectifs_annee: str | None = None     # "2023"
-    categorie_entreprise: str | None = None        # "PME", "ETI", "GE", "Micro"
-    nombre_etablissements: int | None = None       # Total (ouverts)
-    finances: list[FinanceYear] = []               # CA par année
+    tranche_effectifs: str | None = None              # Code : "01", "12", etc.
+    tranche_effectifs_libelle: str | None = None       # "10-19 salariés"
+    tranche_effectifs_annee: str | None = None         # "2023"
+    categorie_entreprise: str | None = None            # "PME", "ETI", "GE", "Micro"
+    caractere_employeur: str | None = None             # "O" = oui, "N" = non
+    nombre_etablissements: int | None = None           # Total (ouverts)
+    dirigeants: list[Dirigeant] = []                   # Dirigeants publics (RNE)
+    finances: list[FinanceYear] = []                   # CA + résultat net par année
+    conventions_collectives: list[str] = []            # Codes IDCC
+    est_ess: bool | None = None                        # Économie Sociale et Solidaire
+    est_association: bool | None = None
+    est_qualiopi: bool | None = None
+    date_mise_a_jour: str | None = None                # Dernière MAJ registre
     siege: Etablissement | None = None
     etablissements_actifs: list[Etablissement] = []
     nombre_etablissements_actifs: int = 0

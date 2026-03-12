@@ -56,6 +56,7 @@ class ClientOut(BaseModel):
 
 
 class ClientDetailOut(ClientOut):
+    company_siren: str | None = None
     quote_count: int = 0
     invoice_count: int = 0
     contract_count: int = 0

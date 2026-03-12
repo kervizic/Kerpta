@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { apiClient } from '@/lib/api'
 import { useAuthStore } from '@/stores/authStore'
+import CompanyInfoCard from '@/components/app/CompanyInfoCard'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -733,6 +734,11 @@ export default function OrgSettingsPage() {
             </>
           )}
         </section>
+
+        {/* Données INSEE enrichies */}
+        {org.org_siren && (
+          <CompanyInfoCard siren={org.org_siren} hideIdentity />
+        )}
 
         {/* Bouton Enregistrer */}
         <div className="flex items-center gap-3">

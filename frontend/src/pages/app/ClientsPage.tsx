@@ -10,6 +10,7 @@ import {
 import { navigate } from '@/hooks/useRoute'
 import { orgGet, orgPost } from '@/lib/orgApi'
 import { apiClient } from '@/lib/api'
+import CompanyInfoCard from '@/components/app/CompanyInfoCard'
 import { COUNTRIES, getCountryMode } from '@/data/countries'
 import axios from 'axios'
 
@@ -29,6 +30,7 @@ interface Client {
 
 interface ClientDetail extends Client {
   country_code: string
+  company_siren: string | null
   vat_number: string | null
   billing_address: Record<string, string | null> | null
   shipping_address: Record<string, string | null> | null
@@ -815,6 +817,13 @@ function ClientDetailView({ clientId }: { clientId: string }) {
             </div>
           </section>
         </div>
+
+        {/* Données entreprise (INSEE) */}
+        {client.company_siren && (
+          <div className="mt-6">
+            <CompanyInfoCard siren={client.company_siren} />
+          </div>
+        )}
       </div>
     </div>
   )
