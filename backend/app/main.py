@@ -25,6 +25,12 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from app.api.routes.catalog import router as catalog_router
+from app.api.routes.clients import router as clients_router
+from app.api.routes.contracts import router as contracts_router
+from app.api.routes.invoices import router as invoices_router
+from app.api.routes.quotes import router as quotes_router
+from app.api.routes.situations import router as situations_router
 from app.companies.router import router as companies_router
 from app.config.router import router as config_router
 from app.core.config import settings
@@ -172,9 +178,13 @@ app.include_router(companies_router)
 app.include_router(organizations_router)
 app.include_router(invitations_router)
 
-# Les routes métier seront enregistrées ici au fur et à mesure des modules :
-# from app.api.routes import invoices, quotes, clients, ...
-# app.include_router(invoices.router, prefix="/api/v1")
+# ── Routes métier (Module Vente) ─────────────────────────────────────────────
+app.include_router(clients_router)
+app.include_router(catalog_router)
+app.include_router(quotes_router)
+app.include_router(contracts_router)
+app.include_router(situations_router)
+app.include_router(invoices_router)
 
 
 # ── Routes de base ────────────────────────────────────────────────────────────

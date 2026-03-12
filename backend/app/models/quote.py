@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import CHAR, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -26,17 +26,26 @@ class Quote(Base, UUIDPrimaryKeyMixin, TimestampUpdateMixin):
     )
     number: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     document_type: Mapped[str] = mapped_column(
-        String(100), default="Devis", nullable=False
-    )
+        String(20), default="devis", nullable=False
+    )  # devis/bpu/attachement
     show_quantity: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    # Lien contrat (optionnel pour devis standard, obligatoire pour attachement/avenant)
+    contract_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("contracts.id", ondelete="SET NULL"), nullable=True
+    )
+    is_avenant: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    avenant_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    bpu_source_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("quotes.id", ondelete="SET NULL"), nullable=True
+    )
+
     status: Mapped[str] = mapped_column(
         String(20), default="draft", nullable=False
     )  # draft/sent/accepted/refused/expired
     issue_date: Mapped[datetime] = mapped_column(Date, nullable=False)
     expiry_date: Mapped[datetime | None] = mapped_column(Date, nullable=True)
-    currency: Mapped[str] = mapped_column(
-        __import__("sqlalchemy", fromlist=["CHAR"]).CHAR(3), default="EUR", nullable=False
-    )
+    currency: Mapped[str] = mapped_column(CHAR(3), default="EUR", nullable=False)
     subtotal_ht: Mapped[float] = mapped_column(
         Numeric(15, 2), default=0, nullable=False
     )
@@ -75,6 +84,15 @@ class Quote(Base, UUIDPrimaryKeyMixin, TimestampUpdateMixin):
     # Relations
     organization: Mapped["Organization"] = relationship(back_populates="quotes")
     client: Mapped["Client"] = relationship(back_populates="quotes")
+    contract: Mapped["Contract | None"] = relationship(
+        foreign_keys=[contract_id], back_populates="quotes"
+    )
+    bpu_source: Mapped["Quote | None"] = relationship(
+        foreign_keys=[bpu_source_id], remote_side="Quote.id"
+    )
+    bpu_contracts: Mapped[list["Contract"]] = relationship(
+        foreign_keys="Contract.bpu_quote_id", back_populates="bpu_quote"
+    )
     lines: Mapped[list["QuoteLine"]] = relationship(
         back_populates="quote", cascade="all, delete-orphan", order_by="QuoteLine.position"
     )
@@ -95,6 +113,7 @@ class QuoteLine(Base, UUIDPrimaryKeyMixin):
         UUID(as_uuid=True), ForeignKey("client_product_variants.id"), nullable=True
     )
     position: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    reference: Mapped[str | None] = mapped_column(String(100), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     quantity: Mapped[float] = mapped_column(Numeric(15, 4), nullable=False)
     unit: Mapped[str | None] = mapped_column(String(50), nullable=True)

@@ -30,6 +30,7 @@ from app.models.purchase import (  # noqa: F401
 from app.models.accounting import JournalEntry, JournalEntryLine, TaxDeclaration  # noqa: F401
 from app.models.payroll import Employee, Payslip  # noqa: F401
 from app.models.expense import Expense  # noqa: F401
+from app.models.contract import Contract, Situation, SituationLine  # noqa: F401
 from app.models.platform import (  # noqa: F401
     PlatformConfig,
     PlatformAdminLog,

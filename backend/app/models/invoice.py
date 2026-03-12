@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import CHAR, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -30,6 +30,17 @@ class Invoice(Base, UUIDPrimaryKeyMixin, TimestampUpdateMixin):
     purchase_order_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("client_purchase_orders.id"), nullable=True
     )
+
+    # Lien contrat et situation
+    contract_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("contracts.id", ondelete="SET NULL"), nullable=True
+    )
+    situation_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("situations.id", ondelete="SET NULL"), nullable=True
+    )
+    is_situation: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    situation_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
     number: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     is_credit_note: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     credit_note_for: Mapped[uuid.UUID | None] = mapped_column(
@@ -40,9 +51,7 @@ class Invoice(Base, UUIDPrimaryKeyMixin, TimestampUpdateMixin):
     )  # draft/sent/partial/paid/overdue/cancelled
     issue_date: Mapped[datetime] = mapped_column(Date, nullable=False)
     due_date: Mapped[datetime | None] = mapped_column(Date, nullable=True)
-    currency: Mapped[str] = mapped_column(
-        __import__("sqlalchemy", fromlist=["CHAR"]).CHAR(3), default="EUR", nullable=False
-    )
+    currency: Mapped[str] = mapped_column(CHAR(3), default="EUR", nullable=False)
     subtotal_ht: Mapped[float] = mapped_column(Numeric(15, 2), default=0, nullable=False)
     total_vat: Mapped[float] = mapped_column(Numeric(15, 2), default=0, nullable=False)
     total_ttc: Mapped[float] = mapped_column(Numeric(15, 2), default=0, nullable=False)
@@ -79,6 +88,12 @@ class Invoice(Base, UUIDPrimaryKeyMixin, TimestampUpdateMixin):
     # Relations
     organization: Mapped["Organization"] = relationship(back_populates="invoices")
     client: Mapped["Client"] = relationship(back_populates="invoices")
+    contract: Mapped["Contract | None"] = relationship(
+        foreign_keys=[contract_id], back_populates="invoices"
+    )
+    situation_source: Mapped["Situation | None"] = relationship(
+        foreign_keys=[situation_id], back_populates="invoice"
+    )
     lines: Mapped[list["InvoiceLine"]] = relationship(
         back_populates="invoice",
         cascade="all, delete-orphan",

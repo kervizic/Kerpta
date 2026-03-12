@@ -11,6 +11,11 @@ import { AppSidebar } from './AppSidebar'
 const ConfigApiKeysPage = lazy(() => import('@/pages/app/ConfigApiKeysPage'))
 const OnboardingPage = lazy(() => import('@/pages/app/OnboardingPage'))
 const OrgSettingsPage = lazy(() => import('@/pages/app/OrgSettingsPage'))
+const ClientsPage = lazy(() => import('@/pages/app/ClientsPage'))
+const CatalogPage = lazy(() => import('@/pages/app/CatalogPage'))
+const QuotesPage = lazy(() => import('@/pages/app/QuotesPage'))
+const ContractsPage = lazy(() => import('@/pages/app/ContractsPage'))
+const InvoicesPage = lazy(() => import('@/pages/app/InvoicesPage'))
 
 interface AppShellProps {
   path: string
@@ -108,8 +113,17 @@ export default function AppShell({ path }: AppShellProps) {
               <ConfigApiKeysPage />
             ) : path === '/app/org/settings' ? (
               <OrgSettingsPage />
+            ) : path.startsWith('/app/clients') ? (
+              <ClientsPage path={path} />
+            ) : path.startsWith('/app/catalogue') ? (
+              <CatalogPage />
+            ) : path.startsWith('/app/devis') ? (
+              <QuotesPage path={path} />
+            ) : path.startsWith('/app/contrats') ? (
+              <ContractsPage path={path} />
+            ) : path.startsWith('/app/factures') ? (
+              <InvoicesPage path={path} />
             ) : orgs.length === 0 || path === '/app/onboarding' ? (
-              // Pas d'orga (ou demande explicite) → wizard intégré dans le shell
               <OnboardingPage
                 embedded
                 initialStep={

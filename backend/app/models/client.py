@@ -53,6 +53,7 @@ class Client(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     purchase_orders: Mapped[list["ClientPurchaseOrder"]] = relationship(
         back_populates="client"
     )
+    contracts: Mapped[list["Contract"]] = relationship(back_populates="client")
     product_variants: Mapped[list["ClientProductVariant"]] = relationship(
         back_populates="client"
     )
@@ -83,6 +84,7 @@ class Supplier(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     # Relations
     organization: Mapped["Organization"] = relationship(back_populates="suppliers")
+    contracts: Mapped[list["Contract"]] = relationship(back_populates="supplier")
     supplier_invoices: Mapped[list["SupplierInvoice"]] = relationship(
         back_populates="supplier"
     )

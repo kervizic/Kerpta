@@ -13,6 +13,11 @@ import {
   Check,
   Building,
   Settings2,
+  UserRound,
+  Package,
+  FileText,
+  FolderKanban,
+  Receipt,
 } from 'lucide-react'
 import { navigate } from '@/hooks/useRoute'
 import { useAuthStore, type OrgMembership } from '@/stores/authStore'
@@ -27,6 +32,15 @@ interface NavItem {
   href: string
   icon: ReactNode
 }
+
+// Items de la section "Vente"
+const VENTE_ITEMS: NavItem[] = [
+  { label: 'Clients', href: '/app/clients', icon: <UserRound className="w-4 h-4" /> },
+  { label: 'Catalogue', href: '/app/catalogue', icon: <Package className="w-4 h-4" /> },
+  { label: 'Devis', href: '/app/devis', icon: <FileText className="w-4 h-4" /> },
+  { label: 'Contrats', href: '/app/contrats', icon: <FolderKanban className="w-4 h-4" /> },
+  { label: 'Factures', href: '/app/factures', icon: <Receipt className="w-4 h-4" /> },
+]
 
 // Items de la section "Configuration" organisation (owner/admin)
 const ORG_CONFIG_ITEMS: NavItem[] = [
@@ -160,7 +174,7 @@ function NavBtn({
   currentPath: string
   onClose?: () => void
 }) {
-  const isActive = currentPath === item.href
+  const isActive = currentPath === item.href || currentPath.startsWith(item.href + '/')
   return (
     <button
       onClick={() => { navigate(item.href); onClose?.() }}
@@ -267,13 +281,23 @@ export function AppSidebar({ currentPath, onClose }: AppSidebarProps) {
         )}
       </div>
 
-      {/* Navigation principale — espace libre pour les futurs modules */}
-      <nav className="flex-1 px-3 py-3 overflow-y-auto">
-        {/* Chargement droits */}
+      {/* Navigation principale */}
+      <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-1">
         {isAdmin === null && (
           <p className="text-xs text-gray-400 px-2 py-2">Chargement…</p>
         )}
-        {/* Espace pour les futurs modules (tableau de bord, factures, devis…) */}
+        {activeOrg && (
+          <>
+            <p className="px-2 pt-1 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">Vente</p>
+            <ul className="space-y-0.5">
+              {VENTE_ITEMS.map((item) => (
+                <li key={item.href}>
+                  <NavBtn item={item} currentPath={currentPath} onClose={onClose} />
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </nav>
 
       {/* Accordéons de configuration — en bas de la sidebar */}

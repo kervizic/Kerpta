@@ -30,6 +30,9 @@ class ClientPurchaseOrder(Base, UUIDPrimaryKeyMixin, TimestampUpdateMixin):
     quote_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("quotes.id"), nullable=True
     )
+    contract_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("contracts.id", ondelete="SET NULL"), nullable=True
+    )
     number: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     client_reference: Mapped[str | None] = mapped_column(String(255), nullable=True)
     status: Mapped[str] = mapped_column(

@@ -66,8 +66,12 @@ class Organization(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     module_payroll_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     module_accounting_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     module_esignature_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    module_contracts_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
 
     # Relations
+    contracts: Mapped[list["Contract"]] = relationship(
+        back_populates="organization", cascade="all, delete-orphan"
+    )
     logo: Mapped["OrganizationLogo | None"] = relationship(
         back_populates="organization", uselist=False, cascade="all, delete-orphan"
     )
