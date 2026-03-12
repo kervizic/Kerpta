@@ -1,7 +1,7 @@
 // Kerpta — Pied de page
 import type { ElementType } from 'react'
-import { useEffect, useRef } from 'react'
 import { Github, BookOpen, Bug } from 'lucide-react'
+import { TrustpilotWidget } from '@/components/TrustpilotWidget'
 
 interface FooterLink {
   label: string
@@ -27,13 +27,6 @@ export function LandingFooter({ content }: { content: Record<string, unknown> })
   const links: FooterLink[] = (c.links as FooterLink[]) ?? []
   const licenseText = c.license_text ?? 'Licence AGPL-3.0 — © 2026 Kerpta'
 
-  const tpRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (tpRef.current && (window as unknown as Record<string, unknown>).Trustpilot) {
-      ;(window as unknown as { Trustpilot: { loadFromElement: (el: HTMLElement) => void } }).Trustpilot.loadFromElement(tpRef.current)
-    }
-  }, [])
-
   return (
     <footer className="relative border-t border-gray-200 dark:border-white/5 py-12 px-6">
       {/* Dégradé de fond subtil */}
@@ -52,24 +45,10 @@ export function LandingFooter({ content }: { content: Record<string, unknown> })
             <p className="text-sm text-gray-400 dark:text-slate-500 max-w-xs text-center md:text-left">{tagline}</p>
           </div>
 
-          {/* TrustBox widget - Review Collector */}
-          <div className="flex justify-center w-full max-w-xs shrink-0 mx-auto">
-            <div
-              ref={tpRef}
-              className="trustpilot-widget"
-              data-locale="fr-FR"
-              data-template-id="56278e9abfbbba0bdcd568bc"
-              data-businessunit-id="69b274d8022fce23c4520dc8"
-              data-style-height="52px"
-              data-style-width="100%"
-              data-token="489d92a2-f6a6-4f81-97d8-36d40422528b"
-            >
-              <a href="https://fr.trustpilot.com/review/kerpta.fr" target="_blank" rel="noopener">
-                Trustpilot
-              </a>
-            </div>
+          {/* TrustBox widget */}
+          <div className="w-full max-w-xs mx-auto shrink-0">
+            <TrustpilotWidget />
           </div>
-          {/* End TrustBox widget */}
 
           {/* Liens */}
           {links.length > 0 && (
