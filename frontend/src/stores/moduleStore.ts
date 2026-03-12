@@ -81,17 +81,15 @@ export const useModuleStore = create<ModuleState>((set, get) => ({
   },
 
   setModule: async (key: string, enabled: boolean) => {
-    const { orgId } = get()
+    const { orgId, config } = get()
     if (!orgId) return
-    const newConfig = { ...get().config, [key]: enabled }
+    const prevConfig = { ...config }
+    const newConfig = { ...config, [key]: enabled }
     set({ config: newConfig })
     try {
       await apiClient.patch(`/api/v1/organizations/${orgId}/modules`, newConfig)
     } catch {
-      // Rollback en cas d'erreur
-      const prev = { ...newConfig }
-      delete prev[key]
-      set({ config: prev })
+      set({ config: prevConfig })
     }
   },
 
