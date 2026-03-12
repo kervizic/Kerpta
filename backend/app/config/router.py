@@ -13,6 +13,7 @@ Routes exposées :
 """
 
 import asyncio
+import json
 import logging
 import uuid as _uuid
 from typing import Any
@@ -222,14 +223,16 @@ async def update_api_keys(
 
     # UPSERT : mise à jour si une ligne existe, création minimale sinon
     # (cas d'une instance sans assistant d'installation complété)
+    # asyncpg nécessite json.dumps() + CAST(:x AS jsonb) pour les colonnes JSONB
+    keys_json = json.dumps(updates)
     result = await db.execute(
         text(
             """
             UPDATE platform_config
-               SET api_keys = :keys, updated_at = now()
+               SET api_keys = CAST(:keys AS jsonb), updated_at = now()
             """
         ),
-        {"keys": updates},
+        {"keys": keys_json},
     )
     if result.rowcount == 0:
         await db.execute(
@@ -238,10 +241,10 @@ async def update_api_keys(
                 INSERT INTO platform_config
                     (id, api_keys, setup_completed, setup_step, created_at, updated_at)
                 VALUES
-                    (:id, :keys, false, 1, now(), now())
+                    (:id, CAST(:keys AS jsonb), false, 1, now(), now())
                 """
             ),
-            {"id": str(_uuid.uuid4()), "keys": updates},
+            {"id": str(_uuid.uuid4()), "keys": keys_json},
         )
     await db.commit()
 
