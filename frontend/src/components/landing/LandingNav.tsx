@@ -16,7 +16,7 @@ export function LandingNav() {
       <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
         {/* Logo */}
         <a href="/" className="flex items-center gap-2">
-          <span className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">Kerpta</span>
+          <span className="font-sarpanch text-xl text-gray-900 dark:text-white">KERPTA</span>
           <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-50 text-orange-600 border border-orange-200 dark:bg-orange-500/20 dark:text-orange-300 dark:border-orange-500/30">
             AGPL-3.0
           </span>

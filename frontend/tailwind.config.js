@@ -3,7 +3,11 @@ export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   darkMode: 'class',
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        sarpanch: ['Sarpanch', 'sans-serif'],
+      },
+    },
   },
   plugins: [],
 }

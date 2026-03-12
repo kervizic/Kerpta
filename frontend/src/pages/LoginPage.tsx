@@ -101,7 +101,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Kerpta</h1>
+          <h1 className="font-sarpanch text-3xl text-gray-900 dark:text-white">KERPTA</h1>
           <p className="text-gray-500 dark:text-slate-400 text-sm mt-1">Connectez-vous à votre espace</p>
         </div>
 

@@ -40,7 +40,7 @@ export function LandingFooter({ content }: { content: Record<string, unknown> })
               <div className="w-7 h-7 rounded-lg bg-orange-600 flex items-center justify-center">
                 <span className="text-white font-bold text-sm leading-none">K</span>
               </div>
-              <span className="text-gray-900 dark:text-white font-semibold">Kerpta</span>
+              <span className="font-sarpanch text-gray-900 dark:text-white">KERPTA</span>
             </div>
             <p className="text-sm text-gray-400 dark:text-slate-500 max-w-xs text-center md:text-left">{tagline}</p>
           </div>

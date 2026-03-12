@@ -97,7 +97,7 @@ export default function AppShell({ path }: AppShellProps) {
           >
             <Menu className="w-5 h-5" />
           </button>
-          <span className="text-sm font-bold text-gray-900">
+          <span className="font-sarpanch text-base text-gray-900">
             KER<span className="text-orange-500">PTA</span>
           </span>
         </div>
