@@ -101,8 +101,8 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <h1 className="font-sarpanch text-4xl text-gray-900 dark:text-white leading-none">
-            KER<span className="text-orange-500">PTA</span>
+          <h1 className="font-sarpanch text-4xl leading-none">
+            <span className="text-[#888888] dark:text-gray-300">KER</span><span className="text-orange-500">PTA</span>
           </h1>
           <p className="text-gray-500 dark:text-slate-400 text-sm mt-1">Connectez-vous à votre espace</p>
         </div>

@@ -258,8 +258,8 @@ export function AppSidebar({ currentPath, onClose }: AppSidebarProps) {
           <div className="w-8 h-8 rounded-lg bg-orange-600 flex items-center justify-center shrink-0">
             <span className="text-white font-bold text-sm leading-none">K</span>
           </div>
-          <span className="font-sarpanch text-2xl text-gray-900 group-hover:text-gray-700 transition leading-none">
-            KER<span className="text-orange-500">PTA</span>
+          <span className="font-sarpanch text-2xl leading-none">
+            <span className="text-[#888888]">KER</span><span className="text-orange-500">PTA</span>
           </span>
         </a>
       </div>
