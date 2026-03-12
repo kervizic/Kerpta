@@ -15,7 +15,9 @@ from app.schemas.clients import (
     ClientUpdate,
     PaginatedClients,
 )
+from app.schemas.contacts import ContactCreate
 from app.services import clients as svc
+from app.services import contacts as contacts_svc
 
 router = APIRouter(prefix="/api/v1/clients", tags=["clients"])
 
@@ -96,3 +98,25 @@ async def get_client_contracts(
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.get_client_contracts(ctx.org_id, client_id, db)
+
+
+# ── Contacts ─────────────────────────────────────────────────────────────────
+
+
+@router.get("/{client_id}/contacts")
+async def list_contacts(
+    client_id: str,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await contacts_svc.list_contacts(ctx.org_id, client_id, db)
+
+
+@router.post("/{client_id}/contacts", status_code=201)
+async def create_contact(
+    client_id: str,
+    data: ContactCreate,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await contacts_svc.create_contact(ctx.org_id, client_id, data, db)

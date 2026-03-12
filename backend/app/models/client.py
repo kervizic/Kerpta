@@ -57,6 +57,7 @@ class Client(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     product_variants: Mapped[list["ClientProductVariant"]] = relationship(
         back_populates="client"
     )
+    contacts: Mapped[list["Contact"]] = relationship(back_populates="client")
 
 
 class Supplier(Base, UUIDPrimaryKeyMixin, TimestampMixin):
