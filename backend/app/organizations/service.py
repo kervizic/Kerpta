@@ -338,10 +338,16 @@ async def upload_logo(
     logo_b64 = f"data:image/png;base64,{b64_data}"
 
     # Thumbnail 64×64 px pour la sidebar (2× retina à 32 px d'affichage)
+    # On redimensionne en conservant le ratio (fit dans 64×64),
+    # puis on centre dans un canvas carré transparent pour éviter le zoom sur les logos rectangulaires.
     thumb_img = img.copy()
     thumb_img.thumbnail((_THUMB_SIZE, _THUMB_SIZE), Image.LANCZOS)
+    square = Image.new("RGBA", (_THUMB_SIZE, _THUMB_SIZE), (255, 255, 255, 0))
+    offset_x = (_THUMB_SIZE - thumb_img.width) // 2
+    offset_y = (_THUMB_SIZE - thumb_img.height) // 2
+    square.paste(thumb_img, (offset_x, offset_y))
     thumb_output = io.BytesIO()
-    thumb_img.save(thumb_output, format="PNG", optimize=True)
+    square.save(thumb_output, format="PNG", optimize=True)
     thumb_b64 = "data:image/png;base64," + base64.b64encode(thumb_output.getvalue()).decode("utf-8")
 
     # UPSERT (INSERT ou UPDATE si déjà présent)

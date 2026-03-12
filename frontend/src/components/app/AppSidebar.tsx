@@ -78,7 +78,7 @@ function OrgSelector({
           <img
             src={active.org_logo_thumb}
             alt={active.org_name}
-            className="w-8 h-8 rounded-lg object-cover bg-gray-100 shrink-0"
+            className="w-8 h-8 rounded-lg object-contain bg-white shrink-0"
           />
         ) : (
           <div className="w-8 h-8 rounded-lg bg-orange-50 border border-orange-200 flex items-center justify-center text-orange-600 text-xs font-bold shrink-0">
@@ -112,7 +112,7 @@ function OrgSelector({
                 <img
                   src={o.org_logo_thumb}
                   alt={o.org_name}
-                  className="w-6 h-6 rounded-md object-cover bg-gray-100 shrink-0"
+                  className="w-6 h-6 rounded-md object-contain bg-white shrink-0"
                 />
               ) : (
                 <div className="w-6 h-6 rounded-md bg-orange-50 border border-orange-200 flex items-center justify-center text-orange-600 text-xs font-bold shrink-0">
