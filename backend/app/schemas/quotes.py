@@ -49,6 +49,7 @@ class QuoteCreate(BaseModel):
     expiry_date: date | None = None
     discount_type: str = Field("none", pattern=r"^(percent|fixed|none)$")
     discount_value: Decimal = Decimal("0")
+    billing_profile_id: str | None = None
     notes: str | None = None
     footer: str | None = None
     lines: list[QuoteLineIn] = []
@@ -56,6 +57,7 @@ class QuoteCreate(BaseModel):
 
 class QuoteUpdate(BaseModel):
     client_id: str | None = None
+    billing_profile_id: str | None = None
     document_type: str | None = Field(None, pattern=r"^(devis|bpu|attachement)$")
     show_quantity: bool | None = None
     issue_date: date | None = None
@@ -90,6 +92,7 @@ class QuoteOut(BaseModel):
     discount_value: Decimal
     notes: str | None = None
     footer: str | None = None
+    billing_profile_id: str | None = None
     pdf_url: str | None = None
     sent_at: datetime | None = None
     accepted_at: datetime | None = None

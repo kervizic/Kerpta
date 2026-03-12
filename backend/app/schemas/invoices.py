@@ -48,6 +48,7 @@ class InvoiceCreate(BaseModel):
     payment_method: str | None = None
     discount_type: str = Field("none", pattern=r"^(percent|fixed|none)$")
     discount_value: Decimal = Decimal("0")
+    billing_profile_id: str | None = None
     notes: str | None = None
     footer: str | None = None
     bank_details: dict | None = None
@@ -56,6 +57,7 @@ class InvoiceCreate(BaseModel):
 
 class InvoiceUpdate(BaseModel):
     client_id: str | None = None
+    billing_profile_id: str | None = None
     issue_date: date | None = None
     due_date: date | None = None
     payment_terms: int | None = None
@@ -81,6 +83,7 @@ class InvoiceOut(BaseModel):
     situation_id: str | None = None
     is_situation: bool
     situation_number: int | None = None
+    billing_profile_id: str | None = None
     is_credit_note: bool
     credit_note_for: str | None = None
     status: str

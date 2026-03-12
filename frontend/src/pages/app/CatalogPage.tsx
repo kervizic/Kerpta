@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { navigate } from '@/hooks/useRoute'
 import { orgGet, orgPost, orgPatch, orgDelete } from '@/lib/orgApi'
+import UnitCombobox from '@/components/app/UnitCombobox'
 import axios from 'axios'
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -336,7 +337,7 @@ function ProductFormPage({ productId }: { productId?: string }) {
               <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="D&eacute;signation *" required className={INPUT} />
               <div className="grid grid-cols-2 gap-3">
                 <input type="text" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="R&eacute;f&eacute;rence" className={INPUT} />
-                <input type="text" value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="Unit&eacute; (m&sup2;, h, u...)" className={INPUT} />
+                <UnitCombobox value={unit} onChange={setUnit} className={INPUT} placeholder="Unité" />
               </div>
               <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description" rows={2} className={INPUT} />
               <div className="grid grid-cols-2 gap-3">
@@ -1021,7 +1022,7 @@ function ComponentFormModal({ productId, products, onClose, onSaved }: {
           <div className="grid grid-cols-2 gap-3">
             <input type="number" step="0.01" min="0.01" value={quantity} onChange={e => setQuantity(e.target.value)}
               placeholder="Quantit&eacute; *" required className={INPUT} />
-            <input type="text" value={unit} onChange={e => setUnit(e.target.value)} placeholder="Unit&eacute;" className={INPUT} />
+            <UnitCombobox value={unit} onChange={setUnit} className={INPUT} placeholder="Unité" />
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className={BTN_SECONDARY}>Annuler</button>

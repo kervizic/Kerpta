@@ -17,6 +17,7 @@ const QuotesPage = lazy(() => import('@/pages/app/QuotesPage'))
 const ContractsPage = lazy(() => import('@/pages/app/ContractsPage'))
 const InvoicesPage = lazy(() => import('@/pages/app/InvoicesPage'))
 const ModulesPage = lazy(() => import('@/pages/app/ModulesPage'))
+const InvoiceSettingsPage = lazy(() => import('@/pages/app/InvoiceSettingsPage'))
 
 interface AppShellProps {
   path: string
@@ -77,7 +78,7 @@ function ModulePlaceholder({ title }: { title: string }) {
 }
 
 export default function AppShell({ path }: AppShellProps) {
-  const { token, fetchMe, fetchOrgs, orgs } = useAuthStore()
+  const { token, fetchMe, fetchOrgs, orgs, activeOrgId } = useAuthStore()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useEffect(() => {
@@ -145,21 +146,23 @@ export default function AppShell({ path }: AppShellProps) {
         <div className="flex-1 flex overflow-hidden">
           <Suspense fallback={<PageSpinner />}>
             {path === '/app/config/api-keys' ? (
-              <ConfigApiKeysPage />
+              <ConfigApiKeysPage key={activeOrgId} />
+            ) : path === '/app/config/facturation' ? (
+              <InvoiceSettingsPage key={activeOrgId} />
             ) : path === '/app/org/settings' ? (
-              <OrgSettingsPage />
+              <OrgSettingsPage key={activeOrgId} />
             ) : path === '/app/org/modules' ? (
-              <ModulesPage />
+              <ModulesPage key={activeOrgId} />
             ) : path.startsWith('/app/clients') ? (
-              <ClientsPage path={path} />
+              <ClientsPage path={path} key={activeOrgId} />
             ) : path.startsWith('/app/catalogue') ? (
-              <CatalogPage path={path} />
+              <CatalogPage path={path} key={activeOrgId} />
             ) : path === '/app/devis' || path.startsWith('/app/devis/') ? (
-              <QuotesPage path={path} />
+              <QuotesPage path={path} key={activeOrgId} />
             ) : path.startsWith('/app/contrats') ? (
-              <ContractsPage path={path} />
+              <ContractsPage path={path} key={activeOrgId} />
             ) : path.startsWith('/app/factures') ? (
-              <InvoicesPage path={path} />
+              <InvoicesPage path={path} key={activeOrgId} />
             ) : placeholderTitle ? (
               <ModulePlaceholder title={placeholderTitle} />
             ) : orgs.length === 0 || path === '/app/onboarding' ? (

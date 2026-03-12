@@ -25,6 +25,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from app.api.routes.billing import router as billing_router
 from app.api.routes.catalog import router as catalog_router
 from app.api.routes.clients import router as clients_router
 from app.api.routes.contracts import router as contracts_router
@@ -179,6 +180,7 @@ app.include_router(organizations_router)
 app.include_router(invitations_router)
 
 # ── Routes métier (Module Vente) ─────────────────────────────────────────────
+app.include_router(billing_router)
 app.include_router(clients_router)
 app.include_router(catalog_router)
 app.include_router(quotes_router)

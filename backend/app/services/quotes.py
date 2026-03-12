@@ -74,6 +74,7 @@ async def list_quotes(
             SELECT q.id::text, q.number, q.client_id::text, c.name AS client_name,
                    q.document_type, q.show_quantity, q.contract_id::text,
                    q.is_avenant, q.avenant_number, q.bpu_source_id::text,
+                   q.billing_profile_id::text,
                    q.status, q.issue_date, q.expiry_date,
                    q.subtotal_ht, q.total_vat, q.total_ttc,
                    q.discount_type, q.discount_value,
@@ -99,6 +100,17 @@ async def create_quote(
     """Crée un devis en brouillon avec ses lignes."""
     quote_id = uuid.uuid4()
     number = await generate_number("quote", org_id, db)
+
+    # Profil de facturation : celui fourni ou le profil par défaut
+    billing_profile_id = data.billing_profile_id
+    if not billing_profile_id:
+        default_bp = await db.execute(
+            text("SELECT id::text FROM billing_profiles WHERE organization_id = :org_id AND is_default = true LIMIT 1"),
+            {"org_id": str(org_id)},
+        )
+        row = default_bp.fetchone()
+        if row:
+            billing_profile_id = row[0]
 
     # Calcul des totaux
     subtotal_ht = Decimal("0")
@@ -127,14 +139,14 @@ async def create_quote(
             INSERT INTO quotes (
                 id, organization_id, client_id, number, document_type,
                 show_quantity, contract_id, is_avenant, avenant_number,
-                bpu_source_id, status, issue_date, expiry_date,
+                bpu_source_id, billing_profile_id, status, issue_date, expiry_date,
                 currency, subtotal_ht, total_vat, total_ttc,
                 discount_type, discount_value, notes, footer,
                 signature_status, created_at, updated_at
             ) VALUES (
                 :id, :org_id, :client_id, :number, :doc_type,
                 :show_qty, :contract_id, :is_avenant, :avenant_number,
-                :bpu_source_id, 'draft', :issue_date, :expiry_date,
+                :bpu_source_id, :billing_profile_id, 'draft', :issue_date, :expiry_date,
                 'EUR', :subtotal_ht, :total_vat, :total_ttc,
                 :discount_type, :discount_value, :notes, :footer,
                 'none', now(), now()
@@ -151,6 +163,7 @@ async def create_quote(
             "is_avenant": data.is_avenant,
             "avenant_number": avenant_number,
             "bpu_source_id": data.bpu_source_id,
+            "billing_profile_id": billing_profile_id,
             "issue_date": data.issue_date,
             "expiry_date": data.expiry_date,
             "subtotal_ht": str(subtotal_ht),
@@ -210,6 +223,7 @@ async def get_quote(
             SELECT q.id::text, q.number, q.client_id::text, c.name AS client_name,
                    q.document_type, q.show_quantity, q.contract_id::text,
                    q.is_avenant, q.avenant_number, q.bpu_source_id::text,
+                   q.billing_profile_id::text,
                    q.status, q.issue_date, q.expiry_date,
                    q.subtotal_ht, q.total_vat, q.total_ttc,
                    q.discount_type, q.discount_value,
@@ -398,13 +412,13 @@ async def duplicate_quote(
         text("""
             INSERT INTO quotes (
                 id, organization_id, client_id, number, document_type,
-                show_quantity, status, issue_date, expiry_date,
+                show_quantity, billing_profile_id, status, issue_date, expiry_date,
                 currency, subtotal_ht, total_vat, total_ttc,
                 discount_type, discount_value, notes, footer,
                 signature_status, created_at, updated_at
             )
             SELECT :new_id, organization_id, client_id, :new_number, document_type,
-                   show_quantity, 'draft', CURRENT_DATE, expiry_date,
+                   show_quantity, billing_profile_id, 'draft', CURRENT_DATE, expiry_date,
                    currency, subtotal_ht, total_vat, total_ttc,
                    discount_type, discount_value, notes, footer,
                    'none', now(), now()

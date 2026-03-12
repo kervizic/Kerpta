@@ -102,6 +102,17 @@ async def create_invoice(
     invoice_id = uuid.uuid4()
     number = await generate_number("invoice", org_id, db)
 
+    # Profil de facturation : celui fourni ou le profil par défaut
+    billing_profile_id = data.billing_profile_id
+    if not billing_profile_id:
+        default_bp = await db.execute(
+            text("SELECT id::text FROM billing_profiles WHERE organization_id = :org_id AND is_default = true LIMIT 1"),
+            {"org_id": str(org_id)},
+        )
+        bp_row = default_bp.fetchone()
+        if bp_row:
+            billing_profile_id = bp_row[0]
+
     subtotal_ht = Decimal("0")
     total_vat = Decimal("0")
     for line in data.lines:
@@ -117,6 +128,7 @@ async def create_invoice(
             INSERT INTO invoices (
                 id, organization_id, client_id, number,
                 quote_id, purchase_order_id, contract_id,
+                billing_profile_id,
                 is_credit_note, status, issue_date, due_date,
                 currency, subtotal_ht, total_vat, total_ttc,
                 amount_paid, discount_type, discount_value,
@@ -125,6 +137,7 @@ async def create_invoice(
             ) VALUES (
                 :id, :org_id, :client_id, :number,
                 :quote_id, :po_id, :contract_id,
+                :billing_profile_id,
                 false, 'draft', :issue_date, :due_date,
                 'EUR', :ht, :vat, :ttc,
                 0, :disc_type, :disc_val,
@@ -140,6 +153,7 @@ async def create_invoice(
             "quote_id": data.quote_id,
             "po_id": data.purchase_order_id,
             "contract_id": data.contract_id,
+            "billing_profile_id": billing_profile_id,
             "issue_date": data.issue_date,
             "due_date": data.due_date,
             "ht": str(subtotal_ht),
@@ -202,6 +216,7 @@ async def get_invoice(
             SELECT i.id::text, i.number, i.client_id::text, c.name AS client_name,
                    i.quote_id::text, i.purchase_order_id::text,
                    i.contract_id::text, i.situation_id::text,
+                   i.billing_profile_id::text,
                    i.is_situation, i.situation_number,
                    i.is_credit_note, i.credit_note_for::text,
                    i.status, i.issue_date, i.due_date,
