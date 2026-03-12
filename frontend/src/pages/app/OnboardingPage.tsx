@@ -313,6 +313,12 @@ function CreateStep({
           </button>
         </div>
         {searchError && <p className="text-xs text-red-600 mt-1.5">{searchError}</p>}
+        <p className="text-xs text-gray-400 mt-1.5">
+          Vous ne connaissez pas votre SIREN ?{' '}
+          <a href="https://www.pappers.fr" target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:underline">Pappers</a>
+          {' '}ou{' '}
+          <a href="https://www.societe.com" target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:underline">Societe.com</a>
+        </p>
       </div>
 
       {/* Confirmation entreprise trouvée */}
