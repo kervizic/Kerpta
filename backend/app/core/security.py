@@ -83,8 +83,8 @@ async def get_current_user_info(
 
     await db.execute(
         text("""
-            INSERT INTO users (id, email, full_name, avatar_url, last_login_at, created_at)
-            VALUES (:id, :email, :name, :avatar, now(), now())
+            INSERT INTO users (id, email, full_name, avatar_url, last_login_at, created_at, is_platform_admin)
+            VALUES (:id, :email, :name, :avatar, now(), now(), false)
             ON CONFLICT (id) DO UPDATE SET
                 email      = EXCLUDED.email,
                 full_name  = COALESCE(EXCLUDED.full_name, users.full_name),
