@@ -17,6 +17,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .schemas import JoinRequestCreate, OrgCreateRequest
@@ -99,7 +100,17 @@ async def create_organization(
         {"id": str(membership_id), "uid": str(user_id), "oid": str(org_id)},
     )
 
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        msg = str(exc.orig)
+        if "organizations_siret_key" in msg:
+            raise HTTPException(409, "Une organisation avec ce SIRET existe déjà sur Kerpta")
+        if "organizations" in msg and "unique" in msg.lower():
+            raise HTTPException(409, "Cette organisation est déjà enregistrée sur Kerpta")
+        raise HTTPException(500, "Erreur lors de la création de l'organisation")
+
     return {"org_id": str(org_id), "org_name": data.name, "role": "owner"}
 
 

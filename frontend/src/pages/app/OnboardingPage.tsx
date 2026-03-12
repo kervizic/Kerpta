@@ -58,8 +58,17 @@ interface OrgSearchResult {
 
 function httpError(err: unknown, fallback: string): string {
   if (axios.isAxiosError(err)) {
-    const d = err.response?.data as { detail?: string } | undefined
-    return d?.detail ?? fallback
+    const d = err.response?.data as { detail?: unknown } | undefined
+    const detail = d?.detail
+    if (typeof detail === 'string') return detail
+    if (Array.isArray(detail) && detail.length > 0) {
+      // Erreur de validation Pydantic 422
+      const first = detail[0] as { msg?: string; loc?: string[] }
+      return first?.msg ?? fallback
+    }
+    if (err.response?.status) {
+      return `Erreur ${err.response.status} — ${fallback}`
+    }
   }
   return fallback
 }
