@@ -10,6 +10,7 @@ import axios from 'axios'
 import { apiClient } from '@/lib/api'
 import { useAuthStore } from '@/stores/authStore'
 import {
+  AlertTriangle,
   Check,
   ChevronDown,
   ChevronUp,
@@ -280,6 +281,7 @@ export default function ConfigApiKeysPage() {
   const [oauthSaving, setOauthSaving] = useState(false)
   const [oauthStatus, setOauthStatus] = useState<{ ok: boolean; msg: string } | null>(null)
   const [restarting, setRestarting] = useState(false)
+  const [restartCountdown, setRestartCountdown] = useState(0)
 
   // État local INSEE
   const [inseeApiKey, setInseeApiKey] = useState('')
@@ -317,9 +319,21 @@ export default function ConfigApiKeysPage() {
     setOauthStatus(null)
     try {
       await apiClient.put('/config/oauth', { providers })
-      setOauthStatus({ ok: true, msg: 'Enregistré — GoTrue redémarre…' })
+      setOauthStatus({ ok: true, msg: 'Providers enregistrés' })
+      // Compte à rebours de 10 secondes pendant le redémarrage de GoTrue
+      const DURATION = 10
       setRestarting(true)
-      setTimeout(() => setRestarting(false), 8000)
+      setRestartCountdown(DURATION)
+      const timer = setInterval(() => {
+        setRestartCountdown((n) => {
+          if (n <= 1) {
+            clearInterval(timer)
+            setRestarting(false)
+            return 0
+          }
+          return n - 1
+        })
+      }, 1000)
     } catch {
       setOauthStatus({ ok: false, msg: "Erreur lors de l'enregistrement" })
     } finally {
@@ -419,13 +433,41 @@ export default function ConfigApiKeysPage() {
         <section className="mb-10">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold text-gray-900">Providers OAuth</h2>
-            {restarting && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-xs font-medium">
-                <RefreshCw className="w-3 h-3 animate-spin" />
-                GoTrue en redémarrage…
-              </span>
-            )}
           </div>
+
+          {/* Notice statique — redémarrage GoTrue */}
+          <div className="flex items-start gap-2.5 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 mb-4 text-xs text-amber-800">
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-500" />
+            <span>
+              <strong className="text-amber-900">Indisponibilité courte</strong> — Toute
+              modification entraîne un redémarrage de GoTrue (serveur d'authentification).
+              La connexion sera inaccessible environ{' '}
+              <strong className="text-amber-900">5 à 10 secondes</strong> après la sauvegarde.
+            </span>
+          </div>
+
+          {/* Bannière de compte à rebours post-sauvegarde */}
+          {restarting && (
+            <div className="flex items-center gap-3 rounded-xl bg-orange-50 border border-orange-300 px-4 py-3 mb-4">
+              <RefreshCw className="w-4 h-4 text-orange-500 animate-spin shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-orange-800">
+                  GoTrue redémarre — connexion temporairement indisponible
+                </p>
+                <p className="text-xs text-orange-600 mt-0.5">
+                  Disponible dans environ{' '}
+                  <strong>{restartCountdown} seconde{restartCountdown > 1 ? 's' : ''}</strong>
+                </p>
+              </div>
+              {/* Barre de progression */}
+              <div className="w-16 h-1.5 rounded-full bg-orange-200 overflow-hidden shrink-0">
+                <div
+                  className="h-full bg-orange-500 rounded-full transition-all duration-1000"
+                  style={{ width: `${(restartCountdown / 10) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
 
           {authUrl && (
             <p className="text-xs text-gray-500 mb-4">
