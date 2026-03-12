@@ -231,10 +231,7 @@ function CreateStep({
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
-    if (!name.trim()) {
-      setSaveError('Le nom est obligatoire')
-      return
-    }
+    if (!lookupResult) return
     setSaving(true)
     setSaveError('')
     try {
@@ -279,13 +276,13 @@ function CreateStep({
       </button>
       <h2 className="text-lg font-semibold text-gray-900 mb-1">Créer mon entreprise</h2>
       <p className="text-sm text-gray-500 mb-6">
-        Saisissez votre SIRET pour pré-remplir les informations.
+        Saisissez votre SIREN ou SIRET pour récupérer automatiquement les informations.
       </p>
 
       {/* SIRET lookup */}
       <div className="mb-6">
         <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
-          SIRET ou SIREN
+          SIREN ou SIRET
         </label>
         <div className="flex gap-2">
           <input
@@ -307,49 +304,33 @@ function CreateStep({
           </button>
         </div>
         {searchError && <p className="text-xs text-red-600 mt-1.5">{searchError}</p>}
-        {lookupResult && (
-          <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg text-xs text-green-800">
-            ✓ {lookupResult.denomination ?? lookupResult.sigle} trouvé — champs pré-remplis
-          </div>
-        )}
       </div>
 
-      <form onSubmit={(e) => void handleCreate(e)} className="space-y-4">
-        <div>
-          <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
-            Nom de l'entreprise <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
-              Forme juridique
-            </label>
-            <select
-              value={legalForm}
-              onChange={(e) => setLegalForm(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent bg-white"
-            >
-              <option value="">— Sélectionner —</option>
-              <option>SAS</option>
-              <option>SARL</option>
-              <option>EI</option>
-              <option>EURL</option>
-              <option>AE</option>
-              <option>SNC</option>
-              <option>SA</option>
-              <option>SCI</option>
-              <option>Association</option>
-            </select>
+      {/* Confirmation entreprise trouvée */}
+      {lookupResult && (
+        <div className="mb-5 p-4 bg-green-50 border border-green-200 rounded-xl space-y-1">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
+            <span className="text-sm font-semibold text-green-800">
+              {lookupResult.denomination ?? lookupResult.sigle ?? siret.replace(/\s/g, '').slice(0, 9)}
+            </span>
           </div>
+          {legalForm && (
+            <p className="text-xs text-green-700 ml-6">{legalForm}</p>
+          )}
+          {lookupResult.siege_adresse?.commune && (
+            <p className="text-xs text-green-600 ml-6">
+              {[lookupResult.siege_adresse.code_postal, lookupResult.siege_adresse.commune]
+                .filter(Boolean)
+                .join(' ')}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Formulaire complémentaire — affiché seulement après lookup réussi */}
+      {lookupResult ? (
+        <form onSubmit={(e) => void handleCreate(e)} className="space-y-4">
           <div>
             <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
               Régime TVA
@@ -366,48 +347,54 @@ function CreateStep({
               <option value="annual">Annuelle</option>
             </select>
           </div>
-        </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
-              Email professionnel
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                Email professionnel
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                Téléphone
+              </label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
-              Téléphone
-            </label>
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
-            />
-          </div>
-        </div>
 
-        {saveError && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-            {saveError}
-          </div>
-        )}
+          {saveError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+              {saveError}
+            </div>
+          )}
 
-        <button
-          type="submit"
-          disabled={saving}
-          className="w-full flex items-center justify-center gap-2 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition"
-        >
-          {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-          {saving ? 'Création en cours…' : 'Créer ma structure →'}
-        </button>
-      </form>
+          <button
+            type="submit"
+            disabled={saving}
+            className="w-full flex items-center justify-center gap-2 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition"
+          >
+            {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+            {saving ? 'Création en cours…' : 'Créer ma structure →'}
+          </button>
+        </form>
+      ) : (
+        !searching && !searchError && (
+          <p className="text-sm text-gray-400 text-center py-2">
+            Recherchez votre SIREN pour continuer.
+          </p>
+        )
+      )}
     </div>
   )
 }

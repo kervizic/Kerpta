@@ -1,5 +1,6 @@
 // Kerpta — Pied de page
 import type { ElementType } from 'react'
+import { useEffect, useRef } from 'react'
 import { Github, BookOpen, Bug } from 'lucide-react'
 
 interface FooterLink {
@@ -26,6 +27,13 @@ export function LandingFooter({ content }: { content: Record<string, unknown> })
   const links: FooterLink[] = (c.links as FooterLink[]) ?? []
   const licenseText = c.license_text ?? 'Licence AGPL-3.0 — © 2026 Kerpta'
 
+  const tpRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (tpRef.current && (window as unknown as Record<string, unknown>).Trustpilot) {
+      ;(window as unknown as { Trustpilot: { loadFromElement: (el: HTMLElement) => void } }).Trustpilot.loadFromElement(tpRef.current)
+    }
+  }, [])
+
   return (
     <footer className="relative border-t border-gray-200 dark:border-white/5 py-12 px-6">
       {/* Dégradé de fond subtil */}
@@ -45,8 +53,9 @@ export function LandingFooter({ content }: { content: Record<string, unknown> })
           </div>
 
           {/* TrustBox widget - Review Collector */}
-          <div className="w-full max-w-xs shrink-0">
+          <div className="flex justify-center w-full max-w-xs shrink-0 mx-auto">
             <div
+              ref={tpRef}
               className="trustpilot-widget"
               data-locale="fr-FR"
               data-template-id="56278e9abfbbba0bdcd568bc"
