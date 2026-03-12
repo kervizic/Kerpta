@@ -255,11 +255,11 @@ export function AppSidebar({ currentPath, onClose }: AppSidebarProps) {
       {/* Logo Kerpta */}
       <div className="px-4 py-3 border-b border-gray-100">
         <a href="/" className="flex items-center gap-2 group">
-          <div className="w-6 h-6 rounded-md bg-orange-600 flex items-center justify-center shrink-0">
-            <span className="text-white font-bold text-xs leading-none">K</span>
+          <div className="w-8 h-8 rounded-lg bg-orange-600 flex items-center justify-center shrink-0">
+            <span className="text-white font-bold text-sm leading-none">K</span>
           </div>
-          <span className="font-sarpanch text-base text-gray-900 group-hover:text-orange-600 transition">
-            KER<span className="text-orange-500 group-hover:text-orange-600">PTA</span>
+          <span className="font-sarpanch text-2xl text-gray-900 group-hover:text-gray-700 transition leading-none">
+            KER<span className="text-orange-500">PTA</span>
           </span>
         </a>
       </div>
