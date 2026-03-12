@@ -22,7 +22,9 @@ from uuid import UUID
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.database import get_db
 from app.core.security import get_current_user_id
 
 from . import service
@@ -79,15 +81,17 @@ async def search_companies(
 async def get_company_details(
     siren: str,
     _user: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
 ) -> CompanyDetails:
     """Retourne les détails d'une entreprise active.
 
+    Lazy caching : vérifie le cache local (< 24h) avant d'appeler l'API.
     Retourne **404** si le SIREN est introuvable ou si l'entreprise est cessée.
     """
     if not re.fullmatch(r"\d{9}", siren):
         raise HTTPException(422, "SIREN invalide — 9 chiffres attendus")
     try:
-        details = await service.get_company_details(siren)
+        details = await service.get_company_details(siren, db=db)
         if details is None:
             raise HTTPException(404, f"SIREN {siren} introuvable ou entreprise cessée")
         return details

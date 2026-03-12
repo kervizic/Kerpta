@@ -2,23 +2,23 @@
 # Copyright (C) 2026 Emmanuel Kervizic
 # Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
-"""Tâche Celery — Synchronisation nocturne du cache SIRENE.
+"""Tâche Celery — Détection nocturne des fermetures SIRENE.
 
 Exécutée chaque nuit à 2h00 (Europe/Paris) via Celery Beat.
 
-Principe :
-  1. Récupère la liste des SIREN uniques présents dans :
-       - organizations.siren
-       - clients.company_siren  (+ extraits des sirets clients si company_siren null)
-       - suppliers.company_siren
-  2. Pour chaque SIREN, appelle l'API recherche-entreprises.api.gouv.fr
-  3. UPSERT dans companies + establishments
-  4. Met à jour le statut (active/closed) des établissements
+Principe simplifié (lazy caching) :
+  La mise à jour courante des données entreprises/établissements se fait
+  directement dans FastAPI à chaque consultation (get_company_details).
+  Si les données ont > 24h, l'API est appelée et le cache mis à jour.
 
-Règle métier :
-  Si un établissement passe status='closed', les documents existants
-  qui référencent ce billing_siret restent valides (données historiques)
-  mais il ne peut plus être sélectionné pour de nouveaux documents.
+  Ce job nocturne ne sert qu'à détecter les fermetures d'entreprises ou
+  d'établissements qui ne sont plus consultés activement, afin de bloquer
+  leur utilisation dans de nouveaux documents.
+
+Principe :
+  1. Récupère les SIREN présents dans companies dont last_synced_at > 7 jours
+  2. Pour chaque, appelle l'API et met à jour le statut (active/closed)
+  3. Ne touche PAS aux SIREN récemment synchronisés (< 7 jours = déjà frais)
 """
 
 import asyncio
@@ -35,12 +35,12 @@ _log = logging.getLogger(__name__)
 REC_ENT_BASE = "https://recherche-entreprises.api.gouv.fr"
 _TIMEOUT = 15.0
 
-
-# ── Sync d'un SIREN ─────────────────────────────────────────────────────────
+# Ne re-synchroniser que les SIREN pas vus depuis > 7 jours
+_STALE_DAYS = 7
 
 
 async def _fetch_from_api(q: str, per_page: int = 1) -> list[dict]:
-    """Appelle l'API recherche-entreprises avec retry."""
+    """Appelle l'API recherche-entreprises."""
     try:
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
             resp = await client.get(
@@ -55,37 +55,6 @@ async def _fetch_from_api(q: str, per_page: int = 1) -> list[dict]:
     except (httpx.RequestError, httpx.HTTPStatusError) as exc:
         _log.warning("[sirene_sync] Erreur API pour q=%s : %s", q, exc)
         return []
-
-
-async def _fetch_siren(siren: str) -> dict | None:
-    """Récupère une entreprise par SIREN avec fallback par nom pour les établissements.
-
-    L'API retourne matching_etablissements=[] lors d'une recherche par SIREN.
-    Parade : si vide et >1 établissement, relancer par dénomination.
-    """
-    results = await _fetch_from_api(siren, per_page=1)
-    if not results:
-        return None
-
-    item = results[0]
-    matching = item.get("matching_etablissements") or []
-    nb_ouverts = item.get("nombre_etablissements_ouverts", 0)
-    nom = item.get("nom_raison_sociale") or item.get("nom_complet") or ""
-
-    # Fallback par nom si matching_etablissements vide
-    if not matching and nb_ouverts > 1 and nom:
-        try:
-            results_by_name = await _fetch_from_api(nom, per_page=5)
-            for candidate in results_by_name:
-                if candidate.get("siren") == siren:
-                    item["matching_etablissements"] = (
-                        candidate.get("matching_etablissements") or []
-                    )
-                    break
-        except Exception:
-            pass  # pas critique — on garde le siège seul
-
-    return item
 
 
 def _build_address(etab: dict) -> dict:
@@ -105,11 +74,50 @@ def _build_address(etab: dict) -> dict:
     }
 
 
+async def _fetch_siren(siren: str) -> dict | None:
+    """Récupère une entreprise par SIREN avec fallback par nom pour les établissements."""
+    results = await _fetch_from_api(siren, per_page=1)
+    if not results:
+        return None
+
+    item = results[0]
+    matching = item.get("matching_etablissements") or []
+    nb_ouverts = item.get("nombre_etablissements_ouverts", 0)
+    nom = item.get("nom_raison_sociale") or item.get("nom_complet") or ""
+
+    if not matching and nb_ouverts > 1 and nom:
+        try:
+            results_by_name = await _fetch_from_api(nom, per_page=5)
+            for candidate in results_by_name:
+                if candidate.get("siren") == siren:
+                    item["matching_etablissements"] = (
+                        candidate.get("matching_etablissements") or []
+                    )
+                    break
+        except Exception:
+            pass
+
+    return item
+
+
+# Libellés formes juridiques (sous-ensemble)
+_LEGAL_FORM: dict[str, str] = {
+    "1000": "Entrepreneur individuel",
+    "5498": "EURL",
+    "5499": "SARL",
+    "5505": "SA",
+    "5710": "SAS",
+    "5720": "SASU",
+    "6316": "SCI",
+    "9220": "Association",
+}
+
+
 async def sync_siren_to_db(siren: str, db_url: str) -> bool:
     """Synchronise un SIREN dans le cache local (companies + establishments).
 
-    Utilise asyncpg directement (pas SQLAlchemy) pour être utilisable depuis Celery.
-    Retourne True si sync OK, False sinon.
+    Utilisé par le job nocturne pour les SIREN périmés (> 7 jours).
+    Utilise asyncpg directement (contexte Celery, pas FastAPI).
     """
     import asyncpg  # type: ignore[import]
 
@@ -123,12 +131,10 @@ async def sync_siren_to_db(siren: str, db_url: str) -> bool:
     siege = item.get("siege") or {}
     siege_siret = siege.get("siret") if siege else None
 
-    # Préparer les établissements depuis matching_etablissements + siège
     matching: list[dict] = item.get("matching_etablissements") or []
     etabs_data: list[dict] = []
     sirets_seen: set[str] = set()
 
-    # Siège en premier
     if siege and siege_siret:
         etabs_data.append({
             "siret": siege_siret,
@@ -138,33 +144,28 @@ async def sync_siren_to_db(siren: str, db_url: str) -> bool:
             "status": "active" if siege.get("etat_administratif", "A") == "A" else "closed",
             "address": json.dumps(_build_address(siege)),
             "activite_principale": siege.get("activite_principale"),
-            "closure_date": None,
         })
         sirets_seen.add(siege_siret)
 
-    # Autres établissements
     for etab in matching:
         siret = etab.get("siret", "")
         if not siret or siret in sirets_seen:
             continue
         sirets_seen.add(siret)
-        etab_status = "active" if etab.get("etat_administratif", "A") == "A" else "closed"
         etabs_data.append({
             "siret": siret,
             "siren": siren,
             "nic": siret[-5:] if len(siret) >= 5 else None,
             "is_siege": siret == siege_siret,
-            "status": etab_status,
+            "status": "active" if etab.get("etat_administratif", "A") == "A" else "closed",
             "address": json.dumps(_build_address(etab)),
             "activite_principale": etab.get("activite_principale"),
-            "closure_date": None,
         })
 
     try:
         conn = await asyncpg.connect(db_url)
         try:
             async with conn.transaction():
-                # UPSERT company
                 await conn.execute(
                     """
                     INSERT INTO companies (siren, denomination, sigle, legal_form_code,
@@ -176,7 +177,6 @@ async def sync_siren_to_db(siren: str, db_url: str) -> bool:
                         sigle=EXCLUDED.sigle,
                         legal_form_code=EXCLUDED.legal_form_code,
                         legal_form=EXCLUDED.legal_form,
-                        vat_number=EXCLUDED.vat_number,
                         ape_code=EXCLUDED.ape_code,
                         status=EXCLUDED.status,
                         last_synced_at=EXCLUDED.last_synced_at,
@@ -186,15 +186,13 @@ async def sync_siren_to_db(siren: str, db_url: str) -> bool:
                     item.get("nom_raison_sociale") or item.get("nom_complet"),
                     item.get("sigle"),
                     item.get("nature_juridique"),
-                    # legal_form libellé — on reprend la map du service companies
                     _LEGAL_FORM.get(item.get("nature_juridique") or ""),
-                    None,  # vat_number — non fourni par l'API
+                    None,
                     item.get("activite_principale"),
                     company_status,
                     now,
                 )
 
-                # UPSERT établissements
                 for etab in etabs_data:
                     await conn.execute(
                         """
@@ -202,14 +200,10 @@ async def sync_siren_to_db(siren: str, db_url: str) -> bool:
                             address, activite_principale, last_synced_at, created_at, updated_at)
                         VALUES ($1,$2,$3,$4,$5,CAST($6 AS jsonb),$7,$8,now(),now())
                         ON CONFLICT (siret) DO UPDATE SET
-                            siren=EXCLUDED.siren,
-                            nic=EXCLUDED.nic,
-                            is_siege=EXCLUDED.is_siege,
-                            status=EXCLUDED.status,
-                            address=EXCLUDED.address,
-                            activite_principale=EXCLUDED.activite_principale,
-                            last_synced_at=EXCLUDED.last_synced_at,
-                            updated_at=now()
+                            siren=EXCLUDED.siren, nic=EXCLUDED.nic,
+                            is_siege=EXCLUDED.is_siege, status=EXCLUDED.status,
+                            address=EXCLUDED.address, activite_principale=EXCLUDED.activite_principale,
+                            last_synced_at=EXCLUDED.last_synced_at, updated_at=now()
                         """,
                         etab["siret"], etab["siren"], etab["nic"],
                         etab["is_siege"], etab["status"],
@@ -218,11 +212,7 @@ async def sync_siren_to_db(siren: str, db_url: str) -> bool:
         finally:
             await conn.close()
 
-        _log.info(
-            "[sirene_sync] SIREN %s sync OK — %s établissements",
-            siren,
-            len(etabs_data),
-        )
+        _log.info("[sirene_sync] SIREN %s sync OK — %s établissements", siren, len(etabs_data))
         return True
 
     except Exception as exc:
@@ -230,28 +220,18 @@ async def sync_siren_to_db(siren: str, db_url: str) -> bool:
         return False
 
 
-# Libellés formes juridiques (copie depuis companies/service.py)
-_LEGAL_FORM: dict[str, str] = {
-    "1000": "Entrepreneur individuel",
-    "5498": "EURL",
-    "5499": "SARL",
-    "5505": "SA",
-    "5710": "SAS",
-    "5720": "SASU",
-    "6316": "SCI",
-    "9220": "Association",
-}
-
-
 # ── Tâche Celery ─────────────────────────────────────────────────────────────
 
 
-@celery.task(name="sirene.sync_all", bind=True, max_retries=3)  # type: ignore[misc]
-def sync_all_companies_task(self: object) -> dict:  # type: ignore[override]
-    """Synchronise le cache SIRENE pour toutes les organisations et clients connus.
+@celery.task(name="sirene.sync_stale", bind=True, max_retries=3)  # type: ignore[misc]
+def sync_stale_companies_task(self: object) -> dict:  # type: ignore[override]
+    """Synchronise uniquement les SIREN périmés (> 7 jours sans mise à jour).
+
+    Les SIREN consultés récemment sont déjà à jour grâce au lazy caching
+    dans get_company_details(). Ce job ne traite que les SIREN « dormants »
+    pour détecter les fermetures d'entreprises ou d'établissements.
 
     Planifiée par Celery Beat chaque nuit à 2h00 (Europe/Paris).
-    Peut aussi être déclenchée manuellement via l'interface admin Celery.
     """
     from app.core.config import settings
 
@@ -260,21 +240,21 @@ def sync_all_companies_task(self: object) -> dict:  # type: ignore[override]
 
         conn = await asyncpg.connect(settings.DATABASE_URL)
         try:
-            # Collecter tous les SIREN uniques
             rows = await conn.fetch("""
-                SELECT DISTINCT siren FROM (
-                    SELECT siren FROM organizations WHERE siren IS NOT NULL
-                    UNION
-                    SELECT company_siren AS siren FROM clients WHERE company_siren IS NOT NULL
-                    UNION
-                    SELECT company_siren AS siren FROM suppliers WHERE company_siren IS NOT NULL
-                ) t
-            """)
+                SELECT siren FROM companies
+                WHERE last_synced_at < now() - interval '%s days'
+                  AND status = 'active'
+                ORDER BY last_synced_at ASC
+            """ % _STALE_DAYS)
             sirens = [r["siren"] for r in rows]
         finally:
             await conn.close()
 
-        _log.info("[sirene_sync] %d SIREN(s) à synchroniser", len(sirens))
+        if not sirens:
+            _log.info("[sirene_sync] Aucun SIREN périmé à synchroniser")
+            return {"ok": 0, "errors": 0, "total": 0}
+
+        _log.info("[sirene_sync] %d SIREN(s) périmé(s) à synchroniser", len(sirens))
 
         ok_count = 0
         err_count = 0
@@ -287,9 +267,7 @@ def sync_all_companies_task(self: object) -> dict:  # type: ignore[override]
 
         _log.info(
             "[sirene_sync] Terminé — %d OK / %d erreurs / %d total",
-            ok_count,
-            err_count,
-            len(sirens),
+            ok_count, err_count, len(sirens),
         )
         return {"ok": ok_count, "errors": err_count, "total": len(sirens)}
 

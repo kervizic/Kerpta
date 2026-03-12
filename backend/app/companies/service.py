@@ -19,15 +19,22 @@ Détection automatique du type de requête :
 """
 
 import asyncio
+import json
 import logging
 import re
+from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 import httpx
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from .schemas import Address, CompanyDetails, CompanySearchResult, Etablissement
 
 _log = logging.getLogger(__name__)
+
+# Durée de validité du cache local (24 heures)
+_CACHE_TTL = timedelta(hours=24)
 
 REC_ENT_BASE = "https://recherche-entreprises.api.gouv.fr"
 _TIMEOUT = 10.0
@@ -245,14 +252,181 @@ def _matching_etab_to_etablissement(etab: dict, siege_siret: str | None) -> Etab
     )
 
 
-async def get_company_details(siren: str) -> CompanyDetails | None:
-    """Retourne les détails d'une entreprise active via son SIREN, avec tous ses établissements.
+async def _load_from_cache(siren: str, db: AsyncSession) -> CompanyDetails | None:
+    """Charge une entreprise depuis le cache local si les données ont < 24h."""
+    cutoff = datetime.now(timezone.utc) - _CACHE_TTL
 
-    L'API recherche-entreprises ne remplit matching_etablissements que lorsque
-    la requête texte correspond à des établissements. Une recherche par SIREN
-    renvoie souvent matching_etablissements=[] car les SIRET ne matchent pas.
-    Parade : si matching_etablissements est vide, refaire une recherche par nom
-    pour forcer l'API à renvoyer les établissements.
+    # Vérifier fraîcheur de la société
+    row = await db.execute(
+        text("""
+            SELECT denomination, sigle, legal_form_code, legal_form, vat_number,
+                   ape_code, status, creation_date::text
+            FROM companies
+            WHERE siren = :siren AND last_synced_at > :cutoff
+        """),
+        {"siren": siren, "cutoff": cutoff},
+    )
+    company = row.fetchone()
+    if company is None:
+        return None
+
+    c = dict(company._mapping)
+    if c["status"] != "active":
+        return None
+
+    # Charger les établissements actifs
+    rows = await db.execute(
+        text("""
+            SELECT siret, nic, is_siege, status, address, activite_principale
+            FROM establishments
+            WHERE siren = :siren AND status = 'active'
+            ORDER BY is_siege DESC, siret ASC
+        """),
+        {"siren": siren},
+    )
+    etab_rows = rows.fetchall()
+
+    siege_etab: Etablissement | None = None
+    etabs_actifs: list[Etablissement] = []
+
+    for er in etab_rows:
+        e = dict(er._mapping)
+        addr_data = e["address"] or {}
+        if isinstance(addr_data, str):
+            addr_data = json.loads(addr_data)
+        adresse = Address(
+            voie=addr_data.get("voie"),
+            complement=addr_data.get("complement"),
+            code_postal=addr_data.get("code_postal"),
+            commune=addr_data.get("commune"),
+            pays=addr_data.get("pays", "France"),
+        )
+        etab = Etablissement(
+            siret=e["siret"],
+            nic=e["nic"] or "",
+            siege=e["is_siege"],
+            etat="A",
+            activite_principale=e["activite_principale"],
+            date_creation=None,
+            adresse=adresse,
+        )
+        etabs_actifs.append(etab)
+        if e["is_siege"]:
+            siege_etab = etab
+
+    nat_jur = c["legal_form_code"]
+    return CompanyDetails(
+        siren=siren,
+        denomination=c["denomination"],
+        sigle=c["sigle"],
+        activite_principale=c["ape_code"],
+        categorie_juridique=nat_jur,
+        categorie_juridique_libelle=c["legal_form"] or LEGAL_FORM.get(nat_jur or ""),
+        date_creation=c["creation_date"],
+        etat="Actif",
+        tva_intracom=compute_tva_intracom(siren),
+        tranche_effectifs=None,
+        tranche_effectifs_libelle=None,
+        categorie_entreprise=None,
+        siege=siege_etab,
+        etablissements_actifs=etabs_actifs,
+        nombre_etablissements_actifs=len(etabs_actifs),
+    )
+
+
+async def _save_to_cache(siren: str, item: dict, matching: list[dict], db: AsyncSession) -> None:
+    """Persiste une entreprise et ses établissements dans le cache local."""
+    now = datetime.now(timezone.utc)
+    siege = item.get("siege") or {}
+    siege_siret = siege.get("siret") if siege else None
+    company_status = "active" if item.get("etat_administratif") == "A" else "closed"
+
+    # UPSERT company
+    await db.execute(
+        text("""
+            INSERT INTO companies (siren, denomination, sigle, legal_form_code,
+                legal_form, vat_number, ape_code, status, creation_date,
+                last_synced_at, created_at, updated_at)
+            VALUES (:siren, :denom, :sigle, :lfc, :lf, :vat, :ape, :status,
+                    CAST(:cdate AS date), :now, now(), now())
+            ON CONFLICT (siren) DO UPDATE SET
+                denomination = EXCLUDED.denomination,
+                sigle = EXCLUDED.sigle,
+                legal_form_code = EXCLUDED.legal_form_code,
+                legal_form = EXCLUDED.legal_form,
+                ape_code = EXCLUDED.ape_code,
+                status = EXCLUDED.status,
+                last_synced_at = EXCLUDED.last_synced_at,
+                updated_at = now()
+        """),
+        {
+            "siren": siren,
+            "denom": item.get("nom_raison_sociale") or item.get("nom_complet"),
+            "sigle": item.get("sigle"),
+            "lfc": item.get("nature_juridique"),
+            "lf": LEGAL_FORM.get(item.get("nature_juridique") or ""),
+            "vat": None,
+            "ape": item.get("activite_principale"),
+            "status": company_status,
+            "cdate": item.get("date_creation"),
+            "now": now,
+        },
+    )
+
+    # Collecter tous les établissements (siège + matching)
+    etabs_to_upsert: list[dict] = []
+    sirets_seen: set[str] = set()
+
+    if siege and siege_siret:
+        etabs_to_upsert.append({
+            "siret": siege_siret,
+            "siren": siren,
+            "nic": siege_siret[-5:] if len(siege_siret) >= 5 else None,
+            "is_siege": True,
+            "status": "active" if siege.get("etat_administratif", "A") == "A" else "closed",
+            "address": json.dumps(_build_address_from_siege(siege).model_dump()),
+            "activite_principale": siege.get("activite_principale"),
+        })
+        sirets_seen.add(siege_siret)
+
+    for etab in matching:
+        siret = etab.get("siret", "")
+        if not siret or siret in sirets_seen:
+            continue
+        sirets_seen.add(siret)
+        etabs_to_upsert.append({
+            "siret": siret,
+            "siren": siren,
+            "nic": siret[-5:] if len(siret) >= 5 else None,
+            "is_siege": siret == siege_siret,
+            "status": "active" if etab.get("etat_administratif", "A") == "A" else "closed",
+            "address": json.dumps(_build_address_from_siege(etab).model_dump()),
+            "activite_principale": etab.get("activite_principale"),
+        })
+
+    for e in etabs_to_upsert:
+        await db.execute(
+            text("""
+                INSERT INTO establishments (siret, siren, nic, is_siege, status,
+                    address, activite_principale, last_synced_at, created_at, updated_at)
+                VALUES (:siret, :siren, :nic, :is_siege, :status,
+                        CAST(:address AS jsonb), :ape, :now, now(), now())
+                ON CONFLICT (siret) DO UPDATE SET
+                    siren = EXCLUDED.siren, nic = EXCLUDED.nic,
+                    is_siege = EXCLUDED.is_siege, status = EXCLUDED.status,
+                    address = EXCLUDED.address, activite_principale = EXCLUDED.activite_principale,
+                    last_synced_at = EXCLUDED.last_synced_at, updated_at = now()
+            """),
+            {**e, "ape": e["activite_principale"], "now": now},
+        )
+
+    await db.commit()
+
+
+async def _fetch_details_from_api(siren: str) -> tuple[dict, list[dict]] | None:
+    """Appelle l'API et retourne (item, matching_etablissements) ou None.
+
+    Gère le fallback par nom quand matching_etablissements est vide.
     """
     results = await _fetch_companies(siren, per_page=1)
     if not results:
@@ -262,6 +436,26 @@ async def get_company_details(siren: str) -> CompanyDetails | None:
     if item.get("etat_administratif") != "A":
         return None
 
+    matching: list[dict] = item.get("matching_etablissements") or []
+    nb_ouverts = item.get("nombre_etablissements_ouverts", 0)
+    nom = item.get("nom_raison_sociale") or item.get("nom_complet") or ""
+
+    # Fallback par nom si matching_etablissements vide
+    if not matching and nb_ouverts > 1 and nom:
+        try:
+            results_by_name = await _fetch_companies(nom, per_page=5)
+            for candidate in results_by_name:
+                if candidate.get("siren") == item.get("siren", siren):
+                    matching = candidate.get("matching_etablissements") or []
+                    break
+        except Exception:
+            pass
+
+    return item, matching
+
+
+def _build_details_from_api(siren: str, item: dict, matching: list[dict]) -> CompanyDetails:
+    """Construit un CompanyDetails depuis les données brutes de l'API."""
     siege = item.get("siege") or {}
     nat_jur = item.get("nature_juridique") or None
     effectifs_code = item.get("tranche_effectif_salarie") or None
@@ -269,7 +463,6 @@ async def get_company_details(siren: str) -> CompanyDetails | None:
     nom = item.get("nom_raison_sociale") or item.get("nom_complet") or ""
     nb_ouverts = item.get("nombre_etablissements_ouverts", 0)
 
-    # Établissement siège
     siege_etab: Etablissement | None = None
     if siege:
         adresse = _build_address_from_siege(siege)
@@ -283,32 +476,14 @@ async def get_company_details(siren: str) -> CompanyDetails | None:
             adresse=adresse,
         )
 
-    # matching_etablissements depuis la recherche SIREN
-    matching: list[dict] = item.get("matching_etablissements") or []
-
-    # Si vide et qu'il y a plusieurs établissements, refaire une recherche par nom
-    # pour que l'API renvoie les matching_etablissements
-    if not matching and nb_ouverts > 1 and nom:
-        try:
-            results_by_name = await _fetch_companies(nom, per_page=5)
-            for candidate in results_by_name:
-                if candidate.get("siren") == item.get("siren", siren):
-                    matching = candidate.get("matching_etablissements") or []
-                    break
-        except Exception:
-            pass  # pas critique — on garde le siège seul
-
-    # Construire la liste des établissements actifs
     etabs_actifs: list[Etablissement] = []
     sirets_seen: set[str] = set()
 
-    # D'abord le siège (priorité en tête de liste)
     if siege_etab:
         etabs_actifs.append(siege_etab)
         if siege_siret:
             sirets_seen.add(siege_siret)
 
-    # Puis les autres établissements actifs
     for etab in matching:
         if etab.get("etat_administratif") != "A":
             continue
@@ -335,6 +510,41 @@ async def get_company_details(siren: str) -> CompanyDetails | None:
         etablissements_actifs=etabs_actifs,
         nombre_etablissements_actifs=nb_ouverts,
     )
+
+
+async def get_company_details(siren: str, db: AsyncSession | None = None) -> CompanyDetails | None:
+    """Retourne les détails d'une entreprise active via son SIREN.
+
+    Lazy caching : si une session DB est fournie, vérifie le cache local d'abord.
+    Si les données ont moins de 24h, retourne le cache sans appel API.
+    Sinon, appelle l'API, met à jour le cache, et retourne le résultat.
+    """
+    # 1. Vérifier le cache local si DB disponible
+    if db is not None:
+        try:
+            cached = await _load_from_cache(siren, db)
+            if cached is not None:
+                _log.debug("[companies] Cache hit pour SIREN %s", siren)
+                return cached
+        except Exception:
+            _log.warning("[companies] Erreur lecture cache pour %s, fallback API", siren)
+
+    # 2. Appel API
+    result = await _fetch_details_from_api(siren)
+    if result is None:
+        return None
+
+    item, matching = result
+
+    # 3. Sauvegarder dans le cache
+    if db is not None:
+        try:
+            await _save_to_cache(siren, item, matching, db)
+            _log.debug("[companies] Cache mis à jour pour SIREN %s", siren)
+        except Exception:
+            _log.warning("[companies] Erreur écriture cache pour %s", siren, exc_info=True)
+
+    return _build_details_from_api(siren, item, matching)
 
 
 # ── Intégration VIES — TVA européenne (hors France) ──────────────────────────

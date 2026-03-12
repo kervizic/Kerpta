@@ -39,9 +39,10 @@ celery.conf.update(
     # ── Celery Beat — tâches planifiées ────────────────────────────────────────
     beat_schedule={
         # Sync SIRENE : chaque nuit à 2h00 (Europe/Paris)
-        # Met à jour le statut (active/closed) de toutes les entreprises et établissements
-        "sirene-sync-nightly": {
-            "task": "sirene.sync_all",
+        # Ne synchronise que les SIREN périmés (> 7 jours) pour détecter les fermetures.
+        # Les SIREN consultés récemment sont déjà à jour via lazy caching (FastAPI).
+        "sirene-sync-stale": {
+            "task": "sirene.sync_stale",
             "schedule": 86400,          # toutes les 24h (en secondes)
             "options": {"expires": 7200},  # expire si pas lancée dans les 2h
         },
