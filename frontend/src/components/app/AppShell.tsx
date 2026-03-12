@@ -37,7 +37,7 @@ function DashboardPlaceholder() {
 }
 
 export default function AppShell({ path }: AppShellProps) {
-  const { token, fetchMe, fetchOrgs, orgs, isAdmin } = useAuthStore()
+  const { token, fetchMe, fetchOrgs, orgs } = useAuthStore()
 
   useEffect(() => {
     if (!token) {
@@ -50,15 +50,6 @@ export default function AppShell({ path }: AppShellProps) {
 
   if (!token) return null
 
-  // Page onboarding : rendue sans sidebar
-  if (path === '/app/onboarding') {
-    return (
-      <Suspense fallback={<PageSpinner />}>
-        <OnboardingPage />
-      </Suspense>
-    )
-  }
-
   // Attente du chargement des orgas
   if (orgs === null) {
     return (
@@ -66,24 +57,6 @@ export default function AppShell({ path }: AppShellProps) {
         <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
       </div>
     )
-  }
-
-  // Aucune orga
-  if (orgs.length === 0) {
-    // Admin plateforme sans orga → attendre que isAdmin soit résolu, puis laisser passer
-    if (isAdmin === null) {
-      return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-        </div>
-      )
-    }
-    // Non admin → onboarding obligatoire
-    if (!isAdmin) {
-      navigate('/app/onboarding')
-      return null
-    }
-    // Admin plateforme → accès direct à la config sans orga
   }
 
   return (
@@ -94,6 +67,9 @@ export default function AppShell({ path }: AppShellProps) {
         <Suspense fallback={<PageSpinner />}>
           {path === '/app/config/api-keys' ? (
             <ConfigApiKeysPage />
+          ) : orgs.length === 0 || path === '/app/onboarding' ? (
+            // Pas d'orga (ou demande explicite) → wizard intégré dans le shell
+            <OnboardingPage embedded />
           ) : (
             <DashboardPlaceholder />
           )}

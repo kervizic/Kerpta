@@ -66,23 +66,24 @@ function httpError(err: unknown, fallback: string): string {
 
 // ── Composant principal ───────────────────────────────────────────────────────
 
-export default function OnboardingPage() {
+export default function OnboardingPage({ embedded = false }: { embedded?: boolean }) {
   const [step, setStep] = useState<Step>('choice')
   const [pendingOrgName, setPendingOrgName] = useState('')
   const { fetchOrgs } = useAuthStore()
 
-  return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-lg">
-        {/* Logo */}
+  const wizard = (
+    <div className="w-full max-w-lg">
+      {/* Logo — masqué en mode intégré (déjà dans la sidebar) */}
+      {!embedded && (
         <div className="text-center mb-8">
           <span className="text-2xl font-bold">
             <span className="text-gray-900">KER</span>
             <span className="text-orange-500">PTA</span>
           </span>
         </div>
+      )}
 
-        {step === 'choice' && <ChoiceStep onSelect={setStep} />}
+      {step === 'choice' && <ChoiceStep onSelect={setStep} />}
 
         {step === 'create' && (
           <CreateStep
@@ -110,7 +111,20 @@ export default function OnboardingPage() {
             onNewOrg={() => setStep('choice')}
           />
         )}
+    </div>
+  )
+
+  if (embedded) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-4">
+        {wizard}
       </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      {wizard}
     </div>
   )
 }

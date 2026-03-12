@@ -44,6 +44,24 @@ export function LandingFooter({ content }: { content: Record<string, unknown> })
             <p className="text-sm text-gray-400 dark:text-slate-500 max-w-xs text-center md:text-left">{tagline}</p>
           </div>
 
+          {/* TrustBox widget - Review Collector */}
+          <div className="w-full max-w-xs shrink-0">
+            <div
+              className="trustpilot-widget"
+              data-locale="fr-FR"
+              data-template-id="56278e9abfbbba0bdcd568bc"
+              data-businessunit-id="69b274d8022fce23c4520dc8"
+              data-style-height="52px"
+              data-style-width="100%"
+              data-token="489d92a2-f6a6-4f81-97d8-36d40422528b"
+            >
+              <a href="https://fr.trustpilot.com/review/kerpta.fr" target="_blank" rel="noopener">
+                Trustpilot
+              </a>
+            </div>
+          </div>
+          {/* End TrustBox widget */}
+
           {/* Liens */}
           {links.length > 0 && (
             <nav className="flex items-center gap-2">

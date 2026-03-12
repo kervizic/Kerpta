@@ -52,25 +52,6 @@ export default function LandingPage() {
       <LandingFeatures content={sections.features ?? {}} />
       <LandingPricing content={sections.pricing ?? {}} />
       <LandingOpenSource content={sections.opensource ?? {}} />
-
-      {/* TrustBox widget - Review Collector */}
-      <div className="py-8 px-4 bg-white dark:bg-slate-950">
-        <div
-          className="trustpilot-widget"
-          data-locale="fr-FR"
-          data-template-id="56278e9abfbbba0bdcd568bc"
-          data-businessunit-id="69b274d8022fce23c4520dc8"
-          data-style-height="52px"
-          data-style-width="100%"
-          data-token="489d92a2-f6a6-4f81-97d8-36d40422528b"
-        >
-          <a href="https://fr.trustpilot.com/review/kerpta.fr" target="_blank" rel="noopener">
-            Trustpilot
-          </a>
-        </div>
-      </div>
-      {/* End TrustBox widget */}
-
       <LandingFooter content={sections.footer ?? {}} />
       <ThemeToggle />
     </div>
