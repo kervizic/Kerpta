@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Emmanuel Kervizic
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
-import { useState, type ReactNode } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
 import {
   KeyRound,
   LogOut,
@@ -15,6 +15,7 @@ import {
   Settings,
   Settings2,
   LayoutDashboard,
+  LayoutGrid,
   UserRound,
   Package,
   FileText,
@@ -36,6 +37,7 @@ import {
 } from 'lucide-react'
 import { navigate } from '@/hooks/useRoute'
 import { useAuthStore, type OrgMembership } from '@/stores/authStore'
+import { useModuleStore } from '@/stores/moduleStore'
 
 interface AppSidebarProps {
   currentPath: string
@@ -46,6 +48,7 @@ interface NavItem {
   label: string
   href: string
   icon: ReactNode
+  moduleKey?: string
 }
 
 // Tableau de bord
@@ -53,35 +56,36 @@ const DASHBOARD_ITEM: NavItem = {
   label: 'Tableau de bord', href: '/app', icon: <LayoutDashboard className="w-4 h-4" />,
 }
 
-// Items de la section "Vente"
+// Items de la section "Ventes"
 const VENTE_ITEMS: NavItem[] = [
-  { label: 'Clients', href: '/app/clients', icon: <UserRound className="w-4 h-4" /> },
-  { label: 'Catalogue', href: '/app/catalogue', icon: <Package className="w-4 h-4" /> },
-  { label: 'Devis', href: '/app/devis', icon: <FileText className="w-4 h-4" /> },
-  { label: 'Commandes', href: '/app/contrats', icon: <FolderKanban className="w-4 h-4" /> },
-  { label: 'Factures', href: '/app/factures', icon: <Receipt className="w-4 h-4" /> },
+  { label: 'Clients', href: '/app/clients', icon: <UserRound className="w-4 h-4" />, moduleKey: 'ventes.clients' },
+  { label: 'Catalogue', href: '/app/catalogue', icon: <Package className="w-4 h-4" />, moduleKey: 'ventes.catalogue' },
+  { label: 'Devis', href: '/app/devis', icon: <FileText className="w-4 h-4" />, moduleKey: 'ventes.devis' },
+  { label: 'Commandes', href: '/app/contrats', icon: <FolderKanban className="w-4 h-4" />, moduleKey: 'ventes.commandes' },
+  { label: 'Factures', href: '/app/factures', icon: <Receipt className="w-4 h-4" />, moduleKey: 'ventes.factures' },
 ]
 
-// Items de la section "Achat"
+// Items de la section "Achats"
 const ACHAT_ITEMS: NavItem[] = [
-  { label: 'Fournisseurs', href: '/app/fournisseurs', icon: <Truck className="w-4 h-4" /> },
-  { label: 'Bons de commande', href: '/app/bons-commande', icon: <ClipboardList className="w-4 h-4" /> },
-  { label: 'Factures fournisseur', href: '/app/achats', icon: <FileDown className="w-4 h-4" /> },
-  { label: 'Notes de frais', href: '/app/frais', icon: <Wallet className="w-4 h-4" /> },
+  { label: 'Fournisseurs', href: '/app/fournisseurs', icon: <Truck className="w-4 h-4" />, moduleKey: 'achats.fournisseurs' },
+  { label: 'Devis fournisseur', href: '/app/devis-fournisseur', icon: <FileText className="w-4 h-4" />, moduleKey: 'achats.devis' },
+  { label: 'Bons de commande', href: '/app/bons-commande', icon: <ClipboardList className="w-4 h-4" />, moduleKey: 'achats.bons_commande' },
+  { label: 'Factures fournisseur', href: '/app/achats', icon: <FileDown className="w-4 h-4" />, moduleKey: 'achats.factures' },
 ]
 
 // Items de la section "RH"
 const RH_ITEMS: NavItem[] = [
-  { label: 'Salariés', href: '/app/salaries', icon: <UserCheck className="w-4 h-4" /> },
-  { label: 'Bulletins de paie', href: '/app/paie', icon: <Banknote className="w-4 h-4" /> },
+  { label: 'Salariés', href: '/app/salaries', icon: <UserCheck className="w-4 h-4" />, moduleKey: 'rh.salaries' },
+  { label: 'Bulletins de paie', href: '/app/paie', icon: <Banknote className="w-4 h-4" />, moduleKey: 'rh.paie' },
+  { label: 'Notes de frais', href: '/app/frais', icon: <Wallet className="w-4 h-4" />, moduleKey: 'rh.frais' },
 ]
 
 // Items de la section "Comptabilité"
 const COMPTA_ITEMS: NavItem[] = [
-  { label: 'Journal', href: '/app/journal', icon: <BookOpen className="w-4 h-4" /> },
-  { label: 'Grand livre', href: '/app/grand-livre', icon: <Library className="w-4 h-4" /> },
-  { label: 'Balance', href: '/app/balance', icon: <Scale className="w-4 h-4" /> },
-  { label: 'TVA', href: '/app/tva', icon: <Percent className="w-4 h-4" /> },
+  { label: 'Journal', href: '/app/journal', icon: <BookOpen className="w-4 h-4" />, moduleKey: 'compta.journal' },
+  { label: 'Grand livre', href: '/app/grand-livre', icon: <Library className="w-4 h-4" />, moduleKey: 'compta.grand_livre' },
+  { label: 'Balance', href: '/app/balance', icon: <Scale className="w-4 h-4" />, moduleKey: 'compta.balance' },
+  { label: 'TVA', href: '/app/tva', icon: <Percent className="w-4 h-4" />, moduleKey: 'compta.tva' },
 ]
 
 // Items de la section "Configuration" organisation (owner/admin)
@@ -90,6 +94,11 @@ const ORG_CONFIG_ITEMS: NavItem[] = [
     label: 'Ma structure',
     href: '/app/org/settings',
     icon: <Building className="w-4 h-4" />,
+  },
+  {
+    label: 'Modules',
+    href: '/app/org/modules',
+    icon: <LayoutGrid className="w-4 h-4" />,
   },
 ]
 
@@ -211,10 +220,12 @@ function NavBtn({
   item,
   currentPath,
   onClose,
+  sub = false,
 }: {
   item: NavItem
   currentPath: string
   onClose?: () => void
+  sub?: boolean
 }) {
   const isActive = item.href === '/app'
     ? currentPath === '/app'
@@ -222,7 +233,9 @@ function NavBtn({
   return (
     <button
       onClick={() => { navigate(item.href); onClose?.() }}
-      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+      className={`w-full flex items-center gap-2 rounded-lg font-medium transition-all ${
+        sub ? 'px-3 py-1.5 text-xs' : 'px-3 py-2 text-sm'
+      } ${
         isActive
           ? 'bg-orange-50 text-orange-700 border border-orange-200'
           : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
@@ -239,6 +252,7 @@ function NavBtn({
 function SectionAccordion({
   label,
   icon,
+  sectionKey,
   items,
   currentPath,
   onClose,
@@ -246,15 +260,39 @@ function SectionAccordion({
 }: {
   label: string
   icon: ReactNode
+  sectionKey: string
   items: NavItem[]
   currentPath: string
   onClose?: () => void
   storageKey: string
 }) {
-  const hasActive = items.some(
+  const { isEnabled } = useModuleStore()
+
+  // Section désactivée → masquée
+  if (!isEnabled(sectionKey)) return null
+
+  // Filtrer les sous-items par module
+  const visibleItems = items.filter((i) => !i.moduleKey || isEnabled(i.moduleKey))
+  if (visibleItems.length === 0) return null
+
+  const hasActive = visibleItems.some(
     (i) => currentPath === i.href || currentPath.startsWith(i.href + '/')
   )
 
+  return <SectionAccordionInner
+    label={label} icon={icon} items={visibleItems}
+    hasActive={hasActive} currentPath={currentPath}
+    onClose={onClose} storageKey={storageKey}
+  />
+}
+
+/** Inner component to avoid conditional hooks */
+function SectionAccordionInner({
+  label, icon, items, hasActive, currentPath, onClose, storageKey,
+}: {
+  label: string; icon: ReactNode; items: NavItem[]
+  hasActive: boolean; currentPath: string; onClose?: () => void; storageKey: string
+}) {
   const [open, setOpen] = useState(() => {
     const saved = localStorage.getItem(storageKey)
     if (saved !== null) return saved === 'true'
@@ -284,10 +322,10 @@ function SectionAccordion({
         <ChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <ul className="mt-0.5 space-y-0.5">
+        <ul className="mt-0.5 space-y-0.5 pl-4">
           {items.map((item) => (
             <li key={item.href}>
-              <NavBtn item={item} currentPath={currentPath} onClose={onClose} />
+              <NavBtn item={item} currentPath={currentPath} onClose={onClose} sub />
             </li>
           ))}
         </ul>
@@ -364,9 +402,15 @@ function ConfigAccordion({
 
 export function AppSidebar({ currentPath, onClose }: AppSidebarProps) {
   const { user, logout, isAdmin, orgs, activeOrgId, setActiveOrg } = useAuthStore()
+  const loadModules = useModuleStore((s) => s.loadModules)
 
   const activeOrg = orgs?.find((o) => o.org_id === activeOrgId) ?? orgs?.[0] ?? null
   const isOrgOwnerOrAdmin = activeOrg?.role === 'owner' || activeOrg?.role === 'admin'
+
+  // Charger la config modules quand l'org change
+  useEffect(() => {
+    if (activeOrgId) loadModules(activeOrgId)
+  }, [activeOrgId, loadModules])
 
   return (
     <aside className="w-60 shrink-0 h-screen sticky top-0 bg-white border-r border-gray-200 flex flex-col">
@@ -398,10 +442,10 @@ export function AppSidebar({ currentPath, onClose }: AppSidebarProps) {
           <>
             <NavBtn item={DASHBOARD_ITEM} currentPath={currentPath} onClose={onClose} />
             <div className="pt-1 space-y-0.5">
-              <SectionAccordion label="Vente" icon={<Briefcase className="w-4 h-4" />} items={VENTE_ITEMS} currentPath={currentPath} onClose={onClose} storageKey="sidebar-vente" />
-              <SectionAccordion label="Achat" icon={<ShoppingCart className="w-4 h-4" />} items={ACHAT_ITEMS} currentPath={currentPath} onClose={onClose} storageKey="sidebar-achat" />
-              <SectionAccordion label="RH" icon={<Users className="w-4 h-4" />} items={RH_ITEMS} currentPath={currentPath} onClose={onClose} storageKey="sidebar-rh" />
-              <SectionAccordion label="Comptabilité" icon={<BarChart3 className="w-4 h-4" />} items={COMPTA_ITEMS} currentPath={currentPath} onClose={onClose} storageKey="sidebar-compta" />
+              <SectionAccordion label="Ventes" sectionKey="ventes" icon={<Briefcase className="w-4 h-4" />} items={VENTE_ITEMS} currentPath={currentPath} onClose={onClose} storageKey="sidebar-ventes" />
+              <SectionAccordion label="Achats" sectionKey="achats" icon={<ShoppingCart className="w-4 h-4" />} items={ACHAT_ITEMS} currentPath={currentPath} onClose={onClose} storageKey="sidebar-achats" />
+              <SectionAccordion label="RH" sectionKey="rh" icon={<Users className="w-4 h-4" />} items={RH_ITEMS} currentPath={currentPath} onClose={onClose} storageKey="sidebar-rh" />
+              <SectionAccordion label="Comptabilité" sectionKey="compta" icon={<BarChart3 className="w-4 h-4" />} items={COMPTA_ITEMS} currentPath={currentPath} onClose={onClose} storageKey="sidebar-compta" />
             </div>
           </>
         )}

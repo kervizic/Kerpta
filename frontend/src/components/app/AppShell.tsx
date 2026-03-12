@@ -16,6 +16,7 @@ const CatalogPage = lazy(() => import('@/pages/app/CatalogPage'))
 const QuotesPage = lazy(() => import('@/pages/app/QuotesPage'))
 const ContractsPage = lazy(() => import('@/pages/app/ContractsPage'))
 const InvoicesPage = lazy(() => import('@/pages/app/InvoicesPage'))
+const ModulesPage = lazy(() => import('@/pages/app/ModulesPage'))
 
 interface AppShellProps {
   path: string
@@ -45,6 +46,7 @@ function DashboardPlaceholder() {
 
 const PLACEHOLDER_PREFIXES: [string, string][] = [
   ['/app/fournisseurs', 'Fournisseurs'],
+  ['/app/devis-fournisseur', 'Devis fournisseur'],
   ['/app/bons-commande', 'Bons de commande'],
   ['/app/achats', "Factures d'achat"],
   ['/app/frais', 'Notes de frais'],
@@ -146,11 +148,13 @@ export default function AppShell({ path }: AppShellProps) {
               <ConfigApiKeysPage />
             ) : path === '/app/org/settings' ? (
               <OrgSettingsPage />
+            ) : path === '/app/org/modules' ? (
+              <ModulesPage />
             ) : path.startsWith('/app/clients') ? (
               <ClientsPage path={path} />
             ) : path.startsWith('/app/catalogue') ? (
               <CatalogPage />
-            ) : path.startsWith('/app/devis') ? (
+            ) : path === '/app/devis' || path.startsWith('/app/devis/') ? (
               <QuotesPage path={path} />
             ) : path.startsWith('/app/contrats') ? (
               <ContractsPage path={path} />
