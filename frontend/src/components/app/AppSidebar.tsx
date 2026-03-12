@@ -19,6 +19,7 @@ import { useAuthStore, type OrgMembership } from '@/stores/authStore'
 
 interface AppSidebarProps {
   currentPath: string
+  onClose?: () => void
 }
 
 interface NavItem {
@@ -147,7 +148,7 @@ function OrgSelector({
 
 // ── Accordéon de configuration (admin) — fermé par défaut ────────────────────
 
-function ConfigAccordion({ currentPath, isAdmin }: { currentPath: string; isAdmin: boolean | null }) {
+function ConfigAccordion({ currentPath, isAdmin, onClose }: { currentPath: string; isAdmin: boolean | null; onClose?: () => void }) {
   const [open, setOpen] = useState(false)
   const visibleItems = CONFIG_NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin)
 
@@ -174,7 +175,7 @@ function ConfigAccordion({ currentPath, isAdmin }: { currentPath: string; isAdmi
             return (
               <li key={item.href}>
                 <button
-                  onClick={() => navigate(item.href)}
+                  onClick={() => { navigate(item.href); onClose?.() }}
                   className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                     isActive
                       ? 'bg-orange-50 text-orange-700 border border-orange-200'
@@ -195,7 +196,7 @@ function ConfigAccordion({ currentPath, isAdmin }: { currentPath: string; isAdmi
 
 // ── Sidebar principale ────────────────────────────────────────────────────────
 
-export function AppSidebar({ currentPath }: AppSidebarProps) {
+export function AppSidebar({ currentPath, onClose }: AppSidebarProps) {
   const { user, logout, isAdmin, orgs, activeOrgId, setActiveOrg } = useAuthStore()
 
   const activeOrg = orgs?.find((o) => o.org_id === activeOrgId) ?? orgs?.[0] ?? null
@@ -229,7 +230,7 @@ export function AppSidebar({ currentPath }: AppSidebarProps) {
         {/* Ma structure — visible si membre d'une org */}
         {activeOrg && isOrgOwnerOrAdmin && (
           <button
-            onClick={() => navigate('/app/org/settings')}
+            onClick={() => { navigate('/app/org/settings'); onClose?.() }}
             className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
               currentPath === '/app/org/settings'
                 ? 'bg-orange-50 text-orange-700 border border-orange-200'
@@ -249,7 +250,7 @@ export function AppSidebar({ currentPath }: AppSidebarProps) {
 
       {/* Configuration — accordéon en bas, fermé par défaut */}
       <div className="px-3 pb-2">
-        <ConfigAccordion currentPath={currentPath} isAdmin={isAdmin} />
+        <ConfigAccordion currentPath={currentPath} isAdmin={isAdmin} onClose={onClose} />
       </div>
 
       {/* Profil + déconnexion */}
