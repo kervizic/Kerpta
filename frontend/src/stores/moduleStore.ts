@@ -3,6 +3,7 @@
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
 import { create } from 'zustand'
+import { apiClient } from '@/lib/api'
 
 export interface ModuleSection {
   key: string
@@ -55,29 +56,45 @@ export const MODULE_DEFINITIONS: ModuleSection[] = [
 
 interface ModuleState {
   config: Record<string, boolean>
-  loadModules: (orgId: string) => void
-  setModule: (orgId: string, key: string, enabled: boolean) => void
+  loading: boolean
+  orgId: string | null
+  loadModules: (orgId: string) => Promise<void>
+  setModule: (key: string, enabled: boolean) => Promise<void>
   isEnabled: (key: string) => boolean
 }
 
 export const useModuleStore = create<ModuleState>((set, get) => ({
   config: {},
+  loading: false,
+  orgId: null,
 
-  loadModules: (orgId: string) => {
+  loadModules: async (orgId: string) => {
+    set({ loading: true, orgId })
     try {
-      const raw = localStorage.getItem(`kerpta_modules_${orgId}`)
-      set({ config: raw ? JSON.parse(raw) : {} })
+      const { data } = await apiClient.get<Record<string, boolean>>(
+        `/api/v1/organizations/${orgId}/modules`,
+      )
+      set({ config: data, loading: false })
     } catch {
-      set({ config: {} })
+      set({ config: {}, loading: false })
     }
   },
 
-  setModule: (orgId: string, key: string, enabled: boolean) => {
-    const config = { ...get().config, [key]: enabled }
-    localStorage.setItem(`kerpta_modules_${orgId}`, JSON.stringify(config))
-    set({ config })
+  setModule: async (key: string, enabled: boolean) => {
+    const { orgId } = get()
+    if (!orgId) return
+    const newConfig = { ...get().config, [key]: enabled }
+    set({ config: newConfig })
+    try {
+      await apiClient.patch(`/api/v1/organizations/${orgId}/modules`, newConfig)
+    } catch {
+      // Rollback en cas d'erreur
+      const prev = { ...newConfig }
+      delete prev[key]
+      set({ config: prev })
+    }
   },
 
-  // Missing key = enabled by default
+  // Clé absente = activé par défaut
   isEnabled: (key: string) => get().config[key] ?? true,
 }))

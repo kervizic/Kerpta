@@ -406,10 +406,11 @@ export function AppSidebar({ currentPath, onClose }: AppSidebarProps) {
 
   const activeOrg = orgs?.find((o) => o.org_id === activeOrgId) ?? orgs?.[0] ?? null
   const isOrgOwnerOrAdmin = activeOrg?.role === 'owner' || activeOrg?.role === 'admin'
+  const isOrgOwner = activeOrg?.role === 'owner'
 
   // Charger la config modules quand l'org change
   useEffect(() => {
-    if (activeOrgId) loadModules(activeOrgId)
+    if (activeOrgId) void loadModules(activeOrgId)
   }, [activeOrgId, loadModules])
 
   return (
@@ -459,7 +460,7 @@ export function AppSidebar({ currentPath, onClose }: AppSidebarProps) {
           <ConfigAccordion
             label="Configuration"
             icon={<Settings className="w-3.5 h-3.5 shrink-0" />}
-            items={ORG_CONFIG_ITEMS}
+            items={isOrgOwner ? ORG_CONFIG_ITEMS : ORG_CONFIG_ITEMS.filter(i => i.href !== '/app/org/modules')}
             currentPath={currentPath}
             onClose={onClose}
             defaultOpen={false}

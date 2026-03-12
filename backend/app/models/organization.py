@@ -68,6 +68,9 @@ class Organization(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     module_esignature_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     module_contracts_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
 
+    # Config granulaire des modules (JSONB) — clé absente = activé
+    module_config: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+
     # Relations
     contracts: Mapped[list["Contract"]] = relationship(
         back_populates="organization", cascade="all, delete-orphan"

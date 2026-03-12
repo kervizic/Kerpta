@@ -606,3 +606,64 @@ async def review_join_request(
 
     await db.commit()
     return {"status": "accepted" if action == "accept" else "rejected"}
+
+
+# ── Configuration des modules ────────────────────────────────────────────────
+
+
+async def _check_membership(
+    org_id: str, user_id: uuid.UUID, db: AsyncSession
+) -> str:
+    """Vérifie l'appartenance et retourne le rôle."""
+    result = await db.execute(
+        text("""
+            SELECT role FROM organization_memberships
+            WHERE user_id = :uid AND organization_id = :oid
+        """),
+        {"uid": str(user_id), "oid": org_id},
+    )
+    row = result.fetchone()
+    if row is None:
+        raise HTTPException(403, "Vous n'êtes pas membre de cette organisation")
+    return row[0]
+
+
+async def get_module_config(
+    org_id: str, user_id: uuid.UUID, db: AsyncSession
+) -> dict:
+    """Retourne la config des modules (tout membre)."""
+    await _check_membership(org_id, user_id, db)
+
+    result = await db.execute(
+        text("SELECT module_config FROM organizations WHERE id = :oid"),
+        {"oid": org_id},
+    )
+    row = result.fetchone()
+    if row is None:
+        raise HTTPException(404, "Organisation introuvable")
+    return row[0] or {}
+
+
+async def update_module_config(
+    org_id: str, user_id: uuid.UUID, config: dict, db: AsyncSession
+) -> dict:
+    """Met à jour la config des modules (owner uniquement)."""
+    role = await _check_membership(org_id, user_id, db)
+    if role != "owner":
+        raise HTTPException(403, "Seul le propriétaire peut modifier les modules")
+
+    # Valider que toutes les valeurs sont des booléens
+    for key, value in config.items():
+        if not isinstance(key, str) or not isinstance(value, bool):
+            raise HTTPException(400, "Le format attendu est { clé: booléen }")
+
+    await db.execute(
+        text("""
+            UPDATE organizations
+            SET module_config = :config
+            WHERE id = :oid
+        """),
+        {"config": json.dumps(config), "oid": org_id},
+    )
+    await db.commit()
+    return config

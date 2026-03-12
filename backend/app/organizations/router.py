@@ -224,3 +224,27 @@ async def review_join_request(
     return await service.review_join_request(
         user_id, org_id, req_id, body.action, body.role, body.custom_permissions, db
     )
+
+
+# ── Configuration des modules ────────────────────────────────────────────────
+
+
+@router.get("/{org_id}/modules", response_model=dict)
+async def get_module_config(
+    org_id: str,
+    user_id: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Retourne la configuration des modules de l'organisation (membres uniquement)."""
+    return await service.get_module_config(org_id, user_id, db)
+
+
+@router.patch("/{org_id}/modules", response_model=dict)
+async def update_module_config(
+    org_id: str,
+    body: dict,
+    user_id: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Met à jour la configuration des modules (owner uniquement)."""
+    return await service.update_module_config(org_id, user_id, body, db)

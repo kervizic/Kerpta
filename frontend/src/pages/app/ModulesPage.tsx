@@ -2,17 +2,36 @@
 // Copyright (C) 2026 Emmanuel Kervizic
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
+import { Loader2 } from 'lucide-react'
 import { MODULE_DEFINITIONS, useModuleStore } from '@/stores/moduleStore'
 import { useAuthStore } from '@/stores/authStore'
 
 export default function ModulesPage() {
-  const activeOrgId = useAuthStore((s) => s.activeOrgId)
-  const { isEnabled, setModule } = useModuleStore()
+  const { orgs, activeOrgId } = useAuthStore()
+  const { isEnabled, setModule, loading } = useModuleStore()
 
-  if (!activeOrgId) return null
+  const activeOrg = orgs?.find((o) => o.org_id === activeOrgId)
+  if (!activeOrgId || !activeOrg) return null
+
+  // Owner uniquement
+  if (activeOrg.role !== 'owner') {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <p className="text-gray-400 text-sm">Seul le propriétaire peut gérer les modules.</p>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="flex-1 flex justify-center items-center">
+        <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
+      </div>
+    )
+  }
 
   function toggle(key: string) {
-    setModule(activeOrgId!, key, !isEnabled(key))
+    void setModule(key, !isEnabled(key))
   }
 
   return (
@@ -62,7 +81,7 @@ export default function ModulesPage() {
 function ToggleSwitch({ on }: { on: boolean }) {
   return (
     <div
-      className={`relative w-10 h-5.5 rounded-full transition-colors ${on ? 'bg-orange-500' : 'bg-gray-300'}`}
+      className={`relative rounded-full transition-colors ${on ? 'bg-orange-500' : 'bg-gray-300'}`}
       style={{ width: 40, height: 22 }}
     >
       <div
