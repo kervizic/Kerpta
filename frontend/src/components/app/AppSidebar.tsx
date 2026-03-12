@@ -13,11 +13,25 @@ import {
   Check,
   Building,
   Settings2,
+  LayoutDashboard,
   UserRound,
   Package,
   FileText,
   FolderKanban,
   Receipt,
+  Briefcase,
+  ShoppingCart,
+  BarChart3,
+  Truck,
+  ClipboardList,
+  FileDown,
+  Wallet,
+  UserCheck,
+  Banknote,
+  BookOpen,
+  Library,
+  Scale,
+  Percent,
 } from 'lucide-react'
 import { navigate } from '@/hooks/useRoute'
 import { useAuthStore, type OrgMembership } from '@/stores/authStore'
@@ -33,13 +47,40 @@ interface NavItem {
   icon: ReactNode
 }
 
+// Tableau de bord
+const DASHBOARD_ITEM: NavItem = {
+  label: 'Tableau de bord', href: '/app', icon: <LayoutDashboard className="w-4 h-4" />,
+}
+
 // Items de la section "Vente"
 const VENTE_ITEMS: NavItem[] = [
   { label: 'Clients', href: '/app/clients', icon: <UserRound className="w-4 h-4" /> },
   { label: 'Catalogue', href: '/app/catalogue', icon: <Package className="w-4 h-4" /> },
   { label: 'Devis', href: '/app/devis', icon: <FileText className="w-4 h-4" /> },
-  { label: 'Contrats', href: '/app/contrats', icon: <FolderKanban className="w-4 h-4" /> },
+  { label: 'Commandes', href: '/app/contrats', icon: <FolderKanban className="w-4 h-4" /> },
   { label: 'Factures', href: '/app/factures', icon: <Receipt className="w-4 h-4" /> },
+]
+
+// Items de la section "Achat"
+const ACHAT_ITEMS: NavItem[] = [
+  { label: 'Fournisseurs', href: '/app/fournisseurs', icon: <Truck className="w-4 h-4" /> },
+  { label: 'Bons de commande', href: '/app/bons-commande', icon: <ClipboardList className="w-4 h-4" /> },
+  { label: 'Factures fournisseur', href: '/app/achats', icon: <FileDown className="w-4 h-4" /> },
+  { label: 'Notes de frais', href: '/app/frais', icon: <Wallet className="w-4 h-4" /> },
+]
+
+// Items de la section "RH"
+const RH_ITEMS: NavItem[] = [
+  { label: 'Salariés', href: '/app/salaries', icon: <UserCheck className="w-4 h-4" /> },
+  { label: 'Bulletins de paie', href: '/app/paie', icon: <Banknote className="w-4 h-4" /> },
+]
+
+// Items de la section "Comptabilité"
+const COMPTA_ITEMS: NavItem[] = [
+  { label: 'Journal', href: '/app/journal', icon: <BookOpen className="w-4 h-4" /> },
+  { label: 'Grand livre', href: '/app/grand-livre', icon: <Library className="w-4 h-4" /> },
+  { label: 'Balance', href: '/app/balance', icon: <Scale className="w-4 h-4" /> },
+  { label: 'TVA', href: '/app/tva', icon: <Percent className="w-4 h-4" /> },
 ]
 
 // Items de la section "Configuration" organisation (owner/admin)
@@ -174,7 +215,9 @@ function NavBtn({
   currentPath: string
   onClose?: () => void
 }) {
-  const isActive = currentPath === item.href || currentPath.startsWith(item.href + '/')
+  const isActive = item.href === '/app'
+    ? currentPath === '/app'
+    : currentPath === item.href || currentPath.startsWith(item.href + '/')
   return (
     <button
       onClick={() => { navigate(item.href); onClose?.() }}
@@ -187,6 +230,68 @@ function NavBtn({
       {item.icon}
       {item.label}
     </button>
+  )
+}
+
+// ── Accordéon de section (Vente, Achat, RH, Comptabilité) ─────────────────────
+
+function SectionAccordion({
+  label,
+  icon,
+  items,
+  currentPath,
+  onClose,
+  storageKey,
+}: {
+  label: string
+  icon: ReactNode
+  items: NavItem[]
+  currentPath: string
+  onClose?: () => void
+  storageKey: string
+}) {
+  const hasActive = items.some(
+    (i) => currentPath === i.href || currentPath.startsWith(i.href + '/')
+  )
+
+  const [open, setOpen] = useState(() => {
+    const saved = localStorage.getItem(storageKey)
+    if (saved !== null) return saved === 'true'
+    return false
+  })
+
+  function toggle() {
+    setOpen((v) => {
+      const next = !v
+      localStorage.setItem(storageKey, String(next))
+      return next
+    })
+  }
+
+  return (
+    <div>
+      <button
+        onClick={toggle}
+        className={`w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm font-semibold transition ${
+          hasActive && !open
+            ? 'text-orange-700 bg-orange-50/50'
+            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+        }`}
+      >
+        {icon}
+        <span className="flex-1 text-left">{label}</span>
+        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <ul className="mt-0.5 space-y-0.5">
+          {items.map((item) => (
+            <li key={item.href}>
+              <NavBtn item={item} currentPath={currentPath} onClose={onClose} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   )
 }
 
@@ -282,20 +387,19 @@ export function AppSidebar({ currentPath, onClose }: AppSidebarProps) {
       </div>
 
       {/* Navigation principale */}
-      <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-1">
+      <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-0.5">
         {isAdmin === null && (
           <p className="text-xs text-gray-400 px-2 py-2">Chargement…</p>
         )}
         {activeOrg && (
           <>
-            <p className="px-2 pt-1 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">Vente</p>
-            <ul className="space-y-0.5">
-              {VENTE_ITEMS.map((item) => (
-                <li key={item.href}>
-                  <NavBtn item={item} currentPath={currentPath} onClose={onClose} />
-                </li>
-              ))}
-            </ul>
+            <NavBtn item={DASHBOARD_ITEM} currentPath={currentPath} onClose={onClose} />
+            <div className="pt-1 space-y-0.5">
+              <SectionAccordion label="Vente" icon={<Briefcase className="w-4 h-4" />} items={VENTE_ITEMS} currentPath={currentPath} onClose={onClose} storageKey="sidebar-vente" />
+              <SectionAccordion label="Achat" icon={<ShoppingCart className="w-4 h-4" />} items={ACHAT_ITEMS} currentPath={currentPath} onClose={onClose} storageKey="sidebar-achat" />
+              <SectionAccordion label="RH" icon={<Users className="w-4 h-4" />} items={RH_ITEMS} currentPath={currentPath} onClose={onClose} storageKey="sidebar-rh" />
+              <SectionAccordion label="Comptabilité" icon={<BarChart3 className="w-4 h-4" />} items={COMPTA_ITEMS} currentPath={currentPath} onClose={onClose} storageKey="sidebar-compta" />
+            </div>
           </>
         )}
       </nav>

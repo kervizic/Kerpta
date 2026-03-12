@@ -43,6 +43,37 @@ function DashboardPlaceholder() {
   )
 }
 
+const PLACEHOLDER_PREFIXES: [string, string][] = [
+  ['/app/fournisseurs', 'Fournisseurs'],
+  ['/app/bons-commande', 'Bons de commande'],
+  ['/app/achats', "Factures d'achat"],
+  ['/app/frais', 'Notes de frais'],
+  ['/app/salaries', 'Salariés'],
+  ['/app/paie', 'Bulletins de paie'],
+  ['/app/journal', 'Journal'],
+  ['/app/grand-livre', 'Grand livre'],
+  ['/app/balance', 'Balance'],
+  ['/app/tva', 'TVA'],
+]
+
+function getPlaceholderTitle(path: string): string | null {
+  for (const [prefix, title] of PLACEHOLDER_PREFIXES) {
+    if (path === prefix || path.startsWith(prefix + '/')) return title
+  }
+  return null
+}
+
+function ModulePlaceholder({ title }: { title: string }) {
+  return (
+    <div className="flex-1 flex items-center justify-center">
+      <div className="text-center max-w-sm">
+        <h2 className="text-lg font-semibold text-gray-900 mb-2">{title}</h2>
+        <p className="text-gray-400 text-sm">Ce module est en cours de développement.</p>
+      </div>
+    </div>
+  )
+}
+
 export default function AppShell({ path }: AppShellProps) {
   const { token, fetchMe, fetchOrgs, orgs } = useAuthStore()
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -62,6 +93,8 @@ export default function AppShell({ path }: AppShellProps) {
   }, [path])
 
   if (!token) return null
+
+  const placeholderTitle = getPlaceholderTitle(path)
 
   // Attente du chargement des orgas
   if (orgs === null) {
@@ -123,6 +156,8 @@ export default function AppShell({ path }: AppShellProps) {
               <ContractsPage path={path} />
             ) : path.startsWith('/app/factures') ? (
               <InvoicesPage path={path} />
+            ) : placeholderTitle ? (
+              <ModulePlaceholder title={placeholderTitle} />
             ) : orgs.length === 0 || path === '/app/onboarding' ? (
               <OnboardingPage
                 embedded
