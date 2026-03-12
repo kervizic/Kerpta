@@ -246,7 +246,14 @@ def _matching_etab_to_etablissement(etab: dict, siege_siret: str | None) -> Etab
 
 
 async def get_company_details(siren: str) -> CompanyDetails | None:
-    """Retourne les détails d'une entreprise active via son SIREN, avec tous ses établissements."""
+    """Retourne les détails d'une entreprise active via son SIREN, avec tous ses établissements.
+
+    L'API recherche-entreprises ne remplit matching_etablissements que lorsque
+    la requête texte correspond à des établissements. Une recherche par SIREN
+    renvoie souvent matching_etablissements=[] car les SIRET ne matchent pas.
+    Parade : si matching_etablissements est vide, refaire une recherche par nom
+    pour forcer l'API à renvoyer les établissements.
+    """
     results = await _fetch_companies(siren, per_page=1)
     if not results:
         return None
@@ -259,6 +266,8 @@ async def get_company_details(siren: str) -> CompanyDetails | None:
     nat_jur = item.get("nature_juridique") or None
     effectifs_code = item.get("tranche_effectif_salarie") or None
     siege_siret = siege.get("siret") if siege else None
+    nom = item.get("nom_raison_sociale") or item.get("nom_complet") or ""
+    nb_ouverts = item.get("nombre_etablissements_ouverts", 0)
 
     # Établissement siège
     siege_etab: Etablissement | None = None
@@ -274,8 +283,22 @@ async def get_company_details(siren: str) -> CompanyDetails | None:
             adresse=adresse,
         )
 
-    # Tous les établissements actifs depuis matching_etablissements
+    # matching_etablissements depuis la recherche SIREN
     matching: list[dict] = item.get("matching_etablissements") or []
+
+    # Si vide et qu'il y a plusieurs établissements, refaire une recherche par nom
+    # pour que l'API renvoie les matching_etablissements
+    if not matching and nb_ouverts > 1 and nom:
+        try:
+            results_by_name = await _fetch_companies(nom, per_page=5)
+            for candidate in results_by_name:
+                if candidate.get("siren") == item.get("siren", siren):
+                    matching = candidate.get("matching_etablissements") or []
+                    break
+        except Exception:
+            pass  # pas critique — on garde le siège seul
+
+    # Construire la liste des établissements actifs
     etabs_actifs: list[Etablissement] = []
     sirets_seen: set[str] = set()
 
@@ -297,7 +320,7 @@ async def get_company_details(siren: str) -> CompanyDetails | None:
 
     return CompanyDetails(
         siren=item.get("siren", siren),
-        denomination=item.get("nom_raison_sociale") or item.get("nom_complet"),
+        denomination=nom,
         sigle=item.get("sigle"),
         activite_principale=item.get("activite_principale"),
         categorie_juridique=nat_jur,
@@ -310,7 +333,7 @@ async def get_company_details(siren: str) -> CompanyDetails | None:
         categorie_entreprise=item.get("categorie_entreprise"),
         siege=siege_etab,
         etablissements_actifs=etabs_actifs,
-        nombre_etablissements_actifs=item.get("nombre_etablissements_ouverts", 0),
+        nombre_etablissements_actifs=nb_ouverts,
     )
 
 
