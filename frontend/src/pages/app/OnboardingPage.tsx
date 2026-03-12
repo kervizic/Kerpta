@@ -156,7 +156,7 @@ function CreateStep({
   const [name, setName] = useState('')
   const [legalForm, setLegalForm] = useState('')
   const [vatRegime, setVatRegime] = useState('')
-  const [accountingRegime, setAccountingRegime] = useState('')
+  const [accountingRegime] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
 
