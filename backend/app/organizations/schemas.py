@@ -58,6 +58,62 @@ class OrgSearchResult(BaseModel):
     org_siren: str | None
 
 
+class AddressOut(BaseModel):
+    """Adresse formatée d'un établissement."""
+
+    voie: str | None = None
+    complement: str | None = None
+    code_postal: str | None = None
+    commune: str | None = None
+    pays: str = "France"
+
+
+class EtablissementOut(BaseModel):
+    """Établissement d'une organisation (siège ou secondaire)."""
+
+    siret: str
+    nic: str
+    siege: bool
+    activite_principale: str | None = None
+    adresse: AddressOut | None = None
+
+
+class OrgDetailOut(BaseModel):
+    """Détails complets d'une organisation."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    org_id: str
+    org_name: str
+    org_siret: str | None
+    org_siren: str | None
+    org_logo_url: str | None
+    vat_number: str | None
+    legal_form: str | None
+    address: dict | None
+    email: str | None
+    phone: str | None
+    vat_regime: str | None
+    accounting_regime: str | None
+    rcs_city: str | None
+    capital: str | None
+    ape_code: str | None
+    billing_siret: str | None
+    # Établissements récupérés via l'API INSEE (non stockés en BDD)
+    etablissements: list[EtablissementOut] = []
+
+
+class OrgUpdateRequest(BaseModel):
+    """Données pour mettre à jour une organisation."""
+
+    email: str | None = None
+    phone: str | None = None
+    vat_regime: str | None = None
+    accounting_regime: str | None = None
+    billing_siret: str | None = Field(None, min_length=14, max_length=14)
+    logo_url: str | None = None
+
+
 class JoinRequestCreate(BaseModel):
     """Données pour soumettre une demande de rattachement."""
 

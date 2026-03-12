@@ -3,7 +3,17 @@
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
 import { useState, type ReactNode } from 'react'
-import { KeyRound, LogOut, Settings, ChevronDown, ChevronUp, Building2, Users, Check } from 'lucide-react'
+import {
+  KeyRound,
+  LogOut,
+  Settings,
+  ChevronDown,
+  ChevronUp,
+  Building2,
+  Users,
+  Check,
+  Building,
+} from 'lucide-react'
 import { navigate } from '@/hooks/useRoute'
 import { useAuthStore, type OrgMembership } from '@/stores/authStore'
 
@@ -18,7 +28,7 @@ interface NavItem {
   adminOnly?: boolean
 }
 
-const NAV_ITEMS: NavItem[] = [
+const CONFIG_NAV_ITEMS: NavItem[] = [
   {
     label: 'Clés API',
     href: '/app/config/api-keys',
@@ -135,12 +145,61 @@ function OrgSelector({
   )
 }
 
+// ── Accordéon de configuration (admin) — fermé par défaut ────────────────────
+
+function ConfigAccordion({ currentPath, isAdmin }: { currentPath: string; isAdmin: boolean | null }) {
+  const [open, setOpen] = useState(false)
+  const visibleItems = CONFIG_NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin)
+
+  if (!isAdmin || visibleItems.length === 0) return null
+
+  return (
+    <div className="border-t border-gray-100 pt-2">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-xs font-semibold text-gray-400 uppercase tracking-wider hover:text-gray-600 hover:bg-gray-50 transition"
+      >
+        <Settings className="w-3.5 h-3.5" />
+        <span className="flex-1 text-left">Configuration</span>
+        {open ? (
+          <ChevronUp className="w-3.5 h-3.5" />
+        ) : (
+          <ChevronDown className="w-3.5 h-3.5" />
+        )}
+      </button>
+      {open && (
+        <ul className="mt-0.5 space-y-0.5">
+          {visibleItems.map((item) => {
+            const isActive = currentPath === item.href
+            return (
+              <li key={item.href}>
+                <button
+                  onClick={() => navigate(item.href)}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                    isActive
+                      ? 'bg-orange-50 text-orange-700 border border-orange-200'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
+                >
+                  {item.icon}
+                  {item.label}
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 // ── Sidebar principale ────────────────────────────────────────────────────────
 
 export function AppSidebar({ currentPath }: AppSidebarProps) {
   const { user, logout, isAdmin, orgs, activeOrgId, setActiveOrg } = useAuthStore()
 
-  const visibleItems = NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin)
+  const activeOrg = orgs?.find((o) => o.org_id === activeOrgId) ?? orgs?.[0] ?? null
+  const isOrgOwnerOrAdmin = activeOrg?.role === 'owner' || activeOrg?.role === 'admin'
 
   return (
     <aside className="w-60 shrink-0 h-screen sticky top-0 bg-white border-r border-gray-200 flex flex-col">
@@ -165,43 +224,33 @@ export function AppSidebar({ currentPath }: AppSidebarProps) {
         )}
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 overflow-y-auto">
-        {isAdmin && visibleItems.length > 0 && (
-          <div className="mb-2">
-            <div className="flex items-center gap-1.5 px-2 py-1 mb-1">
-              <Settings className="w-3.5 h-3.5 text-gray-400" />
-              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                Configuration
-              </span>
-            </div>
-            <ul className="space-y-0.5">
-              {visibleItems.map((item) => {
-                const isActive = currentPath === item.href
-                return (
-                  <li key={item.href}>
-                    <button
-                      onClick={() => navigate(item.href)}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                        isActive
-                          ? 'bg-orange-50 text-orange-700 border border-orange-200'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                      }`}
-                    >
-                      {item.icon}
-                      {item.label}
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
+      {/* Navigation principale */}
+      <nav className="flex-1 px-3 py-4 overflow-y-auto space-y-0.5">
+        {/* Ma structure — visible si membre d'une org */}
+        {activeOrg && isOrgOwnerOrAdmin && (
+          <button
+            onClick={() => navigate('/app/org/settings')}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+              currentPath === '/app/org/settings'
+                ? 'bg-orange-50 text-orange-700 border border-orange-200'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+            }`}
+          >
+            <Building className="w-4 h-4" />
+            Ma structure
+          </button>
         )}
 
-        {(isAdmin === null || !isAdmin) && (
-          <p className="text-xs text-gray-400 px-2 py-2">Chargement des droits…</p>
+        {/* Message chargement */}
+        {isAdmin === null && (
+          <p className="text-xs text-gray-400 px-2 py-2">Chargement…</p>
         )}
       </nav>
+
+      {/* Configuration — accordéon en bas, fermé par défaut */}
+      <div className="px-3 pb-2">
+        <ConfigAccordion currentPath={currentPath} isAdmin={isAdmin} />
+      </div>
 
       {/* Profil + déconnexion */}
       <div className="px-3 py-4 border-t border-gray-200">

@@ -42,8 +42,10 @@ from .schemas import (
     JoinRequestReview,
     OrgCreateOut,
     OrgCreateRequest,
+    OrgDetailOut,
     OrgMembershipOut,
     OrgSearchResult,
+    OrgUpdateRequest,
 )
 
 _log = logging.getLogger(__name__)
@@ -82,6 +84,29 @@ async def search_organizations(
     """Recherche des organisations Kerpta existantes par nom ou SIREN/SIRET."""
     rows = await service.search_organizations(q, db)
     return [OrgSearchResult(**row) for row in rows]
+
+
+@router.get("/{org_id}", response_model=OrgDetailOut)
+async def get_organization(
+    org_id: str,
+    user_id: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> OrgDetailOut:
+    """Retourne les détails d'une organisation (membres uniquement)."""
+    row = await service.get_organization(org_id, user_id, db)
+    return OrgDetailOut(**row)
+
+
+@router.patch("/{org_id}", response_model=dict)
+async def update_organization(
+    org_id: str,
+    body: OrgUpdateRequest,
+    user_id: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Met à jour les champs modifiables d'une organisation (owner/admin)."""
+    data = body.model_dump(exclude_none=True)
+    return await service.update_organization(org_id, user_id, data, db)
 
 
 @router.post("/{org_id}/join-requests", response_model=JoinRequestOut, status_code=201)

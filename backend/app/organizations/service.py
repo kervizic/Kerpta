@@ -211,6 +211,76 @@ async def create_join_request(
     }
 
 
+async def get_organization(
+    org_id: str, user_id: uuid.UUID, db: AsyncSession
+) -> dict:
+    """Retourne les détails d'une organisation (réservé aux membres)."""
+    result = await db.execute(
+        text("""
+            SELECT
+                o.id::text        AS org_id,
+                o.name            AS org_name,
+                o.siret           AS org_siret,
+                o.siren           AS org_siren,
+                o.logo_url        AS org_logo_url,
+                o.vat_number,
+                o.legal_form,
+                o.address,
+                o.email,
+                o.phone,
+                o.vat_regime,
+                o.accounting_regime,
+                o.rcs_city,
+                o.capital::text   AS capital,
+                o.ape_code,
+                o.billing_siret
+            FROM organizations o
+            JOIN organization_memberships om
+              ON om.organization_id = o.id AND om.user_id = :uid
+            WHERE o.id = :oid
+        """),
+        {"oid": org_id, "uid": str(user_id)},
+    )
+    row = result.fetchone()
+    if row is None:
+        raise HTTPException(404, "Organisation introuvable ou accès refusé")
+    return dict(row._mapping)
+
+
+async def update_organization(
+    org_id: str, user_id: uuid.UUID, data: dict, db: AsyncSession
+) -> dict:
+    """Met à jour les champs modifiables d'une organisation (owner uniquement)."""
+    # Vérifier que l'utilisateur est owner
+    membership = await db.execute(
+        text("""
+            SELECT role FROM organization_memberships
+            WHERE user_id = :uid AND organization_id = :oid
+        """),
+        {"uid": str(user_id), "oid": org_id},
+    )
+    m = membership.fetchone()
+    if m is None:
+        raise HTTPException(403, "Vous n'êtes pas membre de cette organisation")
+    if m[0] not in ("owner", "admin"):
+        raise HTTPException(403, "Seuls les owners et admins peuvent modifier la structure")
+
+    # Construire la requête UPDATE dynamiquement
+    allowed = {"email", "phone", "vat_regime", "accounting_regime", "billing_siret", "logo_url"}
+    updates = {k: v for k, v in data.items() if k in allowed}
+    if not updates:
+        raise HTTPException(422, "Aucun champ valide à mettre à jour")
+
+    set_clause = ", ".join(f"{k} = :{k}" for k in updates)
+    params = {**updates, "oid": org_id}
+    await db.execute(
+        text(f"UPDATE organizations SET {set_clause} WHERE id = :oid"),
+        params,
+    )
+    await db.commit()
+    return {"status": "updated"}
+
+
 async def list_join_requests(org_id: str, db: AsyncSession) -> list[dict]:
     """Liste les demandes pending pour une organisation (pour owner/admin)."""
     result = await db.execute(

@@ -9,6 +9,7 @@ import { AppSidebar } from './AppSidebar'
 
 const ConfigApiKeysPage = lazy(() => import('@/pages/app/ConfigApiKeysPage'))
 const OnboardingPage = lazy(() => import('@/pages/app/OnboardingPage'))
+const OrgSettingsPage = lazy(() => import('@/pages/app/OrgSettingsPage'))
 
 interface AppShellProps {
   path: string
@@ -67,6 +68,8 @@ export default function AppShell({ path }: AppShellProps) {
         <Suspense fallback={<PageSpinner />}>
           {path === '/app/config/api-keys' ? (
             <ConfigApiKeysPage />
+          ) : path === '/app/org/settings' ? (
+            <OrgSettingsPage />
           ) : orgs.length === 0 || path === '/app/onboarding' ? (
             // Pas d'orga (ou demande explicite) → wizard intégré dans le shell
             <OnboardingPage
