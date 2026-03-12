@@ -159,3 +159,24 @@ class ProductComponent(Base, UUIDPrimaryKeyMixin):
     parent_product: Mapped["Product"] = relationship(
         foreign_keys=[parent_product_id], back_populates="components"
     )
+
+
+class ProductQuantityDiscount(Base, UUIDPrimaryKeyMixin):
+    """Palier de remise quantité pour un article."""
+
+    __tablename__ = "product_quantity_discounts"
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False
+    )
+    product_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("products.id", ondelete="CASCADE"), nullable=False
+    )
+    client_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("clients.id", ondelete="CASCADE"), nullable=True
+    )
+    min_quantity: Mapped[float] = mapped_column(Numeric(15, 4), nullable=False)
+    discount_percent: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False)
+    created_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )

@@ -153,7 +153,7 @@ export default function AppShell({ path }: AppShellProps) {
             ) : path.startsWith('/app/clients') ? (
               <ClientsPage path={path} />
             ) : path.startsWith('/app/catalogue') ? (
-              <CatalogPage />
+              <CatalogPage path={path} />
             ) : path === '/app/devis' || path.startsWith('/app/devis/') ? (
               <QuotesPage path={path} />
             ) : path.startsWith('/app/contrats') ? (
