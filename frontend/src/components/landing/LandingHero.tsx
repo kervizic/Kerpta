@@ -26,34 +26,34 @@ export function LandingHero({ content }: { content: Record<string, unknown> }) {
     <section className="relative pt-32 pb-24 px-6 overflow-hidden">
       {/* Gradient de fond */}
       <div className="absolute inset-0 -z-10">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-orange-600/20 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-amber-600/10 rounded-full blur-3xl" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-orange-500/10 dark:bg-orange-600/20 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-amber-500/8 dark:bg-amber-600/10 rounded-full blur-3xl" />
       </div>
 
       {/* Grille de fond */}
       <div
-        className="absolute inset-0 -z-10 opacity-20"
+        className="absolute inset-0 -z-10 opacity-30 dark:opacity-20"
         style={{
           backgroundImage:
-            'linear-gradient(rgba(99,102,241,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.15) 1px, transparent 1px)',
+            'linear-gradient(rgba(99,102,241,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.08) 1px, transparent 1px)',
           backgroundSize: '48px 48px',
         }}
       />
 
       <div className="max-w-4xl mx-auto text-center">
         {/* Badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-orange-500/30 bg-orange-500/10 text-orange-300 text-sm font-medium mb-8">
-          <Star className="w-3.5 h-3.5 fill-orange-400 text-orange-400" />
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-orange-200 bg-orange-50 text-orange-600 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-300 text-sm font-medium mb-8">
+          <Star className="w-3.5 h-3.5 fill-orange-500 text-orange-500 dark:fill-orange-400 dark:text-orange-400" />
           {badge}
         </div>
 
         {/* Titre */}
-        <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white mb-6 leading-tight">
+        <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-gray-900 dark:text-white mb-6 leading-tight">
           {title.split('\n').map((line, i) => (
             <span key={i}>
               {i > 0 && <br />}
               {i === 1 ? (
-                <span className="bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">
                   {line}
                 </span>
               ) : (
@@ -64,7 +64,7 @@ export function LandingHero({ content }: { content: Record<string, unknown> }) {
         </h1>
 
         {/* Sous-titre */}
-        <p className="text-xl text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
+        <p className="text-xl text-gray-500 dark:text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
           {subtitle}
         </p>
 
@@ -81,7 +81,7 @@ export function LandingHero({ content }: { content: Record<string, unknown> }) {
             href={ctaSecondary.href}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white font-semibold text-base transition-all"
+            className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10 dark:text-white font-semibold text-base transition-all"
           >
             <Github className="w-4 h-4" />
             {ctaSecondary.label}
@@ -93,8 +93,8 @@ export function LandingHero({ content }: { content: Record<string, unknown> }) {
           <div className="mt-16 grid grid-cols-3 gap-8 max-w-lg mx-auto">
             {stats.map((stat, i) => (
               <div key={i} className="text-center">
-                <div className="text-3xl font-bold text-white">{stat.value}</div>
-                <div className="text-sm text-slate-500 mt-1">{stat.label}</div>
+                <div className="text-3xl font-bold text-gray-900 dark:text-white">{stat.value}</div>
+                <div className="text-sm text-gray-400 dark:text-slate-500 mt-1">{stat.label}</div>
               </div>
             ))}
           </div>

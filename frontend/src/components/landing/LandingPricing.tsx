@@ -40,19 +40,18 @@ export function LandingPricing({ content }: { content: Record<string, unknown> }
 
   return (
     <section id="pricing" className="py-24 px-6">
-      {/* Fond dégradé */}
       <div className="relative">
         <div className="absolute inset-0 -z-10">
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-slate-700 to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-slate-700 to-transparent" />
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gray-200 dark:via-slate-700 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-gray-200 dark:via-slate-700 to-transparent" />
         </div>
 
         <div className="max-w-5xl mx-auto">
           {/* En-tête */}
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-white mb-4">{title}</h2>
+            <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">{title}</h2>
             {subtitle && (
-              <p className="text-lg text-slate-400 max-w-2xl mx-auto">{subtitle}</p>
+              <p className="text-lg text-gray-500 dark:text-slate-400 max-w-2xl mx-auto">{subtitle}</p>
             )}
           </div>
 
@@ -64,7 +63,7 @@ export function LandingPricing({ content }: { content: Record<string, unknown> }
                 className={`relative rounded-2xl p-8 flex flex-col ${
                   plan.highlighted
                     ? 'bg-orange-600/10 border border-orange-500/40 ring-1 ring-orange-500/30'
-                    : 'bg-white/[0.02] border border-white/5'
+                    : 'bg-white border border-gray-200 shadow-sm dark:bg-white/[0.02] dark:border-white/5'
                 }`}
               >
                 {/* Badge */}
@@ -79,13 +78,13 @@ export function LandingPricing({ content }: { content: Record<string, unknown> }
 
                 {/* Nom et prix */}
                 <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-white mb-1">{plan.name}</h3>
-                  <p className="text-slate-400 text-sm mb-4">{plan.description}</p>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">{plan.name}</h3>
+                  <p className="text-gray-500 dark:text-slate-400 text-sm mb-4">{plan.description}</p>
                   <div className="flex items-baseline gap-2">
-                    <span className={`text-4xl font-bold ${plan.highlighted ? 'text-orange-300' : 'text-white'}`}>
+                    <span className={`text-4xl font-bold ${plan.highlighted ? 'text-orange-600 dark:text-orange-300' : 'text-gray-900 dark:text-white'}`}>
                       {plan.price}
                     </span>
-                    <span className="text-slate-500 text-sm">{plan.period}</span>
+                    <span className="text-gray-400 dark:text-slate-500 text-sm">{plan.period}</span>
                   </div>
                 </div>
 
@@ -95,7 +94,7 @@ export function LandingPricing({ content }: { content: Record<string, unknown> }
                   className={`w-full text-center py-3 px-6 rounded-xl font-semibold text-sm mb-8 transition-all ${
                     plan.highlighted
                       ? 'bg-orange-600/50 text-orange-200 border border-orange-500/40 hover:bg-orange-600/70 cursor-not-allowed'
-                      : 'bg-white text-slate-900 hover:bg-slate-100 shadow-sm'
+                      : 'bg-gray-900 text-white hover:bg-gray-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 shadow-sm'
                   }`}
                 >
                   {plan.cta.label}
@@ -106,14 +105,14 @@ export function LandingPricing({ content }: { content: Record<string, unknown> }
                   {plan.features.map((feature, i) => (
                     <li key={i} className="flex items-start gap-3">
                       {feature.included ? (
-                        <Check className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
+                        <Check className="w-4 h-4 text-emerald-500 dark:text-emerald-400 mt-0.5 shrink-0" />
                       ) : (
-                        <X className="w-4 h-4 text-slate-600 mt-0.5 shrink-0" />
+                        <X className="w-4 h-4 text-gray-300 dark:text-slate-600 mt-0.5 shrink-0" />
                       )}
-                      <span className={`text-sm ${feature.included ? 'text-slate-300' : 'text-slate-600'}`}>
+                      <span className={`text-sm ${feature.included ? 'text-gray-700 dark:text-slate-300' : 'text-gray-400 dark:text-slate-600'}`}>
                         {feature.label}
                         {feature.detail && (
-                          <span className="ml-1 text-xs text-slate-500">({feature.detail})</span>
+                          <span className="ml-1 text-xs text-gray-400 dark:text-slate-500">({feature.detail})</span>
                         )}
                       </span>
                     </li>
@@ -123,10 +122,10 @@ export function LandingPricing({ content }: { content: Record<string, unknown> }
             ))}
           </div>
 
-          {/* Note sur la priorité */}
+          {/* Note */}
           {note && (
             <div className="mt-10 max-w-2xl mx-auto text-center">
-              <p className="text-sm text-slate-500 leading-relaxed">{note}</p>
+              <p className="text-sm text-gray-400 dark:text-slate-500 leading-relaxed">{note}</p>
             </div>
           )}
         </div>

@@ -10,14 +10,14 @@ const ICON_MAP: Record<string, ComponentType<{ className?: string }>> = {
 }
 
 const COLOR_MAP: Record<string, { bg: string; text: string; ring: string }> = {
-  blue:    { bg: 'bg-blue-500/10',    text: 'text-blue-400',    ring: 'ring-blue-500/20' },
-  amber:  { bg: 'bg-amber-500/10',  text: 'text-amber-400',  ring: 'ring-amber-500/20' },
-  emerald: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', ring: 'ring-emerald-500/20' },
-  orange:  { bg: 'bg-orange-500/10',  text: 'text-orange-400',  ring: 'ring-orange-500/20' },
-  pink:    { bg: 'bg-pink-500/10',    text: 'text-pink-400',    ring: 'ring-pink-500/20' },
-  cyan:    { bg: 'bg-cyan-500/10',    text: 'text-cyan-400',    ring: 'ring-cyan-500/20' },
-  purple:  { bg: 'bg-purple-500/10',  text: 'text-purple-400',  ring: 'ring-purple-500/20' },
-  slate:   { bg: 'bg-slate-500/10',   text: 'text-slate-400',   ring: 'ring-slate-500/20' },
+  blue:    { bg: 'bg-blue-50 dark:bg-blue-500/10',       text: 'text-blue-600 dark:text-blue-400',    ring: 'ring-blue-200 dark:ring-blue-500/20' },
+  amber:   { bg: 'bg-amber-50 dark:bg-amber-500/10',     text: 'text-amber-600 dark:text-amber-400',  ring: 'ring-amber-200 dark:ring-amber-500/20' },
+  emerald: { bg: 'bg-emerald-50 dark:bg-emerald-500/10', text: 'text-emerald-600 dark:text-emerald-400', ring: 'ring-emerald-200 dark:ring-emerald-500/20' },
+  orange:  { bg: 'bg-orange-50 dark:bg-orange-500/10',   text: 'text-orange-600 dark:text-orange-400',  ring: 'ring-orange-200 dark:ring-orange-500/20' },
+  pink:    { bg: 'bg-pink-50 dark:bg-pink-500/10',       text: 'text-pink-600 dark:text-pink-400',    ring: 'ring-pink-200 dark:ring-pink-500/20' },
+  cyan:    { bg: 'bg-cyan-50 dark:bg-cyan-500/10',       text: 'text-cyan-600 dark:text-cyan-400',    ring: 'ring-cyan-200 dark:ring-cyan-500/20' },
+  purple:  { bg: 'bg-purple-50 dark:bg-purple-500/10',   text: 'text-purple-600 dark:text-purple-400',  ring: 'ring-purple-200 dark:ring-purple-500/20' },
+  slate:   { bg: 'bg-slate-100 dark:bg-slate-500/10',    text: 'text-slate-600 dark:text-slate-400',   ring: 'ring-slate-200 dark:ring-slate-500/20' },
 }
 
 interface FeatureItem {
@@ -44,8 +44,8 @@ export function LandingFeatures({ content }: { content: Record<string, unknown> 
       <div className="max-w-6xl mx-auto">
         {/* En-tête */}
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-white mb-4">{title}</h2>
-          {subtitle && <p className="text-lg text-slate-400 max-w-2xl mx-auto">{subtitle}</p>}
+          <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">{title}</h2>
+          {subtitle && <p className="text-lg text-gray-500 dark:text-slate-400 max-w-2xl mx-auto">{subtitle}</p>}
         </div>
 
         {/* Grille */}
@@ -56,15 +56,15 @@ export function LandingFeatures({ content }: { content: Record<string, unknown> 
             return (
               <div
                 key={i}
-                className="group relative rounded-2xl border border-white/5 bg-white/[0.02] p-6 hover:bg-white/[0.05] hover:border-white/10 transition-all"
+                className="group relative rounded-2xl border border-gray-100 bg-white shadow-sm p-6 hover:shadow-md hover:border-gray-200 dark:border-white/5 dark:bg-white/[0.02] dark:hover:bg-white/[0.05] dark:hover:border-white/10 transition-all"
               >
                 <div
                   className={`inline-flex items-center justify-center w-10 h-10 rounded-xl ${colors.bg} ring-1 ${colors.ring} mb-4`}
                 >
                   <Icon className={`w-5 h-5 ${colors.text}`} />
                 </div>
-                <h3 className="text-base font-semibold text-white mb-2">{item.title}</h3>
-                <p className="text-sm text-slate-400 leading-relaxed">{item.description}</p>
+                <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">{item.title}</h3>
+                <p className="text-sm text-gray-500 dark:text-slate-400 leading-relaxed">{item.description}</p>
               </div>
             )
           })}

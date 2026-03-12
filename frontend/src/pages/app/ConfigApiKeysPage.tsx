@@ -6,6 +6,7 @@
 // Section 2 : INSEE / Sirene API (clé API unique — header X-INSEE-Api-Key-Integration)
 
 import { useEffect, useState } from 'react'
+import axios from 'axios'
 import { apiClient } from '@/lib/api'
 import { useAuthStore } from '@/stores/authStore'
 import {
@@ -326,14 +327,26 @@ export default function ConfigApiKeysPage() {
     }
   }
 
+  function httpErrorMsg(err: unknown, fallback: string): string {
+    if (axios.isAxiosError(err)) {
+      const status = err.response?.status
+      if (status === 403) return 'Accès refusé (403) — rechargez la page'
+      if (status === 401) return 'Non authentifié (401) — reconnectez-vous'
+      if (status === 422) return err.response?.data?.detail ?? `Données invalides (422)`
+      if (status) return `Erreur serveur (${status})`
+      return 'Serveur inaccessible — vérifiez votre connexion'
+    }
+    return fallback
+  }
+
   async function saveInsee() {
     setInseeSaving(true)
     setInseeSaveStatus(null)
     try {
       await apiClient.put('/config/api-keys', { insee_api_key: inseeApiKey })
       setInseeSaveStatus({ ok: true, msg: 'Clé INSEE enregistrée' })
-    } catch {
-      setInseeSaveStatus({ ok: false, msg: "Erreur lors de l'enregistrement" })
+    } catch (err) {
+      setInseeSaveStatus({ ok: false, msg: httpErrorMsg(err, "Erreur lors de l'enregistrement") })
     } finally {
       setInseeSaving(false)
     }
@@ -354,8 +367,8 @@ export default function ConfigApiKeysPage() {
       } else {
         setInseeTestStatus({ ok: false, msg: result.error ?? 'Échec de la connexion' })
       }
-    } catch {
-      setInseeTestStatus({ ok: false, msg: 'Erreur réseau' })
+    } catch (err) {
+      setInseeTestStatus({ ok: false, msg: httpErrorMsg(err, 'Erreur réseau') })
     } finally {
       setInseeTesting(false)
     }

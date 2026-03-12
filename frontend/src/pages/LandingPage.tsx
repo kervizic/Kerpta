@@ -8,6 +8,7 @@ import { LandingPricing } from '@/components/landing/LandingPricing'
 import { LandingOpenSource } from '@/components/landing/LandingOpenSource'
 import { LandingFooter } from '@/components/landing/LandingFooter'
 import { LandingNav } from '@/components/landing/LandingNav'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 interface ContentSection {
   section: string
@@ -38,20 +39,21 @@ export default function LandingPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-slate-950">
+      <div className="flex items-center justify-center h-screen bg-white dark:bg-slate-950">
         <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
+    <div className="min-h-screen bg-white text-gray-900 dark:bg-slate-950 dark:text-white">
       <LandingNav />
       <LandingHero content={sections.hero ?? {}} />
       <LandingFeatures content={sections.features ?? {}} />
       <LandingPricing content={sections.pricing ?? {}} />
       <LandingOpenSource content={sections.opensource ?? {}} />
       <LandingFooter content={sections.footer ?? {}} />
+      <ThemeToggle />
     </div>
   )
 }
