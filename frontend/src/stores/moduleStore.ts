@@ -72,7 +72,7 @@ export const useModuleStore = create<ModuleState>((set, get) => ({
     set({ loading: true, orgId })
     try {
       const { data } = await apiClient.get<Record<string, boolean>>(
-        `/api/v1/organizations/${orgId}/modules`,
+        `/organizations/${orgId}/modules`,
       )
       set({ config: data, loading: false })
     } catch {
@@ -87,7 +87,7 @@ export const useModuleStore = create<ModuleState>((set, get) => ({
     const newConfig = { ...config, [key]: enabled }
     set({ config: newConfig })
     try {
-      await apiClient.patch(`/api/v1/organizations/${orgId}/modules`, newConfig)
+      await apiClient.patch(`/organizations/${orgId}/modules`, newConfig)
     } catch {
       set({ config: prevConfig })
     }
