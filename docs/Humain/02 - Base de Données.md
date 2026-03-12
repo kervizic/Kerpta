@@ -108,7 +108,8 @@ Les entreprises ou particuliers à qui l'organisation envoie des factures.
 - **vat_number** — numéro de TVA du client, requis pour la facturation intracommunautaire.
 - **billing_address / shipping_address** — adresse de facturation et adresse de livraison, stockées séparément en JSON car elles peuvent être différentes.
 - **payment_terms** — délai de paiement par défaut pour ce client, en jours (ex : 30). Pré-rempli automatiquement sur chaque nouvelle facture.
-- **company_siren** — lien vers la fiche entreprise dans la base SIRENE centralisée. Facultatif. Permet de récupérer automatiquement les établissements de ce client depuis l'API INSEE et de vérifier son statut.
+- **country_code** — code pays ISO 3166-1 alpha-2 (2 lettres), par défaut `FR`. Ce champ détermine le comportement du formulaire et la logique de synchronisation : si le pays est `FR` et qu'un SIREN est renseigné, la fiche est synchronisée automatiquement chaque nuit avec la base SIRENE. Si le pays est `FR` mais que le SIREN n'a pas été trouvé, la société est enregistrée manuellement et reste propre à l'organisation (pas de sync). Si le pays est autre (`BE`, `DE`, `CN`…), la saisie est entièrement manuelle ; pour les pays de l'Union européenne, un bouton optionnel permet de vérifier le numéro de TVA via le service VIES.
+- **company_siren** — lien vers la fiche entreprise dans la base SIRENE centralisée. Facultatif. Permet de récupérer automatiquement les établissements de ce client depuis l'API INSEE et de vérifier son statut. Non renseigné pour les clients étrangers ou les sociétés françaises saisies manuellement.
 - **archived_at** — date d'archivage. Un client archivé n'apparaît plus dans les listes mais ses données (factures, devis passés) sont conservées.
 
 ---

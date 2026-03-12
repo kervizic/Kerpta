@@ -75,3 +75,13 @@ Pour valider les numéros SIREN et SIRET des organisations, clients et fournisse
 Cette synchronisation permet notamment de détecter si une entreprise partenaire a été radiée ou si un établissement a fermé. Un établissement fermé ne peut pas être sélectionné comme établissement de facturation — il est affiché avec un badge rouge "Fermé" et son bouton de sélection est désactivé. Cette règle est également contrôlée côté serveur pour éviter toute manipulation.
 
 Les clients et fournisseurs peuvent être rattachés à une fiche SIREN. Ce lien est facultatif mais enrichit automatiquement les données disponibles et permet de suivre l'état de santé administrative des partenaires commerciaux.
+
+## Les clients et fournisseurs étrangers sont gérés séparément
+
+Chaque client et fournisseur dispose désormais d'un champ "pays" (code ISO à deux lettres, France par défaut). Ce champ conditionne l'ensemble du comportement de la fiche.
+
+Pour une société française dont le SIREN a été trouvé et renseigné, le fonctionnement reste celui décrit ci-dessus : synchronisation automatique chaque nuit avec la base SIRENE. Pour une société française dont le SIREN n'a pas pu être trouvé — par exemple une très petite structure absente de l'annuaire — la saisie se fait manuellement et les données restent propres à l'organisation qui les a saisies, sans synchronisation ni partage.
+
+Pour une société étrangère (Belgique, Allemagne, Chine, etc.), la saisie est entièrement manuelle. Pour les partenaires situés dans l'Union européenne, un bouton optionnel permet de vérifier le numéro de TVA intracommunautaire via le service VIES de la Commission européenne. Hors UE, aucune vérification automatique n'est disponible.
+
+Dans tous les cas où la synchronisation SIRENE n'est pas active (société étrangère ou française saisie manuellement), les informations sont strictement scoped à l'organisation qui les a créées et ne sont jamais partagées entre organisations.

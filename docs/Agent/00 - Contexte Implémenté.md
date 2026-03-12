@@ -155,3 +155,14 @@ Pages FastAPI Jinja2 sur /setup/* — auto-désactivées après setup_completed.
 - Règle métier : `establishments.status = 'closed'` → non sélectionnable comme `billing_siret`
   - Validé backend (`update_organization` : HTTP 422 si établissement fermé)
   - Désactivé frontend : badge "Fermé" rouge + bouton disabled dans OrgSettingsPage
+
+### Gestion des sociétés étrangères et françaises manuelles
+
+| `country_code` | `company_siren` | Mode |
+|---|---|---|
+| `FR` | renseigné | Sync SIRENE automatique |
+| `FR` | NULL | FR manuel (SIREN non trouvé) — org-scoped, pas de sync |
+| autre | NULL | Étranger — org-scoped, VIES optionnel (EU) |
+
+- Migration 0009 : `country_code CHAR(2) DEFAULT 'FR'` sur `clients` et `suppliers`
+- Les données étrangères/manuelles restent **scoped à l'organisation** (pas de base partagée)

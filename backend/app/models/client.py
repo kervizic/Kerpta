@@ -24,6 +24,11 @@ class Client(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     type: Mapped[str] = mapped_column(String(20), nullable=False)  # company/individual
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     siret: Mapped[str | None] = mapped_column(CHAR(14), nullable=True)
+    # Code pays ISO 3166-1 alpha-2 (défaut 'FR').
+    # 'FR' + company_siren renseigné → sync SIRENE automatique.
+    # 'FR' + company_siren NULL → société française saisie manuellement (pas de sync).
+    # Autre code → société étrangère (pas de sync, TVA VIES optionnel).
+    country_code: Mapped[str] = mapped_column(CHAR(2), nullable=False, default="FR")
     # Lien vers le cache SIRENE (nullable — uniquement pour type='company' avec SIREN connu)
     company_siren: Mapped[str | None] = mapped_column(
         CHAR(9),
@@ -63,6 +68,8 @@ class Supplier(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     siret: Mapped[str | None] = mapped_column(CHAR(14), nullable=True)
+    # Code pays ISO 3166-1 alpha-2 (défaut 'FR').
+    country_code: Mapped[str] = mapped_column(CHAR(2), nullable=False, default="FR")
     # Lien vers le cache SIRENE (nullable)
     company_siren: Mapped[str | None] = mapped_column(
         CHAR(9),

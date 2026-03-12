@@ -198,6 +198,7 @@ Contrainte UNIQUE : `(organization_id, user_id)` avec filtre `WHERE status = 'pe
 | shipping_address | JSONB | |
 | payment_terms | INTEGER DEFAULT 30 | jours |
 | notes | TEXT | |
+| country_code | CHAR(2) DEFAULT 'FR' | Code pays ISO 3166-1 alpha-2. FR + company_siren = sync SIRENE. FR + company_siren NULL = FR manuel. Autre = étranger (pas de sync). |
 | company_siren | CHAR(9) FK companies | nullable — lien vers la base SIRENE centralisée |
 | archived_at | TIMESTAMP | nullable |
 | created_at | TIMESTAMP | |
@@ -678,6 +679,7 @@ Contrainte UNIQUE : `(product_id, client_id, variant_index)`
 | email | VARCHAR(255) | |
 | address | JSONB | |
 | default_category | VARCHAR(100) | catégorie comptable |
+| country_code | CHAR(2) DEFAULT 'FR' | Code pays ISO 3166-1 alpha-2 — même logique que clients |
 | company_siren | CHAR(9) FK companies | nullable — lien vers la base SIRENE centralisée |
 | created_at | TIMESTAMP | |
 
@@ -1030,6 +1032,8 @@ CREATE INDEX idx_establishments_siren ON establishments(siren);
 CREATE INDEX idx_establishments_status ON establishments(status);
 CREATE INDEX idx_clients_company_siren ON clients(company_siren) WHERE company_siren IS NOT NULL;
 CREATE INDEX idx_suppliers_company_siren ON suppliers(company_siren) WHERE company_siren IS NOT NULL;
+CREATE INDEX idx_clients_country ON clients(country_code);
+CREATE INDEX idx_suppliers_country ON suppliers(country_code);
 ```
 
 ## RLS (Row Level Security)
