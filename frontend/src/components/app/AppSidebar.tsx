@@ -28,8 +28,8 @@ interface NavItem {
   icon: ReactNode
 }
 
-// Items de la section "Mon organisation" (owner/admin uniquement)
-const ORG_NAV_ITEMS: NavItem[] = [
+// Items de la section "Configuration" organisation (owner/admin)
+const ORG_CONFIG_ITEMS: NavItem[] = [
   {
     label: 'Ma structure',
     href: '/app/org/settings',
@@ -38,7 +38,7 @@ const ORG_NAV_ITEMS: NavItem[] = [
 ]
 
 // Items de la section "Config Kerpta" (platform admin uniquement)
-const KERPTA_NAV_ITEMS: NavItem[] = [
+const KERPTA_CONFIG_ITEMS: NavItem[] = [
   {
     label: 'Clés API',
     href: '/app/config/api-keys',
@@ -149,7 +149,7 @@ function OrgSelector({
   )
 }
 
-// ── Bouton de navigation ──────────────────────────────────────────────────────
+// ── Bouton de navigation générique ───────────────────────────────────────────
 
 function NavBtn({
   item,
@@ -176,52 +176,33 @@ function NavBtn({
   )
 }
 
-// ── Section libellée (label + items) ─────────────────────────────────────────
+// ── Accordéon générique ───────────────────────────────────────────────────────
 
-function NavSection({
+function ConfigAccordion({
   label,
   items,
   currentPath,
   onClose,
+  defaultOpen = false,
+  topBorder = true,
 }: {
   label: string
   items: NavItem[]
   currentPath: string
   onClose?: () => void
+  defaultOpen?: boolean
+  topBorder?: boolean
 }) {
-  return (
-    <div className="space-y-0.5">
-      <div className="px-3 py-1 mt-2">
-        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-          {label}
-        </span>
-      </div>
-      {items.map((item) => (
-        <NavBtn key={item.href} item={item} currentPath={currentPath} onClose={onClose} />
-      ))}
-    </div>
-  )
-}
-
-// ── Accordéon Config Kerpta (platform admin) — fermé par défaut ───────────────
-
-function KertpaConfigAccordion({
-  currentPath,
-  onClose,
-}: {
-  currentPath: string
-  onClose?: () => void
-}) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(defaultOpen)
 
   return (
-    <div className="border-t border-gray-100 pt-2">
+    <div className={topBorder ? 'border-t border-gray-100 pt-2' : 'pt-1'}>
       <button
         onClick={() => setOpen((v) => !v)}
         className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-xs font-semibold text-gray-400 uppercase tracking-wider hover:text-gray-600 hover:bg-gray-50 transition"
       >
         <Settings2 className="w-3.5 h-3.5 shrink-0" />
-        <span className="flex-1 text-left">Config Kerpta</span>
+        <span className="flex-1 text-left">{label}</span>
         {open ? (
           <ChevronUp className="w-3.5 h-3.5" />
         ) : (
@@ -230,7 +211,7 @@ function KertpaConfigAccordion({
       </button>
       {open && (
         <ul className="mt-0.5 space-y-0.5">
-          {KERPTA_NAV_ITEMS.map((item) => (
+          {items.map((item) => (
             <li key={item.href}>
               <NavBtn item={item} currentPath={currentPath} onClose={onClose} />
             </li>
@@ -273,31 +254,42 @@ export function AppSidebar({ currentPath, onClose }: AppSidebarProps) {
         )}
       </div>
 
-      {/* Navigation principale — scrollable */}
+      {/* Navigation principale — espace libre pour les futurs modules */}
       <nav className="flex-1 px-3 py-3 overflow-y-auto">
+        {/* Chargement droits */}
+        {isAdmin === null && (
+          <p className="text-xs text-gray-400 px-2 py-2">Chargement…</p>
+        )}
+        {/* Espace pour les futurs modules (tableau de bord, factures, devis…) */}
+      </nav>
 
-        {/* Section Mon organisation (owner/admin seulement) */}
+      {/* Accordéons de configuration — en bas de la sidebar */}
+      <div className="px-3 pb-2">
+
+        {/* Configuration organisation — owner/admin, ouvert par défaut */}
         {activeOrg && isOrgOwnerOrAdmin && (
-          <NavSection
-            label="Mon organisation"
-            items={ORG_NAV_ITEMS}
+          <ConfigAccordion
+            label="Configuration"
+            items={ORG_CONFIG_ITEMS}
             currentPath={currentPath}
             onClose={onClose}
+            defaultOpen
+            topBorder
           />
         )}
 
-        {/* Chargement */}
-        {isAdmin === null && (
-          <p className="text-xs text-gray-400 px-2 py-2 mt-2">Chargement…</p>
+        {/* Config Kerpta — platform admin uniquement, fermé par défaut */}
+        {isAdmin && (
+          <ConfigAccordion
+            label="Config Kerpta"
+            items={KERPTA_CONFIG_ITEMS}
+            currentPath={currentPath}
+            onClose={onClose}
+            defaultOpen={false}
+            topBorder={activeOrg && isOrgOwnerOrAdmin ? true : true}
+          />
         )}
-      </nav>
-
-      {/* Section Config Kerpta — platform admin uniquement */}
-      {isAdmin && (
-        <div className="px-3 pb-2">
-          <KertpaConfigAccordion currentPath={currentPath} onClose={onClose} />
-        </div>
-      )}
+      </div>
 
       {/* Profil + déconnexion */}
       <div className="px-3 py-4 border-t border-gray-200">
