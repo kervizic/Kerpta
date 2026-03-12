@@ -4,11 +4,14 @@
 
 """Modèles SQLAlchemy pour le cache SIRENE local.
 
-Ces tables sont alimentées par le job Celery Beat quotidien (2h du matin).
+Alimentées en lazy caching par get_company_details() (FastAPI) :
+  - Première consultation ou données > 24h → appel API + UPSERT
+  - Données < 24h → retour cache direct, zéro appel API
 
 Principe :
   - companies   : une ligne par SIREN — données légales de l'entreprise
   - establishments : une ligne par SIRET — données de chaque établissement avec statut
+  - raw_data    : réponse brute de l'API (JSONB) pour ne rien perdre
 
 Le statut (active/closed) permet de bloquer l'usage d'un établissement fermé
 pour la facturation (billing_siret) et dans les adresses clients/fournisseurs.
@@ -46,8 +49,10 @@ class Company(Base, TimestampMixin):
     capital: Mapped[Decimal | None] = mapped_column(Numeric(15, 2), nullable=True)
     creation_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     closure_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    # active | closed — mis à jour chaque nuit par le job SIRENE
+    # active | closed — mis à jour via lazy caching (get_company_details)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
+    # Réponse brute de l'API recherche-entreprises (tout le dict item)
+    raw_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     last_synced_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
@@ -96,6 +101,8 @@ class Establishment(Base, TimestampMixin):
     address: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     activite_principale: Mapped[str | None] = mapped_column(String(10), nullable=True)
     closure_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # Réponse brute de l'API pour cet établissement
+    raw_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     last_synced_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

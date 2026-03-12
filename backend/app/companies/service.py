@@ -29,7 +29,7 @@ import httpx
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .schemas import Address, CompanyDetails, CompanySearchResult, Etablissement
+from .schemas import Address, CompanyDetails, CompanySearchResult, Etablissement, FinanceYear
 
 _log = logging.getLogger(__name__)
 
@@ -252,6 +252,17 @@ def _matching_etab_to_etablissement(etab: dict, siege_siret: str | None) -> Etab
     )
 
 
+def _extract_finances(raw: dict) -> list[FinanceYear]:
+    """Extrait les données financières depuis raw_data."""
+    finances = raw.get("finances") or {}
+    result = []
+    for annee, data in sorted(finances.items(), reverse=True):
+        ca = data.get("ca")
+        if ca and ca > 0:
+            result.append(FinanceYear(annee=annee, ca=float(ca)))
+    return result
+
+
 async def _load_from_cache(siren: str, db: AsyncSession) -> CompanyDetails | None:
     """Charge une entreprise depuis le cache local si les données ont < 24h."""
     cutoff = datetime.now(timezone.utc) - _CACHE_TTL
@@ -260,7 +271,7 @@ async def _load_from_cache(siren: str, db: AsyncSession) -> CompanyDetails | Non
     row = await db.execute(
         text("""
             SELECT denomination, sigle, legal_form_code, legal_form, vat_number,
-                   ape_code, status, creation_date::text
+                   ape_code, status, creation_date::text, raw_data
             FROM companies
             WHERE siren = :siren AND last_synced_at > :cutoff
         """),
@@ -274,10 +285,17 @@ async def _load_from_cache(siren: str, db: AsyncSession) -> CompanyDetails | Non
     if c["status"] != "active":
         return None
 
+    # Extraire les champs enrichis depuis raw_data
+    raw = c.get("raw_data") or {}
+    if isinstance(raw, str):
+        raw = json.loads(raw)
+    effectifs_code = raw.get("tranche_effectif_salarie")
+    effectifs_annee = raw.get("annee_tranche_effectif_salarie")
+
     # Charger les établissements actifs
     rows = await db.execute(
         text("""
-            SELECT siret, nic, is_siege, status, address, activite_principale
+            SELECT siret, nic, is_siege, status, address, activite_principale, raw_data
             FROM establishments
             WHERE siren = :siren AND status = 'active'
             ORDER BY is_siege DESC, siret ASC
@@ -294,6 +312,9 @@ async def _load_from_cache(siren: str, db: AsyncSession) -> CompanyDetails | Non
         addr_data = e["address"] or {}
         if isinstance(addr_data, str):
             addr_data = json.loads(addr_data)
+        etab_raw = e.get("raw_data") or {}
+        if isinstance(etab_raw, str):
+            etab_raw = json.loads(etab_raw)
         adresse = Address(
             voie=addr_data.get("voie"),
             complement=addr_data.get("complement"),
@@ -307,7 +328,7 @@ async def _load_from_cache(siren: str, db: AsyncSession) -> CompanyDetails | Non
             siege=e["is_siege"],
             etat="A",
             activite_principale=e["activite_principale"],
-            date_creation=None,
+            date_creation=etab_raw.get("date_debut"),
             adresse=adresse,
         )
         etabs_actifs.append(etab)
@@ -318,6 +339,7 @@ async def _load_from_cache(siren: str, db: AsyncSession) -> CompanyDetails | Non
     return CompanyDetails(
         siren=siren,
         denomination=c["denomination"],
+        nom_complet=raw.get("nom_complet"),
         sigle=c["sigle"],
         activite_principale=c["ape_code"],
         categorie_juridique=nat_jur,
@@ -325,9 +347,12 @@ async def _load_from_cache(siren: str, db: AsyncSession) -> CompanyDetails | Non
         date_creation=c["creation_date"],
         etat="Actif",
         tva_intracom=compute_tva_intracom(siren),
-        tranche_effectifs=None,
-        tranche_effectifs_libelle=None,
-        categorie_entreprise=None,
+        tranche_effectifs=effectifs_code,
+        tranche_effectifs_libelle=EFFECTIFS.get(effectifs_code or ""),
+        tranche_effectifs_annee=str(effectifs_annee) if effectifs_annee else None,
+        categorie_entreprise=raw.get("categorie_entreprise"),
+        nombre_etablissements=raw.get("nombre_etablissements_ouverts"),
+        finances=_extract_finances(raw),
         siege=siege_etab,
         etablissements_actifs=etabs_actifs,
         nombre_etablissements_actifs=len(etabs_actifs),
@@ -341,14 +366,17 @@ async def _save_to_cache(siren: str, item: dict, matching: list[dict], db: Async
     siege_siret = siege.get("siret") if siege else None
     company_status = "active" if item.get("etat_administratif") == "A" else "closed"
 
+    # Préparer raw_data (exclure matching_etablissements pour éviter la redondance)
+    raw_company = {k: v for k, v in item.items() if k != "matching_etablissements"}
+
     # UPSERT company
     await db.execute(
         text("""
             INSERT INTO companies (siren, denomination, sigle, legal_form_code,
                 legal_form, vat_number, ape_code, status, creation_date,
-                last_synced_at, created_at, updated_at)
+                raw_data, last_synced_at, created_at, updated_at)
             VALUES (:siren, :denom, :sigle, :lfc, :lf, :vat, :ape, :status,
-                    CAST(:cdate AS date), :now, now(), now())
+                    CAST(:cdate AS date), CAST(:raw AS jsonb), :now, now(), now())
             ON CONFLICT (siren) DO UPDATE SET
                 denomination = EXCLUDED.denomination,
                 sigle = EXCLUDED.sigle,
@@ -356,6 +384,7 @@ async def _save_to_cache(siren: str, item: dict, matching: list[dict], db: Async
                 legal_form = EXCLUDED.legal_form,
                 ape_code = EXCLUDED.ape_code,
                 status = EXCLUDED.status,
+                raw_data = EXCLUDED.raw_data,
                 last_synced_at = EXCLUDED.last_synced_at,
                 updated_at = now()
         """),
@@ -369,6 +398,7 @@ async def _save_to_cache(siren: str, item: dict, matching: list[dict], db: Async
             "ape": item.get("activite_principale"),
             "status": company_status,
             "cdate": item.get("date_creation"),
+            "raw": json.dumps(raw_company),
             "now": now,
         },
     )
@@ -386,6 +416,7 @@ async def _save_to_cache(siren: str, item: dict, matching: list[dict], db: Async
             "status": "active" if siege.get("etat_administratif", "A") == "A" else "closed",
             "address": json.dumps(_build_address_from_siege(siege).model_dump()),
             "activite_principale": siege.get("activite_principale"),
+            "raw": json.dumps(siege),
         })
         sirets_seen.add(siege_siret)
 
@@ -402,19 +433,23 @@ async def _save_to_cache(siren: str, item: dict, matching: list[dict], db: Async
             "status": "active" if etab.get("etat_administratif", "A") == "A" else "closed",
             "address": json.dumps(_build_address_from_siege(etab).model_dump()),
             "activite_principale": etab.get("activite_principale"),
+            "raw": json.dumps(etab),
         })
 
     for e in etabs_to_upsert:
         await db.execute(
             text("""
                 INSERT INTO establishments (siret, siren, nic, is_siege, status,
-                    address, activite_principale, last_synced_at, created_at, updated_at)
+                    address, activite_principale, raw_data, last_synced_at,
+                    created_at, updated_at)
                 VALUES (:siret, :siren, :nic, :is_siege, :status,
-                        CAST(:address AS jsonb), :ape, :now, now(), now())
+                        CAST(:address AS jsonb), :ape, CAST(:raw AS jsonb),
+                        :now, now(), now())
                 ON CONFLICT (siret) DO UPDATE SET
                     siren = EXCLUDED.siren, nic = EXCLUDED.nic,
                     is_siege = EXCLUDED.is_siege, status = EXCLUDED.status,
                     address = EXCLUDED.address, activite_principale = EXCLUDED.activite_principale,
+                    raw_data = EXCLUDED.raw_data,
                     last_synced_at = EXCLUDED.last_synced_at, updated_at = now()
             """),
             {**e, "ape": e["activite_principale"], "now": now},
@@ -507,9 +542,12 @@ def _build_details_from_api(siren: str, item: dict, matching: list[dict]) -> Com
         sirets_seen.add(siret)
         etabs_actifs.append(_matching_etab_to_etablissement(etab, siege_siret))
 
+    effectifs_annee = item.get("annee_tranche_effectif_salarie")
+
     return CompanyDetails(
         siren=item.get("siren", siren),
         denomination=nom,
+        nom_complet=item.get("nom_complet"),
         sigle=item.get("sigle"),
         activite_principale=item.get("activite_principale"),
         categorie_juridique=nat_jur,
@@ -519,7 +557,10 @@ def _build_details_from_api(siren: str, item: dict, matching: list[dict]) -> Com
         tva_intracom=compute_tva_intracom(siren),
         tranche_effectifs=effectifs_code,
         tranche_effectifs_libelle=EFFECTIFS.get(effectifs_code or ""),
+        tranche_effectifs_annee=str(effectifs_annee) if effectifs_annee else None,
         categorie_entreprise=item.get("categorie_entreprise"),
+        nombre_etablissements=nb_ouverts,
+        finances=_extract_finances(item),
         siege=siege_etab,
         etablissements_actifs=etabs_actifs,
         nombre_etablissements_actifs=nb_ouverts,

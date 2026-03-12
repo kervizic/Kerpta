@@ -40,11 +40,19 @@ class CompanySearchResult(BaseModel):
     ca: float | None = None  # CA annuel le plus récent (None si non déclaré)
 
 
+class FinanceYear(BaseModel):
+    """Données financières annuelles extraites de l'API."""
+
+    annee: str
+    ca: float | None = None  # Chiffre d'affaires en euros
+
+
 class CompanyDetails(BaseModel):
     """Détails complets d'une entreprise avec tous ses établissements actifs."""
 
     siren: str
     denomination: str | None = None
+    nom_complet: str | None = None
     sigle: str | None = None
     activite_principale: str | None = None
     categorie_juridique: str | None = None
@@ -52,9 +60,12 @@ class CompanyDetails(BaseModel):
     date_creation: str | None = None
     etat: str
     tva_intracom: str
-    tranche_effectifs: str | None = None
-    tranche_effectifs_libelle: str | None = None
-    categorie_entreprise: str | None = None  # "PME", "ETI", "GE", "Micro"
+    tranche_effectifs: str | None = None          # Code : "01", "12", etc.
+    tranche_effectifs_libelle: str | None = None   # "10-19 salariés"
+    tranche_effectifs_annee: str | None = None     # "2023"
+    categorie_entreprise: str | None = None        # "PME", "ETI", "GE", "Micro"
+    nombre_etablissements: int | None = None       # Total (ouverts)
+    finances: list[FinanceYear] = []               # CA par année
     siege: Etablissement | None = None
     etablissements_actifs: list[Etablissement] = []
     nombre_etablissements_actifs: int = 0
