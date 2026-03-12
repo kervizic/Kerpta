@@ -20,7 +20,6 @@ celery = Celery(
     broker=settings.CELERY_BROKER_URL,
     backend=settings.CELERY_RESULT_BACKEND,
     include=[
-        "app.tasks.sirene_sync",   # Synchronisation nocturne du cache SIRENE
         # "app.tasks.email",
         # "app.tasks.pdf",
         # "app.tasks.ocr",
@@ -37,14 +36,7 @@ celery.conf.update(
     task_acks_late=True,
     task_reject_on_worker_lost=True,
     # ── Celery Beat — tâches planifiées ────────────────────────────────────────
-    beat_schedule={
-        # Sync SIRENE : chaque nuit à 2h00 (Europe/Paris)
-        # Ne synchronise que les SIREN périmés (> 7 jours) pour détecter les fermetures.
-        # Les SIREN consultés récemment sont déjà à jour via lazy caching (FastAPI).
-        "sirene-sync-stale": {
-            "task": "sirene.sync_stale",
-            "schedule": 86400,          # toutes les 24h (en secondes)
-            "options": {"expires": 7200},  # expire si pas lancée dans les 2h
-        },
-    },
+    # Le cache SIRENE est maintenu en lazy caching par FastAPI (get_company_details).
+    # Pas de tâche nocturne — les données sont rafraîchies à la consultation.
+    beat_schedule={},
 )
