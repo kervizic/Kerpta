@@ -264,7 +264,7 @@ function CreateClientForm() {
   // Adresse
   const [billingAddress, setBillingAddress] = useState({ voie: '', complement: '', code_postal: '', commune: '', pays: 'France' })
   const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([])
-  const addressTimerRef = useRef<ReturnType<typeof setTimeout>>()
+  const addressTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   // Résultats recherche
   const [companyDetails, setCompanyDetails] = useState<CompanyDetails | null>(null)
