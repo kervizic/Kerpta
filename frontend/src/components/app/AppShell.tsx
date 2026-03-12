@@ -69,7 +69,12 @@ export default function AppShell({ path }: AppShellProps) {
             <ConfigApiKeysPage />
           ) : orgs.length === 0 || path === '/app/onboarding' ? (
             // Pas d'orga (ou demande explicite) → wizard intégré dans le shell
-            <OnboardingPage embedded />
+            <OnboardingPage
+              embedded
+              initialStep={
+                (new URLSearchParams(window.location.search).get('action') as 'create' | 'join') || 'choice'
+              }
+            />
           ) : (
             <DashboardPlaceholder />
           )}

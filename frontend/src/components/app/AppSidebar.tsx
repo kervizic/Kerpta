@@ -3,7 +3,7 @@
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
 import { useState, type ReactNode } from 'react'
-import { KeyRound, LogOut, Settings, ChevronDown, ChevronUp, Plus, Check } from 'lucide-react'
+import { KeyRound, LogOut, Settings, ChevronDown, ChevronUp, Building2, Users, Check } from 'lucide-react'
 import { navigate } from '@/hooks/useRoute'
 import { useAuthStore, type OrgMembership } from '@/stores/authStore'
 
@@ -113,16 +113,22 @@ function OrgSelector({
               )}
             </button>
           ))}
-          <button
-            onClick={() => {
-              setOpen(false)
-              navigate('/app/onboarding')
-            }}
-            className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-sm text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition mt-0.5"
-          >
-            <Plus className="w-4 h-4" />
-            Ajouter une structure
-          </button>
+          <div className="border-t border-gray-100 mt-1 pt-1 space-y-0.5">
+            <button
+              onClick={() => { setOpen(false); navigate('/app/onboarding?action=create') }}
+              className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-sm text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition"
+            >
+              <Building2 className="w-4 h-4" />
+              Créer une structure
+            </button>
+            <button
+              onClick={() => { setOpen(false); navigate('/app/onboarding?action=join') }}
+              className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-sm text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition"
+            >
+              <Users className="w-4 h-4" />
+              Rejoindre une structure
+            </button>
+          </div>
         </div>
       )}
     </div>

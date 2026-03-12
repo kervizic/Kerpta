@@ -75,8 +75,14 @@ function httpError(err: unknown, fallback: string): string {
 
 // ── Composant principal ───────────────────────────────────────────────────────
 
-export default function OnboardingPage({ embedded = false }: { embedded?: boolean }) {
-  const [step, setStep] = useState<Step>('choice')
+export default function OnboardingPage({
+  embedded = false,
+  initialStep = 'choice',
+}: {
+  embedded?: boolean
+  initialStep?: Step
+}) {
+  const [step, setStep] = useState<Step>(initialStep)
   const [pendingOrgName, setPendingOrgName] = useState('')
   const { fetchOrgs } = useAuthStore()
 
