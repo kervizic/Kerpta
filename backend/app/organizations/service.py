@@ -32,12 +32,18 @@ _MAX_LOGO_BYTES = 100 * 1024
 # Dimensions max du logo stocké
 _LOGO_MAX_WIDTH = 400
 _LOGO_MAX_HEIGHT = 400
+# Dimensions du thumbnail sidebar (2x retina pour affichage 24-32 px)
+_THUMB_SIZE = 64
 # Formats acceptés
 _ACCEPTED_MIME = {"image/png", "image/jpeg", "image/jpg", "image/webp"}
 
 
 async def get_user_memberships(user_id: uuid.UUID, db: AsyncSession) -> list[dict]:
-    """Retourne la liste des organisations auxquelles appartient l'utilisateur."""
+    """Retourne la liste des organisations auxquelles appartient l'utilisateur.
+
+    Inclut le thumbnail du logo (logo_thumb_b64) depuis organization_logos
+    via un LEFT JOIN — évite de charger le logo pleine résolution.
+    """
     result = await db.execute(
         text("""
             SELECT
@@ -46,10 +52,12 @@ async def get_user_memberships(user_id: uuid.UUID, db: AsyncSession) -> list[dic
                 o.siret                  AS org_siret,
                 o.siren                  AS org_siren,
                 o.logo_url               AS org_logo_url,
+                ol.logo_thumb_b64        AS org_logo_thumb,
                 om.role,
                 om.joined_at
             FROM organization_memberships om
             JOIN organizations o ON o.id = om.organization_id
+            LEFT JOIN organization_logos ol ON ol.organization_id = o.id
             WHERE om.user_id = :uid
             ORDER BY om.created_at ASC
         """),
@@ -329,6 +337,13 @@ async def upload_logo(
     # Data URI complète pour utilisation directe dans le HTML des factures
     logo_b64 = f"data:image/png;base64,{b64_data}"
 
+    # Thumbnail 64×64 px pour la sidebar (2× retina à 32 px d'affichage)
+    thumb_img = img.copy()
+    thumb_img.thumbnail((_THUMB_SIZE, _THUMB_SIZE), Image.LANCZOS)
+    thumb_output = io.BytesIO()
+    thumb_img.save(thumb_output, format="PNG", optimize=True)
+    thumb_b64 = "data:image/png;base64," + base64.b64encode(thumb_output.getvalue()).decode("utf-8")
+
     # UPSERT (INSERT ou UPDATE si déjà présent)
     existing = await db.execute(
         text("SELECT organization_id FROM organization_logos WHERE organization_id = :oid"),
@@ -338,13 +353,15 @@ async def upload_logo(
         await db.execute(
             text("""
                 UPDATE organization_logos
-                SET logo_b64 = :b64, original_name = :name, mime_type = 'image/png',
+                SET logo_b64 = :b64, logo_thumb_b64 = :thumb,
+                    original_name = :name, mime_type = 'image/png',
                     size_bytes = :size, width_px = :w, height_px = :h,
                     updated_at = now()
                 WHERE organization_id = :oid
             """),
             {
                 "b64": logo_b64,
+                "thumb": thumb_b64,
                 "name": file.filename,
                 "size": len(png_bytes),
                 "w": width,
@@ -356,15 +373,16 @@ async def upload_logo(
         await db.execute(
             text("""
                 INSERT INTO organization_logos
-                    (organization_id, logo_b64, original_name, mime_type,
+                    (organization_id, logo_b64, logo_thumb_b64, original_name, mime_type,
                      size_bytes, width_px, height_px, created_at, updated_at)
                 VALUES
-                    (:oid, :b64, :name, 'image/png',
+                    (:oid, :b64, :thumb, :name, 'image/png',
                      :size, :w, :h, now(), now())
             """),
             {
                 "oid": org_id,
                 "b64": logo_b64,
+                "thumb": thumb_b64,
                 "name": file.filename,
                 "size": len(png_bytes),
                 "w": width,
@@ -455,6 +473,20 @@ async def update_organization(
         raise HTTPException(403, "Vous n'êtes pas membre de cette organisation")
     if m[0] not in ("owner", "admin"):
         raise HTTPException(403, "Seuls les owners et admins peuvent modifier la structure")
+
+    # Vérifier que le billing_siret n'est pas fermé (si présent dans le cache SIRENE)
+    if data.get("billing_siret"):
+        etab_row = await db.execute(
+            text("SELECT status FROM establishments WHERE siret = :siret"),
+            {"siret": data["billing_siret"]},
+        )
+        etab = etab_row.fetchone()
+        if etab is not None and etab[0] == "closed":
+            raise HTTPException(
+                422,
+                "L'établissement sélectionné est cessé (fermé par l'INSEE) — "
+                "il ne peut pas être utilisé pour la facturation",
+            )
 
     # Construire la requête UPDATE dynamiquement
     allowed = {"email", "phone", "vat_regime", "accounting_regime", "billing_siret", "logo_url"}

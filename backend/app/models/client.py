@@ -24,6 +24,12 @@ class Client(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     type: Mapped[str] = mapped_column(String(20), nullable=False)  # company/individual
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     siret: Mapped[str | None] = mapped_column(CHAR(14), nullable=True)
+    # Lien vers le cache SIRENE (nullable — uniquement pour type='company' avec SIREN connu)
+    company_siren: Mapped[str | None] = mapped_column(
+        CHAR(9),
+        ForeignKey("companies.siren", ondelete="SET NULL"),
+        nullable=True,
+    )
     vat_number: Mapped[str | None] = mapped_column(String(20), nullable=True)
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
@@ -57,6 +63,12 @@ class Supplier(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     siret: Mapped[str | None] = mapped_column(CHAR(14), nullable=True)
+    # Lien vers le cache SIRENE (nullable)
+    company_siren: Mapped[str | None] = mapped_column(
+        CHAR(9),
+        ForeignKey("companies.siren", ondelete="SET NULL"),
+        nullable=True,
+    )
     vat_number: Mapped[str | None] = mapped_column(String(20), nullable=True)
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     address: Mapped[dict | None] = mapped_column(JSONB, nullable=True)

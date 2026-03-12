@@ -127,3 +127,31 @@ Pages FastAPI Jinja2 sur /setup/* — auto-désactivées après setup_completed.
 
 - DocuSeal → container Docker supplémentaire (`sign.kerpta.fr`), peut réutiliser le même PostgreSQL.
 - Conforme **eIDAS** (signature électronique simple) — suffisant pour les TPE.
+
+---
+
+## Logo Organisation
+
+| Table | Rôle |
+|---|---|
+| `organization_logos` | Logo 1-to-1 avec organizations — PK = organization_id, séparé pour ne pas alourdir les SELECT |
+
+- Processing Pillow : resize 400×400 LANCZOS, conversion PNG, < 100 KB
+- `logo_thumb_b64` : miniature 64×64 px incluse dans `get_user_memberships` via LEFT JOIN (sidebar OrgSelector)
+- Upload via `POST /organizations/{id}/logo` (multipart/form-data, UploadFile FastAPI)
+- Routes : `GET /organizations/{id}/logo`, `DELETE /organizations/{id}/logo`
+
+---
+
+## Base SIRENE Centralisée
+
+| Table | Rôle |
+|---|---|
+| `companies` | Cache SIREN national — PK = siren CHAR(9), status active/closed |
+| `establishments` | Cache SIRET national — PK = siret CHAR(14), FK → companies.siren |
+
+- `clients.company_siren` + `suppliers.company_siren` + `organizations.siren` → FK nullable vers `companies.siren`
+- Celery Beat : tâche `sirene.sync_all` toutes les 86400s (2h Europe/Paris)
+- Règle métier : `establishments.status = 'closed'` → non sélectionnable comme `billing_siret`
+  - Validé backend (`update_organization` : HTTP 422 si établissement fermé)
+  - Désactivé frontend : badge "Fermé" rouge + bouton disabled dans OrgSettingsPage

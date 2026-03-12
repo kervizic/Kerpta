@@ -37,6 +37,8 @@ class OrgMembershipOut(BaseModel):
     org_siret: str | None
     org_siren: str | None
     org_logo_url: str | None
+    # Miniature 64×64 px (data URI base64) — pour la sidebar, chargée avec le membership
+    org_logo_thumb: str | None = None
     role: str
     joined_at: datetime | None
 
@@ -74,6 +76,8 @@ class EtablissementOut(BaseModel):
     siret: str
     nic: str
     siege: bool
+    # "A" = actif, "F" = fermé/cessé — depuis l'API INSEE ou le cache SIRENE local
+    etat: str = "A"
     activite_principale: str | None = None
     adresse: AddressOut | None = None
 

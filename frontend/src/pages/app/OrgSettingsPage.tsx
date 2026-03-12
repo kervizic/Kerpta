@@ -34,6 +34,8 @@ interface EtablissementOut {
   siret: string
   nic: string
   siege: boolean
+  /** "A" = actif, "F" = fermé/cessé selon l'INSEE — un établissement fermé ne peut pas être sélectionné pour la facturation */
+  etat?: string
   activite_principale?: string | null
   adresse?: AddressOut | null
 }
@@ -595,11 +597,24 @@ export default function OrgSettingsPage() {
             <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">
               Établissements
             </h2>
-            {nombreEtabsTotal > 0 && (
-              <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-                {nombreEtabsTotal} actif{nombreEtabsTotal > 1 ? 's' : ''}
-              </span>
-            )}
+            {etablissements.length > 0 && (() => {
+              const closedCount = etablissements.filter(e => e.etat === 'F').length
+              const activeCount = etablissements.length - closedCount
+              return (
+                <div className="flex items-center gap-1.5">
+                  {activeCount > 0 && (
+                    <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                      {activeCount} actif{activeCount > 1 ? 's' : ''}
+                    </span>
+                  )}
+                  {closedCount > 0 && (
+                    <span className="text-xs text-red-400 bg-red-50 px-2 py-0.5 rounded-full">
+                      {closedCount} fermé{closedCount > 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+              )
+            })()}
           </div>
 
           {etablissements.length === 0 && !org.org_siren && (
@@ -621,37 +636,51 @@ export default function OrgSettingsPage() {
               </p>
               <div className="space-y-2">
                 {etablissements.map((etab) => {
-                  const isSelected = billingSiret
+                  const isClosed = etab.etat === 'F'
+                  const isSelected = !isClosed && (billingSiret
                     ? billingSiret === etab.siret
-                    : etab.siege
+                    : etab.siege)
                   const siretFormatted = etab.siret.length === 14
                     ? `${etab.siret.slice(0, 3)} ${etab.siret.slice(3, 6)} ${etab.siret.slice(6, 9)} ${etab.siret.slice(9)}`
                     : etab.siret
                   return (
                     <button
                       key={etab.siret}
-                      onClick={() => setBillingSiret(etab.siret)}
+                      onClick={() => !isClosed && setBillingSiret(etab.siret)}
+                      disabled={isClosed}
+                      title={isClosed ? 'Établissement cessé — ne peut pas être sélectionné pour la facturation' : undefined}
                       className={`w-full text-left px-4 py-3 rounded-xl border-2 transition ${
-                        isSelected
-                          ? 'border-orange-400 bg-orange-50'
-                          : 'border-gray-200 hover:border-orange-200 hover:bg-gray-50'
+                        isClosed
+                          ? 'border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed'
+                          : isSelected
+                            ? 'border-orange-400 bg-orange-50'
+                            : 'border-gray-200 hover:border-orange-200 hover:bg-gray-50'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         {/* Radio visuel */}
                         <div className={`mt-0.5 w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center transition ${
-                          isSelected ? 'border-orange-500 bg-orange-500' : 'border-gray-300'
+                          isClosed
+                            ? 'border-gray-200 bg-gray-100'
+                            : isSelected
+                              ? 'border-orange-500 bg-orange-500'
+                              : 'border-gray-300'
                         }`}>
                           {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="font-mono text-sm text-gray-900 tracking-wide">
+                            <span className={`font-mono text-sm tracking-wide ${isClosed ? 'text-gray-400' : 'text-gray-900'}`}>
                               {siretFormatted}
                             </span>
                             {etab.siege && (
                               <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-medium shrink-0">
                                 Siège social
+                              </span>
+                            )}
+                            {isClosed && (
+                              <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-medium shrink-0">
+                                Fermé
                               </span>
                             )}
                             {isSelected && (

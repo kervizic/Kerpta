@@ -29,6 +29,8 @@ Organizations ──< SignatureRequests
 Organizations ──< BankConnections
 Organizations ──< BankAccounts    ──< BankTransactions ──< BankReconciliations
 Organizations ──< PaymentQrCodes
+Organizations ──< UrssafAeDeclarations
+Organizations ──< UrssafAeConsents
 Organizations ──< SiteArticles
 Organizations ──< SiteContacts
 Organizations ──< SiteContactSubmissions
@@ -90,7 +92,14 @@ SignatureRequests ──> Quotes | Contracts | SupplierOrders | Payslips (polymo
 | module_esignature_enabled      | BOOLEAN DEFAULT true | module Signature électronique (DocuSeal) |
 | module_banking_enabled         | BOOLEAN DEFAULT true | module Rapprochement bancaire |
 | module_contracts_enabled       | BOOLEAN DEFAULT true | module Contrats |
-| module_minisite_enabled        | BOOLEAN DEFAULT true | module Mini-site vitrine |
+| module_minisite_enabled        | BOOLEAN DEFAULT true  | module Mini-site vitrine |
+| module_urssaf_ae_enabled       | BOOLEAN DEFAULT false | module Tierce Déclaration AE — activé uniquement si legal_form = 'AE' |
+| urssaf_ae_nir_encrypted        | TEXT                  | nullable — NIR de l'AE chiffré AES-256 |
+| urssaf_ae_periodicity          | ENUM                  | nullable — monthly / quarterly |
+| urssaf_ae_mandat_id            | VARCHAR(255)          | nullable — ID du mandat URSSAF actif |
+| urssaf_ae_mandat_status        | ENUM                  | nullable — pending / active / revoked |
+| urssaf_ae_sepa_mandat_id       | VARCHAR(255)          | nullable — ID du mandat SEPA actif |
+| ae_activity_type               | ENUM                  | nullable — bic_vente / bic_service / bnc (type d'activité AE pour calcul cotisations) |
 | brand_color_primary            | VARCHAR(7)           | couleur principale hex (ex: `#1A73E8`) — nullable |
 | brand_color_secondary          | VARCHAR(7)           | couleur secondaire hex — nullable |
 | brand_font                     | VARCHAR(100)         | police de marque (ex: `Inter`) — nullable |
@@ -103,7 +112,23 @@ SignatureRequests ──> Quotes | Contracts | SupplierOrders | Payslips (polymo
 | site_social_links              | JSONB                | nullable — `{linkedin, facebook, x, instagram, youtube, tiktok}` URLs |
 | site_trustpilot_id             | VARCHAR(100)         | nullable — ID Business Trustpilot pour le widget |
 | site_google_maps_url           | TEXT                 | nullable — URL embed Google Maps (alternative à OpenStreetMap) |
+| billing_siret                  | CHAR(14)             | nullable — SIRET de l'établissement de facturation (peut différer du siège) |
 | created_at                     | TIMESTAMP            | |
+
+### `organization_logos`
+| Colonne | Type | Notes |
+|---|---|---|
+| organization_id | UUID PK FK organizations ON DELETE CASCADE | |
+| logo_b64 | TEXT | Data URI complète `data:image/png;base64,...` — max 100 KB après traitement Pillow |
+| logo_thumb_b64 | TEXT | Miniature 64×64 px — data URI PNG — pour la sidebar |
+| original_name | VARCHAR(255) | nullable — nom de fichier original |
+| mime_type | VARCHAR(50) | nullable — image/png, image/jpeg, image/webp |
+| size_bytes | INTEGER | nullable — taille en octets après compression |
+| width_px | SMALLINT | nullable |
+| height_px | SMALLINT | nullable |
+| updated_at | TIMESTAMP | |
+
+> Table 1-to-1 avec `organizations` (PK = organization_id). Séparée pour ne pas alourdir les SELECT sur `organizations`. Processing Pillow : resize max 400×400 px LANCZOS, conversion PNG, < 100 KB. La miniature `logo_thumb_b64` (64×64 px) est incluse dans `get_user_memberships` via LEFT JOIN (sidebar OrgSelector).
 
 ### `organization_memberships`
 | Colonne | Type | Notes |
@@ -173,6 +198,7 @@ Contrainte UNIQUE : `(organization_id, user_id)` avec filtre `WHERE status = 'pe
 | shipping_address | JSONB | |
 | payment_terms | INTEGER DEFAULT 30 | jours |
 | notes | TEXT | |
+| company_siren | CHAR(9) FK companies | nullable — lien vers la base SIRENE centralisée |
 | archived_at | TIMESTAMP | nullable |
 | created_at | TIMESTAMP | |
 
@@ -652,7 +678,53 @@ Contrainte UNIQUE : `(product_id, client_id, variant_index)`
 | email | VARCHAR(255) | |
 | address | JSONB | |
 | default_category | VARCHAR(100) | catégorie comptable |
+| company_siren | CHAR(9) FK companies | nullable — lien vers la base SIRENE centralisée |
 | created_at | TIMESTAMP | |
+
+---
+
+## Tables SIRENE centralisées (cache national)
+
+Tables globales non scopées à une organisation — alimentées par Celery Beat chaque nuit à 2h (Europe/Paris).
+
+### `companies`
+
+Cache SIREN national.
+
+| Colonne | Type | Notes |
+|---|---|---|
+| siren | CHAR(9) PK | |
+| denomination | VARCHAR(255) | nullable |
+| legal_form_code | VARCHAR(10) | nullable — code INSEE forme juridique |
+| legal_form | VARCHAR(100) | nullable — libellé forme juridique |
+| status | VARCHAR(20) DEFAULT 'active' | `active` / `closed` |
+| last_synced_at | TIMESTAMP | nullable |
+| created_at | TIMESTAMP | |
+| updated_at | TIMESTAMP | |
+
+### `establishments`
+
+Cache SIRET national.
+
+| Colonne | Type | Notes |
+|---|---|---|
+| siret | CHAR(14) PK | |
+| siren | CHAR(9) FK companies(siren) ON DELETE CASCADE | |
+| is_siege | BOOLEAN | |
+| status | VARCHAR(20) DEFAULT 'active' | `active` / `closed` — un établissement fermé ne peut pas être sélectionné comme `billing_siret` |
+| address | JSONB | nullable — `{voie, complement, code_postal, commune}` |
+| nic | CHAR(5) | nullable |
+| activite_principale | VARCHAR(10) | nullable — code APE |
+| closure_date | DATE | nullable |
+| last_synced_at | TIMESTAMP | nullable |
+| created_at | TIMESTAMP | |
+| updated_at | TIMESTAMP | |
+
+> **Celery Beat** : tâche `sirene.sync_all` planifiée toutes les 86400s (2h Europe/Paris). Collecte tous les SIREN uniques depuis `organizations.siren` + `clients.company_siren` + `suppliers.company_siren`. Appelle l'API INSEE pour chaque SIREN → UPSERT dans `companies` + `establishments`.
+
+> **Règle métier** : `establishments.status = 'closed'` → non sélectionnable comme `billing_siret`. Validé backend (HTTP 422 si établissement fermé) + désactivé frontend (badge "Fermé" rouge + bouton disabled dans OrgSettingsPage).
+
+---
 
 ### `signature_requests`
 
@@ -813,6 +885,47 @@ QR Codes SEPA (format EPC069-12) générés sur les factures et fiches de paie p
 
 > Quand un rapprochement est validé sur le document lié : passer `status → reconciled` et renseigner `reconciliation_id`. Le QR Code n'est plus affiché ni inclus dans les PDF régénérés.
 
+### `urssaf_ae_declarations`
+
+Déclarations de CA auto-entrepreneur soumises via l'API Tierce Déclaration URSSAF.
+
+| Colonne | Type | Notes |
+|---|---|---|
+| id | UUID PK | |
+| organization_id | UUID FK organizations | |
+| period | VARCHAR(7) | format `YYYY-MM` (mensuel) ou `YYYY-T1/T2/T3/T4` (trimestriel) |
+| ca_bic_vente | DECIMAL(15,2) DEFAULT 0 | CA BIC ventes de marchandises |
+| ca_bic_service | DECIMAL(15,2) DEFAULT 0 | CA BIC prestations commerciales/artisanales |
+| ca_bnc | DECIMAL(15,2) DEFAULT 0 | CA BNC prestations libérales |
+| cotisations_dues | DECIMAL(15,2) | nullable — retourné par /estimer ou /declarer |
+| date_exigibilite | DATE | nullable — date limite de paiement |
+| status | ENUM DEFAULT 'draft' | draft / estimated / declared / paid / error |
+| urssaf_declaration_id | VARCHAR(255) | nullable — ID retourné par l'API URSSAF à la déclaration |
+| payment_reference | VARCHAR(255) | nullable — référence du virement SEPA |
+| error_code | VARCHAR(100) | nullable — code erreur URSSAF si status = error |
+| error_message | TEXT | nullable — message d'erreur URSSAF |
+| declared_at | TIMESTAMP | nullable |
+| paid_at | TIMESTAMP | nullable |
+| created_by | UUID FK users | |
+| created_at | TIMESTAMP | |
+| updated_at | TIMESTAMP | |
+
+Contrainte UNIQUE : `(organization_id, period)` — une seule déclaration par période par organisation.
+
+### `urssaf_ae_consents`
+
+Traçabilité des consentements donnés par l'AE pour la tierce déclaration.
+
+| Colonne | Type | Notes |
+|---|---|---|
+| id | UUID PK | |
+| organization_id | UUID FK organizations | |
+| consented_by | UUID FK users | owner qui a donné le consentement |
+| consented_at | TIMESTAMP | |
+| ip_address | INET | |
+| user_agent | TEXT | |
+| revoked_at | TIMESTAMP | nullable |
+
 ### `site_articles`
 
 Articles / actualités publiés sur le mini-site vitrine.
@@ -906,6 +1019,17 @@ CREATE INDEX idx_site_contact_org           ON site_contact_submissions(organiza
 CREATE UNIQUE INDEX idx_site_article_slug   ON site_articles(organization_id, slug);
 CREATE INDEX idx_site_articles_org_status   ON site_articles(organization_id, status, published_at DESC);
 CREATE INDEX idx_site_contacts_org          ON site_contacts(organization_id, created_at DESC);
+-- URSSAF AE
+CREATE UNIQUE INDEX idx_urssaf_ae_decl_period ON urssaf_ae_declarations(organization_id, period);
+CREATE INDEX idx_urssaf_ae_decl_status        ON urssaf_ae_declarations(organization_id, status);
+-- Logo organisation
+CREATE UNIQUE INDEX idx_org_logo ON organization_logos(organization_id);
+-- SIRENE centralisé
+CREATE INDEX idx_companies_status ON companies(status);
+CREATE INDEX idx_establishments_siren ON establishments(siren);
+CREATE INDEX idx_establishments_status ON establishments(status);
+CREATE INDEX idx_clients_company_siren ON clients(company_siren) WHERE company_siren IS NOT NULL;
+CREATE INDEX idx_suppliers_company_siren ON suppliers(company_siren) WHERE company_siren IS NOT NULL;
 ```
 
 ## RLS (Row Level Security)

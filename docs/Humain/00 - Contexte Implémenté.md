@@ -59,3 +59,19 @@ Lors du premier démarrage de Kerpta, un assistant en 3 étapes guide l'administ
 Pour signer un devis, Kerpta s'appuie sur DocuSeal, un outil open source (lui aussi sous licence AGPL-3.0) qui tourne dans un conteneur Docker séparé. Le flux est simple : on clique "Envoyer pour signature", le PDF est transmis à DocuSeal, le client reçoit un email, signe en ligne, et le statut du devis est mis à jour automatiquement via un webhook. Le PDF signé est ensuite récupéré et stocké dans l'espace de l'organisation.
 
 Cette signature est conforme au règlement eIDAS (niveau signature électronique simple), ce qui est suffisant pour les usages courants des TPE.
+
+---
+
+## Le logo de l'organisation est stocké à part
+
+Pour ne pas alourdir les requêtes courantes, le logo de chaque organisation est stocké dans une table dédiée (`organization_logos`) plutôt que directement dans la fiche organisation. Quand un owner uploade un logo, il est automatiquement redimensionné à 400×400 pixels maximum, converti en PNG et compressé sous 100 Ko via la bibliothèque Pillow. Une miniature de 64×64 pixels est également générée pour la barre latérale de l'interface. Les images sont stockées en base64 directement en base de données, et la miniature est incluse dans les données de session de l'utilisateur pour alimenter le sélecteur d'organisation sans appel supplémentaire.
+
+---
+
+## La base SIRENE est synchronisée automatiquement chaque nuit
+
+Pour valider les numéros SIREN et SIRET des organisations, clients et fournisseurs, Kerpta maintient un cache local de la base nationale SIRENE. Chaque nuit à 2h du matin (heure de Paris), un processus automatique collecte tous les SIREN connus dans la plateforme et interroge l'API de l'INSEE pour mettre à jour les informations correspondantes : dénomination sociale, forme juridique, statut (actif ou fermé), et la liste de tous les établissements liés.
+
+Cette synchronisation permet notamment de détecter si une entreprise partenaire a été radiée ou si un établissement a fermé. Un établissement fermé ne peut pas être sélectionné comme établissement de facturation — il est affiché avec un badge rouge "Fermé" et son bouton de sélection est désactivé. Cette règle est également contrôlée côté serveur pour éviter toute manipulation.
+
+Les clients et fournisseurs peuvent être rattachés à une fiche SIREN. Ce lien est facultatif mais enrichit automatiquement les données disponibles et permet de suivre l'état de santé administrative des partenaires commerciaux.

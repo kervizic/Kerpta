@@ -62,6 +62,7 @@ Représente une société cliente de Kerpta — c'est l'entité centrale autour 
 - **module_payroll_enabled** — le module Paie est-il actif ? Oui par défaut.
 - **module_accounting_enabled** — le module Comptabilité est-il actif ? Oui par défaut.
 - **module_esignature_enabled** — le module Signature électronique (DocuSeal) est-il actif ? Oui par défaut.
+- **billing_siret** — SIRET de l'établissement à utiliser pour la facturation. Ce champ est facultatif et permet de sélectionner un établissement différent du siège social (par exemple, pour une organisation multi-sites qui émet ses factures depuis un établissement secondaire). L'établissement sélectionné doit être actif dans la base SIRENE — un établissement fermé ne peut pas être choisi.
 
 Un module désactivé disparaît complètement de la navigation et de l'API pour tous les membres de cette organisation.
 
@@ -107,6 +108,7 @@ Les entreprises ou particuliers à qui l'organisation envoie des factures.
 - **vat_number** — numéro de TVA du client, requis pour la facturation intracommunautaire.
 - **billing_address / shipping_address** — adresse de facturation et adresse de livraison, stockées séparément en JSON car elles peuvent être différentes.
 - **payment_terms** — délai de paiement par défaut pour ce client, en jours (ex : 30). Pré-rempli automatiquement sur chaque nouvelle facture.
+- **company_siren** — lien vers la fiche entreprise dans la base SIRENE centralisée. Facultatif. Permet de récupérer automatiquement les établissements de ce client depuis l'API INSEE et de vérifier son statut.
 - **archived_at** — date d'archivage. Un client archivé n'apparaît plus dans les listes mais ses données (factures, devis passés) sont conservées.
 
 ---
@@ -383,6 +385,28 @@ Trace toutes les actions sensibles effectuées par les super-administrateurs de 
 - **action** — type d'action : impersonation d'un utilisateur (connexion en tant que), suspension de compte, suppression, attribution ou révocation du statut admin.
 - **reason** — raison obligatoire saisie par l'admin avant chaque action. Garantit la traçabilité et le contrôle interne.
 - **ip_address** — adresse IP depuis laquelle l'action a été effectuée.
+
+---
+
+### Logo de l'organisation
+
+Le logo de chaque organisation est stocké dans une table séparée (`organization_logos`) plutôt que directement dans la table `organizations`. Ce choix est délibéré : la plupart des requêtes sur les organisations (lister les membres, vérifier les droits, récupérer les paramètres) n'ont pas besoin du logo, et inclure une image encodée en base64 dans chaque réponse alourdirait inutilement les échanges.
+
+Quand un owner uploade un logo, Kerpta le traite automatiquement via la bibliothèque Pillow : l'image est redimensionnée à 400×400 pixels maximum en conservant les proportions (algorithme LANCZOS pour la qualité), convertie en PNG, et compressée pour rester sous 100 Ko. Une miniature de 64×64 pixels est également générée pour la barre latérale.
+
+L'image principale et la miniature sont stockées en base64 directement en base de données (format Data URI : `data:image/png;base64,...`). La miniature est incluse dans la réponse de `get_user_memberships` via une jointure — quelques kilooctets par organisation, compatible avec le store Zustand côté frontend pour afficher le logo dans le sélecteur d'organisation.
+
+---
+
+### Base SIRENE centralisée
+
+Pour valider les numéros SIREN et SIRET, Kerpta maintient un cache local de la base nationale SIRENE de l'INSEE. Contrairement aux données métier (factures, clients...), ces tables ne sont pas scopées à une organisation — elles sont partagées par toute la plateforme.
+
+La table `companies` stocke les fiches entreprises identifiées par leur SIREN (9 chiffres). La table `establishments` stocke les fiches établissements identifiés par leur SIRET (14 chiffres = SIREN + NIC à 5 chiffres). Chaque établissement pointe vers son entreprise mère. Un établissement peut être actif ou fermé — un établissement fermé est affiché avec un badge rouge "Fermé" dans l'interface et ne peut pas être sélectionné comme établissement de facturation.
+
+Un processus automatique synchronise ces données chaque nuit à 2h (heure de Paris) via Celery Beat. La tâche `sirene.sync_all` collecte tous les SIREN connus dans Kerpta — ceux des organisations elles-mêmes, des clients et des fournisseurs — puis interroge l'API INSEE pour chaque SIREN afin de mettre à jour les fiches entreprises et établissements correspondants.
+
+Les clients et fournisseurs peuvent être liés à une fiche SIREN via le champ `company_siren`. Ce lien est facultatif mais permet d'enrichir automatiquement les informations (adresse, forme juridique, statut) et de détecter si une entreprise partenaire a été radiée.
 
 ---
 

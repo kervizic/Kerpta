@@ -20,7 +20,7 @@ celery = Celery(
     broker=settings.CELERY_BROKER_URL,
     backend=settings.CELERY_RESULT_BACKEND,
     include=[
-        # Ajouter ici les modules de tâches au fur et à mesure :
+        "app.tasks.sirene_sync",   # Synchronisation nocturne du cache SIRENE
         # "app.tasks.email",
         # "app.tasks.pdf",
         # "app.tasks.ocr",
@@ -36,6 +36,14 @@ celery.conf.update(
     # Retry automatique sur les tâches non acquittées
     task_acks_late=True,
     task_reject_on_worker_lost=True,
-    # Beat schedule (si Celery Beat est activé)
-    beat_schedule={},
+    # ── Celery Beat — tâches planifiées ────────────────────────────────────────
+    beat_schedule={
+        # Sync SIRENE : chaque nuit à 2h00 (Europe/Paris)
+        # Met à jour le statut (active/closed) de toutes les entreprises et établissements
+        "sirene-sync-nightly": {
+            "task": "sirene.sync_all",
+            "schedule": 86400,          # toutes les 24h (en secondes)
+            "options": {"expires": 7200},  # expire si pas lancée dans les 2h
+        },
+    },
 )

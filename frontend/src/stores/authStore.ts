@@ -22,6 +22,8 @@ export interface OrgMembership {
   org_siret: string | null
   org_siren: string | null
   org_logo_url: string | null
+  /** Miniature 64×64 px en data URI base64 — chargée avec la liste des orgs */
+  org_logo_thumb: string | null
   role: string
   joined_at: string | null
 }

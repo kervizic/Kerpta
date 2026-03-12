@@ -74,9 +74,9 @@ function OrgSelector({
         onClick={() => setOpen((v) => !v)}
         className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-gray-100 transition"
       >
-        {active?.org_logo_url ? (
+        {active?.org_logo_thumb ? (
           <img
-            src={active.org_logo_url}
+            src={active.org_logo_thumb}
             alt={active.org_name}
             className="w-8 h-8 rounded-lg object-cover bg-gray-100 shrink-0"
           />
@@ -108,9 +108,9 @@ function OrgSelector({
                 o.org_id === activeOrgId ? 'bg-orange-50' : 'hover:bg-gray-50'
               }`}
             >
-              {o.org_logo_url ? (
+              {o.org_logo_thumb ? (
                 <img
-                  src={o.org_logo_url}
+                  src={o.org_logo_thumb}
                   alt={o.org_name}
                   className="w-6 h-6 rounded-md object-cover bg-gray-100 shrink-0"
                 />
@@ -236,9 +236,6 @@ export function AppSidebar({ currentPath, onClose }: AppSidebarProps) {
       {/* Logo Kerpta */}
       <div className="px-4 py-3 border-b border-gray-100">
         <a href="/" className="flex items-center gap-2 group">
-          <div className="w-8 h-8 rounded-lg bg-orange-600 flex items-center justify-center shrink-0">
-            <span className="text-white font-bold text-sm leading-none">K</span>
-          </div>
           <span className="font-sarpanch text-2xl leading-none">
             <span className="text-[#888888]">KER</span><span className="text-orange-500">PTA</span>
           </span>
