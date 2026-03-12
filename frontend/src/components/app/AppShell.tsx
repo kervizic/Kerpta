@@ -28,26 +28,29 @@ function DashboardPlaceholder() {
         <div className="w-16 h-16 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center mx-auto mb-4">
           <span className="text-3xl">📊</span>
         </div>
-        <h2 className="text-xl font-semibold text-white mb-2">Tableau de bord</h2>
-        <p className="text-slate-400 text-sm">Les modules comptables arrivent bientôt.</p>
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">Tableau de bord</h2>
+        <p className="text-gray-500 text-sm">Les modules comptables arrivent bientôt.</p>
       </div>
     </div>
   )
 }
 
 export default function AppShell({ path }: AppShellProps) {
-  const { token } = useAuthStore()
+  const { token, fetchMe } = useAuthStore()
 
   useEffect(() => {
     if (!token) {
       navigate('/login')
+      return
     }
-  }, [token])
+    // Récupère les droits de l'utilisateur courant (is_platform_admin)
+    void fetchMe()
+  }, [token, fetchMe])
 
   if (!token) return null
 
   return (
-    <div className="min-h-screen bg-slate-950 flex">
+    <div className="min-h-screen bg-gray-50 flex">
       <AppSidebar currentPath={path} />
 
       <main className="flex-1 flex overflow-hidden">

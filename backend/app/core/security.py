@@ -53,18 +53,74 @@ def get_current_user_id(
 
 
 async def require_platform_admin(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     db: AsyncSession = Depends(get_db),
-    user_id: UUID = Depends(get_current_user_id),
 ) -> UUID:
-    """Vérifie que l'utilisateur courant est administrateur de la plateforme."""
+    """Vérifie que l'utilisateur courant est administrateur de la plateforme.
+
+    Bootstrap automatique : si aucun admin n'existe encore (installation fraîche),
+    le premier utilisateur authentifié est enregistré comme super-admin.
+    Ce mécanisme est inactif dès qu'un admin est en base.
+    """
+    payload = decode_supabase_jwt(credentials.credentials)
+    sub = payload.get("sub")
+    if not sub:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Token sans sujet")
+    user_id = UUID(sub)
+
     result = await db.execute(
         text("SELECT is_platform_admin FROM users WHERE id = :id"),
         {"id": user_id},
     )
     row = result.fetchone()
-    if row is None or not row[0]:
+
+    # L'utilisateur existe déjà en base
+    if row is not None:
+        if not row[0]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Accès réservé aux administrateurs plateforme",
+            )
+        return user_id
+
+    # L'utilisateur n'est pas encore en base → bootstrap si aucun admin n'existe
+    admin_count_result = await db.execute(
+        text("SELECT COUNT(*) FROM users WHERE is_platform_admin = true")
+    )
+    if (admin_count_result.scalar() or 0) > 0:
+        # Un admin existe déjà → cet utilisateur n'est pas autorisé
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Accès réservé aux administrateurs plateforme",
         )
+
+    # Aucun admin en base → premier utilisateur = super-admin
+    email = (payload.get("email") or "").strip()
+    meta = payload.get("user_metadata") or {}
+    if not email and isinstance(meta, dict):
+        email = (meta.get("email") or "").strip()
+    full_name = ""
+    if isinstance(meta, dict):
+        full_name = (meta.get("full_name") or meta.get("name") or "").strip()
+
+    if not email:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "Email manquant dans le token — impossible d'enregistrer le compte admin",
+        )
+
+    await db.execute(
+        text(
+            """
+            INSERT INTO users (id, email, full_name, is_platform_admin, created_at)
+            VALUES (:id, :email, :full_name, true, now())
+            ON CONFLICT (id) DO UPDATE
+              SET is_platform_admin = true,
+                  email = EXCLUDED.email,
+                  full_name = EXCLUDED.full_name
+            """
+        ),
+        {"id": str(user_id), "email": email, "full_name": full_name or None},
+    )
+    await db.commit()
     return user_id

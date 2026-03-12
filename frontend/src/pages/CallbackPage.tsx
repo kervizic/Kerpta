@@ -67,13 +67,13 @@ export default function CallbackPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="text-center max-w-sm">
-          <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
-            <span className="text-red-400 text-xl">✕</span>
+          <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
+            <span className="text-red-500 text-xl">✕</span>
           </div>
-          <h2 className="text-white font-semibold mb-2">Erreur de connexion</h2>
-          <p className="text-slate-400 text-sm mb-6">{error}</p>
+          <h2 className="text-gray-900 font-semibold mb-2">Erreur de connexion</h2>
+          <p className="text-gray-500 text-sm mb-6">{error}</p>
           <button
             onClick={() => navigate('/login')}
             className="px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold transition"
@@ -86,10 +86,10 @@ export default function CallbackPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="text-center">
         <div className="w-10 h-10 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-slate-400 text-sm">Connexion en cours…</p>
+        <p className="text-gray-500 text-sm">Connexion en cours…</p>
       </div>
     </div>
   )

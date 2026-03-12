@@ -7,14 +7,17 @@
 
 import { useEffect, useState } from 'react'
 import { apiClient } from '@/lib/api'
+import { useAuthStore } from '@/stores/authStore'
 import {
   Check,
   ChevronDown,
   ChevronUp,
   ExternalLink,
+  HelpCircle,
   KeyRound,
   Loader2,
   RefreshCw,
+  ShieldOff,
   X,
 } from 'lucide-react'
 
@@ -32,6 +35,55 @@ interface ApiKeysData {
   api_keys: {
     insee_api_key: string
   }
+}
+
+// Lien vers la console développeur de chaque provider
+const PROVIDER_CONSOLE: Record<string, { url: string; label: string; hint: string }> = {
+  google: {
+    url: 'https://console.cloud.google.com/apis/credentials',
+    label: 'Google Cloud Console',
+    hint: 'Créer un projet → API & Services → Credentials → OAuth 2.0 Client ID (type : Web application). Ajouter {auth_url}/auth/v1/callback dans "Authorized redirect URIs".',
+  },
+  microsoft: {
+    url: 'https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps',
+    label: 'Azure Portal — App Registrations',
+    hint: 'Nouveau enregistrement → Comptes : "Any AAD directory + personal" → URI de redirection : {auth_url}/auth/v1/callback. Copier Application (client) ID et créer un Client Secret.',
+  },
+  github: {
+    url: 'https://github.com/settings/developers',
+    label: 'GitHub Developer Settings',
+    hint: 'OAuth Apps → New OAuth App. Authorization callback URL : {auth_url}/auth/v1/callback. Générer un Client Secret.',
+  },
+  apple: {
+    url: 'https://developer.apple.com/account/resources/identifiers/list/serviceId',
+    label: 'Apple Developer — Services IDs',
+    hint: "Créer un Services ID → activer \"Sign In with Apple\" → configurer le domaine et l'URL de retour : {auth_url}/auth/v1/callback.",
+  },
+  linkedin: {
+    url: 'https://www.linkedin.com/developers/apps',
+    label: 'LinkedIn Developers',
+    hint: 'Create app → Products → "Sign In with LinkedIn using OpenID Connect". Redirect URL : {auth_url}/auth/v1/callback.',
+  },
+  facebook: {
+    url: 'https://developers.facebook.com/apps',
+    label: 'Meta for Developers',
+    hint: 'Create App → Facebook Login → Settings. OAuth Redirect URI : {auth_url}/auth/v1/callback.',
+  },
+  twitter: {
+    url: 'https://developer.twitter.com/en/portal/dashboard',
+    label: 'Twitter Developer Portal',
+    hint: 'Créer un projet et une application → Keys and tokens. Activer OAuth 2.0 et ajouter {auth_url}/auth/v1/callback comme Callback URI.',
+  },
+  discord: {
+    url: 'https://discord.com/developers/applications',
+    label: 'Discord Developer Portal',
+    hint: 'New Application → OAuth2 → Add Redirect : {auth_url}/auth/v1/callback. Copier Client ID et reset le Client Secret.',
+  },
+  salesforce: {
+    url: 'https://login.salesforce.com',
+    label: 'Salesforce Setup',
+    hint: "Setup → Apps → App Manager → New Connected App. Callback URL : {auth_url}/auth/v1/callback. Activer \"Enable OAuth Settings\".",
+  },
 }
 
 const KNOWN_PROVIDERS = [
@@ -54,8 +106,8 @@ function StatusBadge({ ok, message }: { ok: boolean | null; message: string }) {
     <span
       className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
         ok
-          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-          : 'bg-red-500/10 text-red-400 border border-red-500/20'
+          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+          : 'bg-red-50 text-red-600 border border-red-200'
       }`}
     >
       {ok ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
@@ -79,13 +131,13 @@ function InputField({
 }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-slate-400 mb-1.5">{label}</label>
+      <label className="block text-xs font-medium text-gray-600 mb-1.5">{label}</label>
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-white/5 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 transition"
+        className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400/20 transition"
       />
     </div>
   )
@@ -94,23 +146,28 @@ function InputField({
 // ── Composant Provider OAuth ──────────────────────────────────────────────────
 
 function ProviderRow({
+  providerKey,
   label,
   config,
+  authUrl,
   onChange,
 }: {
   providerKey: string
   label: string
   config: ProviderCfg
+  authUrl: string
   onChange: (cfg: ProviderCfg) => void
 }) {
   const [expanded, setExpanded] = useState(config.enabled)
+  const [showHelp, setShowHelp] = useState(false)
+
+  const console_ = PROVIDER_CONSOLE[providerKey]
+  const helpHint = console_?.hint.replace(/{auth_url}/g, authUrl || '…') ?? ''
 
   return (
     <div
       className={`rounded-xl border transition-all ${
-        config.enabled
-          ? 'border-orange-500/30 bg-orange-500/5'
-          : 'border-white/5 bg-slate-800/30'
+        config.enabled ? 'border-orange-300 bg-orange-50' : 'border-gray-200 bg-white'
       }`}
     >
       {/* En-tête du provider */}
@@ -119,7 +176,7 @@ function ProviderRow({
         onClick={() => setExpanded((e) => !e)}
       >
         <div className="flex items-center gap-3">
-          {/* Toggle actif */}
+          {/* Toggle actif/inactif */}
           <button
             onClick={(e) => {
               e.stopPropagation()
@@ -127,8 +184,8 @@ function ProviderRow({
               onChange({ ...config, enabled: next })
               if (next) setExpanded(true)
             }}
-            className={`relative inline-flex w-10 h-5.5 rounded-full transition-colors focus:outline-none ${
-              config.enabled ? 'bg-orange-600' : 'bg-slate-700'
+            className={`relative inline-flex rounded-full transition-colors focus:outline-none ${
+              config.enabled ? 'bg-orange-500' : 'bg-gray-300'
             }`}
             style={{ minWidth: '2.5rem', height: '1.375rem' }}
           >
@@ -138,33 +195,72 @@ function ProviderRow({
               }`}
             />
           </button>
-          <span className={`text-sm font-medium ${config.enabled ? 'text-white' : 'text-slate-400'}`}>
+          <span
+            className={`text-sm font-medium ${config.enabled ? 'text-gray-900' : 'text-gray-500'}`}
+          >
             {label}
           </span>
         </div>
-        {expanded ? (
-          <ChevronUp className="w-4 h-4 text-slate-500" />
-        ) : (
-          <ChevronDown className="w-4 h-4 text-slate-500" />
-        )}
+        <div className="flex items-center gap-2">
+          {/* Bouton aide — ouvre la procédure inline */}
+          {console_ && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                setShowHelp((h) => !h)
+                if (!expanded) setExpanded(true)
+              }}
+              title="Procédure de configuration"
+              className="p-1 rounded-md text-gray-400 hover:text-orange-600 hover:bg-orange-50 transition"
+            >
+              <HelpCircle className="w-4 h-4" />
+            </button>
+          )}
+          {expanded ? (
+            <ChevronUp className="w-4 h-4 text-gray-400" />
+          ) : (
+            <ChevronDown className="w-4 h-4 text-gray-400" />
+          )}
+        </div>
       </button>
 
-      {/* Champs client_id / client_secret */}
+      {/* Zone aide + champs client_id / client_secret */}
       {expanded && (
-        <div className="px-4 pb-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <InputField
-            label="Client ID"
-            value={config.client_id}
-            onChange={(v) => onChange({ ...config, client_id: v })}
-            placeholder="Identifiant OAuth"
-          />
-          <InputField
-            label="Client Secret"
-            value={config.client_secret}
-            onChange={(v) => onChange({ ...config, client_secret: v })}
-            type="password"
-            placeholder="Secret OAuth"
-          />
+        <div className="px-4 pb-4 space-y-3">
+          {/* Aide contextuelle */}
+          {showHelp && console_ && (
+            <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-xs text-blue-800 leading-relaxed">
+              <div className="font-semibold mb-1 flex items-center justify-between gap-2 flex-wrap">
+                <span>Procédure {label}</span>
+                <a
+                  href={console_.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  {console_.label}
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+              <p className="text-blue-700">{helpHint}</p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <InputField
+              label="Client ID"
+              value={config.client_id}
+              onChange={(v) => onChange({ ...config, client_id: v })}
+              placeholder="Identifiant OAuth"
+            />
+            <InputField
+              label="Client Secret"
+              value={config.client_secret}
+              onChange={(v) => onChange({ ...config, client_secret: v })}
+              type="password"
+              placeholder="Secret OAuth"
+            />
+          </div>
         </div>
       )}
     </div>
@@ -174,6 +270,7 @@ function ProviderRow({
 // ── Page principale ───────────────────────────────────────────────────────────
 
 export default function ConfigApiKeysPage() {
+  const { isAdmin } = useAuthStore()
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<ApiKeysData | null>(null)
 
@@ -191,11 +288,16 @@ export default function ConfigApiKeysPage() {
   const [inseeTestStatus, setInseeTestStatus] = useState<{ ok: boolean; msg: string } | null>(null)
 
   useEffect(() => {
+    // isAdmin === null : fetchMe pas encore terminé → on attend
+    if (isAdmin === null) return
+    if (!isAdmin) {
+      setLoading(false)
+      return
+    }
     apiClient
       .get<ApiKeysData>('/config/api-keys')
       .then(({ data: d }) => {
         setData(d)
-        // Initialise les providers avec les connus + les données existantes
         const initial: Record<string, ProviderCfg> = {}
         for (const { key } of KNOWN_PROVIDERS) {
           initial[key] = d.oauth_config[key] ?? { enabled: false, client_id: '', client_secret: '' }
@@ -204,10 +306,10 @@ export default function ConfigApiKeysPage() {
         setInseeApiKey(d.api_keys.insee_api_key)
       })
       .catch(() => {
-        /* 401 → apiClient intercepteur redirige vers /login */
+        /* 401 → intercepteur redirige vers /login */
       })
       .finally(() => setLoading(false))
-  }, [])
+  }, [isAdmin])
 
   async function saveOAuth() {
     setOauthSaving(true)
@@ -218,7 +320,7 @@ export default function ConfigApiKeysPage() {
       setRestarting(true)
       setTimeout(() => setRestarting(false), 8000)
     } catch {
-      setOauthStatus({ ok: false, msg: 'Erreur lors de l\'enregistrement' })
+      setOauthStatus({ ok: false, msg: "Erreur lors de l'enregistrement" })
     } finally {
       setOauthSaving(false)
     }
@@ -231,7 +333,7 @@ export default function ConfigApiKeysPage() {
       await apiClient.put('/config/api-keys', { insee_api_key: inseeApiKey })
       setInseeSaveStatus({ ok: true, msg: 'Clé INSEE enregistrée' })
     } catch {
-      setInseeSaveStatus({ ok: false, msg: 'Erreur lors de l\'enregistrement' })
+      setInseeSaveStatus({ ok: false, msg: "Erreur lors de l'enregistrement" })
     } finally {
       setInseeSaving(false)
     }
@@ -259,6 +361,23 @@ export default function ConfigApiKeysPage() {
     }
   }
 
+  // ── Accès non-admin ──
+  if (!loading && isAdmin === false) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center max-w-sm">
+          <div className="w-12 h-12 rounded-full bg-red-50 border border-red-200 flex items-center justify-center mx-auto mb-4">
+            <ShieldOff className="w-6 h-6 text-red-500" />
+          </div>
+          <h2 className="text-gray-900 font-semibold mb-2">Accès restreint</h2>
+          <p className="text-gray-500 text-sm">
+            Cette page est réservée aux administrateurs de la plateforme.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -267,36 +386,38 @@ export default function ConfigApiKeysPage() {
     )
   }
 
+  const authUrl = data?.auth_url ?? ''
+
   return (
     <div className="flex-1 overflow-y-auto p-8">
       <div className="max-w-2xl mx-auto">
         {/* En-tête */}
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
-            <KeyRound className="w-5 h-5 text-orange-400" />
+          <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-center">
+            <KeyRound className="w-5 h-5 text-orange-500" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white">Clés API</h1>
-            <p className="text-sm text-slate-400">Providers OAuth et connexions aux APIs externes</p>
+            <h1 className="text-xl font-bold text-gray-900">Clés API</h1>
+            <p className="text-sm text-gray-500">Providers OAuth et connexions aux APIs externes</p>
           </div>
         </div>
 
         {/* ── Section OAuth ─────────────────────────────────────────────────── */}
         <section className="mb-10">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-semibold text-white">Providers OAuth</h2>
+            <h2 className="text-base font-semibold text-gray-900">Providers OAuth</h2>
             {restarting && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-medium">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-xs font-medium">
                 <RefreshCw className="w-3 h-3 animate-spin" />
                 GoTrue en redémarrage…
               </span>
             )}
           </div>
 
-          {data?.auth_url && (
-            <p className="text-xs text-slate-500 mb-4">
+          {authUrl && (
+            <p className="text-xs text-gray-500 mb-4">
               Instance GoTrue :{' '}
-              <code className="text-slate-400 bg-slate-800 px-1 rounded">{data.auth_url}</code>
+              <code className="text-gray-700 bg-gray-100 px-1 rounded">{authUrl}</code>
             </p>
           )}
 
@@ -306,6 +427,7 @@ export default function ConfigApiKeysPage() {
                 key={key}
                 providerKey={key}
                 label={label}
+                authUrl={authUrl}
                 config={providers[key] ?? { enabled: false, client_id: '', client_secret: '' }}
                 onChange={(cfg) => setProviders((prev) => ({ ...prev, [key]: cfg }))}
               />
@@ -326,14 +448,14 @@ export default function ConfigApiKeysPage() {
         </section>
 
         {/* Séparateur */}
-        <div className="border-t border-white/5 mb-10" />
+        <div className="border-t border-gray-200 mb-10" />
 
         {/* ── Section INSEE ─────────────────────────────────────────────────── */}
         <section>
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-base font-semibold text-white">INSEE / Sirene API</h2>
-              <p className="text-sm text-slate-400 mt-0.5">
+              <h2 className="text-base font-semibold text-gray-900">INSEE / Sirene API</h2>
+              <p className="text-sm text-gray-500 mt-0.5">
                 Recherche de sociétés par SIRET, SIREN, dénomination
               </p>
             </div>
@@ -341,17 +463,20 @@ export default function ConfigApiKeysPage() {
               href="https://portail-api.insee.fr"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs text-orange-400 hover:text-orange-300 transition"
+              className="inline-flex items-center gap-1.5 text-xs text-orange-600 hover:text-orange-700 transition"
             >
               Portail INSEE
               <ExternalLink className="w-3 h-3" />
             </a>
           </div>
 
-          <div className="bg-slate-800/50 border border-white/5 rounded-xl p-4 mb-4 text-xs text-slate-400 leading-relaxed">
-            <strong className="text-slate-300">Authentification par clé API</strong> — Inscrivez-vous
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 text-xs text-blue-800 leading-relaxed">
+            <strong className="text-blue-900">Authentification par clé API</strong> — Inscrivez-vous
             sur le portail INSEE, créez une application et abonnez-vous à l'API Sirene. La clé est
-            transmise dans le header <code className="text-orange-300 bg-slate-700 px-1 rounded">X-INSEE-Api-Key-Integration</code>{' '}
+            transmise dans le header{' '}
+            <code className="text-orange-600 bg-white border border-orange-200 px-1 rounded">
+              X-INSEE-Api-Key-Integration
+            </code>{' '}
             à validité illimitée (révocable depuis le portail).
           </div>
 
@@ -378,7 +503,7 @@ export default function ConfigApiKeysPage() {
             <button
               onClick={testInsee}
               disabled={inseeTesting}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 disabled:opacity-50 text-white text-sm font-semibold transition"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50 text-gray-700 text-sm font-semibold transition"
             >
               {inseeTesting ? (
                 <Loader2 className="w-4 h-4 animate-spin" />

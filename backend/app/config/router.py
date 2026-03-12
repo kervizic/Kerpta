@@ -15,6 +15,7 @@ Routes exposées :
 import asyncio
 import logging
 from typing import Any
+from uuid import UUID
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -23,7 +24,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.security import require_platform_admin
+from app.core.security import get_current_user_id, require_platform_admin
 from app.setup.service import KNOWN_PROVIDERS, restart_auth_service, save_oauth_config
 
 _log = logging.getLogger(__name__)
@@ -47,6 +48,32 @@ class OAuthUpdateRequest(BaseModel):
 
 class ApiKeysUpdateRequest(BaseModel):
     insee_api_key: str = ""
+
+
+# ── GET /me — utilisateur courant ─────────────────────────────────────────────
+
+
+@router.get("/me")
+async def get_me(
+    db: AsyncSession = Depends(get_db),
+    user_id: UUID = Depends(get_current_user_id),
+) -> dict:
+    """Retourne les informations de l'utilisateur connecté (id, email, is_platform_admin).
+
+    Si l'utilisateur n'est pas encore enregistré en base (ex: première connexion),
+    retourne is_platform_admin: false.
+    """
+    result = await db.execute(
+        text("SELECT is_platform_admin, email, full_name FROM users WHERE id = :id"),
+        {"id": user_id},
+    )
+    row = result.fetchone()
+    return {
+        "id": str(user_id),
+        "is_platform_admin": bool(row[0]) if row else False,
+        "email": str(row[1]) if row and row[1] else None,
+        "name": str(row[2]) if row and row[2] else None,
+    }
 
 
 # ── GET /providers — public ───────────────────────────────────────────────────

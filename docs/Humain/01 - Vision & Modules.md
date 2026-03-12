@@ -4,7 +4,7 @@
 
 Kerpta s'adresse aux TPE, indépendants, artisans et auto-entrepreneurs français ayant entre 1 et 10 salariés. L'objectif est de remplacer les outils bricolés (Word, Excel, PDF en ligne) par une application professionnelle qui gère l'ensemble de la comptabilité d'une petite structure.
 
-Chaque module peut être activé ou désactivé indépendamment par organisation depuis les Paramètres. Un module désactivé disparaît complètement de la navigation. Par défaut, tous les modules sont actifs. Les modules disponibles sont : Devis, Factures, Bons de commande clients, Achats fournisseurs, Notes de frais, Paie, Comptabilité et Signature électronique.
+Chaque module peut être activé ou désactivé indépendamment par organisation depuis les Paramètres. Un module désactivé disparaît complètement de la navigation. Par défaut, tous les modules sont actifs. Les modules disponibles sont : Devis, Factures, Bons de commande clients, Achats fournisseurs, Notes de frais, Paie, Comptabilité, Contrats, Signature électronique, Rapprochement bancaire et Mini-site vitrine.
 
 La philosophie de l'interface est d'être aussi simple qu'une recherche Google ou qu'un iPhone : une action = un écran, rien de superflu. Derrière cette simplicité se cachent des normes comptables françaises complètes et rigoureuses.
 
@@ -74,6 +74,24 @@ Les catégories sont pré-définies et associées aux bons comptes comptables : 
 
 Ce module calcule automatiquement les salaires et cotisations selon les taux en vigueur (mis à jour dans un fichier de configuration versionné). Il gère le cycle complet : génération de la fiche → validation → paiement. L'export DSN (Déclaration Sociale Nominative) est produit selon la norme v3 pour envoi à Net-Entreprises, avec les délais légaux du 5 ou du 15 du mois. Les bulletins sont archivés pendant 5 ans côté employeur et indéfiniment côté salarié, comme l'exige la loi.
 
+### Contrats
+
+Ce module permet de gérer tout type de contrat qui ne rentre pas dans les catégories devis ou bon de commande : contrats de prestation de services, contrats de travail CDI/CDD, accords de confidentialité (NDA), conventions de partenariat, contrats de location de matériel, etc.
+
+Chaque contrat est numéroté automatiquement (CT-2026-0001), lié à un client ou un fournisseur, et peut être rédigé directement dans l'éditeur intégré ou importé sous forme de PDF. La date de début et de fin sont renseignables — pour un CDI ou un contrat sans terme défini, la date de fin reste vide. Si le renouvellement automatique est activé, Kerpta envoie une alerte avant l'échéance (30 jours par défaut) pour ne jamais laisser expirer un contrat silencieusement.
+
+La signature électronique est disponible directement sur le contrat, avec support multi-signataires et ordre de signature configurable.
+
+### Signature électronique
+
+La signature électronique est disponible sur quatre types de documents : les devis, les contrats, les bons de commande fournisseurs, et les fiches de paie. Elle est assurée par **DocuSeal**, une solution open source hébergée dans le même environnement que Kerpta — aucun abonnement externe n'est nécessaire.
+
+Le destinataire reçoit un email avec un lien. Il ouvre le document dans son navigateur, signe avec la souris, le doigt ou en tapant son nom, et confirme. Aucun compte ni application n'est requis de sa part. Une fois la signature complète, le PDF signé avec son rapport d'audit (horodatage, adresse IP, empreinte du document) est archivé automatiquement dans le stockage de l'organisation.
+
+Il est possible de signer en premier avant d'envoyer au destinataire, de gérer plusieurs signataires dans un ordre précis, et de configurer des relances automatiques si le destinataire tarde à signer (J+2 et J+5 par défaut).
+
+La solution respecte le règlement européen eIDAS pour les signatures électroniques simples — niveau reconnu juridiquement dans toute l'UE pour les usages commerciaux courants.
+
 ### Tableau de bord
 
 La page d'accueil après connexion affiche 4 indicateurs clés : le chiffre d'affaires du mois en cours, les encaissements reçus, le total des impayés, et les dépenses. Un graphique de trésorerie sur 12 mois glissants donne une vision de la santé financière. Un fil d'activité récent (8 entrées maximum) montre les dernières actions, et des alertes orange signalent les factures en retard, la TVA due dans moins de 7 jours, et les devis qui expirent dans moins de 3 jours.
@@ -92,9 +110,55 @@ Kerpta est conçu pour les utilisateurs qui évoluent dans plusieurs structures.
 
 Le sélecteur d'organisation en haut de la sidebar permet de passer d'une structure à l'autre en un clic, sans reconnexion. Chaque organisation est un environnement complètement isolé.
 
+### Recherche d'entreprise (SIREN / SIRET / TVA / nom)
+
+À trois endroits dans Kerpta — la création de son propre compte entreprise lors de l'inscription, l'ajout d'un client, et l'ajout d'un fournisseur — une barre de recherche permet de retrouver n'importe quelle entreprise française sans saisir manuellement ses coordonnées.
+
+La recherche accepte le SIREN (9 chiffres, identifiant unique de l'entreprise), le SIRET (14 chiffres, identifiant d'un établissement précis), le numéro de TVA intracommunautaire (format FR suivi de 11 chiffres — le SIREN est extrait automatiquement), ou simplement le nom de la société. Les résultats viennent directement du registre officiel INSEE Sirene. En sélectionnant une entreprise dans les résultats, tous les champs sont remplis automatiquement : raison sociale, adresse complète, forme juridique, code APE, capital social, numéro de TVA calculé.
+
 ### Clients & Fournisseurs
 
-La fiche client centralise toutes les informations. La saisie du numéro SIRET déclenche une recherche automatique dans la base officielle INSEE Sirene pour remplir les coordonnées. Le SIRET est validé via l'algorithme de Luhn pour éviter les erreurs de saisie. La fiche comprend 5 onglets : Informations générales, Factures, Devis, Paiements, et Notes libres. Le solde du client est recalculé en temps réel.
+La fiche client centralise toutes les informations. La saisie du numéro SIRET (ou d'un nom via la recherche) déclenche une recherche automatique dans la base officielle INSEE Sirene pour remplir les coordonnées. Le SIRET est validé via l'algorithme de Luhn pour éviter les erreurs de saisie. La fiche comprend 5 onglets : Informations générales, Factures, Devis, Paiements, et Notes libres. Le solde du client est recalculé en temps réel.
+
+### Rapprochement bancaire & suivi des règlements
+
+Ce module connecte les comptes bancaires de l'organisation à Kerpta et fait le lien automatiquement entre les mouvements bancaires et les documents comptables (factures, achats, salaires).
+
+La connexion se fait via Nordigen, un service européen agréé PSD2 qui supporte la quasi-totalité des banques françaises. L'autorisation est donnée directement sur le site de la banque — Kerpta ne voit jamais les identifiants bancaires. À la connexion, l'historique disponible est importé automatiquement, puis la synchronisation se fait toutes les 24 heures en arrière-plan. Le consentement PSD2 expire tous les 90 jours : Kerpta envoie des rappels par email à J-14, J-7 et J-1.
+
+Pour les banques non supportées ou pour importer un historique ancien, il est possible d'uploader directement le relevé de compte aux formats CSV, OFX, QIF, MT940 et CAMT.053. Les transactions importées manuellement se mélangent avec celles de Nordigen dans la même liste, sans doublons.
+
+Pour chaque transaction, Kerpta cherche le document comptable qui correspond et calcule un score de confiance selon quatre critères : montant identique, date proche de l'échéance, nom du client ou fournisseur dans le libellé, et numéro de facture dans le libellé. Quand le score est suffisant, Kerpta propose automatiquement le rapprochement — l'utilisateur n'a qu'à valider. Les paiements partiels (un client qui paie en plusieurs fois) et les paiements groupés (un virement qui couvre plusieurs factures) sont gérés.
+
+### QR Code paiement (SEPA)
+
+Sur chaque facture client et chaque fiche de paie, Kerpta génère un QR Code au standard SEPA. En le scannant avec l'application mobile de sa banque, le payeur voit le virement pré-rempli avec l'IBAN, le montant et la référence de la facture — il n'a plus qu'à confirmer. Dès que le rapprochement bancaire est validé, le QR Code est automatiquement retiré pour éviter tout double paiement.
+
+### Personnalisation de l'apparence (design tokens)
+
+Depuis Paramètres → Apparence, chaque organisation peut définir sa couleur principale, sa couleur secondaire et sa police de marque. Ces éléments sont ensuite appliqués de manière cohérente partout : en-tête des PDF générés (devis, factures, bulletins), mini-site vitrine, et couleurs d'accentuation dans l'application.
+
+Il est également possible de configurer les colonnes affichées sur les devis et factures — par exemple masquer la colonne remise si vous ne l'utilisez jamais, ou masquer la référence article si votre catalogue n'en a pas. Cette configuration se fait depuis Paramètres → Documents → Colonnes.
+
+### Mini-site vitrine
+
+Kerpta permet à chaque organisation de publier un mini-site vitrine public directement depuis l'application, sans outil supplémentaire. La page est accessible à l'adresse `kerpta.fr/societe/votre-nom` par défaut, ou sur votre propre nom de domaine avec l'option Vitrine+ à 2€/mois.
+
+La page se construit avec un éditeur glisser-déposer accessible depuis Paramètres → Mini-site → Éditer la page. Vous disposez d'une palette de blocs à combiner librement : titre accrocheur, présentation, liste de services, actualités, carte de localisation, horaires d'ouverture, galerie photos, avis clients, widget Trustpilot, formulaire de contact, annuaire de l'équipe, FAQ, liens réseaux sociaux (LinkedIn, Facebook, X, Instagram, YouTube, TikTok), et pied de page.
+
+**Les actualités** vous permettent de publier des articles directement depuis Kerpta — par exemple pour annoncer une nouvelle prestation, un chantier terminé, une promotion. Un éditeur de texte complet est intégré avec images, mise en forme, tableaux.
+
+**La carte de localisation** est générée automatiquement depuis l'adresse de votre organisation, sans compte Google ni clé API. Elle utilise OpenStreetMap. Vous pouvez aussi coller une URL d'intégration Google Maps si vous le préférez.
+
+**Le widget Trustpilot** permet d'afficher vos avis directement sur votre page vitrine si vous avez un compte Trustpilot Business.
+
+**Les contacts** : chaque message reçu via le formulaire de contact est envoyé à votre adresse email et sauvegardé dans Kerpta (Paramètres → Mini-site → Contacts). Vous pouvez aussi ajouter des contacts manuellement, leur associer des étiquettes, et noter des informations — un mini-CRM léger.
+
+**L'option Vitrine+ (2€/mois)** ajoute votre propre nom de domaine (configuration CNAME chez votre registrar), Google Analytics 4 pour suivre vos visites, et la possibilité de personnaliser la position du badge Kerpta.
+
+**Le badge Kerpta** est un petit bouton toujours présent sur le site, avec la police et la couleur de Kerpta. Sur le plan gratuit il est fixe en bas à droite. Sur Vitrine+ vous pouvez le déplacer.
+
+**L'annuaire de l'équipe** est une section visible uniquement par les membres connectés de votre organisation. Chaque employé active lui-même, depuis son profil, s'il veut apparaître dans l'annuaire et s'il accepte que son email et son téléphone soient affichés. Tout est désactivé par défaut.
 
 ### Comptabilité
 

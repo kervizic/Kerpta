@@ -24,9 +24,20 @@ Organizations ──< JournalEntries ──< JournalEntryLines
 Organizations ──< TaxDeclarations
 Organizations ──< Invitations
 Organizations ──< OrganizationJoinRequests ──> Users
+Organizations ──< Contracts       ──> SignatureRequests
+Organizations ──< SignatureRequests
+Organizations ──< BankConnections
+Organizations ──< BankAccounts    ──< BankTransactions ──< BankReconciliations
+Organizations ──< PaymentQrCodes
+Organizations ──< SiteArticles
+Organizations ──< SiteContacts
+Organizations ──< SiteContactSubmissions
 
 Quotes ──> Invoices (conversion)
 ClientPurchaseOrders ──> Invoices (génération facture depuis BCR)
+BankReconciliations ──> Invoices | SupplierInvoices | Expenses | Payslips (polymorphique)
+PaymentQrCodes ──> Invoices | Payslips (polymorphique)
+SignatureRequests ──> Quotes | Contracts | SupplierOrders | Payslips (polymorphique)
 ```
 
 ---
@@ -77,7 +88,22 @@ ClientPurchaseOrders ──> Invoices (génération facture depuis BCR)
 | module_payroll_enabled         | BOOLEAN DEFAULT true | module Paie |
 | module_accounting_enabled      | BOOLEAN DEFAULT true | module Comptabilité |
 | module_esignature_enabled      | BOOLEAN DEFAULT true | module Signature électronique (DocuSeal) |
-| created_at                     | TIMESTAMP | |
+| module_banking_enabled         | BOOLEAN DEFAULT true | module Rapprochement bancaire |
+| module_contracts_enabled       | BOOLEAN DEFAULT true | module Contrats |
+| module_minisite_enabled        | BOOLEAN DEFAULT true | module Mini-site vitrine |
+| brand_color_primary            | VARCHAR(7)           | couleur principale hex (ex: `#1A73E8`) — nullable |
+| brand_color_secondary          | VARCHAR(7)           | couleur secondaire hex — nullable |
+| brand_font                     | VARCHAR(100)         | police de marque (ex: `Inter`) — nullable |
+| invoice_columns_config         | JSONB DEFAULT '{"reference":true,"description":true,"quantity":true,"unit":true,"unit_price_ht":true,"vat_rate":true,"discount":false,"total_ht":true}' | colonnes affichées sur devis/factures |
+| site_plan                      | ENUM DEFAULT 'free'  | free / vitrine_plus |
+| site_slug                      | VARCHAR(100) UNIQUE  | nullable — slug URL kerpta.fr/societe/{slug} |
+| site_custom_domain             | VARCHAR(255)         | nullable — domaine custom CNAME (Vitrine+ uniquement) |
+| site_ga4_id                    | VARCHAR(50)          | nullable — ID Google Analytics 4 (Vitrine+ uniquement) |
+| site_config                    | JSONB                | nullable — config Puck sérialisée (sections, contenu, badge position…) |
+| site_social_links              | JSONB                | nullable — `{linkedin, facebook, x, instagram, youtube, tiktok}` URLs |
+| site_trustpilot_id             | VARCHAR(100)         | nullable — ID Business Trustpilot pour le widget |
+| site_google_maps_url           | TEXT                 | nullable — URL embed Google Maps (alternative à OpenStreetMap) |
+| created_at                     | TIMESTAMP            | |
 
 ### `organization_memberships`
 | Colonne | Type | Notes |
@@ -247,9 +273,7 @@ Contrainte UNIQUE : `(product_id, client_id, variant_index)`
 | pdf_url | TEXT | URL dans le storage externe de l'organisation |
 | sent_at | TIMESTAMP | nullable |
 | accepted_at | TIMESTAMP | nullable |
-| signature_status | ENUM DEFAULT 'none' | none/awaiting/viewed/signed/refused — statut DocuSeal |
-| signature_request_id | VARCHAR(255) | nullable — ID de soumission DocuSeal |
-| signed_at | TIMESTAMP | nullable |
+| signature_request_id | UUID FK signature_requests | nullable — demande de signature active |
 | signed_pdf_url | TEXT | nullable — URL PDF signé dans le storage externe |
 | created_at | TIMESTAMP | |
 | updated_at | TIMESTAMP | |
@@ -514,9 +538,12 @@ Contrainte UNIQUE : `(product_id, client_id, variant_index)`
 | gross_salary | DECIMAL(15,2) | brut mensuel référence |
 | convention_collective | VARCHAR(100) | code IDCC |
 | address | JSONB | |
-| iban | VARCHAR(34) | virement salaire |
-| archived_at | TIMESTAMP | nullable |
-| created_at | TIMESTAMP | |
+| iban                  | VARCHAR(34)           | virement salaire |
+| site_show_in_directory| BOOLEAN DEFAULT false | opt-in : apparaître dans l'annuaire du mini-site |
+| site_show_email       | BOOLEAN DEFAULT false | opt-in : afficher l'email dans l'annuaire |
+| site_show_phone       | BOOLEAN DEFAULT false | opt-in : afficher le téléphone dans l'annuaire |
+| archived_at           | TIMESTAMP             | nullable |
+| created_at            | TIMESTAMP             | |
 
 ### `payslips`
 | Colonne | Type | Notes |
@@ -627,6 +654,221 @@ Contrainte UNIQUE : `(product_id, client_id, variant_index)`
 | default_category | VARCHAR(100) | catégorie comptable |
 | created_at | TIMESTAMP | |
 
+### `signature_requests`
+
+Demande de signature DocuSeal — table centrale polymorphique, partagée par tous les types de documents signables.
+
+| Colonne | Type | Notes |
+|---|---|---|
+| id | UUID PK | |
+| organization_id | UUID FK organizations | |
+| document_type | ENUM | quote/contract/supplier_order/payslip |
+| document_id | UUID | FK polymorphique vers le document signable |
+| docuseal_submission_id | VARCHAR(255) | nullable — ID de soumission DocuSeal |
+| status | ENUM DEFAULT 'draft' | draft/awaiting/viewed/signed/refused/expired |
+| signers | JSONB | `[{email, name, role, order, signed_at, refused_at}]` — liste ordonnée des signataires |
+| owner_signs_first | BOOLEAN DEFAULT false | true = l'owner de l'organisation signe avant envoi au destinataire |
+| signed_pdf_url | TEXT | nullable — URL PDF signé final dans le storage |
+| audit_trail_url | TEXT | nullable — URL du rapport d'audit DocuSeal |
+| reminder_days | INTEGER[] DEFAULT '{2,5}' | jours après envoi pour relances automatiques |
+| reminder_last_sent_at | TIMESTAMP | nullable |
+| expires_at | TIMESTAMP | nullable — date limite de signature |
+| created_by | UUID FK users | |
+| created_at | TIMESTAMP | |
+| updated_at | TIMESTAMP | |
+
+> À la signature complète (`status → signed`) : rapatrier le PDF signé via webhook DocuSeal → stocker dans le `StorageAdapter` → renseigner `signed_pdf_url` + `audit_trail_url` + mettre à jour le statut du document lié (ex: `quotes.status → accepted`).
+
+### `contracts`
+
+Contrats libres (hors devis et bons de commande) — contrats clients, fournisseurs, de travail, NDA, etc.
+
+| Colonne | Type | Notes |
+|---|---|---|
+| id | UUID PK | |
+| organization_id | UUID FK organizations | |
+| client_id | UUID FK clients | nullable |
+| supplier_id | UUID FK suppliers | nullable |
+| number | VARCHAR(50) UNIQUE | CT-YYYY-NNNN |
+| title | VARCHAR(255) | intitulé libre du contrat |
+| type | ENUM | client/supplier/employment/nda/other |
+| status | ENUM | draft/sent/awaiting_signature/signed/refused/expired/terminated |
+| content | TEXT | nullable — corps du contrat rédigé dans l'éditeur |
+| pdf_url | TEXT | nullable — PDF uploadé ou généré |
+| signed_pdf_url | TEXT | nullable — PDF signé final |
+| signature_request_id | UUID FK signature_requests | nullable |
+| valid_from | DATE | nullable |
+| valid_until | DATE | nullable — null = durée indéterminée (CDI, etc.) |
+| auto_renew | BOOLEAN DEFAULT false | renouvellement automatique |
+| renewal_notice_days | INTEGER DEFAULT 30 | alerte avant échéance (jours) |
+| notes | TEXT | |
+| created_by | UUID FK users | |
+| created_at | TIMESTAMP | |
+| updated_at | TIMESTAMP | |
+
+Contrainte CHECK : `client_id IS NOT NULL OR supplier_id IS NOT NULL` — au moins une partie liée.
+
+### `bank_connections`
+
+Représente une connexion Nordigen (réquisition PSD2) à un établissement bancaire.
+
+| Colonne | Type | Notes |
+|---|---|---|
+| id | UUID PK | |
+| organization_id | UUID FK organizations | |
+| provider | ENUM DEFAULT 'nordigen' | nordigen — extensible |
+| nordigen_requisition_id | VARCHAR(255) | ID de réquisition Nordigen |
+| institution_id | VARCHAR(255) | ID de la banque chez Nordigen (ex: `BNP_PARIBAS_BNPAFRPP`) |
+| institution_name | VARCHAR(255) | nom lisible (ex: "BNP Paribas") |
+| status | ENUM | pending/linked/expired/revoked |
+| consent_expires_at | TIMESTAMP | expiration consentement PSD2 (90 jours après linkage) |
+| reminder_sent_14d | BOOLEAN DEFAULT false | rappel email J-14 envoyé |
+| reminder_sent_7d | BOOLEAN DEFAULT false | rappel email J-7 envoyé |
+| reminder_sent_1d | BOOLEAN DEFAULT false | rappel email J-1 envoyé |
+| created_at | TIMESTAMP | |
+| updated_at | TIMESTAMP | |
+
+### `bank_accounts`
+
+Compte bancaire rattaché à une organisation, connecté via Nordigen ou ajouté manuellement.
+
+| Colonne | Type | Notes |
+|---|---|---|
+| id | UUID PK | |
+| organization_id | UUID FK organizations | |
+| connection_id | UUID FK bank_connections | nullable — null si compte manuel |
+| name | VARCHAR(255) | nom affiché (ex: "Compte courant BNP") |
+| iban | VARCHAR(34) | |
+| bic | VARCHAR(11) | |
+| currency | CHAR(3) DEFAULT 'EUR' | |
+| provider | ENUM | nordigen/manual |
+| nordigen_account_id | VARCHAR(255) | nullable — ID compte côté Nordigen |
+| last_synced_at | TIMESTAMP | nullable |
+| is_active | BOOLEAN DEFAULT true | |
+| created_at | TIMESTAMP | |
+
+### `bank_transactions`
+
+Transactions bancaires normalisées, qu'elles viennent de Nordigen ou d'un import manuel.
+
+| Colonne | Type | Notes |
+|---|---|---|
+| id | UUID PK | |
+| organization_id | UUID FK organizations | |
+| account_id | UUID FK bank_accounts | |
+| date | DATE | date de valeur |
+| amount | DECIMAL(15,2) | négatif = débit, positif = crédit |
+| currency | CHAR(3) DEFAULT 'EUR' | |
+| label | TEXT | libellé brut de la transaction |
+| reference | VARCHAR(255) | nullable — référence virement ou chèque |
+| source | ENUM | nordigen/import |
+| external_id | VARCHAR(255) | nullable — ID transaction côté Nordigen (dédoublonnage synchro) |
+| import_filename | VARCHAR(255) | nullable — nom du fichier importé |
+| status | ENUM DEFAULT 'unmatched' | unmatched/suggested/reconciled/ignored |
+| created_at | TIMESTAMP | |
+
+Contrainte UNIQUE : `(account_id, external_id)` WHERE `external_id IS NOT NULL` — évite les doublons entre synchros Nordigen.
+
+Index dédoublonnage import : `(account_id, date, amount, label)` — utilisé pour détecter les doublons lors des imports manuels CSV/OFX/QIF/MT940/CAMT.053.
+
+### `bank_reconciliations`
+
+Rapprochements validés entre une transaction bancaire et un document (facture, dépense, etc.).
+
+| Colonne | Type | Notes |
+|---|---|---|
+| id | UUID PK | |
+| organization_id | UUID FK organizations | |
+| transaction_id | UUID FK bank_transactions | |
+| document_type | ENUM | invoice/supplier_invoice/expense/payslip |
+| document_id | UUID | FK polymorphique vers le document rapproché |
+| amount_matched | DECIMAL(15,2) | montant rapproché — peut être inférieur au montant total (paiement partiel) |
+| score | INTEGER | score de confiance calculé par le moteur (0–190) |
+| is_auto | BOOLEAN DEFAULT false | true si validé automatiquement (score ≥ 70), false si validation manuelle |
+| reconciled_by | UUID FK users | nullable — null si auto |
+| reconciled_at | TIMESTAMP | |
+| created_at | TIMESTAMP | |
+
+> À la création d'un rapprochement : mettre à jour `bank_transactions.status → reconciled` et le statut du document lié (`invoices.status → paid` ou `partial` selon le montant). Supprimer ou passer en `reconciled` le `PaymentQrCode` associé.
+
+### `payment_qr_codes`
+
+QR Codes SEPA (format EPC069-12) générés sur les factures et fiches de paie pour faciliter les virements.
+
+| Colonne | Type | Notes |
+|---|---|---|
+| id | UUID PK | |
+| organization_id | UUID FK organizations | |
+| document_type | ENUM | invoice/payslip |
+| document_id | UUID | FK polymorphique |
+| iban | VARCHAR(34) | IBAN du compte à créditer |
+| bic | VARCHAR(11) | |
+| amount | DECIMAL(15,2) | |
+| label | VARCHAR(140) | libellé SEPA — format : `{N° doc} {Raison sociale tronquée}` |
+| qr_data | TEXT | payload brut EPC069-12 encodé dans le QR Code |
+| status | ENUM DEFAULT 'active' | active/reconciled/expired |
+| reconciliation_id | UUID FK bank_reconciliations | nullable — renseigné quand rapproché |
+| expires_at | TIMESTAMP | nullable — date d'échéance du document |
+| created_at | TIMESTAMP | |
+
+> Quand un rapprochement est validé sur le document lié : passer `status → reconciled` et renseigner `reconciliation_id`. Le QR Code n'est plus affiché ni inclus dans les PDF régénérés.
+
+### `site_articles`
+
+Articles / actualités publiés sur le mini-site vitrine.
+
+| Colonne | Type | Notes |
+|---|---|---|
+| id | UUID PK | |
+| organization_id | UUID FK organizations | |
+| title | VARCHAR(255) | |
+| slug | VARCHAR(255) | calculé depuis le titre, unique par org |
+| content | JSONB | contenu TipTap sérialisé |
+| cover_image_url | TEXT | nullable — image de couverture |
+| status | ENUM DEFAULT 'draft' | draft / published / archived |
+| published_at | TIMESTAMP | nullable — null si draft |
+| created_by | UUID FK users | |
+| created_at | TIMESTAMP | |
+| updated_at | TIMESTAMP | |
+
+Contrainte UNIQUE : `(organization_id, slug)`
+
+### `site_contacts`
+
+Contacts CRM-lite issus du formulaire de contact ou saisis manuellement.
+
+| Colonne | Type | Notes |
+|---|---|---|
+| id | UUID PK | |
+| organization_id | UUID FK organizations | |
+| name | VARCHAR(255) | |
+| email | VARCHAR(255) | nullable |
+| phone | VARCHAR(20) | nullable |
+| company | VARCHAR(255) | nullable |
+| notes | TEXT | nullable |
+| tags | JSONB DEFAULT '[]' | tableau de chaînes — étiquettes libres |
+| source | ENUM DEFAULT 'manual' | form / manual |
+| submission_id | UUID FK site_contact_submissions | nullable — soumission d'origine |
+| created_at | TIMESTAMP | |
+| updated_at | TIMESTAMP | |
+
+### `site_contact_submissions`
+
+Soumissions brutes du formulaire de contact du mini-site vitrine.
+
+| Colonne | Type | Notes |
+|---|---|---|
+| id | UUID PK | |
+| organization_id | UUID FK organizations | |
+| name | VARCHAR(255) | |
+| email | VARCHAR(255) | |
+| phone | VARCHAR(20) | nullable |
+| message | TEXT | |
+| data | JSONB | champs supplémentaires du formulaire (configurable via Puck) |
+| ip_address | INET | nullable |
+| submitted_at | TIMESTAMP | |
+| read_at | TIMESTAMP | nullable — marqué lu par un membre de l'org |
+
 ---
 
 ## Index
@@ -643,6 +885,27 @@ CREATE INDEX idx_memberships_user      ON organization_memberships(user_id);
 CREATE INDEX idx_memberships_org       ON organization_memberships(organization_id);
 CREATE UNIQUE INDEX idx_invoice_number ON invoices(organization_id, number);
 CREATE UNIQUE INDEX idx_quote_number   ON quotes(organization_id, number);
+-- Signature électronique
+CREATE INDEX idx_signature_requests_doc     ON signature_requests(document_type, document_id);
+CREATE INDEX idx_signature_requests_org     ON signature_requests(organization_id, status);
+CREATE INDEX idx_contracts_org              ON contracts(organization_id, status);
+-- Rapprochement bancaire
+CREATE INDEX idx_bank_transactions_account  ON bank_transactions(account_id, date DESC);
+CREATE INDEX idx_bank_transactions_status   ON bank_transactions(organization_id, status);
+CREATE UNIQUE INDEX idx_bank_tx_external_id ON bank_transactions(account_id, external_id) WHERE external_id IS NOT NULL;
+CREATE INDEX idx_bank_reconciliations_tx    ON bank_reconciliations(transaction_id);
+CREATE INDEX idx_bank_reconciliations_doc   ON bank_reconciliations(document_type, document_id);
+CREATE INDEX idx_payment_qr_codes_doc       ON payment_qr_codes(document_type, document_id);
+-- Clients / Fournisseurs — recherche INSEE
+CREATE INDEX idx_clients_siret              ON clients(siret) WHERE siret IS NOT NULL;
+CREATE INDEX idx_suppliers_siret            ON suppliers(siret) WHERE siret IS NOT NULL;
+-- Mini-site
+CREATE UNIQUE INDEX idx_org_site_slug       ON organizations(site_slug) WHERE site_slug IS NOT NULL;
+CREATE UNIQUE INDEX idx_org_site_domain     ON organizations(site_custom_domain) WHERE site_custom_domain IS NOT NULL;
+CREATE INDEX idx_site_contact_org           ON site_contact_submissions(organization_id, submitted_at DESC);
+CREATE UNIQUE INDEX idx_site_article_slug   ON site_articles(organization_id, slug);
+CREATE INDEX idx_site_articles_org_status   ON site_articles(organization_id, status, published_at DESC);
+CREATE INDEX idx_site_contacts_org          ON site_contacts(organization_id, created_at DESC);
 ```
 
 ## RLS (Row Level Security)

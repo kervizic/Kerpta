@@ -53,7 +53,7 @@ function ProviderIcon({ provider }: { provider: string }) {
     )
   }
   // Fallback icon générique
-  return <LogIn className="w-5 h-5 text-slate-400" />
+  return <LogIn className="w-5 h-5 text-gray-500" />
 }
 
 export default function LoginPage() {
@@ -91,7 +91,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center px-4">
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4">
       {/* Gradient de fond */}
       <div className="absolute inset-0 -z-10 overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-orange-600/20 rounded-full blur-3xl" />
@@ -102,10 +102,10 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-white tracking-tight">Kerpta</h1>
-          <p className="text-slate-400 text-sm mt-1">Connectez-vous à votre espace</p>
+          <p className="text-gray-500 text-sm mt-1">Connectez-vous à votre espace</p>
         </div>
 
-        <div className="bg-slate-900/50 border border-white/5 rounded-2xl p-6">
+        <div className="bg-white/80 border border-gray-200 rounded-2xl p-6">
           {loading && (
             <div className="flex justify-center py-8">
               <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
@@ -114,16 +114,16 @@ export default function LoginPage() {
 
           {!loading && error && (
             <div className="text-center py-4">
-              <p className="text-red-400 text-sm">{error}</p>
+              <p className="text-red-500 text-sm">{error}</p>
             </div>
           )}
 
           {!loading && !error && providers.length === 0 && (
             <div className="text-center py-4">
-              <p className="text-slate-400 text-sm">
+              <p className="text-gray-500 text-sm">
                 Aucun provider OAuth configuré.
               </p>
-              <p className="text-slate-500 text-xs mt-1">
+              <p className="text-gray-400 text-xs mt-1">
                 Configurez les providers dans le panneau d'administration.
               </p>
             </div>
@@ -131,14 +131,14 @@ export default function LoginPage() {
 
           {!loading && !error && providers.length > 0 && (
             <div className="space-y-3">
-              <p className="text-xs text-slate-500 text-center mb-4 uppercase tracking-wider">
+              <p className="text-xs text-gray-400 text-center mb-4 uppercase tracking-wider">
                 Choisissez votre méthode de connexion
               </p>
               {providers.map((provider) => (
                 <button
                   key={provider}
                   onClick={() => handleProviderClick(provider)}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 text-white text-sm font-medium transition-all"
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-200 hover:border-gray-300 text-white text-sm font-medium transition-all"
                 >
                   <ProviderIcon provider={provider} />
                   <span>Continuer avec {PROVIDER_LABELS[provider] ?? provider}</span>
@@ -152,7 +152,7 @@ export default function LoginPage() {
         <div className="mt-6 text-center">
           <button
             onClick={() => navigate('/')}
-            className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-300 transition"
+            className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-slate-300 transition"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             Retour au site
