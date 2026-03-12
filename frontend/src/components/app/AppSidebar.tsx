@@ -3,7 +3,7 @@
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
 import { useState, type ReactNode } from 'react'
-import { KeyRound, LogOut, Settings, ChevronDown, Plus } from 'lucide-react'
+import { KeyRound, LogOut, Settings, ChevronDown, ChevronUp, Plus, Check } from 'lucide-react'
 import { navigate } from '@/hooks/useRoute'
 import { useAuthStore, type OrgMembership } from '@/stores/authStore'
 
@@ -50,7 +50,8 @@ function OrgSelector({
   }
 
   return (
-    <div className="relative">
+    <div>
+      {/* Organisation active — bouton toggle */}
       <button
         onClick={() => setOpen((v) => !v)}
         className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-gray-100 transition"
@@ -72,57 +73,57 @@ function OrgSelector({
           </div>
           <div className="text-xs text-gray-400 capitalize">{active?.role ?? ''}</div>
         </div>
-        <ChevronDown
-          className={`w-4 h-4 text-gray-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
-        />
+        {open ? (
+          <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" />
+        ) : (
+          <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
+        )}
       </button>
 
+      {/* Liste inline — s'affiche dans le flux, pas de bulle */}
       {open && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg py-1 z-20">
-            {orgs.map((o) => (
-              <button
-                key={o.org_id}
-                onClick={() => {
-                  onSelect(o.org_id)
-                  setOpen(false)
-                }}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-gray-50 transition ${
-                  o.org_id === activeOrgId ? 'bg-orange-50/60' : ''
-                }`}
-              >
-                {o.org_logo_url ? (
-                  <img
-                    src={o.org_logo_url}
-                    alt={o.org_name}
-                    className="w-6 h-6 rounded-md object-cover bg-gray-100 shrink-0"
-                  />
-                ) : (
-                  <div className="w-6 h-6 rounded-md bg-orange-50 border border-orange-200 flex items-center justify-center text-orange-600 text-xs font-bold shrink-0">
-                    {initials(o.org_name)}
-                  </div>
-                )}
-                <span className="text-sm text-gray-800 truncate flex-1">{o.org_name}</span>
-                {o.org_id === activeOrgId && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0" />
-                )}
-              </button>
-            ))}
-            <div className="border-t border-gray-100 mt-1 pt-1">
-              <button
-                onClick={() => {
-                  setOpen(false)
-                  navigate('/app/onboarding')
-                }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-500 hover:text-gray-800 hover:bg-gray-50 transition"
-              >
-                <Plus className="w-4 h-4" />
-                Rejoindre une autre structure
-              </button>
-            </div>
-          </div>
-        </>
+        <div className="mt-1 border-t border-gray-100 pt-1">
+          {orgs.map((o) => (
+            <button
+              key={o.org_id}
+              onClick={() => {
+                onSelect(o.org_id)
+                setOpen(false)
+              }}
+              className={`w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-left transition ${
+                o.org_id === activeOrgId ? 'bg-orange-50' : 'hover:bg-gray-50'
+              }`}
+            >
+              {o.org_logo_url ? (
+                <img
+                  src={o.org_logo_url}
+                  alt={o.org_name}
+                  className="w-6 h-6 rounded-md object-cover bg-gray-100 shrink-0"
+                />
+              ) : (
+                <div className="w-6 h-6 rounded-md bg-orange-50 border border-orange-200 flex items-center justify-center text-orange-600 text-xs font-bold shrink-0">
+                  {initials(o.org_name)}
+                </div>
+              )}
+              <span className={`text-sm truncate flex-1 ${o.org_id === activeOrgId ? 'font-medium text-orange-700' : 'text-gray-700'}`}>
+                {o.org_name}
+              </span>
+              {o.org_id === activeOrgId && (
+                <Check className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+              )}
+            </button>
+          ))}
+          <button
+            onClick={() => {
+              setOpen(false)
+              navigate('/app/onboarding')
+            }}
+            className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-sm text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition mt-0.5"
+          >
+            <Plus className="w-4 h-4" />
+            Ajouter une structure
+          </button>
+        </div>
       )}
     </div>
   )
