@@ -21,6 +21,8 @@ apiClient.interceptors.request.use((config) => {
 });
 
 // Intercepteur — redirige vers /login sur 401
+// Important : on vide le token AVANT de rediriger pour éviter la boucle
+// login → /app → 401 → /login → token trouvé → /app → …
 apiClient.interceptors.response.use(
   (response) => response,
   (error: unknown) => {
@@ -28,6 +30,8 @@ apiClient.interceptors.response.use(
       axios.isAxiosError(error) &&
       error.response?.status === 401
     ) {
+      localStorage.removeItem("supabase_access_token");
+      localStorage.removeItem("kerpta_user");
       window.location.href = "/login";
     }
     return Promise.reject(error);

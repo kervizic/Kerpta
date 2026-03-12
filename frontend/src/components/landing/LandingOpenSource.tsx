@@ -45,29 +45,29 @@ function CodeBlock({ code }: { code: string }) {
   }
 
   return (
-    <div className="relative mt-3 rounded-xl bg-slate-900 border border-slate-700/50 overflow-hidden group">
+    <div className="relative mt-3 rounded-xl bg-gray-50 border border-gray-200 dark:bg-slate-900 dark:border-slate-700/50 overflow-hidden group">
       {/* Barre de titre terminale */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-white/5 bg-white/[0.02]">
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-200 bg-gray-100 dark:border-white/5 dark:bg-white/[0.02]">
         <div className="flex gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-slate-700" />
-          <span className="w-2.5 h-2.5 rounded-full bg-slate-700" />
-          <span className="w-2.5 h-2.5 rounded-full bg-slate-700" />
+          <span className="w-2.5 h-2.5 rounded-full bg-gray-300 dark:bg-slate-700" />
+          <span className="w-2.5 h-2.5 rounded-full bg-gray-300 dark:bg-slate-700" />
+          <span className="w-2.5 h-2.5 rounded-full bg-gray-300 dark:bg-slate-700" />
         </div>
-        <Terminal className="w-3.5 h-3.5 text-slate-500 ml-1" />
-        <span className="text-xs text-slate-500 font-mono">bash</span>
+        <Terminal className="w-3.5 h-3.5 text-gray-400 dark:text-slate-500 ml-1" />
+        <span className="text-xs text-gray-400 dark:text-slate-500 font-mono">bash</span>
       </div>
 
       {/* Code */}
-      <pre className="px-5 py-4 text-sm font-mono text-slate-300 overflow-x-auto leading-relaxed whitespace-pre">
+      <pre className="px-5 py-4 text-sm font-mono text-gray-700 dark:text-slate-300 overflow-x-auto leading-relaxed whitespace-pre">
         {code.split('\n').map((line, i) => (
           <div key={i} className="flex">
             {line.startsWith('#') ? (
-              <span className="text-slate-500">{line}</span>
+              <span className="text-gray-400 dark:text-slate-500">{line}</span>
             ) : line === '' ? (
               <span>&nbsp;</span>
             ) : (
               <>
-                <span className="text-orange-400 select-none mr-2">$</span>
+                <span className="text-orange-500 dark:text-orange-400 select-none mr-2">$</span>
                 <span>{line}</span>
               </>
             )}
@@ -78,13 +78,13 @@ function CodeBlock({ code }: { code: string }) {
       {/* Bouton copier */}
       <button
         onClick={handleCopy}
-        className="absolute top-2 right-2 p-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-all opacity-0 group-hover:opacity-100"
+        className="absolute top-2 right-2 p-1.5 rounded-lg bg-gray-200/70 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10 transition-all opacity-0 group-hover:opacity-100"
         title="Copier"
       >
         {copied ? (
-          <Check className="w-3.5 h-3.5 text-emerald-400" />
+          <Check className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
         ) : (
-          <Copy className="w-3.5 h-3.5 text-slate-400" />
+          <Copy className="w-3.5 h-3.5 text-gray-500 dark:text-slate-400" />
         )}
       </button>
     </div>

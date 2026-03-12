@@ -281,7 +281,6 @@ export default function ConfigApiKeysPage() {
   const [oauthSaving, setOauthSaving] = useState(false)
   const [oauthStatus, setOauthStatus] = useState<{ ok: boolean; msg: string } | null>(null)
   const [restarting, setRestarting] = useState(false)
-  const [restartCountdown, setRestartCountdown] = useState(0)
 
   // État local INSEE
   const [inseeApiKey, setInseeApiKey] = useState('')
@@ -320,20 +319,8 @@ export default function ConfigApiKeysPage() {
     try {
       await apiClient.put('/config/oauth', { providers })
       setOauthStatus({ ok: true, msg: 'Providers enregistrés' })
-      // Compte à rebours de 10 secondes pendant le redémarrage de GoTrue
-      const DURATION = 10
       setRestarting(true)
-      setRestartCountdown(DURATION)
-      const timer = setInterval(() => {
-        setRestartCountdown((n) => {
-          if (n <= 1) {
-            clearInterval(timer)
-            setRestarting(false)
-            return 0
-          }
-          return n - 1
-        })
-      }, 1000)
+      setTimeout(() => setRestarting(false), 10000)
     } catch {
       setOauthStatus({ ok: false, msg: "Erreur lors de l'enregistrement" })
     } finally {
@@ -446,26 +433,13 @@ export default function ConfigApiKeysPage() {
             </span>
           </div>
 
-          {/* Bannière de compte à rebours post-sauvegarde */}
+          {/* Bannière post-sauvegarde — redémarrage GoTrue en cours */}
           {restarting && (
             <div className="flex items-center gap-3 rounded-xl bg-orange-50 border border-orange-300 px-4 py-3 mb-4">
               <RefreshCw className="w-4 h-4 text-orange-500 animate-spin shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-orange-800">
-                  GoTrue redémarre — connexion temporairement indisponible
-                </p>
-                <p className="text-xs text-orange-600 mt-0.5">
-                  Disponible dans environ{' '}
-                  <strong>{restartCountdown} seconde{restartCountdown > 1 ? 's' : ''}</strong>
-                </p>
-              </div>
-              {/* Barre de progression */}
-              <div className="w-16 h-1.5 rounded-full bg-orange-200 overflow-hidden shrink-0">
-                <div
-                  className="h-full bg-orange-500 rounded-full transition-all duration-1000"
-                  style={{ width: `${(restartCountdown / 10) * 100}%` }}
-                />
-              </div>
+              <p className="text-sm font-semibold text-orange-800">
+                GoTrue redémarre — la connexion est temporairement indisponible (~10 s)
+              </p>
             </div>
           )}
 
