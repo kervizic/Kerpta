@@ -16,7 +16,7 @@ const COLOR_MAP: Record<string, { bg: string; text: string; ring: string }> = {
   orange:  { bg: 'bg-orange-500/10',  text: 'text-orange-400',  ring: 'ring-orange-500/20' },
   pink:    { bg: 'bg-pink-500/10',    text: 'text-pink-400',    ring: 'ring-pink-500/20' },
   cyan:    { bg: 'bg-cyan-500/10',    text: 'text-cyan-400',    ring: 'ring-cyan-500/20' },
-  orange:  { bg: 'bg-orange-500/10',  text: 'text-orange-400',  ring: 'ring-orange-500/20' },
+  purple:  { bg: 'bg-purple-500/10',  text: 'text-purple-400',  ring: 'ring-purple-500/20' },
   slate:   { bg: 'bg-slate-500/10',   text: 'text-slate-400',   ring: 'ring-slate-500/20' },
 }
 
