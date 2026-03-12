@@ -6,7 +6,7 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class OrgCreateRequest(BaseModel):
@@ -99,8 +99,25 @@ class OrgDetailOut(BaseModel):
     capital: str | None
     ape_code: str | None
     billing_siret: str | None
+    # True si un logo est stocké dans organization_logos
+    has_logo: bool = False
     # Établissements récupérés via l'API INSEE (non stockés en BDD)
     etablissements: list[EtablissementOut] = []
+
+
+class OrgLogoOut(BaseModel):
+    """Logo d'une organisation (données base64 complètes)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    organization_id: str
+    # Data URI complète : "data:image/png;base64,..."
+    logo_b64: str
+    original_name: str | None = None
+    mime_type: str | None = None
+    size_bytes: int | None = None
+    width_px: int | None = None
+    height_px: int | None = None
 
 
 class OrgUpdateRequest(BaseModel):

@@ -5,7 +5,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Numeric, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, SmallInteger, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -68,6 +68,9 @@ class Organization(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     module_esignature_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
 
     # Relations
+    logo: Mapped["OrganizationLogo | None"] = relationship(
+        back_populates="organization", uselist=False, cascade="all, delete-orphan"
+    )
     memberships: Mapped[list["OrganizationMembership"]] = relationship(
         back_populates="organization", cascade="all, delete-orphan"
     )
@@ -98,3 +101,34 @@ class Organization(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     join_requests: Mapped[list["OrganizationJoinRequest"]] = relationship(
         back_populates="organization", cascade="all, delete-orphan"
     )
+
+
+class OrganizationLogo(Base, TimestampMixin):
+    """Logo d'une organisation — table séparée pour éviter de charger les données binaires
+    lors des requêtes courantes sur organizations."""
+
+    __tablename__ = "organization_logos"
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        primary_key=True,
+        nullable=False,
+    )
+    # Données du logo encodées en base64 (PNG, max ~100 KB après redimensionnement)
+    logo_b64: Mapped[str] = mapped_column(Text, nullable=False)
+    original_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    mime_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    # Poids en octets après traitement Pillow (info)
+    size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Dimensions réelles stockées (utile pour le template de facture)
+    width_px: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    height_px: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=__import__("sqlalchemy", fromlist=["func"]).func.now(),
+        onupdate=__import__("sqlalchemy", fromlist=["func"]).func.now(),
+        nullable=False,
+    )
+
+    organization: Mapped["Organization"] = relationship(back_populates="logo")

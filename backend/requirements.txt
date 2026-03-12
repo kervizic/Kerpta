@@ -34,6 +34,9 @@ resend==2.5.1
 factur-x==3.9
 weasyprint==62.3
 
+# Traitement d'images (redimensionnement logos)
+Pillow==11.1.0
+
 # OCR (Mindee)
 mindee==4.9.0
 

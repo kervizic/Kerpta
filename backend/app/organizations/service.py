@@ -10,17 +10,30 @@
 - Gestion des demandes de rattachement
 """
 
+import base64
+import io
 import json
 import re
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
+from PIL import Image
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .schemas import JoinRequestCreate, OrgCreateRequest
+
+# Taille max du fichier uploadé (5 MB)
+_MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+# Taille max du logo après traitement Pillow (100 KB en bytes bruts)
+_MAX_LOGO_BYTES = 100 * 1024
+# Dimensions max du logo stocké
+_LOGO_MAX_WIDTH = 400
+_LOGO_MAX_HEIGHT = 400
+# Formats acceptés
+_ACCEPTED_MIME = {"image/png", "image/jpeg", "image/jpg", "image/webp"}
 
 
 async def get_user_memberships(user_id: uuid.UUID, db: AsyncSession) -> list[dict]:
@@ -233,7 +246,11 @@ async def get_organization(
                 o.rcs_city,
                 o.capital::text   AS capital,
                 o.ape_code,
-                o.billing_siret
+                o.billing_siret,
+                (EXISTS (
+                    SELECT 1 FROM organization_logos ol
+                    WHERE ol.organization_id = o.id
+                )) AS has_logo
             FROM organizations o
             JOIN organization_memberships om
               ON om.organization_id = o.id AND om.user_id = :uid
@@ -245,6 +262,180 @@ async def get_organization(
     if row is None:
         raise HTTPException(404, "Organisation introuvable ou accès refusé")
     return dict(row._mapping)
+
+
+async def upload_logo(
+    org_id: str, user_id: uuid.UUID, file: UploadFile, db: AsyncSession
+) -> dict:
+    """Traite et stocke le logo d'une organisation (owner/admin uniquement).
+
+    Pipeline :
+      1. Vérification du rôle
+      2. Lecture du fichier (max 5 MB)
+      3. Pillow : thumbnail(400×400) + convert RGBA→PNG
+      4. Vérification poids < 100 KB
+      5. UPSERT dans organization_logos
+    """
+    # Vérifier le rôle
+    membership = await db.execute(
+        text("""
+            SELECT role FROM organization_memberships
+            WHERE user_id = :uid AND organization_id = :oid
+        """),
+        {"uid": str(user_id), "oid": org_id},
+    )
+    m = membership.fetchone()
+    if m is None:
+        raise HTTPException(403, "Vous n'êtes pas membre de cette organisation")
+    if m[0] not in ("owner", "admin"):
+        raise HTTPException(403, "Seuls les owners et admins peuvent modifier le logo")
+
+    # Vérifier le type MIME
+    content_type = file.content_type or ""
+    if content_type not in _ACCEPTED_MIME:
+        raise HTTPException(
+            422,
+            f"Format non supporté ({content_type}). "
+            "Formats acceptés : PNG, JPG, WebP",
+        )
+
+    # Lire le fichier
+    raw = await file.read()
+    if len(raw) > _MAX_UPLOAD_BYTES:
+        raise HTTPException(413, "Le fichier est trop volumineux (max 5 MB)")
+
+    # Traitement Pillow
+    try:
+        img = Image.open(io.BytesIO(raw))
+        img = img.convert("RGBA")
+        img.thumbnail((_LOGO_MAX_WIDTH, _LOGO_MAX_HEIGHT), Image.LANCZOS)
+
+        output = io.BytesIO()
+        img.save(output, format="PNG", optimize=True)
+        png_bytes = output.getvalue()
+    except Exception as exc:
+        raise HTTPException(422, f"Image invalide ou corrompue : {exc}") from exc
+
+    # Vérifier le poids après traitement
+    if len(png_bytes) > _MAX_LOGO_BYTES:
+        raise HTTPException(
+            422,
+            f"Le logo traité est trop lourd ({len(png_bytes) // 1024} KB). "
+            "Maximum : 100 KB. Simplifiez l'image ou réduisez sa résolution.",
+        )
+
+    width, height = img.size
+    b64_data = base64.b64encode(png_bytes).decode("utf-8")
+    # Data URI complète pour utilisation directe dans le HTML des factures
+    logo_b64 = f"data:image/png;base64,{b64_data}"
+
+    # UPSERT (INSERT ou UPDATE si déjà présent)
+    existing = await db.execute(
+        text("SELECT organization_id FROM organization_logos WHERE organization_id = :oid"),
+        {"oid": org_id},
+    )
+    if existing.fetchone():
+        await db.execute(
+            text("""
+                UPDATE organization_logos
+                SET logo_b64 = :b64, original_name = :name, mime_type = 'image/png',
+                    size_bytes = :size, width_px = :w, height_px = :h,
+                    updated_at = now()
+                WHERE organization_id = :oid
+            """),
+            {
+                "b64": logo_b64,
+                "name": file.filename,
+                "size": len(png_bytes),
+                "w": width,
+                "h": height,
+                "oid": org_id,
+            },
+        )
+    else:
+        await db.execute(
+            text("""
+                INSERT INTO organization_logos
+                    (organization_id, logo_b64, original_name, mime_type,
+                     size_bytes, width_px, height_px, created_at, updated_at)
+                VALUES
+                    (:oid, :b64, :name, 'image/png',
+                     :size, :w, :h, now(), now())
+            """),
+            {
+                "oid": org_id,
+                "b64": logo_b64,
+                "name": file.filename,
+                "size": len(png_bytes),
+                "w": width,
+                "h": height,
+            },
+        )
+
+    await db.commit()
+    return {
+        "organization_id": org_id,
+        "logo_b64": logo_b64,
+        "original_name": file.filename,
+        "mime_type": "image/png",
+        "size_bytes": len(png_bytes),
+        "width_px": width,
+        "height_px": height,
+    }
+
+
+async def get_logo(org_id: str, user_id: uuid.UUID, db: AsyncSession) -> dict:
+    """Retourne le logo d'une organisation (réservé aux membres)."""
+    # Vérifier membership
+    membership = await db.execute(
+        text("""
+            SELECT 1 FROM organization_memberships
+            WHERE user_id = :uid AND organization_id = :oid
+        """),
+        {"uid": str(user_id), "oid": org_id},
+    )
+    if membership.fetchone() is None:
+        raise HTTPException(403, "Vous n'êtes pas membre de cette organisation")
+
+    result = await db.execute(
+        text("""
+            SELECT organization_id::text, logo_b64, original_name,
+                   mime_type, size_bytes, width_px, height_px
+            FROM organization_logos
+            WHERE organization_id = :oid
+        """),
+        {"oid": org_id},
+    )
+    row = result.fetchone()
+    if row is None:
+        raise HTTPException(404, "Aucun logo pour cette organisation")
+    return dict(row._mapping)
+
+
+async def delete_logo(org_id: str, user_id: uuid.UUID, db: AsyncSession) -> dict:
+    """Supprime le logo d'une organisation (owner/admin uniquement)."""
+    membership = await db.execute(
+        text("""
+            SELECT role FROM organization_memberships
+            WHERE user_id = :uid AND organization_id = :oid
+        """),
+        {"uid": str(user_id), "oid": org_id},
+    )
+    m = membership.fetchone()
+    if m is None:
+        raise HTTPException(403, "Vous n'êtes pas membre de cette organisation")
+    if m[0] not in ("owner", "admin"):
+        raise HTTPException(403, "Seuls les owners et admins peuvent supprimer le logo")
+
+    result = await db.execute(
+        text("DELETE FROM organization_logos WHERE organization_id = :oid"),
+        {"oid": org_id},
+    )
+    await db.commit()
+
+    if result.rowcount == 0:
+        raise HTTPException(404, "Aucun logo à supprimer")
+    return {"status": "deleted"}
 
 
 async def update_organization(

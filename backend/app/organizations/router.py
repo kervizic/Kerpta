@@ -29,7 +29,7 @@ Authentification : Bearer JWT requis sur toutes les routes.
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, Query, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -43,6 +43,7 @@ from .schemas import (
     OrgCreateOut,
     OrgCreateRequest,
     OrgDetailOut,
+    OrgLogoOut,
     OrgMembershipOut,
     OrgSearchResult,
     OrgUpdateRequest,
@@ -107,6 +108,42 @@ async def update_organization(
     """Met à jour les champs modifiables d'une organisation (owner/admin)."""
     data = body.model_dump(exclude_none=True)
     return await service.update_organization(org_id, user_id, data, db)
+
+
+@router.post("/{org_id}/logo", response_model=OrgLogoOut, status_code=201)
+async def upload_logo(
+    org_id: str,
+    file: UploadFile = File(..., description="Logo PNG/JPG/WebP — max 5 MB"),
+    user_id: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> OrgLogoOut:
+    """Uploade et traite le logo d'une organisation.
+    Redimensionne automatiquement à 400×400 max, convertit en PNG, rejette si > 100 KB.
+    Requiert le rôle owner ou admin.
+    """
+    result = await service.upload_logo(org_id, user_id, file, db)
+    return OrgLogoOut(**result)
+
+
+@router.get("/{org_id}/logo", response_model=OrgLogoOut)
+async def get_logo(
+    org_id: str,
+    user_id: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> OrgLogoOut:
+    """Retourne le logo d'une organisation (membres uniquement)."""
+    result = await service.get_logo(org_id, user_id, db)
+    return OrgLogoOut(**result)
+
+
+@router.delete("/{org_id}/logo", response_model=dict)
+async def delete_logo(
+    org_id: str,
+    user_id: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Supprime le logo d'une organisation (owner/admin uniquement)."""
+    return await service.delete_logo(org_id, user_id, db)
 
 
 @router.post("/{org_id}/join-requests", response_model=JoinRequestOut, status_code=201)

@@ -1,10 +1,22 @@
-// Kerpta — Page de configuration de la structure (siège, établissements, facturation)
+// Kerpta — Page de configuration de la structure (siège, établissements, facturation, logo)
 // Copyright (C) 2026 Emmanuel Kervizic
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import axios from 'axios'
-import { Building, MapPin, Phone, Mail, Info, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
+import {
+  Building,
+  MapPin,
+  Phone,
+  Mail,
+  Info,
+  CheckCircle,
+  AlertCircle,
+  Loader2,
+  ImagePlus,
+  Trash2,
+  Upload,
+} from 'lucide-react'
 import { apiClient } from '@/lib/api'
 import { useAuthStore } from '@/stores/authStore'
 
@@ -43,6 +55,7 @@ interface OrgDetail {
   capital?: string | null
   ape_code?: string | null
   billing_siret?: string | null
+  has_logo?: boolean
   etablissements?: EtablissementOut[]
 }
 
@@ -52,6 +65,16 @@ interface CompanyDetails {
   siege?: EtablissementOut | null
   etablissements_actifs?: EtablissementOut[]
   nombre_etablissements_actifs?: number
+}
+
+interface OrgLogoOut {
+  organization_id: string
+  logo_b64: string
+  original_name?: string | null
+  mime_type?: string | null
+  size_bytes?: number | null
+  width_px?: number | null
+  height_px?: number | null
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -77,6 +100,11 @@ function httpError(err: unknown, fallback: string): string {
   return fallback
 }
 
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} o`
+  return `${Math.round(bytes / 1024)} KB`
+}
+
 // ── Composant principal ───────────────────────────────────────────────────────
 
 export default function OrgSettingsPage() {
@@ -100,6 +128,16 @@ export default function OrgSettingsPage() {
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
+  // Logo
+  const [currentLogo, setCurrentLogo] = useState<OrgLogoOut | null>(null)
+  const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoUploading, setLogoUploading] = useState(false)
+  const [logoDeleting, setLogoDeleting] = useState(false)
+  const [logoError, setLogoError] = useState<string | null>(null)
+  const [logoSuccess, setLogoSuccess] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   // Chargement initial
   useEffect(() => {
     if (!activeOrg) return
@@ -115,6 +153,18 @@ export default function OrgSettingsPage() {
         setVatRegime(data.vat_regime ?? '')
         setAccountingRegime(data.accounting_regime ?? '')
         setBillingSiret(data.billing_siret ?? '')
+
+        // Charger le logo si présent
+        if (data.has_logo) {
+          try {
+            const { data: logo } = await apiClient.get<OrgLogoOut>(
+              `/organizations/${activeOrg!.org_id}/logo`
+            )
+            setCurrentLogo(logo)
+          } catch {
+            // Logo introuvable — pas critique
+          }
+        }
 
         // Charger les établissements depuis l'API INSEE si on a un SIREN
         if (data.org_siren) {
@@ -138,6 +188,82 @@ export default function OrgSettingsPage() {
 
     void load()
   }, [activeOrg])
+
+  // Sélection d'un fichier logo (preview local immédiate)
+  function handleLogoFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setLogoError(null)
+    setLogoSuccess(false)
+
+    // Vérif côté client (5 MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      setLogoError('Le fichier est trop volumineux (max 5 MB)')
+      return
+    }
+
+    const accepted = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp']
+    if (!accepted.includes(file.type)) {
+      setLogoError('Format non supporté. Formats acceptés : PNG, JPG, WebP')
+      return
+    }
+
+    setLogoFile(file)
+    // Aperçu local immédiat
+    const reader = new FileReader()
+    reader.onload = (ev) => setLogoPreview(ev.target?.result as string)
+    reader.readAsDataURL(file)
+  }
+
+  async function handleLogoUpload() {
+    if (!org || !logoFile) return
+    setLogoUploading(true)
+    setLogoError(null)
+    setLogoSuccess(false)
+    try {
+      const formData = new FormData()
+      formData.append('file', logoFile)
+      const { data } = await apiClient.post<OrgLogoOut>(
+        `/organizations/${org.org_id}/logo`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      )
+      setCurrentLogo(data)
+      setLogoPreview(null)
+      setLogoFile(null)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      setOrg((prev) => prev ? { ...prev, has_logo: true } : prev)
+      setLogoSuccess(true)
+    } catch (err) {
+      setLogoError(httpError(err, 'Erreur lors de l\'upload du logo'))
+    } finally {
+      setLogoUploading(false)
+    }
+  }
+
+  function handleLogoCancelPreview() {
+    setLogoFile(null)
+    setLogoPreview(null)
+    setLogoError(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  async function handleLogoDelete() {
+    if (!org) return
+    setLogoDeleting(true)
+    setLogoError(null)
+    setLogoSuccess(false)
+    try {
+      await apiClient.delete(`/organizations/${org.org_id}/logo`)
+      setCurrentLogo(null)
+      setOrg((prev) => prev ? { ...prev, has_logo: false } : prev)
+    } catch (err) {
+      setLogoError(httpError(err, 'Erreur lors de la suppression du logo'))
+    } finally {
+      setLogoDeleting(false)
+    }
+  }
 
   async function handleSave() {
     if (!org) return
@@ -186,6 +312,8 @@ export default function OrgSettingsPage() {
   }
 
   const addressStr = org.address ? formatAddress(org.address as AddressOut) : null
+  // Image à afficher dans la section logo : preview local en priorité, sinon logo actuel
+  const displayedLogoSrc = logoPreview ?? currentLogo?.logo_b64 ?? null
 
   return (
     <div className="flex-1 overflow-y-auto">
@@ -201,6 +329,126 @@ export default function OrgSettingsPage() {
             Informations légales et paramètres de facturation
           </p>
         </div>
+
+        {/* Logo */}
+        <section className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+            <ImagePlus className="w-4 h-4 text-gray-400" />
+            Logo
+          </h2>
+          <p className="text-xs text-gray-400">
+            Apparaît en haut de vos devis et factures. Format PNG, JPG ou WebP — max 5 MB.
+            Le logo sera automatiquement redimensionné à 400×400 px maximum.
+          </p>
+
+          <div className="flex items-start gap-5">
+            {/* Aperçu */}
+            <div className={`relative w-28 h-28 rounded-xl border-2 flex items-center justify-center shrink-0 transition ${
+              displayedLogoSrc
+                ? 'border-orange-300 bg-orange-50'
+                : 'border-dashed border-gray-200 bg-gray-50'
+            }`}>
+              {displayedLogoSrc ? (
+                <img
+                  src={displayedLogoSrc}
+                  alt="Logo"
+                  className="max-w-full max-h-full object-contain rounded-lg"
+                />
+              ) : (
+                <ImagePlus className="w-8 h-8 text-gray-300" />
+              )}
+              {logoPreview && (
+                <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                  Aperçu
+                </span>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex-1 space-y-3">
+              {/* Infos logo actuel */}
+              {currentLogo && !logoPreview && (
+                <div className="text-xs text-gray-400 space-y-0.5">
+                  {currentLogo.original_name && (
+                    <p className="truncate max-w-[200px]">{currentLogo.original_name}</p>
+                  )}
+                  {currentLogo.size_bytes && (
+                    <p>{formatBytes(currentLogo.size_bytes)}{currentLogo.width_px && currentLogo.height_px ? ` · ${currentLogo.width_px}×${currentLogo.height_px} px` : ''}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Input fichier (caché) */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                onChange={handleLogoFileChange}
+              />
+
+              {/* Boutons selon l'état */}
+              {!logoPreview ? (
+                <div className="flex gap-2 flex-wrap">
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:border-orange-300 hover:text-orange-600 transition"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    {currentLogo ? 'Changer le logo' : 'Choisir un logo'}
+                  </button>
+                  {currentLogo && (
+                    <button
+                      onClick={handleLogoDelete}
+                      disabled={logoDeleting}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-100 text-red-500 rounded-lg hover:bg-red-50 hover:border-red-200 transition disabled:opacity-50"
+                    >
+                      {logoDeleting
+                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        : <Trash2 className="w-3.5 h-3.5" />
+                      }
+                      Supprimer
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="flex gap-2 flex-wrap">
+                  <button
+                    onClick={handleLogoUpload}
+                    disabled={logoUploading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-orange-600 hover:bg-orange-500 text-white rounded-lg transition disabled:opacity-60"
+                  >
+                    {logoUploading
+                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      : <Upload className="w-3.5 h-3.5" />
+                    }
+                    Enregistrer ce logo
+                  </button>
+                  <button
+                    onClick={handleLogoCancelPreview}
+                    className="px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 transition"
+                  >
+                    Annuler
+                  </button>
+                </div>
+              )}
+
+              {/* Messages retour logo */}
+              {logoError && (
+                <p className="flex items-center gap-1 text-xs text-red-500">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  {logoError}
+                </p>
+              )}
+              {logoSuccess && (
+                <p className="flex items-center gap-1 text-xs text-green-600">
+                  <CheckCircle className="w-3.5 h-3.5 shrink-0" />
+                  Logo enregistré avec succès
+                </p>
+              )}
+            </div>
+          </div>
+        </section>
 
         {/* Informations légales (lecture seule) */}
         <section className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
