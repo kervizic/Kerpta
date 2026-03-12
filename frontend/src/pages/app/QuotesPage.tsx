@@ -3,7 +3,7 @@
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, Search, Loader2, ArrowLeft, Send, Check, X, Copy } from 'lucide-react'
+import { Loader2, ArrowLeft, Send, Check, X, Copy } from 'lucide-react'
 import { navigate } from '@/hooks/useRoute'
 import { orgGet, orgPost } from '@/lib/orgApi'
 
@@ -72,7 +72,6 @@ function QuotesList() {
   const [quotes, setQuotes] = useState<Quote[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
-  const [search, setSearch] = useState('')
   const [filterType, setFilterType] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const [loading, setLoading] = useState(true)

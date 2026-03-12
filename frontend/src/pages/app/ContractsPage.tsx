@@ -3,7 +3,7 @@
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, Loader2, ArrowLeft, FileText, BarChart3 } from 'lucide-react'
+import { Plus, Loader2, ArrowLeft, BarChart3 } from 'lucide-react'
 import { navigate } from '@/hooks/useRoute'
 import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
 
@@ -203,7 +203,7 @@ function ContractDetailView({ contractId }: { contractId: string }) {
     if (!sliceLabel.trim()) return
     setCreatingSlice(true)
     try {
-      const result = await orgPost<{ id: string }>(`/contracts/${contractId}/situations`, { period_label: sliceLabel })
+      await orgPost<{ id: string }>(`/contracts/${contractId}/situations`, { period_label: sliceLabel })
       setSliceLabel('')
       // Refresh
       const [s] = await Promise.all([orgGet<Situation[]>(`/contracts/${contractId}/situations`)])

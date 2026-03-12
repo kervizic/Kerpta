@@ -5,7 +5,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Plus, Search, UserRound, ArrowLeft, Loader2 } from 'lucide-react'
 import { navigate } from '@/hooks/useRoute'
-import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
+import { orgGet, orgPost } from '@/lib/orgApi'
 import axios from 'axios'
 
 interface Client {
