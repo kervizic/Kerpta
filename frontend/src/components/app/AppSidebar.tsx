@@ -35,6 +35,7 @@ import {
   Scale,
   Percent,
   CreditCard,
+  HardDrive,
 } from 'lucide-react'
 import { navigate } from '@/hooks/useRoute'
 import { useAuthStore, type OrgMembership } from '@/stores/authStore'
@@ -100,6 +101,11 @@ const ORG_CONFIG_ITEMS: NavItem[] = [
     label: 'Facturation',
     href: '/app/config/facturation',
     icon: <CreditCard className="w-4 h-4" />,
+  },
+  {
+    label: 'Stockage',
+    href: '/app/config/stockage',
+    icon: <HardDrive className="w-4 h-4" />,
   },
   {
     label: 'Modules',

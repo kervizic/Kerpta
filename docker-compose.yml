@@ -69,6 +69,7 @@ services:
       API_EXTERNAL_URL:        ${AUTH_BASE_URL:-http://localhost:9999}
       GOTRUE_API_EXTERNAL_URL: ${AUTH_BASE_URL:-http://localhost:9999}
       GOTRUE_JWT_SECRET:       ${SUPABASE_JWT_SECRET:-changeme_dev_only_32chars_minimum}
+      GOTRUE_JWT_EXP:          "604800"   # 7 jours (en secondes)
       # Restreint les redirects OAuth à notre domaine uniquement
       GOTRUE_URI_ALLOW_LIST:   ${APP_BASE_URL:-http://localhost:3000}/**
       # false = nouveaux utilisateurs autorisés via OAuth
