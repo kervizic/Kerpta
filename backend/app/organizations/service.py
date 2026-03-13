@@ -258,7 +258,7 @@ async def get_organization(
                 o.ape_code,
                 o.billing_siret,
                 o.website,
-                o.company_info_manual,
+                o.manual_fields,
                 (EXISTS (
                     SELECT 1 FROM organization_logos ol
                     WHERE ol.organization_id = o.id
@@ -498,37 +498,42 @@ async def update_organization(
                 "il ne peut pas être utilisé pour la facturation",
             )
 
-    # Champs toujours éditables vs uniquement en mode manuel
+    # Champs toujours éditables (sans restriction)
     always_allowed = {
         "email", "phone", "website", "vat_regime", "vat_exigibility",
-        "accounting_regime", "billing_siret", "logo_url", "company_info_manual",
+        "accounting_regime", "billing_siret", "logo_url", "manual_fields",
     }
-    manual_only = {
-        "name", "legal_form", "siret", "siren", "vat_number",
-        "ape_code", "rcs_city", "capital", "address",
-    }
+    # Champs synchronisables — éditables uniquement si présents dans manual_fields
+    syncable_fields = {"name", "legal_form", "siren", "siret", "vat_number", "ape_code", "address"}
+    # Champs toujours manuels (absents de l'API data.gouv) — toujours éditables
+    always_manual = {"capital", "rcs_city"}
 
-    # Vérifier le guard mode manuel pour les champs protégés
-    manual_fields_sent = {k for k in data if k in manual_only and data[k] is not None}
-    if manual_fields_sent:
-        # Le mode manuel doit être activé : soit déjà en BDD, soit dans cette requête
-        is_manual = data.get("company_info_manual")
-        if is_manual is not True:
-            # Vérifier l'état actuel en BDD
+    # Vérifier le guard par champ pour les champs synchronisables
+    syncable_sent = {k for k in data if k in syncable_fields and data[k] is not None}
+    if syncable_sent:
+        # Déterminer la liste des champs manuels :
+        # soit celle envoyée dans cette requête, soit celle en BDD
+        current_manual = data.get("manual_fields")
+        if current_manual is None:
             org_row = await db.execute(
-                text("SELECT company_info_manual FROM organizations WHERE id = :oid"),
+                text("SELECT manual_fields FROM organizations WHERE id = :oid"),
                 {"oid": org_id},
             )
             org_state = org_row.fetchone()
-            if org_state is None or not org_state[0]:
-                raise HTTPException(
-                    422,
-                    "Les informations légales ne sont modifiables qu'en mode manuel. "
-                    "Activez le mode manuel (company_info_manual) avant de modifier ces champs.",
-                )
+            current_manual = (org_state[0] if org_state else []) or []
+
+        # Bloquer les champs synchronisables qui ne sont pas en mode manuel
+        blocked = syncable_sent - set(current_manual)
+        if blocked:
+            raise HTTPException(
+                422,
+                f"Les champs suivants ne sont modifiables qu'en mode manuel : "
+                f"{', '.join(sorted(blocked))}. "
+                "Passez-les en mode manuel avant de les modifier.",
+            )
 
     # Construire la requête UPDATE dynamiquement
-    allowed = always_allowed | manual_only
+    allowed = always_allowed | syncable_fields | always_manual
     updates = {k: v for k, v in data.items() if k in allowed}
     if not updates:
         raise HTTPException(422, "Aucun champ valide à mettre à jour")
@@ -544,6 +549,9 @@ async def update_organization(
         elif k == "capital":
             set_parts.append("capital = :capital")
             params["capital"] = str(v) if v is not None else None
+        elif k == "manual_fields":
+            set_parts.append("manual_fields = CAST(:manual_fields AS jsonb)")
+            params["manual_fields"] = json.dumps(v) if v is not None else "[]"
         else:
             set_parts.append(f"{k} = :{k}")
             params[k] = v

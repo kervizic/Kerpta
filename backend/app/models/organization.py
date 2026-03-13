@@ -52,9 +52,12 @@ class Organization(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     billing_siret: Mapped[str | None] = mapped_column(
         __import__("sqlalchemy", fromlist=["CHAR"]).CHAR(14), nullable=True
     )
-    company_info_manual: Mapped[bool] = mapped_column(
-        Boolean, default=False, nullable=False
-    )  # true = infos légales éditables manuellement (pas synchro SIRENE)
+    # Liste des champs en mode manuel (pas synchro SIRENE)
+    # Champs synchronisables : name, legal_form, siren, siret, vat_number, ape_code, address
+    # Champs toujours manuels (absents de SIRENE) : capital, rcs_city
+    manual_fields: Mapped[list] = mapped_column(
+        JSONB, default=list, nullable=False
+    )
     expense_validation_threshold: Mapped[float] = mapped_column(
         Numeric(10, 2), default=0, nullable=False
     )

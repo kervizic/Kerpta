@@ -106,7 +106,8 @@ class OrgDetailOut(BaseModel):
     ape_code: str | None
     billing_siret: str | None
     website: str | None = None
-    company_info_manual: bool = False
+    # Liste des champs en mode manuel (pas synchro SIRENE)
+    manual_fields: list[str] = []
     # True si un logo est stocké dans organization_logos
     has_logo: bool = False
     # Établissements récupérés via l'API INSEE (non stockés en BDD)
@@ -147,9 +148,12 @@ class OrgUpdateRequest(BaseModel):
     accounting_regime: str | None = None
     billing_siret: str | None = Field(None, min_length=14, max_length=14)
     logo_url: str | None = None
-    company_info_manual: bool | None = None
 
-    # Éditables en mode manuel uniquement
+    # Liste des champs en mode manuel (remplace le toggle global)
+    manual_fields: list[str] | None = None
+
+    # Éditables uniquement si le champ correspondant est dans manual_fields
+    # (ou toujours éditables pour capital/rcs_city qui ne sont pas dans SIRENE)
     name: str | None = Field(None, min_length=1, max_length=255)
     legal_form: str | None = None
     siret: str | None = Field(None, min_length=14, max_length=14)

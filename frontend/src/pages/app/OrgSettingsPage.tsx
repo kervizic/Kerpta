@@ -17,6 +17,8 @@ import {
   ImagePlus,
   Trash2,
   Upload,
+  PenLine,
+  RefreshCw,
 } from 'lucide-react'
 import { apiClient } from '@/lib/api'
 import { useAuthStore } from '@/stores/authStore'
@@ -61,7 +63,7 @@ interface OrgDetail {
   ape_code?: string | null
   billing_siret?: string | null
   website?: string | null
-  company_info_manual?: boolean
+  manual_fields?: string[]
   has_logo?: boolean
   etablissements?: EtablissementOut[]
 }
@@ -69,6 +71,9 @@ interface OrgDetail {
 interface CompanyDetails {
   siren: string
   denomination?: string | null
+  categorie_juridique_libelle?: string | null
+  tva_intracom?: string | null
+  activite_principale?: string | null
   siege?: EtablissementOut | null
   etablissements_actifs?: EtablissementOut[]
   nombre_etablissements_actifs?: number
@@ -133,10 +138,12 @@ export default function OrgSettingsPage() {
   const [accountingRegime, setAccountingRegime] = useState('')
   const [billingSiret, setBillingSiret] = useState('')
 
-  // Toggle auto/manuel pour les informations légales
-  const [companyInfoManual, setCompanyInfoManual] = useState(false)
+  // Champs en mode manuel (par champ, synchronisables : name, legal_form, siren, siret, vat_number, ape_code, address)
+  const [manualFields, setManualFields] = useState<string[]>([])
+  // Données SIRENE cachées (pour restaurer lors du retour en auto)
+  const [sireneData, setSireneData] = useState<CompanyDetails | null>(null)
 
-  // Champs légaux éditables en mode manuel
+  // Champs légaux éditables
   const [editName, setEditName] = useState('')
   const [editLegalForm, setEditLegalForm] = useState('')
   const [editSiret, setEditSiret] = useState('')
@@ -189,7 +196,7 @@ export default function OrgSettingsPage() {
         setVatExigibility(data.vat_exigibility ?? 'encaissements')
         setAccountingRegime(data.accounting_regime ?? '')
         setBillingSiret(data.billing_siret ?? '')
-        setCompanyInfoManual(data.company_info_manual ?? false)
+        setManualFields(data.manual_fields ?? [])
 
         // Champs légaux éditables
         setEditName(data.org_name ?? '')
@@ -218,10 +225,11 @@ export default function OrgSettingsPage() {
           }
         }
 
-        // Charger les établissements depuis l'API INSEE si on a un SIREN
+        // Charger les établissements et données SIRENE si on a un SIREN
         if (data.org_siren) {
           try {
             const { data: company } = await apiClient.get<CompanyDetails>(`/companies/${data.org_siren}`)
+            setSireneData(company)
             const etabs = company?.etablissements_actifs?.length
               ? company.etablissements_actifs
               : company?.siege ? [company.siege] : []
@@ -319,56 +327,57 @@ export default function OrgSettingsPage() {
 
   // Formes juridiques sans capital social
   const formsWithoutCapital = ['EI', 'AE']
-  const hasCapital = !formsWithoutCapital.includes(
-    (companyInfoManual ? editLegalForm : org?.legal_form) ?? ''
-  )
+  const currentLegalForm = manualFields.includes('legal_form') ? editLegalForm : (org?.legal_form ?? '')
+  const hasCapital = !formsWithoutCapital.includes(currentLegalForm)
 
-  async function handleToggleManual(checked: boolean) {
-    if (checked) {
-      // Passage en mode manuel — on garde les valeurs actuelles
-      setCompanyInfoManual(true)
-    } else {
-      // Retour en mode auto — re-fetch depuis data.gouv pour restaurer les données SIRENE
-      const siren = org?.org_siren ?? editSiren
-      if (siren) {
-        try {
-          const { data: company } = await apiClient.get<CompanyDetails>(`/companies/${siren}`)
-          const siege = company?.siege ?? null
-          // Restaurer les champs avec les données SIRENE fraîches
-          setEditName(company?.denomination ?? org?.org_name ?? '')
-          if (siege?.adresse) {
-            setEditAddrVoie(siege.adresse.voie ?? '')
-            setEditAddrComplement(siege.adresse.complement ?? '')
-            setEditAddrCp(siege.adresse.code_postal ?? '')
-            setEditAddrCommune(siege.adresse.commune ?? '')
-          }
-          if (siege?.siret) setEditSiret(siege.siret)
-          if (siege?.activite_principale) setEditApeCode(siege.activite_principale)
-          // Mettre à jour les établissements
-          const etabs = company?.etablissements_actifs?.length
-            ? company.etablissements_actifs
-            : siege ? [siege] : []
-          setEtablissements(etabs)
-          setNombreEtabsTotal(company?.nombre_etablissements_actifs ?? etabs.length)
+  // Champs synchronisables depuis data.gouv / SIRENE
+  const syncableFields = ['name', 'legal_form', 'siren', 'siret', 'vat_number', 'ape_code', 'address'] as const
+  type SyncableField = typeof syncableFields[number]
 
-          // Envoyer le PATCH pour sauvegarder le retour en auto + les valeurs SIRENE restaurées
-          const addr = siege?.adresse
-            ? { voie: siege.adresse.voie ?? null, complement: siege.adresse.complement ?? null, code_postal: siege.adresse.code_postal ?? null, commune: siege.adresse.commune ?? null }
-            : null
-          const patchPayload: Record<string, unknown> = {
-            company_info_manual: false,
-            name: company?.denomination ?? org?.org_name ?? editName,
-          }
-          if (siege?.siret) patchPayload.siret = siege.siret
-          if (siege?.activite_principale) patchPayload.ape_code = siege.activite_principale
-          if (addr) patchPayload.address = addr
-          await apiClient.patch(`/organizations/${org!.org_id}`, patchPayload)
-          setOrg((prev) => prev ? { ...prev, company_info_manual: false, org_name: patchPayload.name as string } : prev)
-        } catch {
-          // Même si data.gouv échoue, on désactive le mode manuel
+  /** Vérifie si un champ est en mode manuel */
+  function isManual(field: SyncableField): boolean {
+    return manualFields.includes(field)
+  }
+
+  /** Bascule un champ entre auto et manuel */
+  function toggleFieldManual(field: SyncableField) {
+    if (isManual(field)) {
+      // Retour en auto — restaurer la valeur SIRENE depuis le cache
+      setManualFields((prev) => prev.filter((f) => f !== field))
+      if (sireneData) {
+        const siege = sireneData.siege ?? null
+        switch (field) {
+          case 'name':
+            setEditName(sireneData.denomination ?? org?.org_name ?? '')
+            break
+          case 'legal_form':
+            setEditLegalForm(org?.legal_form ?? '')
+            break
+          case 'siren':
+            setEditSiren(sireneData.siren ?? '')
+            break
+          case 'siret':
+            setEditSiret(siege?.siret ?? org?.org_siret ?? '')
+            break
+          case 'vat_number':
+            setEditVatNumber(sireneData.tva_intracom ?? org?.vat_number ?? '')
+            break
+          case 'ape_code':
+            setEditApeCode(siege?.activite_principale ?? sireneData.activite_principale ?? '')
+            break
+          case 'address':
+            if (siege?.adresse) {
+              setEditAddrVoie(siege.adresse.voie ?? '')
+              setEditAddrComplement(siege.adresse.complement ?? '')
+              setEditAddrCp(siege.adresse.code_postal ?? '')
+              setEditAddrCommune(siege.adresse.commune ?? '')
+            }
+            break
         }
       }
-      setCompanyInfoManual(false)
+    } else {
+      // Passage en manuel — on garde la valeur actuelle
+      setManualFields((prev) => [...prev, field])
     }
   }
 
@@ -387,20 +396,27 @@ export default function OrgSettingsPage() {
       if (vatExigibility !== (org.vat_exigibility ?? 'encaissements')) payload.vat_exigibility = vatExigibility || 'encaissements'
       if (accountingRegime !== (org.accounting_regime ?? '')) payload.accounting_regime = accountingRegime || null
       if (billingSiret !== (org.billing_siret ?? '')) payload.billing_siret = billingSiret || null
-      if (companyInfoManual !== (org.company_info_manual ?? false)) payload.company_info_manual = companyInfoManual
 
-      // Champs éditables en mode manuel
-      if (companyInfoManual) {
-        if (editName !== (org.org_name ?? '')) payload.name = editName || null
-        if (editLegalForm !== (org.legal_form ?? '')) payload.legal_form = editLegalForm || null
-        if (editSiret !== (org.org_siret ?? '')) payload.siret = editSiret || null
-        if (editSiren !== (org.org_siren ?? '')) payload.siren = editSiren || null
-        if (editVatNumber !== (org.vat_number ?? '')) payload.vat_number = editVatNumber || null
-        if (editApeCode !== (org.ape_code ?? '')) payload.ape_code = editApeCode || null
-        if (editRcsCity !== (org.rcs_city ?? '')) payload.rcs_city = editRcsCity || null
-        if (editCapital !== (org.capital ?? '')) payload.capital = editCapital ? parseFloat(editCapital) : null
+      // Toujours envoyer manual_fields (la liste des champs en mode manuel)
+      const prevManual = org.manual_fields ?? []
+      if (JSON.stringify(manualFields.sort()) !== JSON.stringify([...prevManual].sort())) {
+        payload.manual_fields = manualFields
+      }
 
-        // Adresse — comparer champ par champ
+      // Champs synchronisables — éditables seulement si en mode manuel
+      if (manualFields.includes('name') && editName !== (org.org_name ?? '')) payload.name = editName || null
+      if (manualFields.includes('legal_form') && editLegalForm !== (org.legal_form ?? '')) payload.legal_form = editLegalForm || null
+      if (manualFields.includes('siret') && editSiret !== (org.org_siret ?? '')) payload.siret = editSiret || null
+      if (manualFields.includes('siren') && editSiren !== (org.org_siren ?? '')) payload.siren = editSiren || null
+      if (manualFields.includes('vat_number') && editVatNumber !== (org.vat_number ?? '')) payload.vat_number = editVatNumber || null
+      if (manualFields.includes('ape_code') && editApeCode !== (org.ape_code ?? '')) payload.ape_code = editApeCode || null
+
+      // Champs toujours éditables (pas dans SIRENE)
+      if (editRcsCity !== (org.rcs_city ?? '')) payload.rcs_city = editRcsCity || null
+      if (editCapital !== (org.capital ?? '')) payload.capital = editCapital ? parseFloat(editCapital) : null
+
+      // Adresse — éditable si en mode manuel
+      if (manualFields.includes('address')) {
         const prevAddr = org.address as AddressOut | null
         const addrChanged =
           editAddrVoie !== (prevAddr?.voie ?? '') ||
@@ -432,7 +448,7 @@ export default function OrgSettingsPage() {
       if (payload.vat_exigibility !== undefined) updatedOrg.vat_exigibility = payload.vat_exigibility as string | null
       if (payload.accounting_regime !== undefined) updatedOrg.accounting_regime = payload.accounting_regime as string | null
       if (payload.billing_siret !== undefined) updatedOrg.billing_siret = payload.billing_siret as string | null
-      if (payload.company_info_manual !== undefined) updatedOrg.company_info_manual = payload.company_info_manual as boolean
+      if (payload.manual_fields !== undefined) updatedOrg.manual_fields = payload.manual_fields as string[]
       if (payload.name !== undefined) updatedOrg.org_name = payload.name as string
       if (payload.legal_form !== undefined) updatedOrg.legal_form = payload.legal_form as string | null
       if (payload.siret !== undefined) updatedOrg.org_siret = payload.siret as string | null
@@ -608,50 +624,41 @@ export default function OrgSettingsPage() {
           </div>
         </section>
 
-        {/* Informations légales — toggle auto/manuel */}
+        {/* Informations légales — toggle auto/manuel par champ */}
         <section className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">
-              Informations légales
-            </h2>
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <span className="text-xs text-gray-500">Mode manuel</span>
-              <div className="relative">
-                <input
-                  type="checkbox"
-                  checked={companyInfoManual}
-                  onChange={(e) => handleToggleManual(e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-9 h-5 bg-gray-200 rounded-full peer-checked:bg-orange-500 transition-colors" />
-                <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform peer-checked:translate-x-4" />
-              </div>
-            </label>
-          </div>
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">
+            Informations légales
+          </h2>
 
-          {/* Note d'information selon le mode */}
-          {!companyInfoManual ? (
-            <p className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 flex items-center gap-1.5">
-              <Info className="w-3.5 h-3.5 shrink-0" />
-              Données issues du registre SIRENE. Activez le mode manuel pour les modifier.
-            </p>
-          ) : (
-            <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-center gap-1.5">
-              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-              Mode manuel — les informations ne seront plus synchronisées avec le registre SIRENE.
-            </p>
-          )}
+          <p className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 flex items-center gap-1.5">
+            <Info className="w-3.5 h-3.5 shrink-0" />
+            Cliquez sur <PenLine className="w-3 h-3 inline" /> pour modifier manuellement un champ,
+            ou sur <RefreshCw className="w-3 h-3 inline" /> pour restaurer la valeur SIRENE.
+          </p>
 
           <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
             {/* Dénomination */}
             <div>
-              <span className="text-gray-400 block text-xs mb-0.5">Dénomination</span>
-              {companyInfoManual ? (
+              <div className="flex items-center gap-1 mb-0.5">
+                <span className="text-gray-400 text-xs">Dénomination</span>
+                <button
+                  type="button"
+                  onClick={() => toggleFieldManual('name')}
+                  title={isManual('name') ? 'Restaurer depuis SIRENE' : 'Modifier manuellement'}
+                  className="text-gray-300 hover:text-orange-500 transition p-0.5"
+                >
+                  {isManual('name')
+                    ? <RefreshCw className="w-3 h-3" />
+                    : <PenLine className="w-3 h-3" />
+                  }
+                </button>
+              </div>
+              {isManual('name') ? (
                 <input
                   type="text"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  className="w-full px-3 py-1.5 text-sm border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
                 />
               ) : (
                 <span className="font-medium text-gray-900">{org.org_name || '—'}</span>
@@ -660,12 +667,25 @@ export default function OrgSettingsPage() {
 
             {/* Forme juridique */}
             <div>
-              <span className="text-gray-400 block text-xs mb-0.5">Forme juridique</span>
-              {companyInfoManual ? (
+              <div className="flex items-center gap-1 mb-0.5">
+                <span className="text-gray-400 text-xs">Forme juridique</span>
+                <button
+                  type="button"
+                  onClick={() => toggleFieldManual('legal_form')}
+                  title={isManual('legal_form') ? 'Restaurer depuis SIRENE' : 'Modifier manuellement'}
+                  className="text-gray-300 hover:text-orange-500 transition p-0.5"
+                >
+                  {isManual('legal_form')
+                    ? <RefreshCw className="w-3 h-3" />
+                    : <PenLine className="w-3 h-3" />
+                  }
+                </button>
+              </div>
+              {isManual('legal_form') ? (
                 <select
                   value={editLegalForm}
                   onChange={(e) => setEditLegalForm(e.target.value)}
-                  className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300 bg-white"
+                  className="w-full px-3 py-1.5 text-sm border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
                 >
                   <option value="">Non renseigné</option>
                   <option value="SAS">SAS</option>
@@ -685,15 +705,28 @@ export default function OrgSettingsPage() {
 
             {/* SIREN */}
             <div>
-              <span className="text-gray-400 block text-xs mb-0.5">SIREN</span>
-              {companyInfoManual ? (
+              <div className="flex items-center gap-1 mb-0.5">
+                <span className="text-gray-400 text-xs">SIREN</span>
+                <button
+                  type="button"
+                  onClick={() => toggleFieldManual('siren')}
+                  title={isManual('siren') ? 'Restaurer depuis SIRENE' : 'Modifier manuellement'}
+                  className="text-gray-300 hover:text-orange-500 transition p-0.5"
+                >
+                  {isManual('siren')
+                    ? <RefreshCw className="w-3 h-3" />
+                    : <PenLine className="w-3 h-3" />
+                  }
+                </button>
+              </div>
+              {isManual('siren') ? (
                 <input
                   type="text"
                   value={editSiren}
                   onChange={(e) => setEditSiren(e.target.value.replace(/\D/g, '').slice(0, 9))}
                   placeholder="123456789"
                   maxLength={9}
-                  className="w-full px-3 py-1.5 text-sm font-mono border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  className="w-full px-3 py-1.5 text-sm font-mono border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
                 />
               ) : (
                 <span className="font-mono text-gray-900">{org.org_siren || '—'}</span>
@@ -702,15 +735,28 @@ export default function OrgSettingsPage() {
 
             {/* SIRET siège */}
             <div>
-              <span className="text-gray-400 block text-xs mb-0.5">SIRET siège</span>
-              {companyInfoManual ? (
+              <div className="flex items-center gap-1 mb-0.5">
+                <span className="text-gray-400 text-xs">SIRET siège</span>
+                <button
+                  type="button"
+                  onClick={() => toggleFieldManual('siret')}
+                  title={isManual('siret') ? 'Restaurer depuis SIRENE' : 'Modifier manuellement'}
+                  className="text-gray-300 hover:text-orange-500 transition p-0.5"
+                >
+                  {isManual('siret')
+                    ? <RefreshCw className="w-3 h-3" />
+                    : <PenLine className="w-3 h-3" />
+                  }
+                </button>
+              </div>
+              {isManual('siret') ? (
                 <input
                   type="text"
                   value={editSiret}
                   onChange={(e) => setEditSiret(e.target.value.replace(/\D/g, '').slice(0, 14))}
                   placeholder="12345678901234"
                   maxLength={14}
-                  className="w-full px-3 py-1.5 text-sm font-mono border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  className="w-full px-3 py-1.5 text-sm font-mono border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
                 />
               ) : (
                 <span className="font-mono text-gray-900">{org.org_siret || '—'}</span>
@@ -719,14 +765,27 @@ export default function OrgSettingsPage() {
 
             {/* TVA intracommunautaire */}
             <div>
-              <span className="text-gray-400 block text-xs mb-0.5">N° TVA intracommunautaire</span>
-              {companyInfoManual ? (
+              <div className="flex items-center gap-1 mb-0.5">
+                <span className="text-gray-400 text-xs">N° TVA intracommunautaire</span>
+                <button
+                  type="button"
+                  onClick={() => toggleFieldManual('vat_number')}
+                  title={isManual('vat_number') ? 'Restaurer depuis SIRENE' : 'Modifier manuellement'}
+                  className="text-gray-300 hover:text-orange-500 transition p-0.5"
+                >
+                  {isManual('vat_number')
+                    ? <RefreshCw className="w-3 h-3" />
+                    : <PenLine className="w-3 h-3" />
+                  }
+                </button>
+              </div>
+              {isManual('vat_number') ? (
                 <input
                   type="text"
                   value={editVatNumber}
                   onChange={(e) => setEditVatNumber(e.target.value)}
                   placeholder="FR12345678901"
-                  className="w-full px-3 py-1.5 text-sm font-mono border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  className="w-full px-3 py-1.5 text-sm font-mono border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
                 />
               ) : (
                 <span className="font-mono text-gray-900">{org.vat_number || '—'}</span>
@@ -735,109 +794,120 @@ export default function OrgSettingsPage() {
 
             {/* Code APE */}
             <div>
-              <span className="text-gray-400 block text-xs mb-0.5">Code APE</span>
-              {companyInfoManual ? (
+              <div className="flex items-center gap-1 mb-0.5">
+                <span className="text-gray-400 text-xs">Code APE</span>
+                <button
+                  type="button"
+                  onClick={() => toggleFieldManual('ape_code')}
+                  title={isManual('ape_code') ? 'Restaurer depuis SIRENE' : 'Modifier manuellement'}
+                  className="text-gray-300 hover:text-orange-500 transition p-0.5"
+                >
+                  {isManual('ape_code')
+                    ? <RefreshCw className="w-3 h-3" />
+                    : <PenLine className="w-3 h-3" />
+                  }
+                </button>
+              </div>
+              {isManual('ape_code') ? (
                 <input
                   type="text"
                   value={editApeCode}
                   onChange={(e) => setEditApeCode(e.target.value)}
                   placeholder="6201Z"
-                  className="w-full px-3 py-1.5 text-sm font-mono border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  className="w-full px-3 py-1.5 text-sm font-mono border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
                 />
               ) : (
                 <span className="font-mono text-gray-900">{org.ape_code || '—'}</span>
               )}
             </div>
 
-            {/* RCS */}
+            {/* RCS — toujours éditable (pas dans SIRENE) */}
             <div>
               <span className="text-gray-400 block text-xs mb-0.5">RCS de...</span>
-              {companyInfoManual ? (
-                <input
-                  type="text"
-                  value={editRcsCity}
-                  onChange={(e) => setEditRcsCity(e.target.value)}
-                  placeholder="Paris"
-                  className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
-                />
-              ) : (
-                <span className="text-gray-900">{org.rcs_city || '—'}</span>
-              )}
+              <input
+                type="text"
+                value={editRcsCity}
+                onChange={(e) => setEditRcsCity(e.target.value)}
+                placeholder="Paris"
+                className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+              />
             </div>
 
-            {/* Capital social — masqué pour EI/AE */}
+            {/* Capital social — toujours éditable (pas dans SIRENE), masqué pour EI/AE */}
             {hasCapital && (
               <div>
                 <span className="text-gray-400 block text-xs mb-0.5">Capital social</span>
-                {companyInfoManual ? (
-                  <div className="relative">
-                    <input
-                      type="number"
-                      value={editCapital}
-                      onChange={(e) => setEditCapital(e.target.value)}
-                      placeholder="10000"
-                      step="0.01"
-                      min="0"
-                      className="w-full px-3 py-1.5 pr-8 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">€</span>
-                  </div>
-                ) : (
-                  <span className="text-gray-900">
-                    {org.capital ? `${parseFloat(org.capital).toLocaleString('fr-FR')} €` : '—'}
-                  </span>
-                )}
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={editCapital}
+                    onChange={(e) => setEditCapital(e.target.value)}
+                    placeholder="10000"
+                    step="0.01"
+                    min="0"
+                    className="w-full px-3 py-1.5 pr-8 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">€</span>
+                </div>
               </div>
             )}
 
             {/* Adresse */}
-            {companyInfoManual ? (
-              <div className="col-span-2 space-y-2">
-                <span className="text-gray-400 block text-xs mb-0.5 flex items-center gap-1">
+            <div className="col-span-2 space-y-2">
+              <div className="flex items-center gap-1 mb-0.5">
+                <span className="text-gray-400 text-xs flex items-center gap-1">
                   <MapPin className="w-3 h-3" /> Adresse
                 </span>
-                <input
-                  type="text"
-                  value={editAddrVoie}
-                  onChange={(e) => setEditAddrVoie(e.target.value)}
-                  placeholder="Numéro et voie"
-                  className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
-                />
-                <input
-                  type="text"
-                  value={editAddrComplement}
-                  onChange={(e) => setEditAddrComplement(e.target.value)}
-                  placeholder="Complément d'adresse (optionnel)"
-                  className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
-                />
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    type="text"
-                    value={editAddrCp}
-                    onChange={(e) => setEditAddrCp(e.target.value.replace(/\D/g, '').slice(0, 5))}
-                    placeholder="Code postal"
-                    maxLength={5}
-                    className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
-                  />
-                  <input
-                    type="text"
-                    value={editAddrCommune}
-                    onChange={(e) => setEditAddrCommune(e.target.value)}
-                    placeholder="Commune"
-                    className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
-                  />
-                </div>
+                <button
+                  type="button"
+                  onClick={() => toggleFieldManual('address')}
+                  title={isManual('address') ? 'Restaurer depuis SIRENE' : 'Modifier manuellement'}
+                  className="text-gray-300 hover:text-orange-500 transition p-0.5"
+                >
+                  {isManual('address')
+                    ? <RefreshCw className="w-3 h-3" />
+                    : <PenLine className="w-3 h-3" />
+                  }
+                </button>
               </div>
-            ) : (
-              addressStr && (
-                <div className="col-span-2">
-                  <span className="text-gray-400 block text-xs mb-0.5 flex items-center gap-1">
-                    <MapPin className="w-3 h-3" /> Adresse
-                  </span>
-                  <span className="text-gray-900">{addressStr}</span>
-                </div>
-              )
-            )}
+              {isManual('address') ? (
+                <>
+                  <input
+                    type="text"
+                    value={editAddrVoie}
+                    onChange={(e) => setEditAddrVoie(e.target.value)}
+                    placeholder="Numéro et voie"
+                    className="w-full px-3 py-1.5 text-sm border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  />
+                  <input
+                    type="text"
+                    value={editAddrComplement}
+                    onChange={(e) => setEditAddrComplement(e.target.value)}
+                    placeholder="Complément d'adresse (optionnel)"
+                    className="w-full px-3 py-1.5 text-sm border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      value={editAddrCp}
+                      onChange={(e) => setEditAddrCp(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                      placeholder="Code postal"
+                      maxLength={5}
+                      className="px-3 py-1.5 text-sm border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                    />
+                    <input
+                      type="text"
+                      value={editAddrCommune}
+                      onChange={(e) => setEditAddrCommune(e.target.value)}
+                      placeholder="Commune"
+                      className="px-3 py-1.5 text-sm border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                    />
+                  </div>
+                </>
+              ) : (
+                <span className="text-gray-900">{addressStr || '—'}</span>
+              )}
+            </div>
           </div>
         </section>
 
