@@ -633,8 +633,8 @@ function QuoteFormPage({ quoteId }: { quoteId?: string }) {
             </button>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[800px]">
+          <div>
+            <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
                   <th className="px-2 py-2 w-20">Réf.</th>
