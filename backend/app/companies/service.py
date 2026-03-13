@@ -22,7 +22,7 @@ import asyncio
 import json
 import logging
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Literal
 
 import httpx
@@ -96,6 +96,16 @@ EFFECTIFS: dict[str, str] = {
 
 
 # ── Fonctions utilitaires ─────────────────────────────────────────────────────
+
+
+def _parse_date(val: str | None) -> date | None:
+    """Convertit une date ISO string en objet date Python (nécessaire pour asyncpg)."""
+    if not val:
+        return None
+    try:
+        return date.fromisoformat(val)
+    except (ValueError, TypeError):
+        return None
 
 
 def compute_tva_intracom(siren: str) -> str:
@@ -422,7 +432,7 @@ async def _save_to_cache(siren: str, item: dict, matching: list[dict], db: Async
                 legal_form, vat_number, ape_code, status, creation_date,
                 raw_data, last_synced_at, created_at, updated_at)
             VALUES (:siren, :denom, :sigle, :lfc, :lf, :vat, :ape, :status,
-                    CAST(:cdate AS date), CAST(:raw AS jsonb), :now, now(), now())
+                    :cdate, CAST(:raw AS jsonb), :now, now(), now())
             ON CONFLICT (siren) DO UPDATE SET
                 denomination = EXCLUDED.denomination,
                 sigle = EXCLUDED.sigle,
@@ -443,7 +453,7 @@ async def _save_to_cache(siren: str, item: dict, matching: list[dict], db: Async
             "vat": None,
             "ape": item.get("activite_principale"),
             "status": company_status,
-            "cdate": item.get("date_creation"),
+            "cdate": _parse_date(item.get("date_creation")),
             "raw": json.dumps(raw_company),
             "now": now,
         },
