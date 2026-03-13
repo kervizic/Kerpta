@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class InvoiceLineIn(BaseModel):
     product_id: str | None = None
     position: int = 0
+    reference: str | None = Field(None, max_length=100)
     description: str | None = None
     quantity: Decimal = Field(..., gt=0)
     unit: str | None = Field(None, max_length=50)
@@ -26,6 +27,7 @@ class InvoiceLineOut(BaseModel):
     id: str
     product_id: str | None = None
     position: int
+    reference: str | None = None
     description: str | None = None
     quantity: Decimal
     unit: str | None = None

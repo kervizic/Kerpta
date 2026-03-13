@@ -71,7 +71,8 @@ async def list_invoices(
 
     result = await db.execute(
         text(f"""
-            SELECT i.id::text, i.number, i.client_id::text, c.name AS client_name,
+            SELECT i.id::text, i.number, i.client_id::text,
+                   COALESCE(i.client_name, c.name) AS client_name,
                    i.quote_id::text, i.purchase_order_id::text,
                    i.contract_id::text, i.situation_id::text,
                    i.is_situation, i.situation_number,
@@ -83,7 +84,7 @@ async def list_invoices(
                    i.notes, i.pdf_url, i.sent_at, i.paid_at,
                    i.created_at, i.updated_at
             FROM invoices i
-            JOIN clients c ON c.id = i.client_id
+            LEFT JOIN clients c ON c.id = i.client_id
             WHERE {where}
             ORDER BY i.created_at DESC
             LIMIT :limit OFFSET :offset
@@ -102,16 +103,34 @@ async def create_invoice(
     invoice_id = uuid.uuid4()
     number = await generate_number("invoice", org_id, db)
 
+    # Copier le nom du client en dur
+    client_name_result = await db.execute(
+        text("SELECT name FROM clients WHERE id = :cid AND organization_id = :org_id"),
+        {"cid": data.client_id, "org_id": str(org_id)},
+    )
+    client_name_row = client_name_result.fetchone()
+    client_name = client_name_row[0] if client_name_row else None
+
     # Profil de facturation : celui fourni ou le profil par défaut
     billing_profile_id = data.billing_profile_id
+    billing_profile_name = None
     if not billing_profile_id:
         default_bp = await db.execute(
-            text("SELECT id::text FROM billing_profiles WHERE organization_id = :org_id AND is_default = true LIMIT 1"),
+            text("SELECT id::text, name FROM billing_profiles WHERE organization_id = :org_id AND is_default = true LIMIT 1"),
             {"org_id": str(org_id)},
         )
         bp_row = default_bp.fetchone()
         if bp_row:
             billing_profile_id = bp_row[0]
+            billing_profile_name = bp_row[1]
+    if billing_profile_id and not billing_profile_name:
+        bp_name_result = await db.execute(
+            text("SELECT name FROM billing_profiles WHERE id = :bpid"),
+            {"bpid": billing_profile_id},
+        )
+        bp_name_row = bp_name_result.fetchone()
+        if bp_name_row:
+            billing_profile_name = bp_name_row[0]
 
     subtotal_ht = Decimal("0")
     total_vat = Decimal("0")
@@ -126,18 +145,18 @@ async def create_invoice(
     await db.execute(
         text("""
             INSERT INTO invoices (
-                id, organization_id, client_id, number,
+                id, organization_id, client_id, client_name, number,
                 quote_id, purchase_order_id, contract_id,
-                billing_profile_id,
+                billing_profile_id, billing_profile_name,
                 is_credit_note, status, issue_date, due_date,
                 currency, subtotal_ht, total_vat, total_ttc,
                 amount_paid, discount_type, discount_value,
                 payment_terms, payment_method, bank_details,
                 notes, footer, created_at, updated_at
             ) VALUES (
-                :id, :org_id, :client_id, :number,
+                :id, :org_id, :client_id, :client_name, :number,
                 :quote_id, :po_id, :contract_id,
-                :billing_profile_id,
+                :billing_profile_id, :billing_profile_name,
                 false, 'draft', :issue_date, :due_date,
                 'EUR', :ht, :vat, :ttc,
                 0, :disc_type, :disc_val,
@@ -149,11 +168,13 @@ async def create_invoice(
             "id": str(invoice_id),
             "org_id": str(org_id),
             "client_id": data.client_id,
+            "client_name": client_name,
             "number": number,
             "quote_id": data.quote_id,
             "po_id": data.purchase_order_id,
             "contract_id": data.contract_id,
             "billing_profile_id": billing_profile_id,
+            "billing_profile_name": billing_profile_name,
             "issue_date": data.issue_date,
             "due_date": data.due_date,
             "ht": str(subtotal_ht),
@@ -176,12 +197,12 @@ async def create_invoice(
             text("""
                 INSERT INTO invoice_lines (
                     id, invoice_id, product_id, position,
-                    description, quantity, unit, unit_price,
+                    reference, description, quantity, unit, unit_price,
                     vat_rate, discount_percent, total_ht, total_vat,
                     account_code
                 ) VALUES (
                     :id, :iid, :pid, :pos,
-                    :desc, :qty, :unit, :price,
+                    :ref, :desc, :qty, :unit, :price,
                     :vat, :disc, :ht, :vat_amt,
                     :acct
                 )
@@ -191,6 +212,7 @@ async def create_invoice(
                 "iid": str(invoice_id),
                 "pid": line.product_id,
                 "pos": line.position or i,
+                "ref": line.reference,
                 "desc": line.description,
                 "qty": str(line.quantity),
                 "unit": line.unit,
@@ -213,10 +235,12 @@ async def get_invoice(
     """Détail d'une facture avec ses lignes."""
     result = await db.execute(
         text("""
-            SELECT i.id::text, i.number, i.client_id::text, c.name AS client_name,
+            SELECT i.id::text, i.number, i.client_id::text,
+                   COALESCE(i.client_name, c.name) AS client_name,
                    i.quote_id::text, i.purchase_order_id::text,
                    i.contract_id::text, i.situation_id::text,
                    i.billing_profile_id::text,
+                   i.billing_profile_name,
                    i.is_situation, i.situation_number,
                    i.is_credit_note, i.credit_note_for::text,
                    i.status, i.issue_date, i.due_date,
@@ -228,7 +252,7 @@ async def get_invoice(
                    i.pdf_url, i.sent_at, i.paid_at,
                    i.created_at, i.updated_at
             FROM invoices i
-            JOIN clients c ON c.id = i.client_id
+            LEFT JOIN clients c ON c.id = i.client_id
             WHERE i.id = :iid AND i.organization_id = :org_id
         """),
         {"iid": invoice_id, "org_id": str(org_id)},
@@ -241,7 +265,7 @@ async def get_invoice(
     lines_result = await db.execute(
         text("""
             SELECT il.id::text, il.product_id::text, il.position,
-                   il.description, il.quantity, il.unit, il.unit_price,
+                   il.reference, il.description, il.quantity, il.unit, il.unit_price,
                    il.vat_rate, il.discount_percent, il.total_ht,
                    il.total_vat, il.account_code
             FROM invoice_lines il
@@ -307,12 +331,12 @@ async def update_invoice(
                 text("""
                     INSERT INTO invoice_lines (
                         id, invoice_id, product_id, position,
-                        description, quantity, unit, unit_price,
+                        reference, description, quantity, unit, unit_price,
                         vat_rate, discount_percent, total_ht, total_vat,
                         account_code
                     ) VALUES (
                         :id, :iid, :pid, :pos,
-                        :desc, :qty, :unit, :price,
+                        :ref, :desc, :qty, :unit, :price,
                         :vat, :disc, :ht, :vat_amt,
                         :acct
                     )
@@ -322,6 +346,7 @@ async def update_invoice(
                     "iid": invoice_id,
                     "pid": line.product_id,
                     "pos": line.position or i,
+                    "ref": line.reference,
                     "desc": line.description,
                     "qty": str(line.quantity),
                     "unit": line.unit,
@@ -494,7 +519,7 @@ async def create_credit_note(
     inv_result = await db.execute(
         text("""
             SELECT id::text, client_id::text, contract_id::text,
-                   subtotal_ht, total_vat, total_ttc, status
+                   subtotal_ht, total_vat, total_ttc, status, client_name
             FROM invoices
             WHERE id = :iid AND organization_id = :org_id
         """),
@@ -516,14 +541,14 @@ async def create_credit_note(
     await db.execute(
         text("""
             INSERT INTO invoices (
-                id, organization_id, client_id, number,
+                id, organization_id, client_id, client_name, number,
                 contract_id, is_credit_note, credit_note_for,
                 status, issue_date, currency,
                 subtotal_ht, total_vat, total_ttc,
                 amount_paid, discount_type, discount_value,
                 payment_terms, notes, created_at, updated_at
             ) VALUES (
-                :id, :org_id, :client_id, :number,
+                :id, :org_id, :client_id, :client_name, :number,
                 :contract_id, true, :cn_for,
                 'draft', CURRENT_DATE, 'EUR',
                 :ht, :vat, :ttc,
@@ -535,6 +560,7 @@ async def create_credit_note(
             "id": str(credit_id),
             "org_id": str(org_id),
             "client_id": inv[1],
+            "client_name": inv[7],
             "number": credit_number,
             "contract_id": inv[2],
             "cn_for": invoice_id,
@@ -548,7 +574,7 @@ async def create_credit_note(
     # Copier les lignes en négatif
     lines_result = await db.execute(
         text("""
-            SELECT product_id::text, position, description, quantity,
+            SELECT product_id::text, position, reference, description, quantity,
                    unit, unit_price, vat_rate, discount_percent,
                    total_ht, total_vat, account_code
             FROM invoice_lines WHERE invoice_id = :iid ORDER BY position
@@ -561,12 +587,12 @@ async def create_credit_note(
             text("""
                 INSERT INTO invoice_lines (
                     id, invoice_id, product_id, position,
-                    description, quantity, unit, unit_price,
+                    reference, description, quantity, unit, unit_price,
                     vat_rate, discount_percent, total_ht, total_vat,
                     account_code
                 ) VALUES (
                     :id, :iid, :pid, :pos,
-                    :desc, :qty, :unit, :price,
+                    :ref, :desc, :qty, :unit, :price,
                     :vat, :disc, :ht, :vat_amt,
                     :acct
                 )
@@ -576,15 +602,16 @@ async def create_credit_note(
                 "iid": str(credit_id),
                 "pid": line[0],
                 "pos": line[1],
-                "desc": line[2],
-                "qty": str(-Decimal(str(line[3]))),
-                "unit": line[4],
-                "price": str(line[5]),
-                "vat": str(line[6]),
-                "disc": str(line[7]),
-                "ht": str(-Decimal(str(line[8]))),
-                "vat_amt": str(-Decimal(str(line[9]))),
-                "acct": line[10],
+                "ref": line[2],
+                "desc": line[3],
+                "qty": str(-Decimal(str(line[4]))),
+                "unit": line[5],
+                "price": str(line[6]),
+                "vat": str(line[7]),
+                "disc": str(line[8]),
+                "ht": str(-Decimal(str(line[9]))),
+                "vat_amt": str(-Decimal(str(line[10]))),
+                "acct": line[11],
             },
         )
 

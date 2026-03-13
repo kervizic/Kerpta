@@ -67,6 +67,10 @@ class Invoice(Base, UUIDPrimaryKeyMixin, TimestampUpdateMixin):
         String(30), nullable=True
     )  # bank_transfer/check/card/cash/other
     bank_details: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    # Copie en dur du nom client et profil au moment de la création
+    client_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    billing_profile_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     footer: Mapped[str | None] = mapped_column(Text, nullable=True)
     legal_mentions: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -125,6 +129,7 @@ class InvoiceLine(Base, UUIDPrimaryKeyMixin):
         UUID(as_uuid=True), ForeignKey("products.id"), nullable=True
     )
     position: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    reference: Mapped[str | None] = mapped_column(String(100), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     quantity: Mapped[float] = mapped_column(Numeric(15, 4), nullable=False)
     unit: Mapped[str | None] = mapped_column(String(50), nullable=True)

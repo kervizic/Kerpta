@@ -4,9 +4,9 @@
 
 """Add snapshot columns to invoices for immutability.
 
-Stores client and seller identity at time of sending, so the invoice
-can be reproduced identically even if the source data changes.
-Also adds legal_mentions column.
+Copies client name, billing profile name, and legal mentions directly
+on the invoice so it can be reproduced identically even if source data changes.
+Also adds reference column to invoice_lines and JSONB snapshots for PDF generation.
 
 Revision ID: 0007
 Revises: 0006
@@ -24,12 +24,21 @@ depends_on = None
 
 
 def upgrade() -> None:
+    # Snapshot colonnes sur invoices
+    op.add_column("invoices", sa.Column("client_name", sa.String(255), nullable=True))
+    op.add_column("invoices", sa.Column("billing_profile_name", sa.String(100), nullable=True))
     op.add_column("invoices", sa.Column("legal_mentions", sa.Text, nullable=True))
     op.add_column("invoices", sa.Column("client_snapshot", postgresql.JSONB, nullable=True))
     op.add_column("invoices", sa.Column("seller_snapshot", postgresql.JSONB, nullable=True))
 
+    # Référence article sur les lignes de facture
+    op.add_column("invoice_lines", sa.Column("reference", sa.String(100), nullable=True))
+
 
 def downgrade() -> None:
+    op.drop_column("invoice_lines", "reference")
     op.drop_column("invoices", "seller_snapshot")
     op.drop_column("invoices", "client_snapshot")
     op.drop_column("invoices", "legal_mentions")
+    op.drop_column("invoices", "billing_profile_name")
+    op.drop_column("invoices", "client_name")
