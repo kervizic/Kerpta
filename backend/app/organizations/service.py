@@ -255,9 +255,13 @@ async def get_organization(
                 o.accounting_regime,
                 o.rcs_city,
                 o.capital::text   AS capital,
+                o.capital_variable,
                 o.ape_code,
                 o.billing_siret,
                 o.website,
+                o.objet_social,
+                o.date_cloture_exercice,
+                o.date_immatriculation_rcs,
                 o.manual_fields,
                 (EXISTS (
                     SELECT 1 FROM organization_logos ol
@@ -504,9 +508,14 @@ async def update_organization(
         "accounting_regime", "billing_siret", "logo_url", "manual_fields",
     }
     # Champs synchronisables — éditables uniquement si présents dans manual_fields
-    syncable_fields = {"name", "legal_form", "siren", "siret", "vat_number", "ape_code", "address"}
-    # Champs toujours manuels (absents de l'API data.gouv) — toujours éditables
-    always_manual = {"capital", "rcs_city"}
+    # SIRENE : name, legal_form, siren, siret, vat_number, ape_code, address
+    # INPI : capital, capital_variable, objet_social, date_cloture_exercice, date_immatriculation_rcs
+    syncable_fields = {
+        "name", "legal_form", "siren", "siret", "vat_number", "ape_code", "address",
+        "capital", "capital_variable", "objet_social", "date_cloture_exercice", "date_immatriculation_rcs",
+    }
+    # Champs toujours manuels — toujours éditables
+    always_manual = {"rcs_city"}
 
     # Vérifier le guard par champ pour les champs synchronisables
     syncable_sent = {k for k in data if k in syncable_fields and data[k] is not None}

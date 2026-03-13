@@ -61,9 +61,13 @@ interface OrgDetail {
   accounting_regime?: string | null
   rcs_city?: string | null
   capital?: string | null
+  capital_variable?: boolean | null
   ape_code?: string | null
   billing_siret?: string | null
   website?: string | null
+  objet_social?: string | null
+  date_cloture_exercice?: string | null
+  date_immatriculation_rcs?: string | null
   manual_fields?: string[]
   has_logo?: boolean
   etablissements?: EtablissementOut[]
@@ -334,8 +338,8 @@ export default function OrgSettingsPage() {
   const currentLegalForm = manualFields.includes('legal_form') ? editLegalForm : (org?.legal_form ?? '')
   const hasCapital = !formsWithoutCapital.includes(currentLegalForm)
 
-  // Champs synchronisables depuis data.gouv / SIRENE
-  const syncableFields = ['name', 'legal_form', 'siren', 'siret', 'vat_number', 'ape_code', 'address'] as const
+  // Champs synchronisables depuis data.gouv / SIRENE / INPI
+  const syncableFields = ['name', 'legal_form', 'siren', 'siret', 'vat_number', 'ape_code', 'address', 'capital', 'capital_variable', 'objet_social', 'date_cloture_exercice', 'date_immatriculation_rcs'] as const
   type SyncableField = typeof syncableFields[number]
 
   /** Vérifie si un champ est en mode manuel */
@@ -415,9 +419,10 @@ export default function OrgSettingsPage() {
       if (manualFields.includes('vat_number') && editVatNumber !== (org.vat_number ?? '')) payload.vat_number = editVatNumber || null
       if (manualFields.includes('ape_code') && editApeCode !== (org.ape_code ?? '')) payload.ape_code = editApeCode || null
 
-      // Champs toujours éditables (pas dans SIRENE)
+      // Champs toujours éditables
       if (editRcsCity !== (org.rcs_city ?? '')) payload.rcs_city = editRcsCity || null
-      if (editCapital !== (org.capital ?? '')) payload.capital = editCapital ? parseFloat(editCapital) : null
+      // Capital — syncable depuis INPI, éditable si en mode manuel
+      if (manualFields.includes('capital') && editCapital !== (org.capital ?? '')) payload.capital = editCapital ? parseFloat(editCapital) : null
 
       // Adresse — éditable si en mode manuel
       if (manualFields.includes('address')) {
@@ -853,22 +858,64 @@ export default function OrgSettingsPage() {
               />
             </div>
 
-            {/* Capital social — toujours éditable (pas dans SIRENE), masqué pour EI/AE */}
+            {/* Capital social — syncable depuis INPI, masqué pour EI/AE */}
             {hasCapital && (
               <div>
-                <span className="text-gray-400 block text-xs mb-0.5">Capital social</span>
-                <div className="relative">
-                  <input
-                    type="number"
-                    value={editCapital}
-                    onChange={(e) => setEditCapital(e.target.value)}
-                    placeholder="10000"
-                    step="0.01"
-                    min="0"
-                    className="w-full px-3 py-1.5 pr-8 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">€</span>
+                <div className="flex items-center gap-1 mb-0.5">
+                  <span className="text-gray-400 text-xs">Capital social</span>
+                  <button
+                    type="button"
+                    onClick={() => toggleFieldManual('capital')}
+                    title={isManual('capital') ? 'Restaurer depuis INPI' : 'Modifier manuellement'}
+                    className="text-gray-300 hover:text-orange-500 transition p-0.5"
+                  >
+                    {isManual('capital')
+                      ? <RefreshCw className="w-3 h-3" />
+                      : <PenLine className="w-3 h-3" />
+                    }
+                  </button>
                 </div>
+                {isManual('capital') ? (
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={editCapital}
+                      onChange={(e) => setEditCapital(e.target.value)}
+                      placeholder="10000"
+                      step="0.01"
+                      min="0"
+                      className="w-full px-3 py-1.5 pr-8 text-sm border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">€</span>
+                  </div>
+                ) : (
+                  <span className="text-sm text-gray-700">
+                    {org?.capital ? `${parseFloat(org.capital).toLocaleString('fr-FR')} €` : '—'}
+                    {org?.capital_variable && <span className="text-gray-400 text-xs ml-1">(variable)</span>}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Date d'immatriculation RCS — lecture seule depuis INPI */}
+            {org?.date_immatriculation_rcs && (
+              <div>
+                <span className="text-gray-400 block text-xs mb-0.5">Immatriculation RCS</span>
+                <span className="text-sm text-gray-700">
+                  {new Date(org.date_immatriculation_rcs).toLocaleDateString('fr-FR')}
+                </span>
+              </div>
+            )}
+
+            {/* Date de clôture d'exercice — lecture seule depuis INPI */}
+            {org?.date_cloture_exercice && (
+              <div>
+                <span className="text-gray-400 block text-xs mb-0.5">Clôture exercice</span>
+                <span className="text-sm text-gray-700">
+                  {org.date_cloture_exercice.length === 4
+                    ? `${org.date_cloture_exercice.slice(0, 2)}/${org.date_cloture_exercice.slice(2)}`
+                    : org.date_cloture_exercice}
+                </span>
               </div>
             )}
 
@@ -928,6 +975,14 @@ export default function OrgSettingsPage() {
                 <span className="text-gray-900">{addressStr || '—'}</span>
               )}
             </div>
+
+            {/* Objet social — lecture seule depuis INPI */}
+            {org?.objet_social && (
+              <div className="col-span-2">
+                <span className="text-gray-400 block text-xs mb-0.5">Objet social</span>
+                <p className="text-sm text-gray-700 leading-relaxed">{org.objet_social}</p>
+              </div>
+            )}
           </div>
         </section>
 

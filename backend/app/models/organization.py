@@ -47,14 +47,23 @@ class Organization(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )  # micro/simplified/real
     rcs_city: Mapped[str | None] = mapped_column(String(100), nullable=True)
     capital: Mapped[float | None] = mapped_column(Numeric(15, 2), nullable=True)
+    capital_variable: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     ape_code: Mapped[str | None] = mapped_column(String(10), nullable=True)
     website: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    objet_social: Mapped[str | None] = mapped_column(Text, nullable=True)
+    date_cloture_exercice: Mapped[str | None] = mapped_column(
+        String(4), nullable=True
+    )  # "3009" = 30 septembre
+    date_immatriculation_rcs: Mapped[str | None] = mapped_column(
+        String(10), nullable=True
+    )  # ISO date "2018-03-23"
     billing_siret: Mapped[str | None] = mapped_column(
         __import__("sqlalchemy", fromlist=["CHAR"]).CHAR(14), nullable=True
     )
-    # Liste des champs en mode manuel (pas synchro SIRENE)
-    # Champs synchronisables : name, legal_form, siren, siret, vat_number, ape_code, address
-    # Champs toujours manuels (absents de SIRENE) : capital, rcs_city
+    # Liste des champs en mode manuel (pas synchro SIRENE/INPI)
+    # Champs synchronisables SIRENE : name, legal_form, siren, siret, vat_number, ape_code, address
+    # Champs synchronisables INPI : capital, objet_social, date_cloture_exercice, date_immatriculation_rcs, capital_variable
+    # Champs toujours manuels : rcs_city
     manual_fields: Mapped[list] = mapped_column(
         JSONB, default=list, nullable=False
     )

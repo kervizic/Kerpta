@@ -798,69 +798,140 @@ async def search_by_vat_eu(vat: str) -> list[CompanySearchResult]:
 # ── Enrichissement en masse des organisations ────────────────────────────────
 
 
-async def enrich_all_orgs_from_inpi(db: AsyncSession) -> dict:
-    """Enrichit toutes les organisations ayant un SIREN avec les données INPI.
+async def enrich_all_orgs(db: AsyncSession) -> dict:
+    """Enrichit toutes les organisations ayant un SIREN via data.gouv + INPI.
+
+    Pour chaque organisation :
+      - data.gouv : SIRET siège, TVA intracommunautaire, adresse, legal_form, ape_code, name
+      - INPI (si credentials configurés) : capital, objet_social, date_cloture, date_immat RCS
 
     Ne touche pas aux champs listés dans manual_fields de chaque organisation.
     Retourne un résumé { enriched: int, skipped: int, errors: int }.
     """
     from .inpi import _authenticate, _fetch_company_inpi, _extract_inpi_data, _get_inpi_credentials
 
+    # Préparer l'auth INPI (optionnel)
+    inpi_token: str | None = None
     creds = await _get_inpi_credentials(db)
-    if creds is None:
-        _log.warning("[enrich] Pas de credentials INPI — enrichissement annulé")
-        return {"enriched": 0, "skipped": 0, "errors": 0}
-
-    username, password = creds
-    token = await _authenticate(username, password)
-    if token is None:
-        _log.error("[enrich] Authentification INPI échouée — enrichissement annulé")
-        return {"enriched": 0, "skipped": 0, "errors": 0}
+    if creds is not None:
+        username, password = creds
+        inpi_token = await _authenticate(username, password)
+        if inpi_token is None:
+            _log.warning("[enrich] Auth INPI échouée — enrichissement INPI ignoré")
 
     # Récupérer toutes les orgs avec un SIREN
     result = await db.execute(
         text("""
-            SELECT id, siren, capital, manual_fields
+            SELECT id, siren, manual_fields
             FROM organizations
             WHERE siren IS NOT NULL AND LENGTH(TRIM(siren)) = 9
         """)
     )
     rows = result.fetchall()
-    _log.info("[enrich] %d organisations à enrichir via INPI", len(rows))
+    _log.info("[enrich] %d organisations à enrichir", len(rows))
 
     enriched = 0
     skipped = 0
     errors = 0
 
     for row in rows:
-        org_id, siren, current_capital, manual_fields_raw = row
-        manual_fields: list = manual_fields_raw if isinstance(manual_fields_raw, list) else []
-
-        # Si capital est en mode manuel → on skip
-        if "capital" in manual_fields:
-            skipped += 1
-            continue
+        org_id, siren, manual_fields_raw = row
+        siren = siren.strip()
+        manual: list = manual_fields_raw if isinstance(manual_fields_raw, list) else []
 
         try:
-            raw = await _fetch_company_inpi(siren.strip(), token)
-            if raw is None:
-                skipped += 1
-                continue
+            updates: dict[str, str] = {}
+            params: dict = {"org_id": org_id}
 
-            inpi = _extract_inpi_data(raw)
+            # ── 1. data.gouv — SIRET siège, TVA, adresse, etc. ────────────
+            api_result = await _fetch_details_from_api(siren)
+            if api_result is not None:
+                item, matching = api_result
+                siege = item.get("siege") or {}
+                siege_siret = siege.get("siret")
+                nat_jur = item.get("nature_juridique") or ""
+                nom = item.get("nom_raison_sociale") or item.get("nom_complet") or ""
 
-            # Mettre à jour le capital si l'INPI en fournit un
-            if inpi.capital is not None:
+                # SIRET siège
+                if siege_siret and "siret" not in manual:
+                    updates["siret"] = "siret = :siret"
+                    params["siret"] = siege_siret
+
+                # TVA intracommunautaire
+                if "vat_number" not in manual:
+                    updates["vat_number"] = "vat_number = :vat_number"
+                    params["vat_number"] = compute_tva_intracom(siren)
+
+                # Nom
+                if nom and "name" not in manual:
+                    updates["name"] = "name = :name"
+                    params["name"] = nom
+
+                # Forme juridique
+                if nat_jur and "legal_form" not in manual:
+                    label = LEGAL_FORM.get(nat_jur, nat_jur)
+                    updates["legal_form"] = "legal_form = :legal_form"
+                    params["legal_form"] = label
+
+                # Code APE
+                ape = item.get("activite_principale")
+                if ape and "ape_code" not in manual:
+                    updates["ape_code"] = "ape_code = :ape_code"
+                    params["ape_code"] = ape
+
+                # Adresse siège
+                if siege and "address" not in manual:
+                    addr = _build_address_from_siege(siege)
+                    updates["address"] = "address = CAST(:address AS jsonb)"
+                    params["address"] = json.dumps({
+                        "voie": addr.voie,
+                        "complement": addr.complement,
+                        "code_postal": addr.code_postal,
+                        "commune": addr.commune,
+                        "pays": addr.pays,
+                    })
+
+                # Sauvegarder dans le cache SIRENE
+                try:
+                    await _save_to_cache(siren, item, matching, db)
+                except Exception:
+                    pass
+
+            # ── 2. INPI — capital, objet social, dates ────────────────────
+            if inpi_token is not None:
+                raw = await _fetch_company_inpi(siren, inpi_token)
+                if raw is not None:
+                    inpi = _extract_inpi_data(raw)
+
+                    if inpi.capital is not None and "capital" not in manual:
+                        updates["capital"] = "capital = :capital"
+                        params["capital"] = inpi.capital
+
+                    if inpi.capital_variable is not None and "capital_variable" not in manual:
+                        updates["capital_variable"] = "capital_variable = :capital_variable"
+                        params["capital_variable"] = inpi.capital_variable
+
+                    if inpi.objet_social and "objet_social" not in manual:
+                        updates["objet_social"] = "objet_social = :objet_social"
+                        params["objet_social"] = inpi.objet_social
+
+                    if inpi.date_cloture_exercice and "date_cloture_exercice" not in manual:
+                        updates["date_cloture_exercice"] = "date_cloture_exercice = :date_cloture_exercice"
+                        params["date_cloture_exercice"] = inpi.date_cloture_exercice
+
+                    if inpi.date_immatriculation_rcs and "date_immatriculation_rcs" not in manual:
+                        updates["date_immatriculation_rcs"] = "date_immatriculation_rcs = :date_immatriculation_rcs"
+                        params["date_immatriculation_rcs"] = inpi.date_immatriculation_rcs
+
+            # ── 3. Appliquer les updates ──────────────────────────────────
+            if updates:
+                set_clause = ", ".join(updates.values()) + ", updated_at = NOW()"
                 await db.execute(
-                    text("""
-                        UPDATE organizations
-                        SET capital = :capital, updated_at = NOW()
-                        WHERE id = :org_id
-                    """),
-                    {"capital": inpi.capital, "org_id": org_id},
+                    text(f"UPDATE organizations SET {set_clause} WHERE id = :org_id"),
+                    params,
                 )
                 enriched += 1
-                _log.debug("[enrich] Org %s (SIREN %s) → capital=%s", org_id, siren, inpi.capital)
+                _log.debug("[enrich] Org %s (SIREN %s) → %d champs mis à jour", org_id, siren, len(updates))
             else:
                 skipped += 1
 

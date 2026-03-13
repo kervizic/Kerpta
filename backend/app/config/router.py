@@ -260,10 +260,10 @@ async def update_external_keys(
     # Si des credentials INPI sont fournis → enrichir toutes les orgs en background
     if body.inpi and body.inpi.username and body.inpi.password:
         async def _bg_enrich() -> None:
-            from app.companies.service import enrich_all_orgs_from_inpi
+            from app.companies.service import enrich_all_orgs
             async with AsyncSessionLocal() as bg_db:
-                result = await enrich_all_orgs_from_inpi(bg_db)
-                _log.info("[config] Enrichissement INPI terminé : %s", result)
+                result = await enrich_all_orgs(bg_db)
+                _log.info("[config] Enrichissement terminé : %s", result)
 
         asyncio.ensure_future(_bg_enrich())
 

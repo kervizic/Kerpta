@@ -70,7 +70,11 @@ def upgrade() -> None:
         sa.Column("accounting_regime", sa.String(20), nullable=True),
         sa.Column("rcs_city", sa.String(100), nullable=True),
         sa.Column("capital", sa.Numeric(15, 2), nullable=True),
+        sa.Column("capital_variable", sa.Boolean, nullable=True),
         sa.Column("ape_code", sa.String(10), nullable=True),
+        sa.Column("objet_social", sa.Text, nullable=True),
+        sa.Column("date_cloture_exercice", sa.String(4), nullable=True),
+        sa.Column("date_immatriculation_rcs", sa.String(10), nullable=True),
         sa.Column(
             "expense_validation_threshold",
             sa.Numeric(10, 2),
