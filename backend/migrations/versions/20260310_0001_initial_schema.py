@@ -225,6 +225,8 @@ def upgrade() -> None:
         sa.Column("billing_address", postgresql.JSONB, nullable=True),
         sa.Column("shipping_address", postgresql.JSONB, nullable=True),
         sa.Column("payment_terms", sa.Integer, server_default="30", nullable=False),
+        # From 0005: billing_profile_id
+        sa.Column("billing_profile_id", UUID(as_uuid=True), nullable=True),
         sa.Column("notes", sa.Text, nullable=True),
         sa.Column("archived_at", sa.DateTime(timezone=True), nullable=True),
         # From 0008: company_siren (NO FK — dropped in 0013)

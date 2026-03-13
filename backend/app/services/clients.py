@@ -51,9 +51,13 @@ async def list_clients(
         text(f"""
             SELECT c.id::text, c.type, c.name, c.siret, c.country_code,
                    c.vat_number, c.email, c.phone, c.billing_address,
-                   c.shipping_address, c.payment_terms, c.notes,
+                   c.shipping_address, c.payment_terms,
+                   c.billing_profile_id::text,
+                   bp.name AS billing_profile_name,
+                   c.notes,
                    c.created_at, c.archived_at
             FROM clients c
+            LEFT JOIN billing_profiles bp ON bp.id = c.billing_profile_id
             WHERE {where}
             ORDER BY c.name ASC
             LIMIT :limit OFFSET :offset
@@ -79,12 +83,12 @@ async def create_client(
                 id, organization_id, type, name, siret, country_code,
                 company_siren, vat_number, email, phone,
                 billing_address, shipping_address,
-                payment_terms, notes, created_at
+                payment_terms, billing_profile_id, notes, created_at
             ) VALUES (
                 :id, :org_id, :type, :name, :siret, :country_code,
                 :company_siren, :vat_number, :email, :phone,
                 CAST(:billing AS jsonb), CAST(:shipping AS jsonb),
-                :payment_terms, :notes, now()
+                :payment_terms, :billing_profile_id, :notes, now()
             )
         """),
         {
@@ -101,6 +105,7 @@ async def create_client(
             "billing": billing_json,
             "shipping": shipping_json,
             "payment_terms": data.payment_terms,
+            "billing_profile_id": data.billing_profile_id,
             "notes": data.notes,
         },
     )
@@ -117,7 +122,9 @@ async def get_client(
             SELECT c.id::text, c.type, c.name, c.siret, c.country_code,
                    c.company_siren, c.vat_number, c.email, c.phone,
                    c.billing_address, c.shipping_address,
-                   c.payment_terms, c.notes,
+                   c.payment_terms, c.billing_profile_id::text,
+                   bp.name AS billing_profile_name,
+                   c.notes,
                    c.created_at, c.archived_at,
                    (SELECT COUNT(*) FROM quotes q WHERE q.client_id = c.id) AS quote_count,
                    (SELECT COUNT(*) FROM invoices i WHERE i.client_id = c.id) AS invoice_count,
@@ -127,6 +134,7 @@ async def get_client(
                    COALESCE((SELECT SUM(amount_paid) FROM invoices i
                     WHERE i.client_id = c.id AND i.status != 'cancelled'), 0) AS total_paid
             FROM clients c
+            LEFT JOIN billing_profiles bp ON bp.id = c.billing_profile_id
             WHERE c.id = :cid AND c.organization_id = :org_id
         """),
         {"cid": client_id, "org_id": str(org_id)},

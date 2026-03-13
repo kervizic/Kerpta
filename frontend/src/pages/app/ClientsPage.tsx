@@ -16,6 +16,14 @@ import axios from 'axios'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
+interface BillingProfileShort {
+  id: string
+  name: string
+  payment_terms: number
+  payment_term_type: string
+  is_default: boolean
+}
+
 interface Client {
   id: string
   type: string
@@ -23,7 +31,8 @@ interface Client {
   siret: string | null
   email: string | null
   phone: string | null
-  payment_terms: number
+  billing_profile_id: string | null
+  billing_profile_name: string | null
   created_at: string | null
   archived_at: string | null
 }
@@ -113,14 +122,6 @@ function httpError(err: unknown, fallback: string): string {
 }
 
 const INPUT = 'w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent'
-
-const PAYMENT_TERMS_OPTIONS = [
-  { value: 0, label: 'Comptant' },
-  { value: 15, label: '15 jours' },
-  { value: 30, label: '30 jours' },
-  { value: 45, label: '45 jours' },
-  { value: 60, label: '60 jours' },
-]
 
 function formatAddress(a: Record<string, string | null> | null | undefined): string {
   if (!a) return '—'
@@ -282,7 +283,8 @@ function CreateClientForm() {
   const [contactPhone, setContactPhone] = useState('')
 
   // Divers
-  const [paymentTerms, setPaymentTerms] = useState(30)
+  const [billingProfileId, setBillingProfileId] = useState<string | null>(null)
+  const [billingProfiles, setBillingProfiles] = useState<BillingProfileShort[]>([])
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -299,6 +301,22 @@ function CreateClientForm() {
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  // Charger les profils de facturation
+  useEffect(() => {
+    async function loadProfiles() {
+      try {
+        const { data } = await orgGet<BillingProfileShort[]>('/billing/profiles')
+        setBillingProfiles(data)
+        // Sélectionner le profil par défaut
+        const defaultProfile = data.find((p) => p.is_default)
+        if (defaultProfile) setBillingProfileId(defaultProfile.id)
+      } catch {
+        // Pas critique
+      }
+    }
+    void loadProfiles()
   }, [])
 
   const filteredCountries = countrySearch
@@ -406,7 +424,7 @@ function CreateClientForm() {
         email: contactEmail || undefined,
         phone: contactPhone || undefined,
         billing_address: billingAddress.voie ? billingAddress : undefined,
-        payment_terms: paymentTerms,
+        billing_profile_id: billingProfileId || undefined,
         notes: notes || undefined,
       })
 
@@ -680,14 +698,28 @@ function CreateClientForm() {
             </div>
           </section>
 
-          {/* ── Conditions de paiement ────────────────────────────────────── */}
+          {/* ── Profil de facturation ──────────────────────────────────── */}
           <section>
-            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Conditions de paiement</label>
-            <select value={paymentTerms} onChange={(e) => setPaymentTerms(Number(e.target.value))} className={`${INPUT} bg-white`}>
-              {PAYMENT_TERMS_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
+            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Profil de facturation</label>
+            {billingProfiles.length > 0 ? (
+              <select
+                value={billingProfileId ?? ''}
+                onChange={(e) => setBillingProfileId(e.target.value || null)}
+                className={`${INPUT} bg-white`}
+              >
+                <option value="">Aucun profil</option>
+                {billingProfiles.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} — {p.payment_terms}j {p.payment_term_type === 'net' ? 'net' : p.payment_term_type === 'end_of_month' ? 'fin de mois' : `le ${p.payment_terms}`}
+                    {p.is_default ? ' (par défaut)' : ''}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <p className="text-xs text-gray-400">
+                Aucun profil de facturation. Créez-en un dans Paramètres &gt; Facturation.
+              </p>
+            )}
           </section>
 
           {/* ── Notes ────────────────────────────────────────────────────── */}
@@ -783,7 +815,7 @@ function ClientDetailView({ clientId }: { clientId: string }) {
                 <p><span className="text-gray-400">Email :</span> {client.email || '—'}</p>
                 <p><span className="text-gray-400">Tél :</span> {client.phone || '—'}</p>
                 <p><span className="text-gray-400">TVA :</span> {client.vat_number || '—'}</p>
-                <p><span className="text-gray-400">Conditions :</span> {client.payment_terms} jours</p>
+                <p><span className="text-gray-400">Profil :</span> {client.billing_profile_name || '—'}</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -800,7 +832,7 @@ function ClientDetailView({ clientId }: { clientId: string }) {
                 ))}
                 <div className="pt-2 border-t border-gray-100 text-sm">
                   <p><span className="text-gray-400">TVA :</span> {client.vat_number || '—'}</p>
-                  <p><span className="text-gray-400">Conditions :</span> {client.payment_terms} jours</p>
+                  <p><span className="text-gray-400">Profil :</span> {client.billing_profile_name || '—'}</p>
                 </div>
               </div>
             )}

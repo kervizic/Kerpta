@@ -20,6 +20,7 @@ class ClientCreate(BaseModel):
     billing_address: dict | None = None
     shipping_address: dict | None = None
     payment_terms: int = 30
+    billing_profile_id: str | None = None
     notes: str | None = None
 
 
@@ -33,6 +34,7 @@ class ClientUpdate(BaseModel):
     billing_address: dict | None = None
     shipping_address: dict | None = None
     payment_terms: int | None = None
+    billing_profile_id: str | None = None
     notes: str | None = None
 
 
@@ -50,6 +52,8 @@ class ClientOut(BaseModel):
     billing_address: dict | None = None
     shipping_address: dict | None = None
     payment_terms: int
+    billing_profile_id: str | None = None
+    billing_profile_name: str | None = None
     notes: str | None = None
     created_at: datetime | None = None
     archived_at: datetime | None = None

@@ -41,6 +41,11 @@ class Client(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     billing_address: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     shipping_address: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     payment_terms: Mapped[int] = mapped_column(Integer, default=30, nullable=False)
+    billing_profile_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("billing_profiles.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     archived_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
