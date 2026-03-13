@@ -61,8 +61,11 @@ async def list_products(
         conditions.append("p.is_in_catalog = true")
 
     if search:
-        conditions.append("(LOWER(p.name) LIKE :search OR LOWER(p.reference) LIKE :search)")
-        params["search"] = f"%{search.lower()}%"
+        words = search.lower().split()
+        for idx, word in enumerate(words):
+            key = f"search_{idx}"
+            conditions.append(f"(LOWER(p.name) LIKE :{key} OR LOWER(p.reference) LIKE :{key})")
+            params[key] = f"%{word}%"
 
     where = " AND ".join(conditions)
 

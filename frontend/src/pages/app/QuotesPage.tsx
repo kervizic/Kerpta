@@ -4,11 +4,12 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import {
-  Loader2, ArrowLeft, Send, Check, X, Copy, Plus, Trash2, Search, Package,
+  Loader2, ArrowLeft, Send, Check, X, Copy, Plus, Trash2,
 } from 'lucide-react'
 import { navigate } from '@/hooks/useRoute'
 import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
 import UnitCombobox from '@/components/app/UnitCombobox'
+import ProductAutocomplete, { type AutocompleteProduct } from '@/components/app/ProductAutocomplete'
 
 const INPUT = 'w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 transition'
 
@@ -59,11 +60,6 @@ interface QuoteLine {
 
 interface ClientOption { id: string; name: string }
 interface BillingProfile { id: string; name: string; is_default: boolean; footer: string | null }
-interface CatalogProduct {
-  id: string; reference: string | null; name: string; description: string | null
-  unit: string | null; unit_price: number | null; vat_rate: number
-}
-
 // ── Types pour ligne formulaire ────────────────────────────────────────────
 
 interface FormLine {
@@ -356,83 +352,6 @@ function QuoteDetailView({ quoteId }: { quoteId: string }) {
   )
 }
 
-// ── Modal sélection catalogue ────────────────────────────────────────────────
-
-function CatalogModal({
-  onSelect,
-  onClose,
-}: {
-  onSelect: (p: CatalogProduct) => void
-  onClose: () => void
-}) {
-  const [products, setProducts] = useState<CatalogProduct[]>([])
-  const [search, setSearch] = useState('')
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    orgGet<{ items: CatalogProduct[] }>('/catalog/products', { page_size: 200, is_in_catalog: true })
-      .then((d) => setProducts(d.items))
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
-
-  const filtered = products.filter((p) => {
-    const s = search.toLowerCase()
-    return p.name.toLowerCase().includes(s) || (p.reference || '').toLowerCase().includes(s)
-  })
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <h3 className="text-base font-semibold text-gray-900">Sélectionner un article</h3>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 transition"><X className="w-4 h-4 text-gray-400" /></button>
-        </div>
-        <div className="px-5 py-3 border-b border-gray-100">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Rechercher par nom ou référence..."
-              className={`pl-9 ${INPUT}`}
-              autoFocus
-            />
-          </div>
-        </div>
-        <div className="flex-1 overflow-y-auto px-5 py-2">
-          {loading ? (
-            <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-orange-500" /></div>
-          ) : filtered.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-8">Aucun article trouvé</p>
-          ) : (
-            <div className="space-y-1">
-              {filtered.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => onSelect(p)}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-orange-50 transition text-left"
-                >
-                  <Package className="w-4 h-4 text-gray-400 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-gray-900 truncate">{p.name}</div>
-                    <div className="text-xs text-gray-400">
-                      {p.reference && <span className="font-mono mr-2">{p.reference}</span>}
-                      {p.unit_price != null && <span>{fmtCurrency(p.unit_price)}</span>}
-                      {p.unit && <span className="ml-1">/ {p.unit}</span>}
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ── Formulaire création/édition ──────────────────────────────────────────────
 
 function QuoteFormPage({ quoteId }: { quoteId?: string }) {
@@ -455,7 +374,6 @@ function QuoteFormPage({ quoteId }: { quoteId?: string }) {
   const [profiles, setProfiles] = useState<BillingProfile[]>([])
   const [loading, setLoading] = useState(isEdit)
   const [saving, setSaving] = useState(false)
-  const [catalogOpen, setCatalogOpen] = useState(false)
 
   // Charger les données de référence
   useEffect(() => {
@@ -536,7 +454,7 @@ function QuoteFormPage({ quoteId }: { quoteId?: string }) {
   }, [lines, discountType, discountValue])
 
   // Gestion des lignes
-  function updateLine(index: number, field: keyof FormLine, value: string) {
+  function updateLine(index: number, field: keyof FormLine, value: string | null) {
     setLines((prev) => prev.map((l, i) => i === index ? { ...l, [field]: value } : l))
   }
 
@@ -544,33 +462,48 @@ function QuoteFormPage({ quoteId }: { quoteId?: string }) {
     setLines((prev) => prev.length <= 1 ? prev : prev.filter((_, i) => i !== index))
   }
 
-  function addFromCatalog(product: CatalogProduct) {
-    const newLine: FormLine = {
-      key: crypto.randomUUID(),
+  function selectProduct(index: number, product: AutocompleteProduct) {
+    setLines((prev) => prev.map((l, i) => i === index ? {
+      ...l,
       product_id: product.id,
-      client_product_variant_id: null,
       reference: product.reference || '',
       description: product.name + (product.description ? `\n${product.description}` : ''),
-      quantity: '1',
       unit: product.unit || '',
       unit_price: product.unit_price != null ? String(product.unit_price) : '0',
       vat_rate: String(product.vat_rate),
-      discount_percent: '0',
-    }
-    setLines((prev) => {
-      // Si il n'y a qu'une seule ligne vide, la remplacer
-      if (prev.length === 1 && !prev[0].description && prev[0].unit_price === '0') {
-        return [newLine]
-      }
-      return [...prev, newLine]
-    })
-    setCatalogOpen(false)
+    } : l))
   }
 
   // Sauvegarde
   async function handleSave(andSend = false) {
     if (!clientId) return
     setSaving(true)
+
+    // Créer les nouveaux articles (lignes sans product_id)
+    const updatedLines = [...lines]
+    let newArticlesCount = 0
+    for (let i = 0; i < updatedLines.length; i++) {
+      const l = updatedLines[i]
+      if (!l.product_id && l.description.trim()) {
+        try {
+          const result = await orgPost<{ id: string }>('/catalog/products', {
+            name: l.description.split('\n')[0],
+            description: l.description.includes('\n') ? l.description.split('\n').slice(1).join('\n') : undefined,
+            unit: l.unit || undefined,
+            unit_price: parseFloat(l.unit_price) || undefined,
+            vat_rate: parseFloat(l.vat_rate) || 20,
+            reference: l.reference || undefined,
+            is_in_catalog: false,
+          })
+          updatedLines[i] = { ...l, product_id: result.id }
+          newArticlesCount++
+        } catch { /* continue même si la création échoue */ }
+      }
+    }
+    if (newArticlesCount > 0) {
+      setLines(updatedLines)
+    }
+
     const payload = {
       client_id: clientId,
       document_type: documentType,
@@ -581,7 +514,7 @@ function QuoteFormPage({ quoteId }: { quoteId?: string }) {
       discount_value: parseFloat(discountValue) || 0,
       notes: notes || null,
       footer: footer || null,
-      lines: lines.map((l, i) => ({
+      lines: updatedLines.map((l, i) => ({
         product_id: l.product_id,
         client_product_variant_id: l.client_product_variant_id,
         position: i,
@@ -671,20 +604,12 @@ function QuoteFormPage({ quoteId }: { quoteId?: string }) {
         <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-4">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Lignes</h2>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setCatalogOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold rounded-lg transition"
-              >
-                <Package className="w-3.5 h-3.5" /> Depuis le catalogue
-              </button>
-              <button
-                onClick={() => setLines((prev) => [...prev, emptyLine()])}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-400 text-white text-xs font-semibold rounded-lg transition"
-              >
-                <Plus className="w-3.5 h-3.5" /> Ligne libre
-              </button>
-            </div>
+            <button
+              onClick={() => setLines((prev) => [...prev, emptyLine()])}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-400 text-white text-xs font-semibold rounded-lg transition"
+            >
+              <Plus className="w-3.5 h-3.5" /> Ajouter une ligne
+            </button>
           </div>
 
           <div className="overflow-x-auto">
@@ -711,7 +636,19 @@ function QuoteFormPage({ quoteId }: { quoteId?: string }) {
                         <input type="text" value={line.reference} onChange={(e) => updateLine(i, 'reference', e.target.value)} placeholder="Réf" className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400" />
                       </td>
                       <td className="px-1 py-1.5">
-                        <input type="text" value={line.description} onChange={(e) => updateLine(i, 'description', e.target.value)} placeholder="Désignation" className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400" />
+                        <div className="flex items-center gap-1">
+                          <ProductAutocomplete
+                            value={line.description}
+                            onChange={(text) => { updateLine(i, 'description', text); if (line.product_id) updateLine(i, 'product_id', null) }}
+                            onSelect={(p) => selectProduct(i, p)}
+                            clientId={clientId || null}
+                            className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400"
+                            placeholder="Désignation"
+                          />
+                          {!line.product_id && line.description.trim() && (
+                            <span className="shrink-0 text-[9px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full font-medium">Nouveau</span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-1 py-1.5">
                         <input type="number" step="0.01" min="0.01" value={line.quantity} onChange={(e) => updateLine(i, 'quantity', e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 text-right" />
@@ -833,8 +770,6 @@ function QuoteFormPage({ quoteId }: { quoteId?: string }) {
           </button>
         </div>
 
-        {/* Modal catalogue */}
-        {catalogOpen && <CatalogModal onSelect={addFromCatalog} onClose={() => setCatalogOpen(false)} />}
       </div>
     </div>
   )
