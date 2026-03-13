@@ -340,16 +340,13 @@ function ProductFormPage({ productId }: { productId?: string }) {
                 <UnitCombobox value={unit} onChange={setUnit} className={INPUT} placeholder="Unité" />
               </div>
               <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description" rows={2} className={INPUT} />
-              <div className="grid grid-cols-2 gap-3">
-                <input type="text" value={accountCode} onChange={(e) => setAccountCode(e.target.value)} placeholder="Compte comptable (706000)" className={INPUT} />
-                <select value={vatRate} onChange={(e) => setVatRate(e.target.value)} className={`${INPUT} bg-white`}>
-                  <option value="20">TVA 20%</option>
-                  <option value="10">TVA 10%</option>
-                  <option value="5.5">TVA 5,5%</option>
-                  <option value="2.1">TVA 2,1%</option>
-                  <option value="0">TVA 0%</option>
-                </select>
-              </div>
+              <select value={vatRate} onChange={(e) => setVatRate(e.target.value)} className={`${INPUT} bg-white`}>
+                <option value="20">TVA 20%</option>
+                <option value="10">TVA 10%</option>
+                <option value="5.5">TVA 5,5%</option>
+                <option value="2.1">TVA 2,1%</option>
+                <option value="0">TVA 0%</option>
+              </select>
               <label className="flex items-center gap-2 text-sm text-gray-700">
                 <input type="checkbox" checked={isInCatalog} onChange={(e) => setIsInCatalog(e.target.checked)}
                   className="rounded border-gray-300 text-orange-600 focus:ring-orange-400" />
