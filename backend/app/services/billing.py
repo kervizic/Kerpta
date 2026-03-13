@@ -126,7 +126,8 @@ async def list_billing_profiles(org_id: uuid.UUID, db: AsyncSession) -> list[dic
         text("""
             SELECT bp.id::text, bp.name, bp.bank_account_id::text,
                    ba.label AS bank_account_label, ba.iban AS bank_account_iban,
-                   bp.payment_terms, bp.payment_method,
+                   bp.payment_terms, bp.payment_term_type, bp.payment_term_day,
+                   bp.payment_method,
                    bp.late_penalty_rate, bp.discount_rate,
                    bp.legal_mentions, bp.footer, bp.is_default, bp.created_at
             FROM billing_profiles bp
@@ -154,10 +155,12 @@ async def create_billing_profile(
         text("""
             INSERT INTO billing_profiles (
                 id, organization_id, name, bank_account_id, payment_terms,
+                payment_term_type, payment_term_day,
                 payment_method, late_penalty_rate, discount_rate,
                 legal_mentions, footer, is_default, created_at
             ) VALUES (
                 :id, :org_id, :name, :bank_id, :terms,
+                :term_type, :term_day,
                 :method, :penalty, :discount,
                 :mentions, :footer, :is_default, now()
             )
@@ -168,6 +171,8 @@ async def create_billing_profile(
             "name": data.name,
             "bank_id": data.bank_account_id,
             "terms": data.payment_terms,
+            "term_type": data.payment_term_type,
+            "term_day": data.payment_term_day,
             "method": data.payment_method,
             "penalty": str(data.late_penalty_rate) if data.late_penalty_rate is not None else None,
             "discount": str(data.discount_rate) if data.discount_rate is not None else None,

@@ -44,6 +44,8 @@ class BillingProfile(Base, UUIDPrimaryKeyMixin):
         UUID(as_uuid=True), ForeignKey("bank_accounts.id"), nullable=True
     )
     payment_terms: Mapped[int] = mapped_column(Integer, default=30, nullable=False)
+    payment_term_type: Mapped[str] = mapped_column(String(20), default="net", nullable=False)
+    payment_term_day: Mapped[int | None] = mapped_column(Integer, nullable=True)
     payment_method: Mapped[str | None] = mapped_column(String(30), nullable=True)
     late_penalty_rate: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)
     discount_rate: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)

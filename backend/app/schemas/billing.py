@@ -46,6 +46,8 @@ class BillingProfileCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     bank_account_id: str | None = None
     payment_terms: int = 30
+    payment_term_type: str = Field("net", pattern=r"^(net|end_of_month|end_of_month_the)$")
+    payment_term_day: int | None = Field(None, ge=1, le=31)
     payment_method: str | None = Field(None, max_length=30)
     late_penalty_rate: Decimal | None = None
     discount_rate: Decimal | None = None
@@ -58,6 +60,8 @@ class BillingProfileUpdate(BaseModel):
     name: str | None = Field(None, min_length=1, max_length=100)
     bank_account_id: str | None = None
     payment_terms: int | None = None
+    payment_term_type: str | None = Field(None, pattern=r"^(net|end_of_month|end_of_month_the)$")
+    payment_term_day: int | None = Field(None, ge=1, le=31)
     payment_method: str | None = Field(None, max_length=30)
     late_penalty_rate: Decimal | None = None
     discount_rate: Decimal | None = None
@@ -75,6 +79,8 @@ class BillingProfileOut(BaseModel):
     bank_account_label: str | None = None
     bank_account_iban: str | None = None
     payment_terms: int
+    payment_term_type: str = "net"
+    payment_term_day: int | None = None
     payment_method: str | None = None
     late_penalty_rate: Decimal | None = None
     discount_rate: Decimal | None = None

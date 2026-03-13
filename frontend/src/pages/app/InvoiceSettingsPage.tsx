@@ -26,6 +26,8 @@ interface BillingProfile {
   bank_account_label: string | null
   bank_account_iban: string | null
   payment_terms: number
+  payment_term_type: string
+  payment_term_day: number | null
   payment_method: string | null
   late_penalty_rate: number | null
   discount_rate: number | null
@@ -181,6 +183,8 @@ function BillingProfilesSection() {
   const [name, setName] = useState('')
   const [bankAccountId, setBankAccountId] = useState('')
   const [paymentTerms, setPaymentTerms] = useState('30')
+  const [paymentTermType, setPaymentTermType] = useState('net')
+  const [paymentTermDay, setPaymentTermDay] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('')
   const [latePenaltyRate, setLatePenaltyRate] = useState('')
   const [discountRate, setDiscountRate] = useState('')
@@ -203,12 +207,16 @@ function BillingProfilesSection() {
 
   useEffect(() => { void load() }, [load])
 
-  function openModal(item: BillingProfile | 'new') {
+  async function openModal(item: BillingProfile | 'new') {
+    // Toujours refetch les comptes bancaires pour avoir la liste à jour
+    try { setBankAccounts(await orgGet<BankAccount[]>('/billing/bank-accounts')) } catch { /* */ }
+
     if (item === 'new') {
-      setName(''); setBankAccountId(''); setPaymentTerms('30'); setPaymentMethod('')
-      setLatePenaltyRate(''); setDiscountRate(''); setLegalMentions(''); setFooter(''); setIsDefault(false)
+      setName(''); setBankAccountId(''); setPaymentTerms('30'); setPaymentTermType('net'); setPaymentTermDay('')
+      setPaymentMethod(''); setLatePenaltyRate(''); setDiscountRate(''); setLegalMentions(''); setFooter(''); setIsDefault(false)
     } else {
       setName(item.name); setBankAccountId(item.bank_account_id || ''); setPaymentTerms(String(item.payment_terms))
+      setPaymentTermType(item.payment_term_type || 'net'); setPaymentTermDay(item.payment_term_day ? String(item.payment_term_day) : '')
       setPaymentMethod(item.payment_method || ''); setLatePenaltyRate(item.late_penalty_rate ? String(item.late_penalty_rate) : '')
       setDiscountRate(item.discount_rate ? String(item.discount_rate) : '')
       setLegalMentions(item.legal_mentions || ''); setFooter(item.footer || ''); setIsDefault(item.is_default)
@@ -223,6 +231,8 @@ function BillingProfilesSection() {
       name,
       bank_account_id: bankAccountId || null,
       payment_terms: parseInt(paymentTerms) || 30,
+      payment_term_type: paymentTermType,
+      payment_term_day: paymentTermType === 'end_of_month_the' && paymentTermDay ? parseInt(paymentTermDay) : null,
       payment_method: paymentMethod || null,
       late_penalty_rate: latePenaltyRate ? parseFloat(latePenaltyRate) : null,
       discount_rate: discountRate ? parseFloat(discountRate) : null,
@@ -268,7 +278,10 @@ function BillingProfilesSection() {
             <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50/50">
               <td className="px-3 py-2 font-medium text-gray-900">{p.name}</td>
               <td className="px-3 py-2 text-gray-500">{p.bank_account_label || '—'}</td>
-              <td className="px-3 py-2 text-gray-500">{p.payment_terms} jours</td>
+              <td className="px-3 py-2 text-gray-500">
+                {p.payment_terms}j{' '}
+                {p.payment_term_type === 'end_of_month' ? 'fin de mois' : p.payment_term_type === 'end_of_month_the' ? `fin de mois le ${p.payment_term_day ?? '—'}` : 'net'}
+              </td>
               <td className="px-3 py-2 text-gray-500 capitalize">{p.payment_method || '—'}</td>
               <td className="px-3 py-2 text-center">{p.is_default && <Star className="w-4 h-4 text-orange-500 mx-auto" />}</td>
               <td className="px-3 py-2">
@@ -290,11 +303,28 @@ function BillingProfilesSection() {
               <option value="">— Compte bancaire —</option>
               {bankAccounts.map((a) => <option key={a.id} value={a.id}>{a.label} ({a.iban.slice(-4)})</option>)}
             </select>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">Délai de paiement (jours)</label>
-                <input type="number" value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} className={INPUT} />
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">Délai de paiement (jours)</label>
+                  <input type="number" value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} className={INPUT} />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">Type de délai</label>
+                  <select value={paymentTermType} onChange={(e) => setPaymentTermType(e.target.value)} className={`${INPUT} bg-white`}>
+                    <option value="net">Net (date de facture + jours)</option>
+                    <option value="end_of_month">Fin de mois</option>
+                    <option value="end_of_month_the">Fin de mois le…</option>
+                  </select>
+                </div>
               </div>
+              {paymentTermType === 'end_of_month_the' && (
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">Jour du mois</label>
+                  <input type="number" min={1} max={31} value={paymentTermDay} onChange={(e) => setPaymentTermDay(e.target.value)} placeholder="Ex: 15" className={INPUT} />
+                  <p className="text-xs text-gray-400 mt-1">Le paiement est dû le {paymentTermDay || '…'} du mois suivant la fin du délai.</p>
+                </div>
+              )}
               <div>
                 <label className="text-xs text-gray-500 mb-1 block">Mode de paiement</label>
                 <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className={`${INPUT} bg-white`}>
