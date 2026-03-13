@@ -793,3 +793,84 @@ async def search_by_vat_eu(vat: str) -> list[CompanySearchResult]:
             siege_adresse=adresse,
         )
     ]
+
+
+# ── Enrichissement en masse des organisations ────────────────────────────────
+
+
+async def enrich_all_orgs_from_inpi(db: AsyncSession) -> dict:
+    """Enrichit toutes les organisations ayant un SIREN avec les données INPI.
+
+    Ne touche pas aux champs listés dans manual_fields de chaque organisation.
+    Retourne un résumé { enriched: int, skipped: int, errors: int }.
+    """
+    from .inpi import _authenticate, _fetch_company_inpi, _extract_inpi_data, _get_inpi_credentials
+
+    creds = await _get_inpi_credentials(db)
+    if creds is None:
+        _log.warning("[enrich] Pas de credentials INPI — enrichissement annulé")
+        return {"enriched": 0, "skipped": 0, "errors": 0}
+
+    username, password = creds
+    token = await _authenticate(username, password)
+    if token is None:
+        _log.error("[enrich] Authentification INPI échouée — enrichissement annulé")
+        return {"enriched": 0, "skipped": 0, "errors": 0}
+
+    # Récupérer toutes les orgs avec un SIREN
+    result = await db.execute(
+        text("""
+            SELECT id, siren, capital, manual_fields
+            FROM organizations
+            WHERE siren IS NOT NULL AND LENGTH(TRIM(siren)) = 9
+        """)
+    )
+    rows = result.fetchall()
+    _log.info("[enrich] %d organisations à enrichir via INPI", len(rows))
+
+    enriched = 0
+    skipped = 0
+    errors = 0
+
+    for row in rows:
+        org_id, siren, current_capital, manual_fields_raw = row
+        manual_fields: list = manual_fields_raw if isinstance(manual_fields_raw, list) else []
+
+        # Si capital est en mode manuel → on skip
+        if "capital" in manual_fields:
+            skipped += 1
+            continue
+
+        try:
+            raw = await _fetch_company_inpi(siren.strip(), token)
+            if raw is None:
+                skipped += 1
+                continue
+
+            inpi = _extract_inpi_data(raw)
+
+            # Mettre à jour le capital si l'INPI en fournit un
+            if inpi.capital is not None:
+                await db.execute(
+                    text("""
+                        UPDATE organizations
+                        SET capital = :capital, updated_at = NOW()
+                        WHERE id = :org_id
+                    """),
+                    {"capital": inpi.capital, "org_id": org_id},
+                )
+                enriched += 1
+                _log.debug("[enrich] Org %s (SIREN %s) → capital=%s", org_id, siren, inpi.capital)
+            else:
+                skipped += 1
+
+            # Respecter le rate-limit INPI (pause 200ms entre les requêtes)
+            await asyncio.sleep(0.2)
+
+        except Exception as exc:
+            _log.warning("[enrich] Erreur pour SIREN %s : %s", siren, exc)
+            errors += 1
+
+    await db.commit()
+    _log.info("[enrich] Terminé : enriched=%d, skipped=%d, errors=%d", enriched, skipped, errors)
+    return {"enriched": enriched, "skipped": skipped, "errors": errors}

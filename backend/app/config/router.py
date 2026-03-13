@@ -22,7 +22,7 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.core.database import get_db, AsyncSessionLocal
 from app.core.security import get_current_user_id, require_platform_admin
 from app.setup.service import KNOWN_PROVIDERS, restart_auth_service, save_oauth_config
 
@@ -256,4 +256,15 @@ async def update_external_keys(
     await db.commit()
 
     _log.info("[config] Clés API externes mises à jour (services: %s)", list(existing.keys()))
+
+    # Si des credentials INPI sont fournis → enrichir toutes les orgs en background
+    if body.inpi and body.inpi.username and body.inpi.password:
+        async def _bg_enrich() -> None:
+            from app.companies.service import enrich_all_orgs_from_inpi
+            async with AsyncSessionLocal() as bg_db:
+                result = await enrich_all_orgs_from_inpi(bg_db)
+                _log.info("[config] Enrichissement INPI terminé : %s", result)
+
+        asyncio.ensure_future(_bg_enrich())
+
     return {"ok": True}
