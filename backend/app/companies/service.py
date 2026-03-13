@@ -864,9 +864,6 @@ async def enrich_all_orgs_from_inpi(db: AsyncSession) -> dict:
             else:
                 skipped += 1
 
-            # Respecter le rate-limit INPI (pause 200ms entre les requêtes)
-            await asyncio.sleep(0.2)
-
         except Exception as exc:
             _log.warning("[enrich] Erreur pour SIREN %s : %s", siren, exc)
             errors += 1
