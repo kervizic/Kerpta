@@ -98,6 +98,32 @@ async def get_organization(
     return OrgDetailOut(**row)
 
 
+@router.post("/{org_id}/enrich", response_model=dict)
+async def enrich_organization(
+    org_id: str,
+    user_id: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Enrichit l'organisation depuis data.gouv + INPI (membres uniquement).
+
+    Appelé automatiquement par le frontend si les données ont plus de 24h
+    ou n'ont jamais été enrichies.
+    """
+    # Vérifier que l'utilisateur est membre
+    from sqlalchemy import text as sa_text
+    membership = await db.execute(
+        sa_text("SELECT 1 FROM organization_memberships WHERE user_id = :uid AND organization_id = :oid"),
+        {"uid": str(user_id), "oid": org_id},
+    )
+    if membership.fetchone() is None:
+        from fastapi import HTTPException
+        raise HTTPException(403, "Vous n'êtes pas membre de cette organisation")
+
+    from app.companies.service import enrich_single_org
+    updated = await enrich_single_org(org_id, db)
+    return {"ok": True, "updated": updated}
+
+
 @router.patch("/{org_id}", response_model=dict)
 async def update_organization(
     org_id: str,

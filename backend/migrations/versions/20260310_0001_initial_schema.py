@@ -120,6 +120,8 @@ def upgrade() -> None:
         sa.Column("website", sa.String(255), nullable=True),
         # From 0021: manual_fields (replaces company_info_manual from 0020)
         sa.Column("manual_fields", JSONB, nullable=False, server_default=sa.text("'[]'::jsonb")),
+        # From 0003: last_enriched_at
+        sa.Column("last_enriched_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),

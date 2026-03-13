@@ -262,6 +262,7 @@ async def get_organization(
                 o.objet_social,
                 o.date_cloture_exercice,
                 o.date_immatriculation_rcs,
+                o.last_enriched_at,
                 o.manual_fields,
                 (EXISTS (
                     SELECT 1 FROM organization_logos ol

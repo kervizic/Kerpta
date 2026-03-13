@@ -60,6 +60,10 @@ class Organization(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     billing_siret: Mapped[str | None] = mapped_column(
         __import__("sqlalchemy", fromlist=["CHAR"]).CHAR(14), nullable=True
     )
+    # Timestamp du dernier enrichissement data.gouv + INPI
+    last_enriched_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     # Liste des champs en mode manuel (pas synchro SIRENE/INPI)
     # Champs synchronisables SIRENE : name, legal_form, siren, siret, vat_number, ape_code, address
     # Champs synchronisables INPI : capital, objet_social, date_cloture_exercice, date_immatriculation_rcs, capital_variable

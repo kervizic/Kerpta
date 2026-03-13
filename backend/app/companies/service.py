@@ -795,7 +795,149 @@ async def search_by_vat_eu(vat: str) -> list[CompanySearchResult]:
     ]
 
 
-# ── Enrichissement en masse des organisations ────────────────────────────────
+# ── Enrichissement des organisations ─────────────────────────────────────────
+
+
+async def _enrich_org_row(
+    org_id: str,
+    siren: str,
+    manual: list,
+    inpi_token: str | None,
+    db: AsyncSession,
+) -> bool:
+    """Enrichit une organisation depuis data.gouv + INPI.
+
+    Retourne True si au moins un champ a été mis à jour, False sinon.
+    """
+    from .inpi import _fetch_company_inpi, _extract_inpi_data
+
+    updates: dict[str, str] = {}
+    params: dict = {"org_id": org_id}
+
+    # ── 1. data.gouv — SIRET siège, TVA, adresse, etc. ────────────
+    api_result = await _fetch_details_from_api(siren)
+    if api_result is not None:
+        item, matching = api_result
+        siege = item.get("siege") or {}
+        siege_siret = siege.get("siret")
+        nat_jur = item.get("nature_juridique") or ""
+        nom = item.get("nom_raison_sociale") or item.get("nom_complet") or ""
+
+        # SIRET siège
+        if siege_siret and "siret" not in manual:
+            updates["siret"] = "siret = :siret"
+            params["siret"] = siege_siret
+
+        # TVA intracommunautaire
+        if "vat_number" not in manual:
+            updates["vat_number"] = "vat_number = :vat_number"
+            params["vat_number"] = compute_tva_intracom(siren)
+
+        # Nom
+        if nom and "name" not in manual:
+            updates["name"] = "name = :name"
+            params["name"] = nom
+
+        # Forme juridique
+        if nat_jur and "legal_form" not in manual:
+            label = LEGAL_FORM.get(nat_jur, nat_jur)
+            updates["legal_form"] = "legal_form = :legal_form"
+            params["legal_form"] = label
+
+        # Code APE
+        ape = item.get("activite_principale")
+        if ape and "ape_code" not in manual:
+            updates["ape_code"] = "ape_code = :ape_code"
+            params["ape_code"] = ape
+
+        # Adresse siège
+        if siege and "address" not in manual:
+            addr = _build_address_from_siege(siege)
+            updates["address"] = "address = CAST(:address AS jsonb)"
+            params["address"] = json.dumps({
+                "voie": addr.voie,
+                "complement": addr.complement,
+                "code_postal": addr.code_postal,
+                "commune": addr.commune,
+                "pays": addr.pays,
+            })
+
+        # Sauvegarder dans le cache SIRENE
+        try:
+            await _save_to_cache(siren, item, matching, db)
+        except Exception:
+            pass
+
+    # ── 2. INPI — capital, objet social, dates ────────────────────
+    if inpi_token is not None:
+        raw = await _fetch_company_inpi(siren, inpi_token)
+        if raw is not None:
+            inpi = _extract_inpi_data(raw)
+
+            if inpi.capital is not None and "capital" not in manual:
+                updates["capital"] = "capital = :capital"
+                params["capital"] = inpi.capital
+
+            if inpi.capital_variable is not None and "capital_variable" not in manual:
+                updates["capital_variable"] = "capital_variable = :capital_variable"
+                params["capital_variable"] = inpi.capital_variable
+
+            if inpi.objet_social and "objet_social" not in manual:
+                updates["objet_social"] = "objet_social = :objet_social"
+                params["objet_social"] = inpi.objet_social
+
+            if inpi.date_cloture_exercice and "date_cloture_exercice" not in manual:
+                updates["date_cloture_exercice"] = "date_cloture_exercice = :date_cloture_exercice"
+                params["date_cloture_exercice"] = inpi.date_cloture_exercice
+
+            if inpi.date_immatriculation_rcs and "date_immatriculation_rcs" not in manual:
+                updates["date_immatriculation_rcs"] = "date_immatriculation_rcs = :date_immatriculation_rcs"
+                params["date_immatriculation_rcs"] = inpi.date_immatriculation_rcs
+
+    # ── 3. Appliquer les updates ──────────────────────────────────
+    # Toujours mettre à jour last_enriched_at même si aucun champ n'a changé
+    set_clause = ", ".join(updates.values()) if updates else ""
+    if set_clause:
+        set_clause += ", "
+    set_clause += "last_enriched_at = NOW(), updated_at = NOW()"
+    await db.execute(
+        text(f"UPDATE organizations SET {set_clause} WHERE id = :org_id"),
+        params,
+    )
+
+    _log.debug("[enrich] Org %s (SIREN %s) → %d champs mis à jour", org_id, siren, len(updates))
+    return len(updates) > 0
+
+
+async def enrich_single_org(org_id: str, db: AsyncSession) -> bool:
+    """Enrichit une seule organisation depuis data.gouv + INPI.
+
+    Retourne True si des champs ont été mis à jour.
+    """
+    from .inpi import _authenticate, _get_inpi_credentials
+
+    # Récupérer le SIREN et manual_fields de l'org
+    result = await db.execute(
+        text("SELECT siren, manual_fields FROM organizations WHERE id = :oid"),
+        {"oid": org_id},
+    )
+    row = result.fetchone()
+    if row is None or not row[0] or len(row[0].strip()) != 9:
+        return False
+
+    siren = row[0].strip()
+    manual: list = row[1] if isinstance(row[1], list) else []
+
+    # Préparer l'auth INPI (optionnel)
+    inpi_token: str | None = None
+    creds = await _get_inpi_credentials(db)
+    if creds is not None:
+        username, password = creds
+        inpi_token = await _authenticate(username, password)
+
+    updated = await _enrich_org_row(org_id, siren, manual, inpi_token, db)
+    await db.commit()
+    return updated
 
 
 async def enrich_all_orgs(db: AsyncSession) -> dict:
@@ -840,101 +982,11 @@ async def enrich_all_orgs(db: AsyncSession) -> dict:
         manual: list = manual_fields_raw if isinstance(manual_fields_raw, list) else []
 
         try:
-            updates: dict[str, str] = {}
-            params: dict = {"org_id": org_id}
-
-            # ── 1. data.gouv — SIRET siège, TVA, adresse, etc. ────────────
-            api_result = await _fetch_details_from_api(siren)
-            if api_result is not None:
-                item, matching = api_result
-                siege = item.get("siege") or {}
-                siege_siret = siege.get("siret")
-                nat_jur = item.get("nature_juridique") or ""
-                nom = item.get("nom_raison_sociale") or item.get("nom_complet") or ""
-
-                # SIRET siège
-                if siege_siret and "siret" not in manual:
-                    updates["siret"] = "siret = :siret"
-                    params["siret"] = siege_siret
-
-                # TVA intracommunautaire
-                if "vat_number" not in manual:
-                    updates["vat_number"] = "vat_number = :vat_number"
-                    params["vat_number"] = compute_tva_intracom(siren)
-
-                # Nom
-                if nom and "name" not in manual:
-                    updates["name"] = "name = :name"
-                    params["name"] = nom
-
-                # Forme juridique
-                if nat_jur and "legal_form" not in manual:
-                    label = LEGAL_FORM.get(nat_jur, nat_jur)
-                    updates["legal_form"] = "legal_form = :legal_form"
-                    params["legal_form"] = label
-
-                # Code APE
-                ape = item.get("activite_principale")
-                if ape and "ape_code" not in manual:
-                    updates["ape_code"] = "ape_code = :ape_code"
-                    params["ape_code"] = ape
-
-                # Adresse siège
-                if siege and "address" not in manual:
-                    addr = _build_address_from_siege(siege)
-                    updates["address"] = "address = CAST(:address AS jsonb)"
-                    params["address"] = json.dumps({
-                        "voie": addr.voie,
-                        "complement": addr.complement,
-                        "code_postal": addr.code_postal,
-                        "commune": addr.commune,
-                        "pays": addr.pays,
-                    })
-
-                # Sauvegarder dans le cache SIRENE
-                try:
-                    await _save_to_cache(siren, item, matching, db)
-                except Exception:
-                    pass
-
-            # ── 2. INPI — capital, objet social, dates ────────────────────
-            if inpi_token is not None:
-                raw = await _fetch_company_inpi(siren, inpi_token)
-                if raw is not None:
-                    inpi = _extract_inpi_data(raw)
-
-                    if inpi.capital is not None and "capital" not in manual:
-                        updates["capital"] = "capital = :capital"
-                        params["capital"] = inpi.capital
-
-                    if inpi.capital_variable is not None and "capital_variable" not in manual:
-                        updates["capital_variable"] = "capital_variable = :capital_variable"
-                        params["capital_variable"] = inpi.capital_variable
-
-                    if inpi.objet_social and "objet_social" not in manual:
-                        updates["objet_social"] = "objet_social = :objet_social"
-                        params["objet_social"] = inpi.objet_social
-
-                    if inpi.date_cloture_exercice and "date_cloture_exercice" not in manual:
-                        updates["date_cloture_exercice"] = "date_cloture_exercice = :date_cloture_exercice"
-                        params["date_cloture_exercice"] = inpi.date_cloture_exercice
-
-                    if inpi.date_immatriculation_rcs and "date_immatriculation_rcs" not in manual:
-                        updates["date_immatriculation_rcs"] = "date_immatriculation_rcs = :date_immatriculation_rcs"
-                        params["date_immatriculation_rcs"] = inpi.date_immatriculation_rcs
-
-            # ── 3. Appliquer les updates ──────────────────────────────────
-            if updates:
-                set_clause = ", ".join(updates.values()) + ", updated_at = NOW()"
-                await db.execute(
-                    text(f"UPDATE organizations SET {set_clause} WHERE id = :org_id"),
-                    params,
-                )
+            updated = await _enrich_org_row(org_id, siren, manual, inpi_token, db)
+            if updated:
                 enriched += 1
-                _log.debug("[enrich] Org %s (SIREN %s) → %d champs mis à jour", org_id, siren, len(updates))
             else:
                 skipped += 1
-
         except Exception as exc:
             _log.warning("[enrich] Erreur pour SIREN %s : %s", siren, exc)
             errors += 1

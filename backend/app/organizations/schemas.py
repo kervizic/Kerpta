@@ -103,9 +103,15 @@ class OrgDetailOut(BaseModel):
     accounting_regime: str | None
     rcs_city: str | None
     capital: str | None
+    capital_variable: bool | None = None
     ape_code: str | None
     billing_siret: str | None
     website: str | None = None
+    objet_social: str | None = None
+    date_cloture_exercice: str | None = None
+    date_immatriculation_rcs: str | None = None
+    # Timestamp du dernier enrichissement data.gouv + INPI
+    last_enriched_at: str | None = None
     # Liste des champs en mode manuel (pas synchro SIRENE)
     manual_fields: list[str] = []
     # True si un logo est stocké dans organization_logos

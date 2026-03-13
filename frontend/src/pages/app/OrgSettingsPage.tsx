@@ -68,6 +68,7 @@ interface OrgDetail {
   objet_social?: string | null
   date_cloture_exercice?: string | null
   date_immatriculation_rcs?: string | null
+  last_enriched_at?: string | null
   manual_fields?: string[]
   has_logo?: boolean
   etablissements?: EtablissementOut[]
@@ -183,6 +184,40 @@ export default function OrgSettingsPage() {
 
   // Info-bulle aide auto/manuel
 
+  /** Met à jour tous les états depuis les données org */
+  function applyOrgData(data: OrgDetail) {
+    setOrg(data)
+    setEmail(data.email ?? '')
+    setPhone(data.phone ?? '')
+    setWebsite(data.website ?? '')
+    setVatRegime(data.vat_regime ?? '')
+    setVatExigibility(data.vat_exigibility ?? 'encaissements')
+    setAccountingRegime(data.accounting_regime ?? '')
+    setBillingSiret(data.billing_siret ?? '')
+    setManualFields(data.manual_fields ?? [])
+    setEditName(data.org_name ?? '')
+    setEditLegalForm(data.legal_form ?? '')
+    setEditSiret(data.org_siret ?? '')
+    setEditSiren(data.org_siren ?? '')
+    setEditVatNumber(data.vat_number ?? '')
+    setEditApeCode(data.ape_code ?? '')
+    setEditRcsCity(data.rcs_city ?? '')
+    setEditCapital(data.capital ?? '')
+    const addr = data.address as AddressOut | null
+    setEditAddrVoie(addr?.voie ?? '')
+    setEditAddrComplement(addr?.complement ?? '')
+    setEditAddrCp(addr?.code_postal ?? '')
+    setEditAddrCommune(addr?.commune ?? '')
+  }
+
+  /** Vérifie si l'enrichissement est stale (jamais fait ou > 24h) */
+  function isEnrichmentStale(data: OrgDetail): boolean {
+    if (!data.org_siren) return false // Pas de SIREN → rien à enrichir
+    if (!data.last_enriched_at) return true // Jamais enrichi
+    const lastEnriched = new Date(data.last_enriched_at)
+    const hoursAgo = (Date.now() - lastEnriched.getTime()) / (1000 * 60 * 60)
+    return hoursAgo > 24
+  }
 
   // Chargement initial
   useEffect(() => {
@@ -201,30 +236,7 @@ export default function OrgSettingsPage() {
       setNombreEtabsTotal(0)
       try {
         const { data } = await apiClient.get<OrgDetail>(`/organizations/${activeOrg!.org_id}`)
-        setOrg(data)
-        setEmail(data.email ?? '')
-        setPhone(data.phone ?? '')
-        setWebsite(data.website ?? '')
-        setVatRegime(data.vat_regime ?? '')
-        setVatExigibility(data.vat_exigibility ?? 'encaissements')
-        setAccountingRegime(data.accounting_regime ?? '')
-        setBillingSiret(data.billing_siret ?? '')
-        setManualFields(data.manual_fields ?? [])
-
-        // Champs légaux éditables
-        setEditName(data.org_name ?? '')
-        setEditLegalForm(data.legal_form ?? '')
-        setEditSiret(data.org_siret ?? '')
-        setEditSiren(data.org_siren ?? '')
-        setEditVatNumber(data.vat_number ?? '')
-        setEditApeCode(data.ape_code ?? '')
-        setEditRcsCity(data.rcs_city ?? '')
-        setEditCapital(data.capital ?? '')
-        const addr = data.address as AddressOut | null
-        setEditAddrVoie(addr?.voie ?? '')
-        setEditAddrComplement(addr?.complement ?? '')
-        setEditAddrCp(addr?.code_postal ?? '')
-        setEditAddrCommune(addr?.commune ?? '')
+        applyOrgData(data)
 
         // Charger le logo si présent
         if (data.has_logo) {
@@ -250,6 +262,35 @@ export default function OrgSettingsPage() {
             setNombreEtabsTotal(company?.nombre_etablissements_actifs ?? etabs.length)
           } catch {
             // Pas critique — on affiche juste les données locales
+          }
+        }
+
+        // Auto-enrichissement si données stale (> 24h ou jamais enrichies)
+        if (isEnrichmentStale(data)) {
+          setEnriching(true)
+          try {
+            await apiClient.post(`/organizations/${activeOrg!.org_id}/enrich`)
+            // Recharger les données fraîches
+            const { data: fresh } = await apiClient.get<OrgDetail>(`/organizations/${activeOrg!.org_id}`)
+            applyOrgData(fresh)
+            // Recharger aussi les établissements SIRENE
+            if (fresh.org_siren) {
+              try {
+                const { data: company } = await apiClient.get<CompanyDetails>(`/companies/${fresh.org_siren}`)
+                setSireneData(company)
+                const etabs = company?.etablissements_actifs?.length
+                  ? company.etablissements_actifs
+                  : company?.siege ? [company.siege] : []
+                setEtablissements(etabs)
+                setNombreEtabsTotal(company?.nombre_etablissements_actifs ?? etabs.length)
+              } catch {
+                // Pas critique
+              }
+            }
+          } catch {
+            // Enrichissement auto échoué — pas critique, on garde les données existantes
+          } finally {
+            setEnriching(false)
           }
         }
       } catch (err) {
@@ -340,32 +381,15 @@ export default function OrgSettingsPage() {
 
   /** Actualise les données data.gouv + INPI pour cette organisation */
   async function handleEnrich() {
+    if (!activeOrg) return
     setEnriching(true)
     setEnrichError(null)
     setEnrichSuccess(false)
     try {
-      await apiClient.post('/config/enrich-orgs')
-      // Attendre un peu que l'enrichissement en arrière-plan se termine
-      await new Promise((r) => setTimeout(r, 3000))
-      // Recharger les données de l'org
-      if (activeOrg) {
-        const { data } = await apiClient.get<OrgDetail>(`/organizations/${activeOrg.org_id}`)
-        setOrg(data)
-        setManualFields(data.manual_fields ?? [])
-        setEditName(data.org_name ?? '')
-        setEditLegalForm(data.legal_form ?? '')
-        setEditSiret(data.org_siret ?? '')
-        setEditSiren(data.org_siren ?? '')
-        setEditVatNumber(data.vat_number ?? '')
-        setEditApeCode(data.ape_code ?? '')
-        setEditRcsCity(data.rcs_city ?? '')
-        setEditCapital(data.capital ?? '')
-        const addr = data.address as AddressOut | null
-        setEditAddrVoie(addr?.voie ?? '')
-        setEditAddrComplement(addr?.complement ?? '')
-        setEditAddrCp(addr?.code_postal ?? '')
-        setEditAddrCommune(addr?.commune ?? '')
-      }
+      await apiClient.post(`/organizations/${activeOrg.org_id}/enrich`)
+      // Recharger les données fraîches
+      const { data } = await apiClient.get<OrgDetail>(`/organizations/${activeOrg.org_id}`)
+      applyOrgData(data)
       setEnrichSuccess(true)
       setTimeout(() => setEnrichSuccess(false), 4000)
     } catch (err) {
