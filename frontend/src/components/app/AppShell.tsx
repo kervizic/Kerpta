@@ -103,14 +103,14 @@ export default function AppShell({ path }: AppShellProps) {
   // Attente du chargement des orgas
   if (orgs === null) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex">
       {/* Overlay mobile — ferme la sidebar au clic */}
       {sidebarOpen && (
         <div

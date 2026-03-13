@@ -36,10 +36,13 @@ import {
   Percent,
   CreditCard,
   HardDrive,
+  Moon,
+  Sun,
 } from 'lucide-react'
 import { navigate } from '@/hooks/useRoute'
 import { useAuthStore, type OrgMembership } from '@/stores/authStore'
 import { useModuleStore } from '@/stores/moduleStore'
+import { useThemeStore } from '@/stores/themeStore'
 
 interface AppSidebarProps {
   currentPath: string
@@ -415,6 +418,7 @@ function ConfigAccordion({
 export function AppSidebar({ currentPath, onClose }: AppSidebarProps) {
   const { user, logout, isAdmin, orgs, activeOrgId, setActiveOrg } = useAuthStore()
   const loadModules = useModuleStore((s) => s.loadModules)
+  const { theme, toggle: toggleTheme } = useThemeStore()
 
   const activeOrg = orgs?.find((o) => o.org_id === activeOrgId) ?? orgs?.[0] ?? null
   const isOrgOwnerOrAdmin = activeOrg?.role === 'owner' || activeOrg?.role === 'admin'
@@ -426,7 +430,7 @@ export function AppSidebar({ currentPath, onClose }: AppSidebarProps) {
   }, [activeOrgId, loadModules])
 
   return (
-    <aside className="w-60 shrink-0 h-screen sticky top-0 bg-white border-r border-gray-200 flex flex-col">
+    <aside className="w-60 shrink-0 h-screen sticky top-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col">
 
       {/* Logo Kerpta */}
       <div className="px-4 py-3 border-b border-gray-100">
@@ -516,13 +520,22 @@ export function AppSidebar({ currentPath, onClose }: AppSidebarProps) {
             </div>
           </div>
         )}
-        <button
-          onClick={logout}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all"
-        >
-          <LogOut className="w-4 h-4" />
-          Déconnexion
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={logout}
+            className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-500 hover:text-red-600 hover:bg-red-50 dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-red-500/10 transition-all"
+          >
+            <LogOut className="w-4 h-4" />
+            Déconnexion
+          </button>
+          <button
+            onClick={toggleTheme}
+            title={theme === 'dark' ? 'Mode clair' : 'Mode sombre'}
+            className="p-2 rounded-lg text-gray-400 hover:text-orange-500 hover:bg-orange-50 dark:text-gray-500 dark:hover:text-orange-400 dark:hover:bg-orange-500/10 transition-all"
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
+        </div>
       </div>
 
     </aside>
