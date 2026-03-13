@@ -10,6 +10,7 @@ import { navigate } from '@/hooks/useRoute'
 import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
 import UnitCombobox from '@/components/app/UnitCombobox'
 import ProductAutocomplete, { type AutocompleteProduct } from '@/components/app/ProductAutocomplete'
+import ClientCombobox from '@/components/app/ClientCombobox'
 
 const INPUT = 'w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 transition'
 
@@ -645,14 +646,12 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Client *</label>
               <div className="flex items-center gap-1.5">
-                <select value={clientId} onChange={(e) => {
-                  if (e.target.value === '__new__') { navigate('/app/clients?action=nouveau'); return }
-                  handleClientChange(e.target.value)
-                }} required className={`${INPUT} bg-white`}>
-                  <option value="">— Sélectionner un client —</option>
-                  {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  <option value="__new__">+ Nouveau client</option>
-                </select>
+                <ClientCombobox
+                  value={clientId}
+                  onChange={handleClientChange}
+                  onNewClient={() => navigate('/app/clients?action=nouveau')}
+                  className={INPUT}
+                />
                 {clientId && (
                   <button onClick={() => navigate(`/app/clients/${clientId}`)} className="shrink-0 p-1.5 rounded-lg hover:bg-gray-100 transition" title="Voir le client">
                     <Pencil className="w-3.5 h-3.5 text-gray-400" />

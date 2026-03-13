@@ -10,6 +10,7 @@ import { navigate } from '@/hooks/useRoute'
 import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
 import UnitCombobox from '@/components/app/UnitCombobox'
 import ProductAutocomplete, { type AutocompleteProduct } from '@/components/app/ProductAutocomplete'
+import ClientCombobox from '@/components/app/ClientCombobox'
 
 const INPUT = 'w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 transition'
 
@@ -567,10 +568,12 @@ function QuoteFormPage({ quoteId }: { quoteId?: string }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Client *</label>
-              <select value={clientId} onChange={(e) => setClientId(e.target.value)} required className={`${INPUT} bg-white`}>
-                <option value="">— Sélectionner un client —</option>
-                {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+              <ClientCombobox
+                value={clientId}
+                onChange={setClientId}
+                onNewClient={() => navigate('/app/clients?action=nouveau')}
+                className={INPUT}
+              />
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Type de document</label>
