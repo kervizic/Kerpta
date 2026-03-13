@@ -19,6 +19,10 @@ import {
   Upload,
   PenLine,
   RefreshCw,
+  Users,
+  Plus,
+  UserPlus,
+  X,
 } from 'lucide-react'
 import { apiClient } from '@/lib/api'
 import { useAuthStore } from '@/stores/authStore'
@@ -93,6 +97,31 @@ interface OrgLogoOut {
   size_bytes?: number | null
   width_px?: number | null
   height_px?: number | null
+}
+
+interface ShareholderRepresentative {
+  id: string
+  first_name: string
+  last_name: string
+  quality?: string | null
+  created_at: string
+}
+
+interface Shareholder {
+  id: string
+  type: 'physical' | 'legal'
+  first_name?: string | null
+  last_name?: string | null
+  company_name?: string | null
+  company_siren?: string | null
+  address?: Record<string, string> | null
+  quality?: string | null
+  shares_count?: number | null
+  ownership_pct?: number | null
+  entry_date?: string | null
+  exit_date?: string | null
+  representatives: ShareholderRepresentative[]
+  created_at: string
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -182,6 +211,11 @@ export default function OrgSettingsPage() {
   const [enrichSuccess, setEnrichSuccess] = useState(false)
   const [enrichError, setEnrichError] = useState<string | null>(null)
 
+  // Associés
+  const [shareholders, setShareholders] = useState<Shareholder[]>([])
+  const [shLoading, setShLoading] = useState(false)
+  const [shAdding, setShAdding] = useState(false)
+
   // Info-bulle aide auto/manuel
 
   /** Met à jour tous les états depuis les données org */
@@ -263,6 +297,16 @@ export default function OrgSettingsPage() {
           } catch {
             // Pas critique — on affiche juste les données locales
           }
+        }
+
+        // Charger les associés
+        try {
+          const { data: sh } = await apiClient.get<Shareholder[]>(
+            `/organizations/${activeOrg!.org_id}/shareholders`
+          )
+          setShareholders(sh)
+        } catch {
+          // Pas critique
         }
 
         // Auto-enrichissement si données stale (> 24h ou jamais enrichies)
@@ -397,6 +441,101 @@ export default function OrgSettingsPage() {
       setTimeout(() => setEnrichError(null), 5000)
     } finally {
       setEnriching(false)
+    }
+  }
+
+  // ── CRUD Associés ───────────────────────────────────────────────────────────
+
+  async function handleAddShareholder() {
+    if (!org) return
+    setShAdding(true)
+    try {
+      const { data } = await apiClient.post<Shareholder>(
+        `/organizations/${org.org_id}/shareholders`,
+        { type: 'physical' }
+      )
+      setShareholders((prev) => [...prev, data])
+    } catch {
+      // silent
+    } finally {
+      setShAdding(false)
+    }
+  }
+
+  async function handleUpdateShareholder(shId: string, field: string, value: unknown) {
+    if (!org) return
+    try {
+      const { data } = await apiClient.patch<Shareholder>(
+        `/organizations/${org.org_id}/shareholders/${shId}`,
+        { [field]: value || null }
+      )
+      setShareholders((prev) => prev.map((s) => (s.id === shId ? data : s)))
+    } catch {
+      // silent
+    }
+  }
+
+  async function handleDeleteShareholder(shId: string) {
+    if (!org) return
+    try {
+      await apiClient.delete(`/organizations/${org.org_id}/shareholders/${shId}`)
+      setShareholders((prev) => prev.filter((s) => s.id !== shId))
+    } catch {
+      // silent
+    }
+  }
+
+  async function handleAddRepresentative(shId: string) {
+    if (!org) return
+    try {
+      const { data: rep } = await apiClient.post<ShareholderRepresentative>(
+        `/organizations/${org.org_id}/shareholders/${shId}/representatives`,
+        { first_name: '', last_name: '' }
+      )
+      setShareholders((prev) =>
+        prev.map((s) =>
+          s.id === shId ? { ...s, representatives: [...s.representatives, rep] } : s
+        )
+      )
+    } catch {
+      // silent
+    }
+  }
+
+  async function handleUpdateRepresentative(shId: string, repId: string, field: string, value: string) {
+    if (!org) return
+    try {
+      const { data: rep } = await apiClient.patch<ShareholderRepresentative>(
+        `/organizations/${org.org_id}/shareholders/${shId}/representatives/${repId}`,
+        { [field]: value || null }
+      )
+      setShareholders((prev) =>
+        prev.map((s) =>
+          s.id === shId
+            ? { ...s, representatives: s.representatives.map((r) => (r.id === repId ? rep : r)) }
+            : s
+        )
+      )
+    } catch {
+      // silent
+    }
+  }
+
+  async function handleDeleteRepresentative(shId: string, repId: string) {
+    if (!org) return
+    try {
+      await apiClient.delete(
+        `/organizations/${org.org_id}/shareholders/${shId}/representatives/${repId}`
+      )
+      setShareholders((prev) =>
+        prev.map((s) =>
+          s.id === shId
+            ? { ...s, representatives: s.representatives.filter((r) => r.id !== repId) }
+            : s
+        )
+      )
+    } catch {
+      // silent
     }
   }
 
@@ -1336,6 +1475,280 @@ export default function OrgSettingsPage() {
               )}
             </>
           )}
+        </section>
+
+        {/* Associés */}
+        <section className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
+              <Users className="w-4 h-4" /> Associés
+            </h2>
+            <button
+              onClick={handleAddShareholder}
+              disabled={shAdding}
+              className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-orange-600 bg-orange-50 hover:bg-orange-100 rounded-lg transition disabled:opacity-60"
+            >
+              {shAdding ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+              Ajouter
+            </button>
+          </div>
+
+          {shareholders.length === 0 && (
+            <p className="text-xs text-gray-400">
+              Aucun associé enregistré. Ajoutez vos associés pour pouvoir générer les PV d'AG.
+            </p>
+          )}
+
+          {shareholders.map((sh) => (
+            <div key={sh.id} className="border border-gray-200 rounded-xl p-4 space-y-3">
+              {/* En-tête associé : type toggle + suppression */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <select
+                    value={sh.type}
+                    onChange={(e) => handleUpdateShareholder(sh.id, 'type', e.target.value)}
+                    className="px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300 bg-white"
+                  >
+                    <option value="physical">Personne physique</option>
+                    <option value="legal">Personne morale</option>
+                  </select>
+                </div>
+                <button
+                  onClick={() => handleDeleteShareholder(sh.id)}
+                  className="p-1 text-gray-400 hover:text-red-500 transition"
+                  title="Supprimer cet associé"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Champs personne physique */}
+              {sh.type === 'physical' && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Prénom</label>
+                    <input
+                      type="text"
+                      defaultValue={sh.first_name ?? ''}
+                      onBlur={(e) => {
+                        if (e.target.value !== (sh.first_name ?? ''))
+                          handleUpdateShareholder(sh.id, 'first_name', e.target.value)
+                      }}
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Nom</label>
+                    <input
+                      type="text"
+                      defaultValue={sh.last_name ?? ''}
+                      onBlur={(e) => {
+                        if (e.target.value !== (sh.last_name ?? ''))
+                          handleUpdateShareholder(sh.id, 'last_name', e.target.value)
+                      }}
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Champs personne morale */}
+              {sh.type === 'legal' && (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Dénomination sociale</label>
+                      <input
+                        type="text"
+                        defaultValue={sh.company_name ?? ''}
+                        onBlur={(e) => {
+                          if (e.target.value !== (sh.company_name ?? ''))
+                            handleUpdateShareholder(sh.id, 'company_name', e.target.value)
+                        }}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">SIREN</label>
+                      <input
+                        type="text"
+                        defaultValue={sh.company_siren ?? ''}
+                        maxLength={9}
+                        onBlur={(e) => {
+                          if (e.target.value !== (sh.company_siren ?? ''))
+                            handleUpdateShareholder(sh.id, 'company_siren', e.target.value)
+                        }}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300 font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Représentants */}
+                  <div className="ml-4 border-l-2 border-orange-200 pl-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500 font-medium">Représentants</span>
+                      <button
+                        onClick={() => handleAddRepresentative(sh.id)}
+                        className="flex items-center gap-1 px-2 py-1 text-xs text-orange-600 hover:bg-orange-50 rounded transition"
+                      >
+                        <UserPlus className="w-3 h-3" /> Ajouter
+                      </button>
+                    </div>
+                    {sh.representatives.length === 0 && (
+                      <p className="text-xs text-gray-400 italic">Aucun représentant</p>
+                    )}
+                    {sh.representatives.map((rep) => (
+                      <div key={rep.id} className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          defaultValue={rep.first_name}
+                          placeholder="Prénom"
+                          onBlur={(e) => {
+                            if (e.target.value !== rep.first_name)
+                              handleUpdateRepresentative(sh.id, rep.id, 'first_name', e.target.value)
+                          }}
+                          className="flex-1 px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                        />
+                        <input
+                          type="text"
+                          defaultValue={rep.last_name}
+                          placeholder="Nom"
+                          onBlur={(e) => {
+                            if (e.target.value !== rep.last_name)
+                              handleUpdateRepresentative(sh.id, rep.id, 'last_name', e.target.value)
+                          }}
+                          className="flex-1 px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                        />
+                        <input
+                          type="text"
+                          defaultValue={rep.quality ?? ''}
+                          placeholder="Qualité"
+                          onBlur={(e) => {
+                            if (e.target.value !== (rep.quality ?? ''))
+                              handleUpdateRepresentative(sh.id, rep.id, 'quality', e.target.value)
+                          }}
+                          className="flex-1 px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                        />
+                        <button
+                          onClick={() => handleDeleteRepresentative(sh.id, rep.id)}
+                          className="p-1 text-gray-400 hover:text-red-500 transition shrink-0"
+                          title="Supprimer ce représentant"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* Champs communs */}
+              <div className="grid grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Qualité</label>
+                  <input
+                    type="text"
+                    defaultValue={sh.quality ?? ''}
+                    placeholder="Gérant, président…"
+                    onBlur={(e) => {
+                      if (e.target.value !== (sh.quality ?? ''))
+                        handleUpdateShareholder(sh.id, 'quality', e.target.value)
+                    }}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Nb de parts</label>
+                  <input
+                    type="number"
+                    defaultValue={sh.shares_count ?? ''}
+                    onBlur={(e) => {
+                      const v = e.target.value ? parseInt(e.target.value) : null
+                      if (v !== (sh.shares_count ?? null))
+                        handleUpdateShareholder(sh.id, 'shares_count', v)
+                    }}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">% détention</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    defaultValue={sh.ownership_pct ?? ''}
+                    onBlur={(e) => {
+                      const v = e.target.value ? parseFloat(e.target.value) : null
+                      if (v !== (sh.ownership_pct ?? null))
+                        handleUpdateShareholder(sh.id, 'ownership_pct', v)
+                    }}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Date d'entrée</label>
+                  <input
+                    type="date"
+                    defaultValue={sh.entry_date ?? ''}
+                    onBlur={(e) => {
+                      if (e.target.value !== (sh.entry_date ?? ''))
+                        handleUpdateShareholder(sh.id, 'entry_date', e.target.value || null)
+                    }}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  />
+                </div>
+              </div>
+
+              {/* Date de sortie (optionnel) */}
+              <div className="grid grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Date de sortie</label>
+                  <input
+                    type="date"
+                    defaultValue={sh.exit_date ?? ''}
+                    onBlur={(e) => {
+                      if (e.target.value !== (sh.exit_date ?? ''))
+                        handleUpdateShareholder(sh.id, 'exit_date', e.target.value || null)
+                    }}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  />
+                </div>
+                <div className="col-span-3">
+                  <label className="block text-xs text-gray-500 mb-1">Adresse</label>
+                  <input
+                    type="text"
+                    defaultValue={sh.address ? [sh.address.voie, sh.address.code_postal, sh.address.commune].filter(Boolean).join(', ') : ''}
+                    placeholder="12 rue de la Paix, 75002 Paris"
+                    onBlur={(e) => {
+                      const val = e.target.value.trim()
+                      if (!val) {
+                        handleUpdateShareholder(sh.id, 'address', null)
+                        return
+                      }
+                      // Parse simple : tout en voie
+                      const parts = val.split(',').map(p => p.trim())
+                      const addr: Record<string, string> = {}
+                      if (parts.length >= 1) addr.voie = parts[0]
+                      if (parts.length >= 2) {
+                        // Essayer de séparer code postal et commune
+                        const match = parts[1].match(/^(\d{5})\s+(.+)$/)
+                        if (match) {
+                          addr.code_postal = match[1]
+                          addr.commune = match[2]
+                        } else {
+                          addr.commune = parts[1]
+                        }
+                      }
+                      if (parts.length >= 3) addr.commune = parts[2]
+                      handleUpdateShareholder(sh.id, 'address', addr)
+                    }}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
         </section>
 
         {/* Données INSEE enrichies */}

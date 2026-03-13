@@ -134,6 +134,9 @@ class Organization(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     join_requests: Mapped[list["OrganizationJoinRequest"]] = relationship(
         back_populates="organization", cascade="all, delete-orphan"
     )
+    shareholders: Mapped[list["Shareholder"]] = relationship(
+        back_populates="organization", cascade="all, delete-orphan"
+    )
 
 
 class OrganizationLogo(Base, TimestampMixin):
@@ -165,3 +168,74 @@ class OrganizationLogo(Base, TimestampMixin):
     )
 
     organization: Mapped["Organization"] = relationship(back_populates="logo")
+
+
+class Shareholder(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """Associé d'une organisation — personne physique ou morale.
+
+    Stocke les informations nécessaires pour la rédaction des PV d'AG
+    et autres documents juridiques (identité, parts sociales, qualité).
+    """
+
+    __tablename__ = "shareholders"
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    # 'physical' = personne physique, 'legal' = personne morale
+    type: Mapped[str] = mapped_column(String(10), default="physical", nullable=False)
+
+    # Personne physique
+    first_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    last_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+    # Personne morale
+    company_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    company_siren: Mapped[str | None] = mapped_column(String(9), nullable=True)
+
+    # Commun
+    address: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    quality: Mapped[str | None] = mapped_column(
+        String(100), nullable=True
+    )  # gérant, président, DG, simple associé…
+    shares_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    ownership_pct: Mapped[float | None] = mapped_column(
+        Numeric(5, 2), nullable=True
+    )  # 0.00 – 100.00
+    entry_date: Mapped[datetime | None] = mapped_column(
+        __import__("sqlalchemy", fromlist=["Date"]).Date, nullable=True
+    )
+    exit_date: Mapped[datetime | None] = mapped_column(
+        __import__("sqlalchemy", fromlist=["Date"]).Date, nullable=True
+    )
+
+    # Relations
+    organization: Mapped["Organization"] = relationship(back_populates="shareholders")
+    representatives: Mapped[list["ShareholderRepresentative"]] = relationship(
+        back_populates="shareholder", cascade="all, delete-orphan"
+    )
+
+
+class ShareholderRepresentative(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """Représentant d'un associé personne morale.
+
+    Chaque représentant signe en bas des PV d'AG au nom de la société associée.
+    """
+
+    __tablename__ = "shareholder_representatives"
+
+    shareholder_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("shareholders.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    first_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    last_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    quality: Mapped[str | None] = mapped_column(
+        String(100), nullable=True
+    )  # qualité du représentant (gérant, président…)
+
+    # Relation
+    shareholder: Mapped["Shareholder"] = relationship(back_populates="representatives")

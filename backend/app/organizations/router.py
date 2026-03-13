@@ -47,6 +47,12 @@ from .schemas import (
     OrgMembershipOut,
     OrgSearchResult,
     OrgUpdateRequest,
+    ShareholderCreate,
+    ShareholderOut,
+    ShareholderRepresentativeCreate,
+    ShareholderRepresentativeOut,
+    ShareholderRepresentativeUpdate,
+    ShareholderUpdate,
 )
 
 _log = logging.getLogger(__name__)
@@ -274,3 +280,106 @@ async def update_module_config(
 ) -> dict:
     """Met à jour la configuration des modules (owner uniquement)."""
     return await service.update_module_config(org_id, user_id, body, db)
+
+
+# ── Associés (shareholders) ──────────────────────────────────────────────────
+
+
+@router.get("/{org_id}/shareholders", response_model=list[ShareholderOut])
+async def list_shareholders(
+    org_id: str,
+    user_id: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> list[ShareholderOut]:
+    """Liste les associés de l'organisation avec leurs représentants."""
+    rows = await service.list_shareholders(org_id, user_id, db)
+    return [ShareholderOut(**row) for row in rows]
+
+
+@router.post("/{org_id}/shareholders", response_model=ShareholderOut, status_code=201)
+async def create_shareholder(
+    org_id: str,
+    body: ShareholderCreate,
+    user_id: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> ShareholderOut:
+    """Crée un nouvel associé (owner/admin)."""
+    data = body.model_dump(exclude_none=True)
+    result = await service.create_shareholder(org_id, user_id, data, db)
+    return ShareholderOut(**result)
+
+
+@router.patch("/{org_id}/shareholders/{sh_id}", response_model=ShareholderOut)
+async def update_shareholder(
+    org_id: str,
+    sh_id: str,
+    body: ShareholderUpdate,
+    user_id: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> ShareholderOut:
+    """Met à jour un associé (owner/admin)."""
+    data = body.model_dump(exclude_none=True)
+    result = await service.update_shareholder(org_id, sh_id, user_id, data, db)
+    return ShareholderOut(**result)
+
+
+@router.delete("/{org_id}/shareholders/{sh_id}", response_model=dict)
+async def delete_shareholder(
+    org_id: str,
+    sh_id: str,
+    user_id: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Supprime un associé et ses représentants (owner/admin)."""
+    return await service.delete_shareholder(org_id, sh_id, user_id, db)
+
+
+@router.post(
+    "/{org_id}/shareholders/{sh_id}/representatives",
+    response_model=ShareholderRepresentativeOut,
+    status_code=201,
+)
+async def add_representative(
+    org_id: str,
+    sh_id: str,
+    body: ShareholderRepresentativeCreate,
+    user_id: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> ShareholderRepresentativeOut:
+    """Ajoute un représentant à un associé personne morale (owner/admin)."""
+    data = body.model_dump(exclude_none=True)
+    result = await service.add_representative(org_id, sh_id, user_id, data, db)
+    return ShareholderRepresentativeOut(**result)
+
+
+@router.patch(
+    "/{org_id}/shareholders/{sh_id}/representatives/{rep_id}",
+    response_model=ShareholderRepresentativeOut,
+)
+async def update_representative(
+    org_id: str,
+    sh_id: str,
+    rep_id: str,
+    body: ShareholderRepresentativeUpdate,
+    user_id: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> ShareholderRepresentativeOut:
+    """Met à jour un représentant (owner/admin)."""
+    data = body.model_dump(exclude_none=True)
+    result = await service.update_representative(org_id, sh_id, rep_id, user_id, data, db)
+    return ShareholderRepresentativeOut(**result)
+
+
+@router.delete(
+    "/{org_id}/shareholders/{sh_id}/representatives/{rep_id}",
+    response_model=dict,
+)
+async def delete_representative(
+    org_id: str,
+    sh_id: str,
+    rep_id: str,
+    user_id: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Supprime un représentant d'un associé (owner/admin)."""
+    return await service.delete_representative(org_id, sh_id, rep_id, user_id, db)

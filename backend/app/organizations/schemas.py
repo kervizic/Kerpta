@@ -2,7 +2,7 @@
 # Copyright (C) 2026 Emmanuel Kervizic
 # Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -194,3 +194,92 @@ class JoinRequestReview(BaseModel):
     action: str = Field(..., pattern="^(accept|reject)$")
     role: str | None = None  # obligatoire si action=accept
     custom_permissions: list[str] | None = None
+
+
+# ── Associés (shareholders) ──────────────────────────────────────────────────
+
+
+class ShareholderRepresentativeCreate(BaseModel):
+    """Données pour créer un représentant d'associé personne morale."""
+
+    first_name: str = Field("", max_length=100)
+    last_name: str = Field("", max_length=100)
+    quality: str | None = Field(None, max_length=100)
+
+
+class ShareholderRepresentativeOut(BaseModel):
+    """Représentant d'un associé personne morale."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    first_name: str
+    last_name: str
+    quality: str | None = None
+    created_at: datetime
+
+
+class ShareholderCreate(BaseModel):
+    """Données pour créer un associé."""
+
+    type: str = Field("physical", pattern="^(physical|legal)$")
+    # Personne physique
+    first_name: str | None = Field(None, max_length=100)
+    last_name: str | None = Field(None, max_length=100)
+    # Personne morale
+    company_name: str | None = Field(None, max_length=255)
+    company_siren: str | None = Field(None, min_length=9, max_length=9)
+    # Commun
+    address: dict | None = None
+    quality: str | None = Field(None, max_length=100)
+    shares_count: int | None = None
+    ownership_pct: Decimal | None = None
+    entry_date: date | None = None
+    exit_date: date | None = None
+    # Représentants (personne morale uniquement)
+    representatives: list[ShareholderRepresentativeCreate] | None = None
+
+
+class ShareholderUpdate(BaseModel):
+    """Données pour mettre à jour un associé (tous champs optionnels)."""
+
+    type: str | None = Field(None, pattern="^(physical|legal)$")
+    first_name: str | None = Field(None, max_length=100)
+    last_name: str | None = Field(None, max_length=100)
+    company_name: str | None = Field(None, max_length=255)
+    company_siren: str | None = Field(None, min_length=9, max_length=9)
+    address: dict | None = None
+    quality: str | None = Field(None, max_length=100)
+    shares_count: int | None = None
+    ownership_pct: Decimal | None = None
+    entry_date: date | None = None
+    exit_date: date | None = None
+
+
+class ShareholderRepresentativeUpdate(BaseModel):
+    """Données pour mettre à jour un représentant."""
+
+    first_name: str | None = Field(None, max_length=100)
+    last_name: str | None = Field(None, max_length=100)
+    quality: str | None = Field(None, max_length=100)
+
+
+class ShareholderOut(BaseModel):
+    """Associé avec ses représentants."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    type: str
+    first_name: str | None = None
+    last_name: str | None = None
+    company_name: str | None = None
+    company_siren: str | None = None
+    address: dict | None = None
+    quality: str | None = None
+    shares_count: int | None = None
+    ownership_pct: Decimal | None = None
+    entry_date: date | None = None
+    exit_date: date | None = None
+    representatives: list[ShareholderRepresentativeOut] = []
+    created_at: datetime

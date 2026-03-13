@@ -732,3 +732,340 @@ async def update_module_config(
     )
     await db.commit()
     return config
+
+
+# ── Associés (shareholders) CRUD ─────────────────────────────────────────────
+
+
+async def list_shareholders(
+    org_id: str, user_id: uuid.UUID, db: AsyncSession
+) -> list[dict]:
+    """Liste les associés d'une organisation avec leurs représentants (tout membre)."""
+    await _check_membership(org_id, user_id, db)
+
+    result = await db.execute(
+        text("""
+            SELECT
+                s.id::text,
+                s.type,
+                s.first_name,
+                s.last_name,
+                s.company_name,
+                s.company_siren,
+                s.address,
+                s.quality,
+                s.shares_count,
+                s.ownership_pct,
+                s.entry_date,
+                s.exit_date,
+                s.created_at,
+                COALESCE(
+                    (SELECT json_agg(json_build_object(
+                        'id', r.id::text,
+                        'first_name', r.first_name,
+                        'last_name', r.last_name,
+                        'quality', r.quality,
+                        'created_at', r.created_at
+                    ) ORDER BY r.created_at)
+                    FROM shareholder_representatives r
+                    WHERE r.shareholder_id = s.id),
+                    '[]'::json
+                ) AS representatives
+            FROM shareholders s
+            WHERE s.organization_id = :oid
+            ORDER BY s.created_at
+        """),
+        {"oid": org_id},
+    )
+    return [dict(row._mapping) for row in result.fetchall()]
+
+
+async def create_shareholder(
+    org_id: str, user_id: uuid.UUID, data: dict, db: AsyncSession
+) -> dict:
+    """Crée un associé (owner/admin uniquement)."""
+    role = await _check_membership(org_id, user_id, db)
+    if role not in ("owner", "admin"):
+        raise HTTPException(403, "Permission insuffisante")
+
+    sh_id = str(uuid.uuid4())
+    representatives = data.pop("representatives", None) or []
+
+    await db.execute(
+        text("""
+            INSERT INTO shareholders (
+                id, organization_id, type,
+                first_name, last_name,
+                company_name, company_siren,
+                address, quality, shares_count, ownership_pct,
+                entry_date, exit_date
+            ) VALUES (
+                :id, :oid, :type,
+                :first_name, :last_name,
+                :company_name, :company_siren,
+                CAST(:address AS jsonb), :quality, :shares_count, :ownership_pct,
+                :entry_date, :exit_date
+            )
+        """),
+        {
+            "id": sh_id,
+            "oid": org_id,
+            "type": data.get("type", "physical"),
+            "first_name": data.get("first_name"),
+            "last_name": data.get("last_name"),
+            "company_name": data.get("company_name"),
+            "company_siren": data.get("company_siren"),
+            "address": json.dumps(data["address"]) if data.get("address") else None,
+            "quality": data.get("quality"),
+            "shares_count": data.get("shares_count"),
+            "ownership_pct": float(data["ownership_pct"]) if data.get("ownership_pct") is not None else None,
+            "entry_date": data.get("entry_date"),
+            "exit_date": data.get("exit_date"),
+        },
+    )
+
+    # Créer les représentants si fournis
+    for rep in representatives:
+        rep_id = str(uuid.uuid4())
+        await db.execute(
+            text("""
+                INSERT INTO shareholder_representatives (id, shareholder_id, first_name, last_name, quality)
+                VALUES (:id, :sid, :first_name, :last_name, :quality)
+            """),
+            {
+                "id": rep_id,
+                "sid": sh_id,
+                "first_name": rep["first_name"],
+                "last_name": rep["last_name"],
+                "quality": rep.get("quality"),
+            },
+        )
+
+    await db.commit()
+
+    # Retourner l'associé créé
+    return await _get_shareholder_by_id(sh_id, db)
+
+
+async def update_shareholder(
+    org_id: str, sh_id: str, user_id: uuid.UUID, data: dict, db: AsyncSession
+) -> dict:
+    """Met à jour un associé (owner/admin uniquement)."""
+    role = await _check_membership(org_id, user_id, db)
+    if role not in ("owner", "admin"):
+        raise HTTPException(403, "Permission insuffisante")
+
+    # Vérifier que l'associé appartient à l'organisation
+    check = await db.execute(
+        text("SELECT 1 FROM shareholders WHERE id = :sid AND organization_id = :oid"),
+        {"sid": sh_id, "oid": org_id},
+    )
+    if check.fetchone() is None:
+        raise HTTPException(404, "Associé introuvable")
+
+    if not data:
+        return await _get_shareholder_by_id(sh_id, db)
+
+    # Construire le SET dynamique
+    set_parts: list[str] = []
+    params: dict = {"sid": sh_id}
+    for field in (
+        "type", "first_name", "last_name", "company_name", "company_siren",
+        "quality", "shares_count", "entry_date", "exit_date",
+    ):
+        if field in data:
+            set_parts.append(f"{field} = :{field}")
+            params[field] = data[field]
+
+    if "ownership_pct" in data:
+        set_parts.append("ownership_pct = :ownership_pct")
+        params["ownership_pct"] = float(data["ownership_pct"]) if data["ownership_pct"] is not None else None
+
+    if "address" in data:
+        set_parts.append("address = CAST(:address AS jsonb)")
+        params["address"] = json.dumps(data["address"]) if data["address"] else None
+
+    if set_parts:
+        await db.execute(
+            text(f"UPDATE shareholders SET {', '.join(set_parts)} WHERE id = :sid"),
+            params,
+        )
+        await db.commit()
+
+    return await _get_shareholder_by_id(sh_id, db)
+
+
+async def delete_shareholder(
+    org_id: str, sh_id: str, user_id: uuid.UUID, db: AsyncSession
+) -> dict:
+    """Supprime un associé et ses représentants (owner/admin uniquement)."""
+    role = await _check_membership(org_id, user_id, db)
+    if role not in ("owner", "admin"):
+        raise HTTPException(403, "Permission insuffisante")
+
+    result = await db.execute(
+        text("DELETE FROM shareholders WHERE id = :sid AND organization_id = :oid RETURNING id"),
+        {"sid": sh_id, "oid": org_id},
+    )
+    if result.fetchone() is None:
+        raise HTTPException(404, "Associé introuvable")
+    await db.commit()
+    return {"ok": True}
+
+
+async def add_representative(
+    org_id: str, sh_id: str, user_id: uuid.UUID, data: dict, db: AsyncSession
+) -> dict:
+    """Ajoute un représentant à un associé personne morale (owner/admin)."""
+    role = await _check_membership(org_id, user_id, db)
+    if role not in ("owner", "admin"):
+        raise HTTPException(403, "Permission insuffisante")
+
+    # Vérifier que l'associé existe et appartient à l'org
+    check = await db.execute(
+        text("SELECT type FROM shareholders WHERE id = :sid AND organization_id = :oid"),
+        {"sid": sh_id, "oid": org_id},
+    )
+    row = check.fetchone()
+    if row is None:
+        raise HTTPException(404, "Associé introuvable")
+
+    rep_id = str(uuid.uuid4())
+    await db.execute(
+        text("""
+            INSERT INTO shareholder_representatives (id, shareholder_id, first_name, last_name, quality)
+            VALUES (:id, :sid, :first_name, :last_name, :quality)
+        """),
+        {
+            "id": rep_id,
+            "sid": sh_id,
+            "first_name": data["first_name"],
+            "last_name": data["last_name"],
+            "quality": data.get("quality"),
+        },
+    )
+    await db.commit()
+
+    result = await db.execute(
+        text("""
+            SELECT id::text, first_name, last_name, quality, created_at
+            FROM shareholder_representatives WHERE id = :rid
+        """),
+        {"rid": rep_id},
+    )
+    return dict(result.fetchone()._mapping)
+
+
+async def update_representative(
+    org_id: str, sh_id: str, rep_id: str, user_id: uuid.UUID, data: dict, db: AsyncSession
+) -> dict:
+    """Met à jour un représentant (owner/admin uniquement)."""
+    role = await _check_membership(org_id, user_id, db)
+    if role not in ("owner", "admin"):
+        raise HTTPException(403, "Permission insuffisante")
+
+    # Vérifier que l'associé appartient à l'org
+    check = await db.execute(
+        text("SELECT 1 FROM shareholders WHERE id = :sid AND organization_id = :oid"),
+        {"sid": sh_id, "oid": org_id},
+    )
+    if check.fetchone() is None:
+        raise HTTPException(404, "Associé introuvable")
+
+    set_parts: list[str] = []
+    params: dict = {"rid": rep_id, "sid": sh_id}
+    for field in ("first_name", "last_name", "quality"):
+        if field in data:
+            set_parts.append(f"{field} = :{field}")
+            params[field] = data[field]
+
+    if not set_parts:
+        result = await db.execute(
+            text("SELECT id::text, first_name, last_name, quality, created_at FROM shareholder_representatives WHERE id = :rid"),
+            {"rid": rep_id},
+        )
+        row = result.fetchone()
+        if row is None:
+            raise HTTPException(404, "Représentant introuvable")
+        return dict(row._mapping)
+
+    result = await db.execute(
+        text(f"UPDATE shareholder_representatives SET {', '.join(set_parts)} WHERE id = :rid AND shareholder_id = :sid RETURNING id"),
+        params,
+    )
+    if result.fetchone() is None:
+        raise HTTPException(404, "Représentant introuvable")
+    await db.commit()
+
+    result = await db.execute(
+        text("SELECT id::text, first_name, last_name, quality, created_at FROM shareholder_representatives WHERE id = :rid"),
+        {"rid": rep_id},
+    )
+    return dict(result.fetchone()._mapping)
+
+
+async def delete_representative(
+    org_id: str, sh_id: str, rep_id: str, user_id: uuid.UUID, db: AsyncSession
+) -> dict:
+    """Supprime un représentant (owner/admin uniquement)."""
+    role = await _check_membership(org_id, user_id, db)
+    if role not in ("owner", "admin"):
+        raise HTTPException(403, "Permission insuffisante")
+
+    # Vérifier que l'associé appartient à l'org
+    check = await db.execute(
+        text("SELECT 1 FROM shareholders WHERE id = :sid AND organization_id = :oid"),
+        {"sid": sh_id, "oid": org_id},
+    )
+    if check.fetchone() is None:
+        raise HTTPException(404, "Associé introuvable")
+
+    result = await db.execute(
+        text("DELETE FROM shareholder_representatives WHERE id = :rid AND shareholder_id = :sid RETURNING id"),
+        {"rid": rep_id, "sid": sh_id},
+    )
+    if result.fetchone() is None:
+        raise HTTPException(404, "Représentant introuvable")
+    await db.commit()
+    return {"ok": True}
+
+
+async def _get_shareholder_by_id(sh_id: str, db: AsyncSession) -> dict:
+    """Retourne un associé par son ID avec ses représentants."""
+    result = await db.execute(
+        text("""
+            SELECT
+                s.id::text,
+                s.type,
+                s.first_name,
+                s.last_name,
+                s.company_name,
+                s.company_siren,
+                s.address,
+                s.quality,
+                s.shares_count,
+                s.ownership_pct,
+                s.entry_date,
+                s.exit_date,
+                s.created_at,
+                COALESCE(
+                    (SELECT json_agg(json_build_object(
+                        'id', r.id::text,
+                        'first_name', r.first_name,
+                        'last_name', r.last_name,
+                        'quality', r.quality,
+                        'created_at', r.created_at
+                    ) ORDER BY r.created_at)
+                    FROM shareholder_representatives r
+                    WHERE r.shareholder_id = s.id),
+                    '[]'::json
+                ) AS representatives
+            FROM shareholders s
+            WHERE s.id = :sid
+        """),
+        {"sid": sh_id},
+    )
+    row = result.fetchone()
+    if row is None:
+        raise HTTPException(404, "Associé introuvable")
+    return dict(row._mapping)

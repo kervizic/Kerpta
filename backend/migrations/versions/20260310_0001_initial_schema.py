@@ -1336,6 +1336,56 @@ def upgrade() -> None:
         ["user_id"],
     )
 
+    # ── shareholders (from 0004) ────────────────────────────────────────────
+    op.create_table(
+        "shareholders",
+        sa.Column("id", UUID(as_uuid=True), primary_key=True),
+        sa.Column(
+            "organization_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("organizations.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column("type", sa.String(10), nullable=False, server_default="physical"),
+        sa.Column("first_name", sa.String(100), nullable=True),
+        sa.Column("last_name", sa.String(100), nullable=True),
+        sa.Column("company_name", sa.String(255), nullable=True),
+        sa.Column("company_siren", sa.String(9), nullable=True),
+        sa.Column("address", JSONB, nullable=True),
+        sa.Column("quality", sa.String(100), nullable=True),
+        sa.Column("shares_count", sa.Integer, nullable=True),
+        sa.Column("ownership_pct", sa.Numeric(5, 2), nullable=True),
+        sa.Column("entry_date", sa.Date, nullable=True),
+        sa.Column("exit_date", sa.Date, nullable=True),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+    )
+
+    # ── shareholder_representatives (from 0004) ──────────────────────────────
+    op.create_table(
+        "shareholder_representatives",
+        sa.Column("id", UUID(as_uuid=True), primary_key=True),
+        sa.Column(
+            "shareholder_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("shareholders.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column("first_name", sa.String(100), nullable=False),
+        sa.Column("last_name", sa.String(100), nullable=False),
+        sa.Column("quality", sa.String(100), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+    )
+
     # ── organization_logos (from 0007, includes logo_thumb_b64 from 0008) ────
     op.create_table(
         "organization_logos",
