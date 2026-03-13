@@ -1,4 +1,4 @@
-"""Schéma initial Kerpta — toutes les tables
+"""Schéma initial Kerpta — toutes les tables (consolidé, migrations 0001-0021)
 
 Revision ID: 0001
 Revises:
@@ -10,6 +10,7 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 revision: str = "0001"
 down_revision: Union[str, None] = None
@@ -103,6 +104,18 @@ def upgrade() -> None:
         sa.Column(
             "module_esignature_enabled", sa.Boolean, server_default="true", nullable=False
         ),
+        # From 0006: billing_siret
+        sa.Column("billing_siret", sa.CHAR(14), nullable=True),
+        # From 0010: module_contracts_enabled
+        sa.Column("module_contracts_enabled", sa.Boolean, nullable=False, server_default=sa.text("true")),
+        # From 0011: module_config
+        sa.Column("module_config", JSONB, server_default=sa.text("'{}'::jsonb"), nullable=False),
+        # From 0019: vat_exigibility
+        sa.Column("vat_exigibility", sa.String(20), nullable=False, server_default=sa.text("'encaissements'")),
+        # From 0020: website
+        sa.Column("website", sa.String(255), nullable=True),
+        # From 0021: manual_fields (replaces company_info_manual from 0020)
+        sa.Column("manual_fields", JSONB, nullable=False, server_default=sa.text("'[]'::jsonb")),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -187,6 +200,7 @@ def upgrade() -> None:
     )
 
     # ── clients ──────────────────────────────────────────────────────────────
+    # Includes company_siren (from 0008, FK dropped in 0013) and country_code (from 0009)
     op.create_table(
         "clients",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
@@ -207,6 +221,10 @@ def upgrade() -> None:
         sa.Column("payment_terms", sa.Integer, server_default="30", nullable=False),
         sa.Column("notes", sa.Text, nullable=True),
         sa.Column("archived_at", sa.DateTime(timezone=True), nullable=True),
+        # From 0008: company_siren (NO FK — dropped in 0013)
+        sa.Column("company_siren", sa.CHAR(9), nullable=True),
+        # From 0009: country_code
+        sa.Column("country_code", sa.CHAR(2), nullable=False, server_default="FR"),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -216,6 +234,7 @@ def upgrade() -> None:
     )
 
     # ── suppliers ────────────────────────────────────────────────────────────
+    # Includes company_siren (from 0008, FK dropped in 0013) and country_code (from 0009)
     op.create_table(
         "suppliers",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
@@ -231,6 +250,10 @@ def upgrade() -> None:
         sa.Column("email", sa.String(255), nullable=True),
         sa.Column("address", postgresql.JSONB, nullable=True),
         sa.Column("default_category", sa.String(100), nullable=True),
+        # From 0008: company_siren (NO FK — dropped in 0013)
+        sa.Column("company_siren", sa.CHAR(9), nullable=True),
+        # From 0009: country_code
+        sa.Column("country_code", sa.CHAR(2), nullable=False, server_default="FR"),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -433,6 +456,9 @@ def upgrade() -> None:
     )
 
     # ── quotes (avant invoices — invoices.quote_id référence quotes) ─────────
+    # Includes contract_id, is_avenant, avenant_number, bpu_source_id (from 0010)
+    # document_type is VARCHAR(20) with default 'devis' (from 0010)
+    # billing_profile_id (from 0016)
     op.create_table(
         "quotes",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
@@ -449,7 +475,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("number", sa.String(50), unique=True, nullable=False),
-        sa.Column("document_type", sa.String(100), server_default="Devis", nullable=False),
+        sa.Column("document_type", sa.String(20), server_default="devis", nullable=False),
         sa.Column("show_quantity", sa.Boolean, server_default="true", nullable=False),
         sa.Column("status", sa.String(20), server_default="draft", nullable=False),
         sa.Column("issue_date", sa.Date, nullable=False),
@@ -462,8 +488,6 @@ def upgrade() -> None:
         sa.Column("discount_value", sa.Numeric(15, 2), server_default="0", nullable=False),
         sa.Column("notes", sa.Text, nullable=True),
         sa.Column("footer", sa.Text, nullable=True),
-        # Pas de FK vers invoices : un devis peut générer N factures (acomptes, soldes…)
-        # La relation est portée par invoices.quote_id → quotes.id
         sa.Column("pdf_url", sa.Text, nullable=True),
         sa.Column("sent_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("accepted_at", sa.DateTime(timezone=True), nullable=True),
@@ -471,6 +495,13 @@ def upgrade() -> None:
         sa.Column("signature_request_id", sa.String(255), nullable=True),
         sa.Column("signed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("signed_pdf_url", sa.Text, nullable=True),
+        # From 0010: contract fields
+        sa.Column("contract_id", UUID(as_uuid=True), nullable=True),
+        sa.Column("is_avenant", sa.Boolean, nullable=False, server_default=sa.text("false")),
+        sa.Column("avenant_number", sa.Integer, nullable=True),
+        sa.Column("bpu_source_id", UUID(as_uuid=True), nullable=True),
+        # From 0016: billing_profile_id (FK added after billing_profiles table)
+        sa.Column("billing_profile_id", UUID(as_uuid=True), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -486,6 +517,8 @@ def upgrade() -> None:
     )
 
     # ── invoices ─────────────────────────────────────────────────────────────
+    # Includes contract_id, situation_id, is_situation, situation_number (from 0010)
+    # billing_profile_id (from 0016)
     op.create_table(
         "invoices",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
@@ -536,6 +569,13 @@ def upgrade() -> None:
         sa.Column("pdp_submitted_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("sent_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("paid_at", sa.DateTime(timezone=True), nullable=True),
+        # From 0010: contract/situation fields
+        sa.Column("contract_id", UUID(as_uuid=True), nullable=True),
+        sa.Column("situation_id", UUID(as_uuid=True), nullable=True),
+        sa.Column("is_situation", sa.Boolean, nullable=False, server_default=sa.text("false")),
+        sa.Column("situation_number", sa.Integer, nullable=True),
+        # From 0016: billing_profile_id (FK added after billing_profiles table)
+        sa.Column("billing_profile_id", UUID(as_uuid=True), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -551,6 +591,7 @@ def upgrade() -> None:
     )
 
     # ── quote_lines ──────────────────────────────────────────────────────────
+    # Includes reference (from 0010)
     op.create_table(
         "quote_lines",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
@@ -581,6 +622,8 @@ def upgrade() -> None:
         sa.Column("discount_percent", sa.Numeric(5, 2), server_default="0", nullable=False),
         sa.Column("total_ht", sa.Numeric(15, 2), nullable=False),
         sa.Column("total_vat", sa.Numeric(15, 2), nullable=False),
+        # From 0010: reference
+        sa.Column("reference", sa.String(100), nullable=True),
     )
 
     # ── invoice_lines ────────────────────────────────────────────────────────
@@ -612,6 +655,7 @@ def upgrade() -> None:
     )
 
     # ── client_purchase_orders ───────────────────────────────────────────────
+    # Includes contract_id (from 0010)
     op.create_table(
         "client_purchase_orders",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
@@ -643,6 +687,8 @@ def upgrade() -> None:
         sa.Column("total_ttc", sa.Numeric(15, 2), server_default="0", nullable=False),
         sa.Column("notes", sa.Text, nullable=True),
         sa.Column("pdf_url", sa.Text, nullable=True),
+        # From 0010: contract_id
+        sa.Column("contract_id", UUID(as_uuid=True), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -1130,6 +1176,7 @@ def upgrade() -> None:
     )
 
     # ── platform_config ──────────────────────────────────────────────────────
+    # Includes base_url, auth_url, oauth_config (from 0002) and api_keys (from 0004)
     op.create_table(
         "platform_config",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
@@ -1138,6 +1185,20 @@ def upgrade() -> None:
         ),
         sa.Column("setup_step", sa.Integer, server_default="1", nullable=False),
         sa.Column("instance_name", sa.String(255), nullable=True),
+        # From 0002: OAuth fields
+        sa.Column("base_url", sa.String(500), nullable=True),
+        sa.Column("auth_url", sa.String(500), nullable=True),
+        sa.Column(
+            "oauth_config",
+            postgresql.JSONB(astext_type=sa.Text()),
+            nullable=True,
+            comment=(
+                "Config OAuth par provider. Structure : "
+                '{provider: {enabled, client_id, client_secret, ...}}'
+            ),
+        ),
+        # From 0004: api_keys
+        sa.Column("api_keys", JSONB, nullable=True, comment="Clés API externes (INSEE, etc.)"),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -1185,6 +1246,365 @@ def upgrade() -> None:
         ),
     )
 
+    # ── platform_content (from 0003) ─────────────────────────────────────────
+    op.create_table(
+        "platform_content",
+        sa.Column(
+            "id",
+            postgresql.UUID(as_uuid=False),
+            primary_key=True,
+            server_default=sa.text("gen_random_uuid()"),
+        ),
+        sa.Column("section", sa.String(50), nullable=False),
+        sa.Column(
+            "content",
+            postgresql.JSONB(astext_type=sa.Text()),
+            nullable=False,
+            server_default="{}",
+        ),
+        sa.Column("visible", sa.Boolean(), nullable=False, server_default="true"),
+        sa.Column("sort_order", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
+        sa.UniqueConstraint("section", name="uq_platform_content_section"),
+    )
+    op.create_index("ix_platform_content_sort_order", "platform_content", ["sort_order"])
+
+    # ── organization_join_requests (from 0005) ───────────────────────────────
+    op.create_table(
+        "organization_join_requests",
+        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
+        sa.Column(
+            "organization_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("organizations.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "user_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("users.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column("message", sa.Text, nullable=True),
+        sa.Column("status", sa.String(20), nullable=False, server_default="pending"),
+        sa.Column(
+            "reviewed_by",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("users.id"),
+            nullable=True,
+        ),
+        sa.Column("reviewed_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("role_assigned", sa.String(20), nullable=True),
+        sa.Column("cooldown_until", sa.DateTime(timezone=True), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
+        sa.UniqueConstraint("user_id", "organization_id", name="uq_join_request_user_org"),
+        sa.CheckConstraint(
+            "status IN ('pending', 'accepted', 'rejected')",
+            name="ck_join_request_status",
+        ),
+    )
+    op.create_index(
+        "ix_join_requests_org_status",
+        "organization_join_requests",
+        ["organization_id", "status"],
+    )
+    op.create_index(
+        "ix_join_requests_user",
+        "organization_join_requests",
+        ["user_id"],
+    )
+
+    # ── organization_logos (from 0007, includes logo_thumb_b64 from 0008) ────
+    op.create_table(
+        "organization_logos",
+        sa.Column(
+            "organization_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("organizations.id", ondelete="CASCADE"),
+            primary_key=True,
+            nullable=False,
+        ),
+        sa.Column("logo_b64", sa.Text, nullable=False),
+        sa.Column("original_name", sa.String(255), nullable=True),
+        sa.Column("mime_type", sa.String(50), nullable=True),
+        sa.Column("size_bytes", sa.Integer, nullable=True),
+        sa.Column("width_px", sa.SmallInteger, nullable=True),
+        sa.Column("height_px", sa.SmallInteger, nullable=True),
+        # From 0008: logo_thumb_b64
+        sa.Column("logo_thumb_b64", sa.Text, nullable=True),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+    )
+
+    # ── companies (from 0008, includes raw_data from 0014) ───────────────────
+    op.create_table(
+        "companies",
+        sa.Column("siren", sa.CHAR(9), primary_key=True, nullable=False),
+        sa.Column("denomination", sa.String(500), nullable=True),
+        sa.Column("sigle", sa.String(100), nullable=True),
+        sa.Column("legal_form_code", sa.String(10), nullable=True),
+        sa.Column("legal_form", sa.String(50), nullable=True),
+        sa.Column("vat_number", sa.String(20), nullable=True),
+        sa.Column("ape_code", sa.String(10), nullable=True),
+        sa.Column("rcs_city", sa.String(100), nullable=True),
+        sa.Column("capital", sa.Numeric(15, 2), nullable=True),
+        sa.Column("creation_date", sa.Date, nullable=True),
+        sa.Column("closure_date", sa.Date, nullable=True),
+        sa.Column(
+            "status",
+            sa.String(20),
+            nullable=False,
+            server_default="active",
+        ),
+        sa.Column("last_synced_at", sa.DateTime(timezone=True), nullable=True),
+        # From 0014: raw_data
+        sa.Column("raw_data", JSONB, nullable=True),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+    )
+    op.create_index("idx_companies_status", "companies", ["status"])
+
+    # ── establishments (from 0008, includes raw_data from 0014) ──────────────
+    op.create_table(
+        "establishments",
+        sa.Column("siret", sa.CHAR(14), primary_key=True, nullable=False),
+        sa.Column(
+            "siren",
+            sa.CHAR(9),
+            sa.ForeignKey("companies.siren", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column("nic", sa.CHAR(5), nullable=True),
+        sa.Column("is_siege", sa.Boolean, nullable=False, server_default="false"),
+        sa.Column(
+            "status",
+            sa.String(20),
+            nullable=False,
+            server_default="active",
+        ),
+        sa.Column("address", JSONB, nullable=True),
+        sa.Column("activite_principale", sa.String(10), nullable=True),
+        sa.Column("closure_date", sa.Date, nullable=True),
+        sa.Column("last_synced_at", sa.DateTime(timezone=True), nullable=True),
+        # From 0014: raw_data
+        sa.Column("raw_data", JSONB, nullable=True),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+    )
+    op.create_index("idx_establishments_siren", "establishments", ["siren"])
+    op.create_index("idx_establishments_status", "establishments", ["status"])
+
+    # ── contracts (from 0010) ────────────────────────────────────────────────
+    op.create_table(
+        "contracts",
+        sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
+        sa.Column("organization_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("client_id", UUID(as_uuid=True), sa.ForeignKey("clients.id", ondelete="SET NULL"), nullable=True),
+        sa.Column("supplier_id", UUID(as_uuid=True), sa.ForeignKey("suppliers.id", ondelete="SET NULL"), nullable=True),
+        sa.Column("contract_type", sa.String(30), nullable=False),
+        sa.Column("status", sa.String(20), nullable=False, server_default="draft"),
+        sa.Column("reference", sa.String(50), unique=True, nullable=False),
+        sa.Column("title", sa.String(255), nullable=True),
+        sa.Column("start_date", sa.Date, nullable=True),
+        sa.Column("end_date", sa.Date, nullable=True),
+        sa.Column("auto_renew", sa.Boolean, nullable=False, server_default=sa.text("false")),
+        sa.Column("renewal_notice_days", sa.Integer, nullable=False, server_default="30"),
+        sa.Column("bpu_quote_id", UUID(as_uuid=True), sa.ForeignKey("quotes.id", ondelete="SET NULL"), nullable=True),
+        sa.Column("total_budget", sa.Numeric(15, 2), nullable=False, server_default="0"),
+        sa.Column("total_invoiced", sa.Numeric(15, 2), nullable=False, server_default="0"),
+        sa.Column("signed_pdf_url", sa.Text, nullable=True),
+        sa.Column("notes", sa.Text, nullable=True),
+        sa.Column("created_by", UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+    )
+
+    # ── situations (from 0010) ───────────────────────────────────────────────
+    op.create_table(
+        "situations",
+        sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
+        sa.Column("organization_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("contract_id", UUID(as_uuid=True), sa.ForeignKey("contracts.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("bpu_quote_id", UUID(as_uuid=True), sa.ForeignKey("quotes.id", ondelete="RESTRICT"), nullable=False),
+        sa.Column("situation_number", sa.Integer, nullable=False),
+        sa.Column("period_label", sa.String(255), nullable=False),
+        sa.Column("status", sa.String(20), nullable=False, server_default="draft"),
+        sa.Column("cumulative_total", sa.Numeric(15, 2), nullable=False, server_default="0"),
+        sa.Column("previously_invoiced", sa.Numeric(15, 2), nullable=False, server_default="0"),
+        sa.Column("invoice_amount", sa.Numeric(15, 2), nullable=False, server_default="0"),
+        sa.Column("invoice_id", UUID(as_uuid=True), sa.ForeignKey("invoices.id", ondelete="SET NULL"), nullable=True),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.UniqueConstraint("contract_id", "situation_number"),
+    )
+
+    # ── situation_lines (from 0010) ──────────────────────────────────────────
+    op.create_table(
+        "situation_lines",
+        sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
+        sa.Column("situation_id", UUID(as_uuid=True), sa.ForeignKey("situations.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("quote_line_id", UUID(as_uuid=True), sa.ForeignKey("quote_lines.id", ondelete="RESTRICT"), nullable=False),
+        sa.Column("total_contract", sa.Numeric(15, 2), nullable=False),
+        sa.Column("previous_completion_percent", sa.Numeric(5, 2), nullable=False, server_default="0"),
+        sa.Column("completion_percent", sa.Numeric(5, 2), nullable=False, server_default="0"),
+        sa.Column("cumulative_amount", sa.Numeric(15, 2), nullable=False, server_default="0"),
+        sa.Column("previously_invoiced", sa.Numeric(15, 2), nullable=False, server_default="0"),
+        sa.Column("line_invoice_amount", sa.Numeric(15, 2), nullable=False, server_default="0"),
+        sa.CheckConstraint("completion_percent BETWEEN 0 AND 100", name="check_completion"),
+        sa.CheckConstraint("completion_percent >= previous_completion_percent", name="check_cumulative"),
+    )
+
+    # ── contacts (from 0012) ─────────────────────────────────────────────────
+    op.create_table(
+        "contacts",
+        sa.Column("id", UUID(as_uuid=True), primary_key=True),
+        sa.Column(
+            "organization_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("organizations.id"),
+            nullable=False,
+        ),
+        sa.Column(
+            "client_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("clients.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
+        sa.Column("first_name", sa.String(100), nullable=True),
+        sa.Column("last_name", sa.String(100), nullable=True),
+        sa.Column("email", sa.String(255), nullable=True),
+        sa.Column("phone", sa.String(20), nullable=True),
+        sa.Column("job_title", sa.String(100), nullable=True),
+        sa.Column("is_primary", sa.Boolean, server_default=sa.text("false"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+    )
+    op.create_index("ix_contacts_client_id", "contacts", ["client_id"])
+    op.create_index("ix_contacts_organization_id", "contacts", ["organization_id"])
+
+    # ── product_quantity_discounts (from 0015) ───────────────────────────────
+    op.create_table(
+        "product_quantity_discounts",
+        sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
+        sa.Column("organization_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id"), nullable=False),
+        sa.Column("product_id", UUID(as_uuid=True), sa.ForeignKey("products.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("client_id", UUID(as_uuid=True), sa.ForeignKey("clients.id", ondelete="CASCADE"), nullable=True),
+        sa.Column("min_quantity", sa.Numeric(15, 4), nullable=False),
+        sa.Column("discount_percent", sa.Numeric(5, 2), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+    )
+    op.create_index("ix_pqd_product", "product_quantity_discounts", ["product_id"])
+    op.create_index("ix_pqd_org", "product_quantity_discounts", ["organization_id"])
+
+    # ── bank_accounts (from 0016) ────────────────────────────────────────────
+    op.create_table(
+        "bank_accounts",
+        sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
+        sa.Column("organization_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id"), nullable=False),
+        sa.Column("label", sa.String(100), nullable=False),
+        sa.Column("bank_name", sa.String(100), nullable=True),
+        sa.Column("iban", sa.String(34), nullable=False),
+        sa.Column("bic", sa.String(11), nullable=True),
+        sa.Column("is_default", sa.Boolean, nullable=False, server_default=sa.text("false")),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+    )
+    op.create_index("ix_ba_org", "bank_accounts", ["organization_id"])
+
+    # ── billing_profiles (from 0016, includes cols from 0017, 0018; NOT vat_regime removed in 0019) ──
+    op.create_table(
+        "billing_profiles",
+        sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
+        sa.Column("organization_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id"), nullable=False),
+        sa.Column("name", sa.String(100), nullable=False),
+        sa.Column("bank_account_id", UUID(as_uuid=True), sa.ForeignKey("bank_accounts.id"), nullable=True),
+        sa.Column("payment_terms", sa.Integer, nullable=False, server_default=sa.text("30")),
+        sa.Column("payment_method", sa.String(30), nullable=True),
+        sa.Column("late_penalty_rate", sa.Numeric(5, 2), nullable=True),
+        sa.Column("discount_rate", sa.Numeric(5, 2), nullable=True),
+        sa.Column("legal_mentions", sa.Text, nullable=True),
+        sa.Column("footer", sa.Text, nullable=True),
+        sa.Column("is_default", sa.Boolean, nullable=False, server_default=sa.text("false")),
+        # From 0017: payment_term_type, payment_term_day
+        sa.Column("payment_term_type", sa.String(20), nullable=False, server_default=sa.text("'net'")),
+        sa.Column("payment_term_day", sa.Integer, nullable=True),
+        # From 0018: recovery_fee, early_payment_discount, payment_note, legal_mentions_auto
+        sa.Column("recovery_fee", sa.Numeric(6, 2), nullable=False, server_default=sa.text("40.00")),
+        sa.Column("early_payment_discount", sa.Boolean, nullable=False, server_default=sa.text("false")),
+        sa.Column("payment_note", sa.Text, nullable=True),
+        sa.Column("legal_mentions_auto", sa.Boolean, nullable=False, server_default=sa.text("true")),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+    )
+    op.create_index("ix_bp_org", "billing_profiles", ["organization_id"])
+
+    # ── custom_units (from 0016) ─────────────────────────────────────────────
+    op.create_table(
+        "custom_units",
+        sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
+        sa.Column("organization_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id"), nullable=False),
+        sa.Column("label", sa.String(50), nullable=False),
+        sa.Column("position", sa.Integer, nullable=False, server_default=sa.text("0")),
+        sa.UniqueConstraint("organization_id", "label"),
+    )
+
+    # ── Deferred FK for quotes/invoices → contracts, situations, billing_profiles ──
+    op.create_foreign_key("fk_quotes_contract_id", "quotes", "contracts", ["contract_id"], ["id"], ondelete="SET NULL")
+    op.create_foreign_key("fk_quotes_bpu_source_id", "quotes", "quotes", ["bpu_source_id"], ["id"], ondelete="SET NULL")
+    op.create_foreign_key("fk_quotes_billing_profile_id", "quotes", "billing_profiles", ["billing_profile_id"], ["id"])
+    op.create_foreign_key("fk_invoices_contract_id", "invoices", "contracts", ["contract_id"], ["id"], ondelete="SET NULL")
+    op.create_foreign_key("fk_invoices_situation_id", "invoices", "situations", ["situation_id"], ["id"], ondelete="SET NULL")
+    op.create_foreign_key("fk_invoices_billing_profile_id", "invoices", "billing_profiles", ["billing_profile_id"], ["id"])
+    op.create_foreign_key("fk_cpo_contract_id", "client_purchase_orders", "contracts", ["contract_id"], ["id"], ondelete="SET NULL")
+
     # ── Index ────────────────────────────────────────────────────────────────
     op.create_index("idx_invoices_org_status", "invoices", ["organization_id", "status"])
     op.create_index(
@@ -1221,11 +1641,25 @@ def upgrade() -> None:
     )
     op.create_index("idx_users_provider_sub", "users", ["provider_sub"], unique=True)
 
+    # Index from 0008
+    op.create_index("idx_clients_company_siren", "clients", ["company_siren"])
+    op.create_index("idx_suppliers_company_siren", "suppliers", ["company_siren"])
+
+    # Index from 0009
+    op.create_index("idx_clients_country", "clients", ["country_code"])
+    op.create_index("idx_suppliers_country", "suppliers", ["country_code"])
+
+    # Index from 0010
+    op.create_index("idx_quotes_contract", "quotes", ["contract_id"])
+    op.create_index("idx_quotes_bpu_source", "quotes", ["bpu_source_id"])
+    op.create_index("idx_invoices_contract", "invoices", ["contract_id"])
+    op.create_index("idx_invoices_situation", "invoices", ["situation_id"])
+    op.create_index("idx_contracts_org", "contracts", ["organization_id"])
+    op.create_index("idx_contracts_client", "contracts", ["client_id"])
+    op.create_index("idx_situations_contract", "situations", ["contract_id"])
+    op.create_index("idx_situation_lines_situation", "situation_lines", ["situation_id"])
+
     # ── RLS — Row Level Security ─────────────────────────────────────────────
-    # GoTrue partage la même BDD et crée le schéma auth avec auth.uid() lors
-    # de son premier démarrage. On pré-crée le schéma + un stub de la fonction
-    # afin que les policies puissent être posées maintenant. GoTrue remplacera
-    # le stub par sa vraie implémentation (CREATE OR REPLACE FUNCTION) à init.
     op.execute("CREATE SCHEMA IF NOT EXISTS auth")
     op.execute(
         """
@@ -1274,41 +1708,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # Suppression dans l'ordre inverse des FK
-    tables = [
-        "platform_admin_log",
-        "platform_config",
-        "organization_storage_configs",
-        "tax_declarations",
-        "journal_entry_lines",
-        "journal_entries",
-        "payslips",
-        "employees",
-        "expenses",
-        "payments",
-        "supplier_invoice_lines",
-        "supplier_invoices",
-        "supplier_order_lines",
-        "supplier_quote_lines",
-        "supplier_quotes",
-        "supplier_orders",
-        "client_purchase_order_lines",
-        "client_purchase_orders",
-        "invoice_lines",
-        "quote_lines",
-        "invoices",
-        "quotes",
-        "product_components",
-        "product_purchase_links",
-        "client_product_variants",
-        "products",
-        "price_coefficients",
-        "suppliers",
-        "clients",
-        "invitations",
-        "organization_memberships",
-        "organizations",
-        "users",
-    ]
-    for table in tables:
-        op.drop_table(table)
+    pass
