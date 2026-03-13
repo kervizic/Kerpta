@@ -4,7 +4,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import {
-  Loader2, ArrowLeft, Send, Check, FileText, Plus, Trash2, Pencil,
+  Loader2, ArrowLeft, Send, Check, FileText, Plus, Trash2, Pencil, RefreshCw,
 } from 'lucide-react'
 import { navigate } from '@/hooks/useRoute'
 import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
@@ -523,6 +523,23 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
     } : l))
   }
 
+  // Actualiser une ligne depuis le catalogue (recharge les données du produit source)
+  async function refreshLine(index: number) {
+    const line = lines[index]
+    if (!line.product_id) return
+    try {
+      const product = await orgGet<AutocompleteProduct>(`/catalog/products/${line.product_id}`)
+      setLines((prev) => prev.map((l, i) => i === index ? {
+        ...l,
+        reference: product.reference || '',
+        description: product.name + (product.description ? `\n${product.description}` : ''),
+        unit: product.unit || '',
+        unit_price: product.unit_price != null ? String(product.unit_price) : '0',
+        vat_rate: String(product.vat_rate),
+      } : l))
+    } catch { /* produit supprimé ou inaccessible */ }
+  }
+
   // Sauvegarde
   async function handleSave(andSend = false) {
     if (!clientId) return
@@ -771,9 +788,16 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
                         {fmtCurrency(lineHT)}
                       </td>
                       <td className="px-1 py-1.5">
-                        <button onClick={() => removeLine(i)} className="p-1 rounded hover:bg-red-50 transition" title="Supprimer">
-                          <Trash2 className="w-3.5 h-3.5 text-gray-400 hover:text-red-500" />
-                        </button>
+                        <div className="flex gap-0.5">
+                          {line.product_id && (
+                            <button onClick={() => refreshLine(i)} className="p-1 rounded hover:bg-blue-50 transition" title="Actualiser depuis le catalogue">
+                              <RefreshCw className="w-3.5 h-3.5 text-gray-400 hover:text-blue-500" />
+                            </button>
+                          )}
+                          <button onClick={() => removeLine(i)} className="p-1 rounded hover:bg-red-50 transition" title="Supprimer">
+                            <Trash2 className="w-3.5 h-3.5 text-gray-400 hover:text-red-500" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )
