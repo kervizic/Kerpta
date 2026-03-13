@@ -4,7 +4,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import {
-  Loader2, ArrowLeft, Send, Check, FileText, Plus, Trash2, Pencil,
+  Loader2, ArrowLeft, Send, Check, FileText, Plus, Trash2, Pencil, ExternalLink,
 } from 'lucide-react'
 import { navigate } from '@/hooks/useRoute'
 import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
@@ -62,7 +62,7 @@ interface InvoiceLineDetail {
   total_vat: number
 }
 
-interface ClientOption { id: string; name: string; billing_profile_id: string | null }
+interface ClientOption { id: string; name: string; billing_profile_id?: string | null }
 interface BillingProfile {
   id: string; name: string; is_default: boolean
   payment_terms: number | null; payment_method: string | null
@@ -650,7 +650,14 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
               </select>
             </div>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Profil de facturation</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs text-gray-500">Profil de facturation</label>
+                {billingProfileId && (
+                  <button onClick={() => navigate('/app/parametres/facturation')} className="flex items-center gap-1 text-[10px] text-orange-600 hover:text-orange-700 transition">
+                    <ExternalLink className="w-3 h-3" /> Modifier le profil
+                  </button>
+                )}
+              </div>
               <select value={billingProfileId} onChange={(e) => handleProfileChange(e.target.value)} className={`${INPUT} bg-white`}>
                 <option value="">— Aucun —</option>
                 {profiles.map((p) => <option key={p.id} value={p.id}>{p.name}{p.is_default ? ' (défaut)' : ''}</option>)}
@@ -679,7 +686,14 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
         {/* Lignes */}
         <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-4">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Lignes</h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Lignes</h2>
+              {lines.some((l) => !l.product_id && l.description.trim()) && (
+                <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">
+                  {lines.filter((l) => !l.product_id && l.description.trim()).length} nouvel article{lines.filter((l) => !l.product_id && l.description.trim()).length > 1 ? 's' : ''} sera créé{lines.filter((l) => !l.product_id && l.description.trim()).length > 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
             <button
               onClick={() => setLines((prev) => [...prev, emptyLine()])}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-400 text-white text-xs font-semibold rounded-lg transition"
@@ -712,19 +726,14 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
                         <input type="text" value={line.reference} onChange={(e) => updateLine(i, 'reference', e.target.value)} placeholder="Réf" className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400" />
                       </td>
                       <td className="px-1 py-1.5">
-                        <div className="flex items-center gap-1">
-                          <ProductAutocomplete
-                            value={line.description}
-                            onChange={(text) => { updateLine(i, 'description', text); if (line.product_id) updateLine(i, 'product_id', null) }}
-                            onSelect={(p) => selectProduct(i, p)}
-                            clientId={clientId || null}
-                            className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400"
-                            placeholder="Désignation"
-                          />
-                          {!line.product_id && line.description.trim() && (
-                            <span className="shrink-0 text-[9px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full font-medium">Nouveau</span>
-                          )}
-                        </div>
+                        <ProductAutocomplete
+                          value={line.description}
+                          onChange={(text) => { updateLine(i, 'description', text); if (line.product_id) updateLine(i, 'product_id', null) }}
+                          onSelect={(p) => selectProduct(i, p)}
+                          clientId={clientId || null}
+                          className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400"
+                          placeholder="Désignation"
+                        />
                       </td>
                       <td className="px-1 py-1.5">
                         <input type="number" step="0.01" min="0.01" value={line.quantity} onChange={(e) => updateLine(i, 'quantity', e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 text-right" />
@@ -784,11 +793,6 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Notes internes</label>
               <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className={INPUT} placeholder="Visibles uniquement par vous" />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Mentions légales / pied de page</label>
-              <textarea value={footer} onChange={(e) => setFooter(e.target.value)} rows={4} className={INPUT} placeholder="Pénalités de retard, indemnité forfaitaire 40€, escompte..." />
-              <p className="text-[10px] text-gray-400 mt-1">Pré-rempli depuis le profil de facturation. Modifiable ici.</p>
             </div>
           </div>
 
