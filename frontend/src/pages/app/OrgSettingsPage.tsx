@@ -176,6 +176,11 @@ export default function OrgSettingsPage() {
   const [logoSuccess, setLogoSuccess] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Actualisation enrichissement
+  const [enriching, setEnriching] = useState(false)
+  const [enrichSuccess, setEnrichSuccess] = useState(false)
+  const [enrichError, setEnrichError] = useState<string | null>(null)
+
   // Info-bulle aide auto/manuel
 
 
@@ -330,6 +335,44 @@ export default function OrgSettingsPage() {
       setLogoError(httpError(err, 'Erreur lors de la suppression du logo'))
     } finally {
       setLogoDeleting(false)
+    }
+  }
+
+  /** Actualise les données data.gouv + INPI pour cette organisation */
+  async function handleEnrich() {
+    setEnriching(true)
+    setEnrichError(null)
+    setEnrichSuccess(false)
+    try {
+      await apiClient.post('/config/enrich-orgs')
+      // Attendre un peu que l'enrichissement en arrière-plan se termine
+      await new Promise((r) => setTimeout(r, 3000))
+      // Recharger les données de l'org
+      if (activeOrg) {
+        const { data } = await apiClient.get<OrgDetail>(`/organizations/${activeOrg.org_id}`)
+        setOrg(data)
+        setManualFields(data.manual_fields ?? [])
+        setEditName(data.org_name ?? '')
+        setEditLegalForm(data.legal_form ?? '')
+        setEditSiret(data.org_siret ?? '')
+        setEditSiren(data.org_siren ?? '')
+        setEditVatNumber(data.vat_number ?? '')
+        setEditApeCode(data.ape_code ?? '')
+        setEditRcsCity(data.rcs_city ?? '')
+        setEditCapital(data.capital ?? '')
+        const addr = data.address as AddressOut | null
+        setEditAddrVoie(addr?.voie ?? '')
+        setEditAddrComplement(addr?.complement ?? '')
+        setEditAddrCp(addr?.code_postal ?? '')
+        setEditAddrCommune(addr?.commune ?? '')
+      }
+      setEnrichSuccess(true)
+      setTimeout(() => setEnrichSuccess(false), 4000)
+    } catch (err) {
+      setEnrichError(httpError(err, "Erreur lors de l'actualisation"))
+      setTimeout(() => setEnrichError(null), 5000)
+    } finally {
+      setEnriching(false)
     }
   }
 
@@ -636,9 +679,31 @@ export default function OrgSettingsPage() {
         {/* Informations légales — toggle auto/manuel par champ */}
         <section className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
-              Informations légales
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
+                Informations légales
+              </h2>
+              <button
+                type="button"
+                onClick={handleEnrich}
+                disabled={enriching}
+                title="Actualiser depuis data.gouv et INPI"
+                className="inline-flex items-center gap-1 px-2 py-0.5 text-xs text-gray-500 hover:text-orange-600 hover:bg-orange-50 rounded-md transition disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${enriching ? 'animate-spin' : ''}`} />
+                {enriching ? 'Actualisation…' : 'Actualiser'}
+              </button>
+              {enrichSuccess && (
+                <span className="text-xs text-green-600 flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3" /> Données à jour
+                </span>
+              )}
+              {enrichError && (
+                <span className="text-xs text-red-500 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" /> {enrichError}
+                </span>
+              )}
+            </div>
             <InfoHint size="md">
               <p className="font-medium text-gray-700 dark:text-gray-200">Mode auto / manuel par champ</p>
               <p>
@@ -656,7 +721,7 @@ export default function OrgSettingsPage() {
                 </li>
               </ul>
               <p className="text-gray-500 dark:text-gray-400 pt-0.5">
-                Le capital social et la ville RCS sont toujours éditables (absents du SIRENE).
+                La ville RCS est toujours éditable. Le capital et l'objet social sont synchronisés depuis l'INPI.
               </p>
             </InfoHint>
           </div>
