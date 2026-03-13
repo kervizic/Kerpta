@@ -223,8 +223,9 @@ async def get_invoice(
                    i.subtotal_ht, i.total_vat, i.total_ttc,
                    i.amount_paid, i.discount_type, i.discount_value,
                    i.payment_terms, i.payment_method,
-                   i.bank_details, i.notes, i.footer, i.pdf_url,
-                   i.sent_at, i.paid_at,
+                   i.bank_details, i.notes, i.footer,
+                   i.legal_mentions, i.client_snapshot, i.seller_snapshot,
+                   i.pdf_url, i.sent_at, i.paid_at,
                    i.created_at, i.updated_at
             FROM invoices i
             JOIN clients c ON c.id = i.client_id
@@ -345,19 +346,107 @@ async def update_invoice(
     return {"status": "updated"}
 
 
-async def send_invoice(
+async def _build_snapshots(
     org_id: uuid.UUID, invoice_id: str, db: AsyncSession
-) -> dict:
-    """Marque une facture comme envoyée."""
-    result = await db.execute(
+) -> tuple[str | None, str | None, str | None]:
+    """Construit les snapshots client, vendeur et mentions légales pour figer la facture."""
+    # Snapshot client
+    client_result = await db.execute(
         text("""
-            UPDATE invoices SET status = 'sent', sent_at = now(), updated_at = now()
-            WHERE id = :iid AND organization_id = :org_id AND status = 'draft'
+            SELECT c.name, c.siret, c.vat_number, c.billing_address
+            FROM invoices i
+            JOIN clients c ON c.id = i.client_id
+            WHERE i.id = :iid AND i.organization_id = :org_id
         """),
         {"iid": invoice_id, "org_id": str(org_id)},
     )
-    if result.rowcount == 0:
+    c_row = client_result.fetchone()
+    client_snap = None
+    if c_row:
+        client_snap = json.dumps({
+            "name": c_row[0],
+            "siret": c_row[1],
+            "vat_number": c_row[2],
+            "address": c_row[3],
+        })
+
+    # Snapshot vendeur (organisation)
+    seller_result = await db.execute(
+        text("""
+            SELECT name, siret, siren, vat_number, address,
+                   legal_form, rcs_city, capital, ape_code
+            FROM organizations WHERE id = :org_id
+        """),
+        {"org_id": str(org_id)},
+    )
+    s_row = seller_result.fetchone()
+    seller_snap = None
+    if s_row:
+        seller_snap = json.dumps({
+            "name": s_row[0],
+            "siret": s_row[1],
+            "siren": s_row[2],
+            "vat_number": s_row[3],
+            "address": s_row[4] if isinstance(s_row[4], dict) else None,
+            "legal_form": s_row[5],
+            "rcs_city": s_row[6],
+            "capital": str(s_row[7]) if s_row[7] else None,
+            "ape_code": s_row[8],
+        })
+
+    # Mentions légales depuis le profil de facturation
+    mentions_result = await db.execute(
+        text("""
+            SELECT bp.legal_mentions
+            FROM invoices i
+            LEFT JOIN billing_profiles bp ON bp.id = i.billing_profile_id
+            WHERE i.id = :iid
+        """),
+        {"iid": invoice_id},
+    )
+    m_row = mentions_result.fetchone()
+    legal_mentions = m_row[0] if m_row else None
+
+    return client_snap, seller_snap, legal_mentions
+
+
+async def send_invoice(
+    org_id: uuid.UUID, invoice_id: str, db: AsyncSession
+) -> dict:
+    """Marque une facture comme envoyée et fige les snapshots."""
+    # Vérifier le statut
+    status_check = await db.execute(
+        text("SELECT status FROM invoices WHERE id = :iid AND organization_id = :org_id"),
+        {"iid": invoice_id, "org_id": str(org_id)},
+    )
+    row = status_check.fetchone()
+    if row is None:
+        raise HTTPException(404, "Facture introuvable")
+    if row[0] != "draft":
         raise HTTPException(409, "La facture ne peut pas être envoyée (statut invalide)")
+
+    # Figer les snapshots au moment de l'envoi
+    client_snap, seller_snap, legal_mentions = await _build_snapshots(org_id, invoice_id, db)
+
+    await db.execute(
+        text("""
+            UPDATE invoices SET
+                status = 'sent',
+                sent_at = now(),
+                updated_at = now(),
+                client_snapshot = CAST(:client_snap AS jsonb),
+                seller_snapshot = CAST(:seller_snap AS jsonb),
+                legal_mentions = COALESCE(:legal_mentions, legal_mentions)
+            WHERE id = :iid AND organization_id = :org_id
+        """),
+        {
+            "iid": invoice_id,
+            "org_id": str(org_id),
+            "client_snap": client_snap,
+            "seller_snap": seller_snap,
+            "legal_mentions": legal_mentions,
+        },
+    )
     await db.commit()
     return {"status": "sent"}
 

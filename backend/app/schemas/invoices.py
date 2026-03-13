@@ -98,6 +98,10 @@ class InvoiceOut(BaseModel):
     payment_terms: int
     payment_method: str | None = None
     notes: str | None = None
+    footer: str | None = None
+    legal_mentions: str | None = None
+    client_snapshot: dict | None = None
+    seller_snapshot: dict | None = None
     pdf_url: str | None = None
     sent_at: datetime | None = None
     paid_at: datetime | None = None

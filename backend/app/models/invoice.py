@@ -69,6 +69,15 @@ class Invoice(Base, UUIDPrimaryKeyMixin, TimestampUpdateMixin):
     bank_details: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     footer: Mapped[str | None] = mapped_column(Text, nullable=True)
+    legal_mentions: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Snapshots figés au moment de l'envoi (art. L441-9 C. com.)
+    # Permettent de reproduire la facture à l'identique même si les données sources changent
+    client_snapshot: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    # {name, siret, vat_number, address: {street, city, zip, country}}
+    seller_snapshot: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    # {name, siret, vat_number, address: {street, city, zip, country}, rcs_city, capital, legal_form, ape_code}
+
     pdf_url: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Facturation électronique PDP (v2)
