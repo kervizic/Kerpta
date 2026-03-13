@@ -4,7 +4,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import {
-  Loader2, ArrowLeft, Send, Check, FileText, Plus, Trash2, Pencil, ExternalLink,
+  Loader2, ArrowLeft, Send, Check, FileText, Plus, Trash2, Pencil,
 } from 'lucide-react'
 import { navigate } from '@/hooks/useRoute'
 import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
@@ -644,24 +644,39 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Client *</label>
-              <select value={clientId} onChange={(e) => handleClientChange(e.target.value)} required className={`${INPUT} bg-white`}>
-                <option value="">— Sélectionner un client —</option>
-                {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs text-gray-500">Profil de facturation</label>
-                {billingProfileId && (
-                  <button onClick={() => navigate('/app/parametres/facturation')} className="flex items-center gap-1 text-[10px] text-orange-600 hover:text-orange-700 transition">
-                    <ExternalLink className="w-3 h-3" /> Modifier le profil
+              <div className="flex items-center gap-1.5">
+                <select value={clientId} onChange={(e) => {
+                  if (e.target.value === '__new__') { navigate('/app/clients?action=nouveau'); return }
+                  handleClientChange(e.target.value)
+                }} required className={`${INPUT} bg-white`}>
+                  <option value="">— Sélectionner un client —</option>
+                  {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  <option value="__new__">+ Nouveau client</option>
+                </select>
+                {clientId && (
+                  <button onClick={() => navigate(`/app/clients/${clientId}`)} className="shrink-0 p-1.5 rounded-lg hover:bg-gray-100 transition" title="Voir le client">
+                    <Pencil className="w-3.5 h-3.5 text-gray-400" />
                   </button>
                 )}
               </div>
-              <select value={billingProfileId} onChange={(e) => handleProfileChange(e.target.value)} className={`${INPUT} bg-white`}>
-                <option value="">— Aucun —</option>
-                {profiles.map((p) => <option key={p.id} value={p.id}>{p.name}{p.is_default ? ' (défaut)' : ''}</option>)}
-              </select>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Profil de facturation</label>
+              <div className="flex items-center gap-1.5">
+                <select value={billingProfileId} onChange={(e) => {
+                  if (e.target.value === '__new__') { navigate('/app/parametres/facturation'); return }
+                  handleProfileChange(e.target.value)
+                }} className={`${INPUT} bg-white`}>
+                  <option value="">— Aucun —</option>
+                  {profiles.map((p) => <option key={p.id} value={p.id}>{p.name}{p.is_default ? ' (défaut)' : ''}</option>)}
+                  <option value="__new__">+ Nouveau profil</option>
+                </select>
+                {billingProfileId && (
+                  <button onClick={() => navigate('/app/parametres/facturation')} className="shrink-0 p-1.5 rounded-lg hover:bg-gray-100 transition" title="Modifier le profil">
+                    <Pencil className="w-3.5 h-3.5 text-gray-400" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
           <div className="grid grid-cols-3 gap-3">
