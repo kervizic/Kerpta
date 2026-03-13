@@ -240,6 +240,7 @@ function BillingProfilesSection() {
   const { activeOrgId } = useAuthStore()
   const [items, setItems] = useState<BillingProfile[]>([])
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodItem[]>([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState<BillingProfile | 'new' | null>(null)
   const [saving, setSaving] = useState(false)
@@ -278,12 +279,14 @@ function BillingProfilesSection() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [profiles, accounts] = await Promise.all([
+      const [profiles, accounts, methods] = await Promise.all([
         orgGet<BillingProfile[]>('/billing/profiles'),
         orgGet<BankAccount[]>('/billing/bank-accounts'),
+        orgGet<PaymentMethodItem[]>('/billing/payment-methods'),
       ])
       setItems(profiles)
       setBankAccounts(accounts)
+      setPaymentMethods(methods)
 
       // Charger les infos TVA de l'org
       if (activeOrgId) {
@@ -442,14 +445,10 @@ function BillingProfilesSection() {
                 </div>
               )}
               <div>
-                <label className="text-xs text-gray-500 mb-1 block">Mode de paiement</label>
+                <label className="text-xs text-gray-500 mb-1 block">Mode de règlement</label>
                 <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className={`${INPUT} bg-white`}>
                   <option value="">—</option>
-                  <option value="virement">Virement</option>
-                  <option value="cheque">Chèque</option>
-                  <option value="carte">Carte</option>
-                  <option value="especes">Espèces</option>
-                  <option value="prelevement">Prélèvement</option>
+                  {paymentMethods.map((m) => <option key={m.id} value={m.label}>{m.label}</option>)}
                 </select>
               </div>
             </fieldset>
@@ -654,15 +653,91 @@ function UnitsSection() {
   )
 }
 
+// ── Section Modes de règlement ────────────────────────────────────────────────
+
+interface PaymentMethodItem {
+  id: string
+  label: string
+  position: number
+}
+
+function PaymentMethodsSection() {
+  const [items, setItems] = useState<PaymentMethodItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [newLabel, setNewLabel] = useState('')
+  const [adding, setAdding] = useState(false)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try { setItems(await orgGet<PaymentMethodItem[]>('/billing/payment-methods')) } catch { /* */ }
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { void load() }, [load])
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault()
+    if (!newLabel.trim()) return
+    setAdding(true)
+    try {
+      await orgPost('/billing/payment-methods', { label: newLabel.trim() })
+      setNewLabel('')
+      await load()
+    } catch { /* */ }
+    setAdding(false)
+  }
+
+  async function handleDelete(id: string) {
+    try { await orgDelete(`/billing/payment-methods/${id}`); await load() } catch { /* */ }
+  }
+
+  return (
+    <section className="bg-white border border-gray-200 rounded-2xl p-5">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Modes de règlement</h2>
+      </div>
+      {loading ? (
+        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-orange-500" /></div>
+      ) : (
+        <>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {items.map((m) => (
+              <span key={m.id} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded-full text-sm text-gray-700">
+                {m.label}
+                <button onClick={() => handleDelete(m.id)} className="p-0.5 rounded-full hover:bg-red-100 transition">
+                  <X className="w-3 h-3 text-gray-400 hover:text-red-500" />
+                </button>
+              </span>
+            ))}
+          </div>
+          <form onSubmit={handleAdd} className="flex gap-2">
+            <input
+              type="text"
+              value={newLabel}
+              onChange={(e) => setNewLabel(e.target.value)}
+              placeholder="Nouveau mode de règlement..."
+              className={`flex-1 ${INPUT}`}
+            />
+            <button type="submit" disabled={adding || !newLabel.trim()} className="px-3 py-2 bg-orange-500 hover:bg-orange-400 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
+              {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+            </button>
+          </form>
+        </>
+      )}
+    </section>
+  )
+}
+
 // ── Page principale ──────────────────────────────────────────────────────────
 
 export default function InvoiceSettingsPage() {
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
-        <h1 className="text-xl font-semibold text-gray-900">Paramètres de facturation</h1>
+        <h1 className="text-xl font-semibold text-gray-900">Paramètres de vente</h1>
         <BankAccountsSection />
         <BillingProfilesSection />
+        <PaymentMethodsSection />
         <UnitsSection />
       </div>
     </div>

@@ -101,7 +101,7 @@ const ORG_CONFIG_ITEMS: NavItem[] = [
     icon: <Building className="w-4 h-4" />,
   },
   {
-    label: 'Facturation',
+    label: 'Vente',
     href: '/app/config/facturation',
     icon: <CreditCard className="w-4 h-4" />,
   },

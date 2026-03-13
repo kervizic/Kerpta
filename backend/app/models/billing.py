@@ -61,6 +61,22 @@ class BillingProfile(Base, UUIDPrimaryKeyMixin):
     )
 
 
+class PaymentMethod(Base, UUIDPrimaryKeyMixin):
+    """Mode de règlement personnalisé par organisation."""
+
+    __tablename__ = "payment_methods"
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False
+    )
+    label: Mapped[str] = mapped_column(String(50), nullable=False)
+    position: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("organization_id", "label"),
+    )
+
+
 class CustomUnit(Base, UUIDPrimaryKeyMixin):
     """Unité de mesure personnalisée par organisation."""
 

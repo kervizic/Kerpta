@@ -15,11 +15,14 @@ from app.schemas.billing import (
     BankAccountUpdate,
     BillingProfileCreate,
     BillingProfileUpdate,
+    PaymentMethodCreate,
+    PaymentMethodUpdate,
     UnitCreate,
     UnitUpdate,
 )
 
-DEFAULT_UNITS = ["U", "pce.", "ens.", "h", "jr", "m", "ml", "m\u00b2"]
+DEFAULT_UNITS = ["U", "pce.", "ens.", "h", "jr", "m", "ml", "m\u00b2", "kg", "L", "km"]
+DEFAULT_PAYMENT_METHODS = ["Virement bancaire", "Chèque", "Carte bancaire", "Espèces", "Prélèvement"]
 
 
 # ── Comptes bancaires ────────────────────────────────────────────────────────
@@ -323,4 +326,148 @@ async def seed_default_units(org_id: uuid.UUID, db: AsyncSession) -> None:
                 ON CONFLICT (organization_id, label) DO NOTHING
             """),
             {"id": str(uuid.uuid4()), "org_id": str(org_id), "label": label, "pos": i},
+        )
+
+
+# ── Modes de règlement ──────────────────────────────────────────────────────
+
+
+async def list_payment_methods(org_id: uuid.UUID, db: AsyncSession) -> list[dict]:
+    result = await db.execute(
+        text("""
+            SELECT id::text, label, position
+            FROM payment_methods
+            WHERE organization_id = :org_id
+            ORDER BY position, label
+        """),
+        {"org_id": str(org_id)},
+    )
+    rows = [dict(row._mapping) for row in result.fetchall()]
+    if not rows:
+        # Auto-seed les valeurs par défaut pour les orgs existantes
+        await seed_default_payment_methods(org_id, db)
+        await db.commit()
+        return await list_payment_methods(org_id, db)
+    return rows
+
+
+async def create_payment_method(
+    org_id: uuid.UUID, data: PaymentMethodCreate, db: AsyncSession
+) -> dict:
+    method_id = uuid.uuid4()
+
+    pos_result = await db.execute(
+        text("SELECT COALESCE(MAX(position), -1) + 1 FROM payment_methods WHERE organization_id = :org_id"),
+        {"org_id": str(org_id)},
+    )
+    position = pos_result.scalar() or 0
+
+    await db.execute(
+        text("""
+            INSERT INTO payment_methods (id, organization_id, label, position)
+            VALUES (:id, :org_id, :label, :pos)
+        """),
+        {"id": str(method_id), "org_id": str(org_id), "label": data.label, "pos": position},
+    )
+    await db.commit()
+    return {"id": str(method_id), "label": data.label}
+
+
+async def update_payment_method(
+    org_id: uuid.UUID, method_id: str, data: PaymentMethodUpdate, db: AsyncSession
+) -> dict:
+    updates = data.model_dump(exclude_unset=True)
+    if not updates:
+        raise HTTPException(422, "Aucun champ à mettre à jour")
+
+    set_parts = []
+    params: dict = {"mid": method_id, "org_id": str(org_id)}
+    for key, value in updates.items():
+        set_parts.append(f"{key} = :{key}")
+        params[key] = value
+
+    result = await db.execute(
+        text(f"UPDATE payment_methods SET {', '.join(set_parts)} WHERE id = :mid AND organization_id = :org_id"),
+        params,
+    )
+    if result.rowcount == 0:
+        raise HTTPException(404, "Mode de règlement introuvable")
+    await db.commit()
+    return {"status": "updated"}
+
+
+async def delete_payment_method(
+    org_id: uuid.UUID, method_id: str, db: AsyncSession
+) -> dict:
+    result = await db.execute(
+        text("DELETE FROM payment_methods WHERE id = :mid AND organization_id = :org_id"),
+        {"mid": method_id, "org_id": str(org_id)},
+    )
+    if result.rowcount == 0:
+        raise HTTPException(404, "Mode de règlement introuvable")
+    await db.commit()
+    return {"status": "deleted"}
+
+
+async def seed_default_payment_methods(org_id: uuid.UUID, db: AsyncSession) -> None:
+    """Crée les modes de règlement par défaut pour une nouvelle organisation."""
+    for i, label in enumerate(DEFAULT_PAYMENT_METHODS):
+        await db.execute(
+            text("""
+                INSERT INTO payment_methods (id, organization_id, label, position)
+                VALUES (:id, :org_id, :label, :pos)
+                ON CONFLICT (organization_id, label) DO NOTHING
+            """),
+            {"id": str(uuid.uuid4()), "org_id": str(org_id), "label": label, "pos": i},
+        )
+
+
+DEFAULT_BILLING_PROFILES = [
+    {
+        "name": "Comptant — Virement",
+        "payment_terms": 0,
+        "payment_term_type": "net",
+        "payment_method": "Virement bancaire",
+        "is_default": True,
+    },
+    {
+        "name": "30 jours net",
+        "payment_terms": 30,
+        "payment_term_type": "net",
+        "payment_method": None,
+        "is_default": False,
+    },
+    {
+        "name": "45 jours fin de mois",
+        "payment_terms": 45,
+        "payment_term_type": "end_of_month",
+        "payment_method": None,
+        "is_default": False,
+    },
+]
+
+
+async def seed_default_billing_profiles(org_id: uuid.UUID, db: AsyncSession) -> None:
+    """Crée les profils de facturation par défaut pour une nouvelle organisation."""
+    for profile in DEFAULT_BILLING_PROFILES:
+        await db.execute(
+            text("""
+                INSERT INTO billing_profiles (
+                    id, organization_id, name, payment_terms, payment_term_type,
+                    payment_method, recovery_fee, legal_mentions_auto, is_default, created_at
+                ) VALUES (
+                    :id, :org_id, :name, :terms, :term_type,
+                    :method, 40.00, true, :is_default, now()
+                )
+                ON CONFLICT DO NOTHING
+            """),
+            {
+                "id": str(uuid.uuid4()),
+                "org_id": str(org_id),
+                "name": profile["name"],
+                "terms": profile["payment_terms"],
+                "term_type": profile["payment_term_type"],
+                "method": profile["payment_method"],
+                "is_default": profile["is_default"],
+            },
         )

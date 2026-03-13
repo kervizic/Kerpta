@@ -133,6 +133,20 @@ async def create_organization(
             raise HTTPException(409, "Cette organisation est déjà enregistrée sur Kerpta")
         raise HTTPException(500, "Erreur lors de la création de l'organisation")
 
+    # Seed des données par défaut pour la nouvelle organisation
+    from app.services.billing import (
+        seed_default_units,
+        seed_default_payment_methods,
+        seed_default_billing_profiles,
+    )
+    try:
+        await seed_default_units(org_id, db)
+        await seed_default_payment_methods(org_id, db)
+        await seed_default_billing_profiles(org_id, db)
+        await db.commit()
+    except Exception:
+        pass  # Non bloquant — les valeurs par défaut peuvent être créées plus tard
+
     return {"org_id": str(org_id), "org_name": data.name, "role": "owner"}
 
 

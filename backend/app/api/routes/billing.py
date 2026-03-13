@@ -14,6 +14,8 @@ from app.schemas.billing import (
     BankAccountUpdate,
     BillingProfileCreate,
     BillingProfileUpdate,
+    PaymentMethodCreate,
+    PaymentMethodUpdate,
     UnitCreate,
     UnitUpdate,
 )
@@ -98,6 +100,45 @@ async def delete_billing_profile(
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.delete_billing_profile(ctx.org_id, profile_id, db)
+
+
+# ── Modes de règlement ───────────────────────────────────────────────────────
+
+
+@router.get("/payment-methods")
+async def list_payment_methods(
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await svc.list_payment_methods(ctx.org_id, db)
+
+
+@router.post("/payment-methods", status_code=201)
+async def create_payment_method(
+    data: PaymentMethodCreate,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await svc.create_payment_method(ctx.org_id, data, db)
+
+
+@router.patch("/payment-methods/{method_id}")
+async def update_payment_method(
+    method_id: str,
+    data: PaymentMethodUpdate,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await svc.update_payment_method(ctx.org_id, method_id, data, db)
+
+
+@router.delete("/payment-methods/{method_id}")
+async def delete_payment_method(
+    method_id: str,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await svc.delete_payment_method(ctx.org_id, method_id, db)
 
 
 # ── Unités personnalisées ────────────────────────────────────────────────────

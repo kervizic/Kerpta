@@ -109,13 +109,7 @@ const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
   cancelled: { label: 'Annulée', cls: 'bg-gray-100 text-gray-400' },
 }
 
-const PAYMENT_METHODS = [
-  { value: 'bank_transfer', label: 'Virement bancaire' },
-  { value: 'check', label: 'Chèque' },
-  { value: 'card', label: 'Carte bancaire' },
-  { value: 'cash', label: 'Espèces' },
-  { value: 'other', label: 'Autre' },
-]
+interface PaymentMethodOption { id: string; label: string; position: number }
 
 function fmtCurrency(v: number) {
   return Number(v).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
@@ -369,7 +363,7 @@ function InvoiceDetailView({ invoiceId }: { invoiceId: string }) {
         {/* Info complémentaire */}
         {(invoice.notes || invoice.payment_method || invoice.footer) && (
           <section className="bg-white border border-gray-200 rounded-2xl p-5 mt-4 space-y-2 text-sm">
-            {invoice.payment_method && <p><span className="text-gray-400">Mode de paiement :</span> {PAYMENT_METHODS.find((m) => m.value === invoice.payment_method)?.label || invoice.payment_method}</p>}
+            {invoice.payment_method && <p><span className="text-gray-400">Mode de règlement :</span> {invoice.payment_method}</p>}
             {invoice.due_date && <p><span className="text-gray-400">Échéance :</span> {invoice.due_date}</p>}
             {invoice.notes && <p><span className="text-gray-400">Notes :</span> {invoice.notes}</p>}
             {invoice.footer && (
@@ -406,6 +400,7 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
   // Données de référence
   const [clients, setClients] = useState<ClientOption[]>([])
   const [profiles, setProfiles] = useState<BillingProfile[]>([])
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodOption[]>([])
   const [loading, setLoading] = useState(isEdit)
   const [saving, setSaving] = useState(false)
 
@@ -414,9 +409,11 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
     Promise.all([
       orgGet<{ items: ClientOption[] }>('/clients', { page_size: 100 }),
       orgGet<BillingProfile[]>('/billing/profiles'),
-    ]).then(([clientsData, profilesData]) => {
+      orgGet<PaymentMethodOption[]>('/billing/payment-methods'),
+    ]).then(([clientsData, profilesData, methodsData]) => {
       setClients(clientsData.items)
       setProfiles(profilesData)
+      setPaymentMethods(methodsData)
       // Auto-sélectionner le profil par défaut
       if (!isEdit) {
         const defaultProfile = profilesData.find((p) => p.is_default)
@@ -663,7 +660,7 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
               <label className="text-xs text-gray-500 mb-1 block">Profil de facturation</label>
               <div className="flex items-center gap-1.5">
                 <select value={billingProfileId} onChange={(e) => {
-                  if (e.target.value === '__new__') { navigate('/app/parametres/facturation'); return }
+                  if (e.target.value === '__new__') { navigate('/app/config/facturation'); return }
                   handleProfileChange(e.target.value)
                 }} className={`${INPUT} bg-white`}>
                   <option value="">— Aucun —</option>
@@ -671,7 +668,7 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
                   <option value="__new__">+ Nouveau profil</option>
                 </select>
                 {billingProfileId && (
-                  <button onClick={() => navigate('/app/parametres/facturation')} className="shrink-0 p-1.5 rounded-lg hover:bg-gray-100 transition" title="Modifier le profil">
+                  <button onClick={() => navigate('/app/config/facturation')} className="shrink-0 p-1.5 rounded-lg hover:bg-gray-100 transition" title="Modifier le profil">
                     <Pencil className="w-3.5 h-3.5 text-gray-400" />
                   </button>
                 )}
@@ -688,10 +685,10 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
               <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={INPUT} />
             </div>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Mode de paiement</label>
+              <label className="text-xs text-gray-500 mb-1 block">Mode de règlement</label>
               <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className={`${INPUT} bg-white`}>
                 <option value="">— Non spécifié —</option>
-                {PAYMENT_METHODS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+                {paymentMethods.map((m) => <option key={m.id} value={m.label}>{m.label}</option>)}
               </select>
             </div>
           </div>

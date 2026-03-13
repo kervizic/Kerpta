@@ -59,7 +59,6 @@ interface QuoteLine {
   total_vat: number
 }
 
-interface ClientOption { id: string; name: string }
 interface BillingProfile { id: string; name: string; is_default: boolean; footer: string | null }
 // ── Types pour ligne formulaire ────────────────────────────────────────────
 
@@ -371,18 +370,13 @@ function QuoteFormPage({ quoteId }: { quoteId?: string }) {
   const [lines, setLines] = useState<FormLine[]>([emptyLine()])
 
   // Données de référence
-  const [clients, setClients] = useState<ClientOption[]>([])
   const [profiles, setProfiles] = useState<BillingProfile[]>([])
   const [loading, setLoading] = useState(isEdit)
   const [saving, setSaving] = useState(false)
 
   // Charger les données de référence
   useEffect(() => {
-    Promise.all([
-      orgGet<{ items: ClientOption[] }>('/clients', { page_size: 100 }),
-      orgGet<BillingProfile[]>('/billing/profiles'),
-    ]).then(([clientsData, profilesData]) => {
-      setClients(clientsData.items)
+    orgGet<BillingProfile[]>('/billing/profiles').then((profilesData) => {
       setProfiles(profilesData)
       // Auto-sélectionner le profil par défaut
       if (!isEdit) {

@@ -102,6 +102,26 @@ class BillingProfileOut(BaseModel):
     created_at: datetime | None = None
 
 
+# ── Modes de règlement ───────────────────────────────────────────────────────
+
+
+class PaymentMethodCreate(BaseModel):
+    label: str = Field(..., min_length=1, max_length=50)
+
+
+class PaymentMethodUpdate(BaseModel):
+    label: str | None = Field(None, min_length=1, max_length=50)
+    position: int | None = None
+
+
+class PaymentMethodOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    label: str
+    position: int
+
+
 # ── Unités personnalisées ────────────────────────────────────────────────────
 
 
