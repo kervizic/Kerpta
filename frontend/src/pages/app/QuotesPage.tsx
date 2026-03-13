@@ -371,8 +371,17 @@ function QuoteFormPage({ quoteId }: { quoteId?: string }) {
 
   // Données de référence
   const [profiles, setProfiles] = useState<BillingProfile[]>([])
+  const [docColumns, setDocColumns] = useState({
+    reference: true, description: true, quantity: true, unit: true,
+    unit_price: true, vat_rate: true, discount_percent: true, total_ht: true,
+  })
   const [loading, setLoading] = useState(isEdit)
   const [saving, setSaving] = useState(false)
+
+  // Charger la config colonnes
+  useEffect(() => {
+    orgGet<Record<string, boolean>>('/billing/document-columns').then(setDocColumns).catch(() => {})
+  }, [])
 
   // Charger les données de référence
   useEffect(() => {
@@ -637,13 +646,13 @@ function QuoteFormPage({ quoteId }: { quoteId?: string }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
-                  <th className="px-2 py-2 w-20">Réf.</th>
+                  {docColumns.reference && <th className="px-2 py-2 w-20">Réf.</th>}
                   <th className="px-2 py-2">Désignation</th>
                   <th className="px-2 py-2 w-16">Qté</th>
-                  <th className="px-2 py-2 w-20">Unité</th>
+                  {docColumns.unit && <th className="px-2 py-2 w-20">Unité</th>}
                   <th className="px-2 py-2 w-24">PU HT</th>
-                  <th className="px-2 py-2 w-16">TVA %</th>
-                  <th className="px-2 py-2 w-16">Rem. %</th>
+                  {docColumns.vat_rate && <th className="px-2 py-2 w-16">TVA %</th>}
+                  {docColumns.discount_percent && <th className="px-2 py-2 w-16">Rem. %</th>}
                   <th className="px-2 py-2 w-24 text-right">Total HT</th>
                   <th className="px-2 py-2 w-8"></th>
                 </tr>
@@ -652,10 +661,12 @@ function QuoteFormPage({ quoteId }: { quoteId?: string }) {
                 {lines.map((line, i) => {
                   const lineHT = calcLineHT(line)
                   return (
-                    <tr key={line.key} className="border-b border-gray-50">
-                      <td className="px-1 py-1.5">
-                        <input type="text" value={line.reference} onChange={(e) => updateLine(i, 'reference', e.target.value)} placeholder="Réf" className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400" />
-                      </td>
+                    <tr key={line.key} className="border-b border-gray-50 align-top">
+                      {docColumns.reference && (
+                        <td className="px-1 py-1.5">
+                          <input type="text" value={line.reference} onChange={(e) => updateLine(i, 'reference', e.target.value)} placeholder="Réf" className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400" />
+                        </td>
+                      )}
                       <td className="px-1 py-1.5">
                         <ProductAutocomplete
                           value={line.description}
@@ -669,24 +680,30 @@ function QuoteFormPage({ quoteId }: { quoteId?: string }) {
                       <td className="px-1 py-1.5">
                         <input type="number" step="0.01" min="0.01" value={line.quantity} onChange={(e) => updateLine(i, 'quantity', e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 text-right" />
                       </td>
-                      <td className="px-1 py-1.5">
-                        <UnitCombobox value={line.unit} onChange={(v) => updateLine(i, 'unit', v)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400" />
-                      </td>
+                      {docColumns.unit && (
+                        <td className="px-1 py-1.5">
+                          <UnitCombobox value={line.unit} onChange={(v) => updateLine(i, 'unit', v)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400" />
+                        </td>
+                      )}
                       <td className="px-1 py-1.5">
                         <input type="number" step="0.01" value={line.unit_price} onChange={(e) => updateLine(i, 'unit_price', e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 text-right" />
                       </td>
-                      <td className="px-1 py-1.5">
-                        <select value={line.vat_rate} onChange={(e) => updateLine(i, 'vat_rate', e.target.value)} className="w-full px-1 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 bg-white">
-                          <option value="20">20</option>
-                          <option value="10">10</option>
-                          <option value="5.5">5.5</option>
-                          <option value="2.1">2.1</option>
-                          <option value="0">0</option>
-                        </select>
-                      </td>
-                      <td className="px-1 py-1.5">
-                        <input type="number" step="0.1" min="0" max="100" value={line.discount_percent} onChange={(e) => updateLine(i, 'discount_percent', e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 text-right" />
-                      </td>
+                      {docColumns.vat_rate && (
+                        <td className="px-1 py-1.5">
+                          <select value={line.vat_rate} onChange={(e) => updateLine(i, 'vat_rate', e.target.value)} className="w-full px-1 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 bg-white">
+                            <option value="20">20</option>
+                            <option value="10">10</option>
+                            <option value="5.5">5.5</option>
+                            <option value="2.1">2.1</option>
+                            <option value="0">0</option>
+                          </select>
+                        </td>
+                      )}
+                      {docColumns.discount_percent && (
+                        <td className="px-1 py-1.5">
+                          <input type="number" step="0.1" min="0" max="100" value={line.discount_percent} onChange={(e) => updateLine(i, 'discount_percent', e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 text-right" />
+                        </td>
+                      )}
                       <td className="px-2 py-1.5 text-right text-xs font-medium text-gray-900 whitespace-nowrap">
                         {fmtCurrency(lineHT)}
                       </td>

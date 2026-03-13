@@ -21,8 +21,68 @@ from app.schemas.billing import (
     UnitUpdate,
 )
 
+import json
+
 DEFAULT_UNITS = ["U", "pce.", "ens.", "h", "jr", "m", "ml", "m\u00b2", "kg", "L", "km"]
 DEFAULT_PAYMENT_METHODS = ["Virement bancaire", "Chèque", "Carte bancaire", "Espèces", "Prélèvement"]
+
+# Colonnes par défaut des documents (devis/factures)
+DEFAULT_DOCUMENT_COLUMNS = {
+    "reference": True,
+    "description": True,
+    "quantity": True,
+    "unit": True,
+    "unit_price": True,
+    "vat_rate": True,
+    "discount_percent": True,
+    "total_ht": True,
+}
+
+
+# ── Colonnes du document ────────────────────────────────────────────────────
+
+
+async def get_document_columns(org_id: uuid.UUID, db: AsyncSession) -> dict:
+    """Retourne la config des colonnes du document depuis module_config."""
+    result = await db.execute(
+        text("SELECT module_config FROM organizations WHERE id = :org_id"),
+        {"org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    if not row or not row[0]:
+        return DEFAULT_DOCUMENT_COLUMNS.copy()
+    config = row[0] if isinstance(row[0], dict) else {}
+    return config.get("document_columns", DEFAULT_DOCUMENT_COLUMNS.copy())
+
+
+async def update_document_columns(
+    org_id: uuid.UUID, columns: dict, db: AsyncSession
+) -> dict:
+    """Met à jour la config des colonnes dans module_config.document_columns."""
+    # Lire module_config actuel
+    result = await db.execute(
+        text("SELECT module_config FROM organizations WHERE id = :org_id"),
+        {"org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    config = (row[0] if row and row[0] and isinstance(row[0], dict) else {})
+
+    # Fusionner les colonnes avec les valeurs par défaut
+    merged = DEFAULT_DOCUMENT_COLUMNS.copy()
+    for key in merged:
+        if key in columns:
+            merged[key] = bool(columns[key])
+    config["document_columns"] = merged
+
+    await db.execute(
+        text("""
+            UPDATE organizations SET module_config = CAST(:config AS jsonb)
+            WHERE id = :org_id
+        """),
+        {"org_id": str(org_id), "config": json.dumps(config)},
+    )
+    await db.commit()
+    return merged
 
 
 # ── Comptes bancaires ────────────────────────────────────────────────────────

@@ -24,6 +24,26 @@ from app.services import billing as svc
 router = APIRouter(prefix="/api/v1/billing", tags=["billing"])
 
 
+# ── Colonnes du document ────────────────────────────────────────────────────
+
+
+@router.get("/document-columns")
+async def get_document_columns(
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await svc.get_document_columns(ctx.org_id, db)
+
+
+@router.patch("/document-columns")
+async def update_document_columns(
+    data: dict,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await svc.update_document_columns(ctx.org_id, data, db)
+
+
 # ── Comptes bancaires ────────────────────────────────────────────────────────
 
 

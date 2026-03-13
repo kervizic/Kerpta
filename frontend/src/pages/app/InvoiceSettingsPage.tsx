@@ -730,11 +730,112 @@ function PaymentMethodsSection() {
 
 // ── Page principale ──────────────────────────────────────────────────────────
 
+// ── Section Colonnes du document ─────────────────────────────────────────
+
+interface ColumnConfig {
+  reference: boolean
+  description: boolean
+  quantity: boolean
+  unit: boolean
+  unit_price: boolean
+  vat_rate: boolean
+  discount_percent: boolean
+  total_ht: boolean
+}
+
+const COLUMN_LABELS: Record<keyof ColumnConfig, { label: string; locked?: boolean }> = {
+  reference: { label: 'Référence' },
+  description: { label: 'Désignation', locked: true },
+  quantity: { label: 'Quantité', locked: true },
+  unit: { label: 'Unité' },
+  unit_price: { label: 'Prix unitaire HT', locked: true },
+  vat_rate: { label: 'Taux TVA' },
+  discount_percent: { label: 'Remise %' },
+  total_ht: { label: 'Total HT', locked: true },
+}
+
+function DocumentColumnsSection() {
+  const [columns, setColumns] = useState<ColumnConfig | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    orgGet<ColumnConfig>('/billing/document-columns')
+      .then(setColumns)
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  async function toggle(key: keyof ColumnConfig) {
+    if (!columns || COLUMN_LABELS[key].locked) return
+    const updated = { ...columns, [key]: !columns[key] }
+    setColumns(updated)
+    setSaving(true)
+    try {
+      await orgPatch('/billing/document-columns', updated)
+    } catch { /* */ }
+    setSaving(false)
+  }
+
+  return (
+    <section className="bg-white border border-gray-200 rounded-2xl p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Colonnes du document</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Colonnes affichées sur les devis, factures et PDF</p>
+        </div>
+        {saving && <Loader2 className="w-4 h-4 animate-spin text-orange-500" />}
+      </div>
+      {loading ? (
+        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-orange-500" /></div>
+      ) : columns ? (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {(Object.keys(COLUMN_LABELS) as (keyof ColumnConfig)[]).map((key) => {
+            const { label, locked } = COLUMN_LABELS[key]
+            const enabled = columns[key]
+            return (
+              <label
+                key={key}
+                className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border transition cursor-pointer select-none ${
+                  locked ? 'border-gray-100 bg-gray-50 cursor-default' :
+                  enabled ? 'border-orange-200 bg-orange-50' : 'border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={enabled}
+                  disabled={locked}
+                  onClick={() => toggle(key)}
+                  className={`relative inline-flex h-4 w-7 shrink-0 rounded-full border-2 border-transparent transition-colors ${
+                    locked ? 'bg-gray-300 cursor-default' : enabled ? 'bg-orange-500' : 'bg-gray-200'
+                  }`}
+                >
+                  <span className={`pointer-events-none inline-block h-3 w-3 rounded-full bg-white shadow transform transition ${
+                    enabled ? 'translate-x-3' : 'translate-x-0'
+                  }`} />
+                </button>
+                <span className={`text-sm ${locked ? 'text-gray-400' : 'text-gray-700'}`}>
+                  {label}
+                  {locked && <span className="text-[10px] text-gray-400 ml-1">(obligatoire)</span>}
+                </span>
+              </label>
+            )
+          })}
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
+// ── Page principale ──────────────────────────────────────────────────────
+
 export default function InvoiceSettingsPage() {
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
         <h1 className="text-xl font-semibold text-gray-900">Paramètres de vente</h1>
+        <DocumentColumnsSection />
         <BankAccountsSection />
         <BillingProfilesSection />
         <PaymentMethodsSection />

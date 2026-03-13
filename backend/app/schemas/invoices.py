@@ -48,6 +48,8 @@ class InvoiceCreate(BaseModel):
     due_date: date | None = None
     payment_terms: int = 30
     payment_method: str | None = None
+    customer_reference: str | None = Field(None, max_length=255)
+    purchase_order_number: str | None = Field(None, max_length=255)
     discount_type: str = Field("none", pattern=r"^(percent|fixed|none)$")
     discount_value: Decimal = Decimal("0")
     billing_profile_id: str | None = None
@@ -64,6 +66,8 @@ class InvoiceUpdate(BaseModel):
     due_date: date | None = None
     payment_terms: int | None = None
     payment_method: str | None = None
+    customer_reference: str | None = Field(None, max_length=255)
+    purchase_order_number: str | None = Field(None, max_length=255)
     discount_type: str | None = Field(None, pattern=r"^(percent|fixed|none)$")
     discount_value: Decimal | None = None
     notes: str | None = None
@@ -99,6 +103,8 @@ class InvoiceOut(BaseModel):
     discount_value: Decimal
     payment_terms: int
     payment_method: str | None = None
+    customer_reference: str | None = None
+    purchase_order_number: str | None = None
     notes: str | None = None
     footer: str | None = None
     legal_mentions: str | None = None

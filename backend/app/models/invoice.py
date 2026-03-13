@@ -71,6 +71,8 @@ class Invoice(Base, UUIDPrimaryKeyMixin, TimestampUpdateMixin):
     client_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     billing_profile_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
+    customer_reference: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    purchase_order_number: Mapped[str | None] = mapped_column(String(255), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     footer: Mapped[str | None] = mapped_column(Text, nullable=True)
     legal_mentions: Mapped[str | None] = mapped_column(Text, nullable=True)

@@ -44,6 +44,8 @@ interface InvoiceDetail extends Invoice {
   discount_value: number
   payment_terms: number
   payment_method: string | null
+  customer_reference: string | null
+  purchase_order_number: string | null
   notes: string | null
   footer: string | null
   lines: InvoiceLineDetail[]
@@ -361,8 +363,10 @@ function InvoiceDetailView({ invoiceId }: { invoiceId: string }) {
         </section>
 
         {/* Info complémentaire */}
-        {(invoice.notes || invoice.payment_method || invoice.footer) && (
+        {(invoice.notes || invoice.payment_method || invoice.footer || invoice.customer_reference || invoice.purchase_order_number) && (
           <section className="bg-white border border-gray-200 rounded-2xl p-5 mt-4 space-y-2 text-sm">
+            {invoice.customer_reference && <p><span className="text-gray-400">Référence client :</span> {invoice.customer_reference}</p>}
+            {invoice.purchase_order_number && <p><span className="text-gray-400">N° commande :</span> {invoice.purchase_order_number}</p>}
             {invoice.payment_method && <p><span className="text-gray-400">Mode de règlement :</span> {invoice.payment_method}</p>}
             {invoice.due_date && <p><span className="text-gray-400">Échéance :</span> {invoice.due_date}</p>}
             {invoice.notes && <p><span className="text-gray-400">Notes :</span> {invoice.notes}</p>}
@@ -393,6 +397,8 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
   const [paymentTerms, setPaymentTerms] = useState(30)
   const [discountType, setDiscountType] = useState('none')
   const [discountValue, setDiscountValue] = useState('0')
+  const [customerReference, setCustomerReference] = useState('')
+  const [purchaseOrderNumber, setPurchaseOrderNumber] = useState('')
   const [notes, setNotes] = useState('')
   const [footer, setFooter] = useState('')
   const [lines, setLines] = useState<FormLine[]>([emptyLine()])
@@ -401,10 +407,18 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
   const [clients, setClients] = useState<ClientOption[]>([])
   const [profiles, setProfiles] = useState<BillingProfile[]>([])
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodOption[]>([])
+  const [docColumns, setDocColumns] = useState({
+    reference: true, description: true, quantity: true, unit: true,
+    unit_price: true, vat_rate: true, discount_percent: true, total_ht: true,
+  })
   const [loading, setLoading] = useState(isEdit)
   const [saving, setSaving] = useState(false)
 
   // Charger les données de référence
+  useEffect(() => {
+    orgGet<Record<string, boolean>>('/billing/document-columns').then(setDocColumns).catch(() => {})
+  }, [])
+
   useEffect(() => {
     Promise.all([
       orgGet<{ items: ClientOption[] }>('/clients', { page_size: 100 }),
@@ -449,6 +463,8 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
         setPaymentTerms(inv.payment_terms)
         setDiscountType(inv.discount_type)
         setDiscountValue(String(inv.discount_value))
+        setCustomerReference(inv.customer_reference || '')
+        setPurchaseOrderNumber(inv.purchase_order_number || '')
         setNotes(inv.notes || '')
         setFooter(inv.footer || '')
         setLines(
@@ -575,6 +591,8 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
       payment_terms: paymentTerms,
       payment_method: paymentMethod || null,
       billing_profile_id: billingProfileId || null,
+      customer_reference: customerReference || null,
+      purchase_order_number: purchaseOrderNumber || null,
       discount_type: discountType,
       discount_value: parseFloat(discountValue) || 0,
       notes: notes || null,
@@ -709,6 +727,16 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
               </select>
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Référence client</label>
+              <input type="text" value={customerReference} onChange={(e) => setCustomerReference(e.target.value)} placeholder="N° devis, contrat, marché..." className={INPUT} />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">N° commande</label>
+              <input type="text" value={purchaseOrderNumber} onChange={(e) => setPurchaseOrderNumber(e.target.value)} placeholder="N° bon de commande" className={INPUT} />
+            </div>
+          </div>
         </div>
 
         {/* Lignes */}
@@ -734,13 +762,13 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
-                  <th className="px-2 py-2 w-20">Réf.</th>
+                  {docColumns.reference && <th className="px-2 py-2 w-20">Réf.</th>}
                   <th className="px-2 py-2">Désignation</th>
                   <th className="px-2 py-2 w-16">Qté</th>
-                  <th className="px-2 py-2 w-20">Unité</th>
+                  {docColumns.unit && <th className="px-2 py-2 w-20">Unité</th>}
                   <th className="px-2 py-2 w-24">PU HT</th>
-                  <th className="px-2 py-2 w-16">TVA %</th>
-                  <th className="px-2 py-2 w-16">Rem. %</th>
+                  {docColumns.vat_rate && <th className="px-2 py-2 w-16">TVA %</th>}
+                  {docColumns.discount_percent && <th className="px-2 py-2 w-16">Rem. %</th>}
                   <th className="px-2 py-2 w-24 text-right">Total HT</th>
                   <th className="px-2 py-2 w-8"></th>
                 </tr>
@@ -749,10 +777,12 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
                 {lines.map((line, i) => {
                   const lineHT = calcLineHT(line)
                   return (
-                    <tr key={line.key} className="border-b border-gray-50">
-                      <td className="px-1 py-1.5">
-                        <input type="text" value={line.reference} onChange={(e) => updateLine(i, 'reference', e.target.value)} placeholder="Réf" className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400" />
-                      </td>
+                    <tr key={line.key} className="border-b border-gray-50 align-top">
+                      {docColumns.reference && (
+                        <td className="px-1 py-1.5">
+                          <input type="text" value={line.reference} onChange={(e) => updateLine(i, 'reference', e.target.value)} placeholder="Réf" className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400" />
+                        </td>
+                      )}
                       <td className="px-1 py-1.5">
                         <ProductAutocomplete
                           value={line.description}
@@ -766,24 +796,30 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
                       <td className="px-1 py-1.5">
                         <input type="number" step="0.01" min="0.01" value={line.quantity} onChange={(e) => updateLine(i, 'quantity', e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 text-right" />
                       </td>
-                      <td className="px-1 py-1.5">
-                        <UnitCombobox value={line.unit} onChange={(v) => updateLine(i, 'unit', v)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400" />
-                      </td>
+                      {docColumns.unit && (
+                        <td className="px-1 py-1.5">
+                          <UnitCombobox value={line.unit} onChange={(v) => updateLine(i, 'unit', v)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400" />
+                        </td>
+                      )}
                       <td className="px-1 py-1.5">
                         <input type="number" step="0.01" value={line.unit_price} onChange={(e) => updateLine(i, 'unit_price', e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 text-right" />
                       </td>
-                      <td className="px-1 py-1.5">
-                        <select value={line.vat_rate} onChange={(e) => updateLine(i, 'vat_rate', e.target.value)} className="w-full px-1 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 bg-white">
-                          <option value="20">20</option>
-                          <option value="10">10</option>
-                          <option value="5.5">5.5</option>
-                          <option value="2.1">2.1</option>
-                          <option value="0">0</option>
-                        </select>
-                      </td>
-                      <td className="px-1 py-1.5">
-                        <input type="number" step="0.1" min="0" max="100" value={line.discount_percent} onChange={(e) => updateLine(i, 'discount_percent', e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 text-right" />
-                      </td>
+                      {docColumns.vat_rate && (
+                        <td className="px-1 py-1.5">
+                          <select value={line.vat_rate} onChange={(e) => updateLine(i, 'vat_rate', e.target.value)} className="w-full px-1 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 bg-white">
+                            <option value="20">20</option>
+                            <option value="10">10</option>
+                            <option value="5.5">5.5</option>
+                            <option value="2.1">2.1</option>
+                            <option value="0">0</option>
+                          </select>
+                        </td>
+                      )}
+                      {docColumns.discount_percent && (
+                        <td className="px-1 py-1.5">
+                          <input type="number" step="0.1" min="0" max="100" value={line.discount_percent} onChange={(e) => updateLine(i, 'discount_percent', e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 text-right" />
+                        </td>
+                      )}
                       <td className="px-2 py-1.5 text-right text-xs font-medium text-gray-900 whitespace-nowrap">
                         {fmtCurrency(lineHT)}
                       </td>
