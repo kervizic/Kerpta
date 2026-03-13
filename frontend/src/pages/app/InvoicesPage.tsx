@@ -1,11 +1,19 @@
-// Kerpta — Application comptable web française
+// Kerpta — Page factures (liste, détail, création, édition)
 // Copyright (C) 2026 Emmanuel Kervizic
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
-import { useEffect, useState, useCallback } from 'react'
-import { Loader2, ArrowLeft, Send, Check, FileText } from 'lucide-react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
+import {
+  Loader2, ArrowLeft, Send, Check, FileText, Plus, Trash2, Pencil,
+} from 'lucide-react'
 import { navigate } from '@/hooks/useRoute'
-import { orgGet, orgPost } from '@/lib/orgApi'
+import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
+import UnitCombobox from '@/components/app/UnitCombobox'
+import ProductAutocomplete, { type AutocompleteProduct } from '@/components/app/ProductAutocomplete'
+
+const INPUT = 'w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 transition'
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface Invoice {
   id: string
@@ -29,6 +37,7 @@ interface InvoiceDetail extends Invoice {
   contract_id: string | null
   situation_id: string | null
   credit_note_for: string | null
+  billing_profile_id: string | null
   total_vat: number
   discount_type: string
   discount_value: number
@@ -36,11 +45,13 @@ interface InvoiceDetail extends Invoice {
   payment_method: string | null
   notes: string | null
   footer: string | null
-  lines: InvoiceLine[]
+  lines: InvoiceLineDetail[]
 }
 
-interface InvoiceLine {
+interface InvoiceLineDetail {
   id: string
+  product_id: string | null
+  reference: string | null
   description: string | null
   quantity: number
   unit: string | null
@@ -51,6 +62,43 @@ interface InvoiceLine {
   total_vat: number
 }
 
+interface ClientOption { id: string; name: string; billing_profile_id: string | null }
+interface BillingProfile {
+  id: string; name: string; is_default: boolean
+  payment_terms: number | null; payment_method: string | null
+  footer: string | null
+}
+
+// ── Types ligne formulaire ────────────────────────────────────────────────
+
+interface FormLine {
+  key: string
+  product_id: string | null
+  reference: string
+  description: string
+  quantity: string
+  unit: string
+  unit_price: string
+  vat_rate: string
+  discount_percent: string
+}
+
+function emptyLine(): FormLine {
+  return {
+    key: crypto.randomUUID(),
+    product_id: null,
+    reference: '',
+    description: '',
+    quantity: '1',
+    unit: '',
+    unit_price: '0',
+    vat_rate: '20',
+    discount_percent: '0',
+  }
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
 const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
   draft: { label: 'Brouillon', cls: 'bg-gray-100 text-gray-600' },
   sent: { label: 'Envoyée', cls: 'bg-blue-100 text-blue-700' },
@@ -60,8 +108,35 @@ const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
   cancelled: { label: 'Annulée', cls: 'bg-gray-100 text-gray-400' },
 }
 
+const PAYMENT_METHODS = [
+  { value: 'bank_transfer', label: 'Virement bancaire' },
+  { value: 'check', label: 'Chèque' },
+  { value: 'card', label: 'Carte bancaire' },
+  { value: 'cash', label: 'Espèces' },
+  { value: 'other', label: 'Autre' },
+]
+
 function fmtCurrency(v: number) {
   return Number(v).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
+}
+
+function calcLineHT(line: FormLine): number {
+  const qty = parseFloat(line.quantity) || 0
+  const price = parseFloat(line.unit_price) || 0
+  const discount = parseFloat(line.discount_percent) || 0
+  return Math.round(qty * price * (1 - discount / 100) * 100) / 100
+}
+
+function calcLineVAT(line: FormLine): number {
+  const ht = calcLineHT(line)
+  const rate = parseFloat(line.vat_rate) || 0
+  return Math.round(ht * rate / 100 * 100) / 100
+}
+
+function addDays(dateStr: string, days: number): string {
+  const d = new Date(dateStr)
+  d.setDate(d.getDate() + days)
+  return d.toISOString().slice(0, 10)
 }
 
 // ── Liste ─────────────────────────────────────────────────────────────────────
@@ -95,6 +170,12 @@ function InvoicesList() {
       <div className="max-w-5xl mx-auto px-6 py-8">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-xl font-semibold text-gray-900">Factures</h1>
+          <button
+            onClick={() => navigate('/app/factures/nouveau')}
+            className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white text-sm font-semibold rounded-lg transition"
+          >
+            <Plus className="w-4 h-4" /> Nouvelle facture
+          </button>
         </div>
 
         <div className="flex gap-3 mb-4">
@@ -217,9 +298,14 @@ function InvoiceDetailView({ invoiceId }: { invoiceId: string }) {
         {/* Actions */}
         <div className="flex gap-2 mb-6">
           {invoice.status === 'draft' && (
-            <button onClick={() => doAction('send')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
-              {actionLoading === 'send' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Envoyer
-            </button>
+            <>
+              <button onClick={() => navigate(`/app/factures/${invoiceId}/modifier`)} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold rounded-lg transition">
+                <Pencil className="w-4 h-4" /> Modifier
+              </button>
+              <button onClick={() => doAction('send')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
+                {actionLoading === 'send' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Envoyer
+              </button>
+            </>
           )}
           {['sent', 'partial', 'overdue'].includes(invoice.status) && (
             <button onClick={() => doAction('mark-paid')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
@@ -280,12 +366,485 @@ function InvoiceDetailView({ invoiceId }: { invoiceId: string }) {
         </section>
 
         {/* Info complémentaire */}
-        {(invoice.notes || invoice.payment_method) && (
+        {(invoice.notes || invoice.payment_method || invoice.footer) && (
           <section className="bg-white border border-gray-200 rounded-2xl p-5 mt-4 space-y-2 text-sm">
-            {invoice.payment_method && <p><span className="text-gray-400">Mode de paiement :</span> {invoice.payment_method}</p>}
+            {invoice.payment_method && <p><span className="text-gray-400">Mode de paiement :</span> {PAYMENT_METHODS.find((m) => m.value === invoice.payment_method)?.label || invoice.payment_method}</p>}
+            {invoice.due_date && <p><span className="text-gray-400">Échéance :</span> {invoice.due_date}</p>}
             {invoice.notes && <p><span className="text-gray-400">Notes :</span> {invoice.notes}</p>}
+            {invoice.footer && (
+              <div className="border-t border-gray-100 pt-2 mt-2">
+                <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Mentions légales</p>
+                <p className="text-gray-600 whitespace-pre-line text-xs">{invoice.footer}</p>
+              </div>
+            )}
           </section>
         )}
+      </div>
+    </div>
+  )
+}
+
+// ── Formulaire création/édition ──────────────────────────────────────────────
+
+function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
+  const isEdit = !!invoiceId
+
+  // Données du formulaire
+  const [clientId, setClientId] = useState('')
+  const [issueDate, setIssueDate] = useState(new Date().toISOString().slice(0, 10))
+  const [dueDate, setDueDate] = useState('')
+  const [billingProfileId, setBillingProfileId] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState('')
+  const [paymentTerms, setPaymentTerms] = useState(30)
+  const [discountType, setDiscountType] = useState('none')
+  const [discountValue, setDiscountValue] = useState('0')
+  const [notes, setNotes] = useState('')
+  const [footer, setFooter] = useState('')
+  const [lines, setLines] = useState<FormLine[]>([emptyLine()])
+
+  // Données de référence
+  const [clients, setClients] = useState<ClientOption[]>([])
+  const [profiles, setProfiles] = useState<BillingProfile[]>([])
+  const [loading, setLoading] = useState(isEdit)
+  const [saving, setSaving] = useState(false)
+
+  // Charger les données de référence
+  useEffect(() => {
+    Promise.all([
+      orgGet<{ items: ClientOption[] }>('/clients', { page_size: 500 }),
+      orgGet<BillingProfile[]>('/billing/profiles'),
+    ]).then(([clientsData, profilesData]) => {
+      setClients(clientsData.items)
+      setProfiles(profilesData)
+      // Auto-sélectionner le profil par défaut
+      if (!isEdit) {
+        const defaultProfile = profilesData.find((p) => p.is_default)
+        if (defaultProfile) {
+          applyProfile(defaultProfile)
+        }
+      }
+    }).catch(() => {})
+  }, [isEdit])
+
+  // Appliquer un profil de facturation
+  function applyProfile(profile: BillingProfile) {
+    setBillingProfileId(profile.id)
+    if (profile.footer) setFooter(profile.footer)
+    if (profile.payment_method) setPaymentMethod(profile.payment_method)
+    if (profile.payment_terms != null) {
+      setPaymentTerms(profile.payment_terms)
+      setDueDate(addDays(issueDate, profile.payment_terms))
+    }
+  }
+
+  // Charger la facture si édition
+  useEffect(() => {
+    if (!invoiceId) return
+    setLoading(true)
+    orgGet<InvoiceDetail>(`/invoices/${invoiceId}`)
+      .then((inv) => {
+        setClientId(inv.client_id)
+        setIssueDate(inv.issue_date)
+        setDueDate(inv.due_date || '')
+        setBillingProfileId(inv.billing_profile_id || '')
+        setPaymentMethod(inv.payment_method || '')
+        setPaymentTerms(inv.payment_terms)
+        setDiscountType(inv.discount_type)
+        setDiscountValue(String(inv.discount_value))
+        setNotes(inv.notes || '')
+        setFooter(inv.footer || '')
+        setLines(
+          inv.lines.length > 0
+            ? inv.lines.map((l) => ({
+                key: l.id,
+                product_id: l.product_id,
+                reference: l.reference || '',
+                description: l.description || '',
+                quantity: String(l.quantity),
+                unit: l.unit || '',
+                unit_price: String(l.unit_price),
+                vat_rate: String(l.vat_rate),
+                discount_percent: String(l.discount_percent),
+              }))
+            : [emptyLine()]
+        )
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [invoiceId])
+
+  // Calculs live
+  const totals = useMemo(() => {
+    let subtotalHT = 0
+    let totalVAT = 0
+    const vatByRate: Record<string, { base: number; vat: number }> = {}
+
+    for (const line of lines) {
+      const ht = calcLineHT(line)
+      const vat = calcLineVAT(line)
+      subtotalHT += ht
+      totalVAT += vat
+      const rateKey = String(parseFloat(line.vat_rate) || 0)
+      if (!vatByRate[rateKey]) vatByRate[rateKey] = { base: 0, vat: 0 }
+      vatByRate[rateKey].base += ht
+      vatByRate[rateKey].vat += vat
+    }
+
+    // Remise globale
+    if (discountType === 'percent') {
+      const disc = (parseFloat(discountValue) || 0) / 100
+      subtotalHT -= subtotalHT * disc
+      totalVAT -= totalVAT * disc
+    } else if (discountType === 'fixed') {
+      subtotalHT -= parseFloat(discountValue) || 0
+    }
+
+    subtotalHT = Math.round(subtotalHT * 100) / 100
+    totalVAT = Math.round(totalVAT * 100) / 100
+    return { subtotalHT, totalVAT, totalTTC: Math.round((subtotalHT + totalVAT) * 100) / 100, vatByRate }
+  }, [lines, discountType, discountValue])
+
+  // Gestion des lignes
+  function updateLine(index: number, field: keyof FormLine, value: string | null) {
+    setLines((prev) => prev.map((l, i) => i === index ? { ...l, [field]: value } : l))
+  }
+
+  function removeLine(index: number) {
+    setLines((prev) => prev.length <= 1 ? prev : prev.filter((_, i) => i !== index))
+  }
+
+  function selectProduct(index: number, product: AutocompleteProduct) {
+    setLines((prev) => prev.map((l, i) => i === index ? {
+      ...l,
+      product_id: product.id,
+      reference: product.reference || '',
+      description: product.name + (product.description ? `\n${product.description}` : ''),
+      unit: product.unit || '',
+      unit_price: product.unit_price != null ? String(product.unit_price) : '0',
+      vat_rate: String(product.vat_rate),
+    } : l))
+  }
+
+  // Sauvegarde
+  async function handleSave(andSend = false) {
+    if (!clientId) return
+    setSaving(true)
+
+    // Créer les nouveaux articles (lignes sans product_id)
+    const updatedLines = [...lines]
+    let newArticlesCount = 0
+    for (let i = 0; i < updatedLines.length; i++) {
+      const l = updatedLines[i]
+      if (!l.product_id && l.description.trim()) {
+        try {
+          const result = await orgPost<{ id: string }>('/catalog/products', {
+            name: l.description.split('\n')[0],
+            description: l.description.includes('\n') ? l.description.split('\n').slice(1).join('\n') : undefined,
+            unit: l.unit || undefined,
+            unit_price: parseFloat(l.unit_price) || undefined,
+            vat_rate: parseFloat(l.vat_rate) || 20,
+            reference: l.reference || undefined,
+            is_in_catalog: false,
+          })
+          updatedLines[i] = { ...l, product_id: result.id }
+          newArticlesCount++
+        } catch { /* continue */ }
+      }
+    }
+    if (newArticlesCount > 0) setLines(updatedLines)
+
+    const payload = {
+      client_id: clientId,
+      issue_date: issueDate,
+      due_date: dueDate || null,
+      payment_terms: paymentTerms,
+      payment_method: paymentMethod || null,
+      billing_profile_id: billingProfileId || null,
+      discount_type: discountType,
+      discount_value: parseFloat(discountValue) || 0,
+      notes: notes || null,
+      footer: footer || null,
+      lines: updatedLines.map((l, i) => ({
+        product_id: l.product_id,
+        position: i,
+        reference: l.reference || null,
+        description: l.description || null,
+        quantity: parseFloat(l.quantity) || 1,
+        unit: l.unit || null,
+        unit_price: parseFloat(l.unit_price) || 0,
+        vat_rate: parseFloat(l.vat_rate) || 0,
+        discount_percent: parseFloat(l.discount_percent) || 0,
+      })),
+    }
+
+    try {
+      let resultId = invoiceId
+      if (isEdit && invoiceId) {
+        await orgPatch(`/invoices/${invoiceId}`, payload)
+      } else {
+        const result = await orgPost<{ id: string; number: string }>('/invoices', payload)
+        resultId = result.id
+      }
+
+      if (andSend && resultId) {
+        await orgPost(`/invoices/${resultId}/send`)
+      }
+
+      navigate(resultId ? `/app/factures/${resultId}` : '/app/factures')
+    } catch { /* */ }
+    setSaving(false)
+  }
+
+  // Quand le client change, appliquer son profil par défaut
+  function handleClientChange(newClientId: string) {
+    setClientId(newClientId)
+    const client = clients.find((c) => c.id === newClientId)
+    if (client?.billing_profile_id) {
+      const profile = profiles.find((p) => p.id === client.billing_profile_id)
+      if (profile) applyProfile(profile)
+    }
+  }
+
+  // Quand le profil change manuellement
+  function handleProfileChange(profileId: string) {
+    const profile = profiles.find((p) => p.id === profileId)
+    if (profile) {
+      applyProfile(profile)
+    } else {
+      setBillingProfileId(profileId)
+    }
+  }
+
+  // Quand la date d'émission change, recalculer l'échéance
+  function handleIssueDateChange(date: string) {
+    setIssueDate(date)
+    if (paymentTerms > 0) {
+      setDueDate(addDays(date, paymentTerms))
+    }
+  }
+
+  if (loading) {
+    return <div className="flex-1 flex justify-center items-center"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
+  }
+
+  return (
+    <div className="flex-1 overflow-y-auto">
+      <div className="max-w-5xl mx-auto px-6 py-8">
+        <button onClick={() => navigate(invoiceId ? `/app/factures/${invoiceId}` : '/app/factures')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-4 transition">
+          <ArrowLeft className="w-4 h-4" /> Retour
+        </button>
+
+        <h1 className="text-xl font-semibold text-gray-900 mb-6">
+          {isEdit ? 'Modifier la facture' : 'Nouvelle facture'}
+        </h1>
+
+        {/* En-tête */}
+        <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-4 space-y-4">
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">En-tête</h2>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Client *</label>
+              <select value={clientId} onChange={(e) => handleClientChange(e.target.value)} required className={`${INPUT} bg-white`}>
+                <option value="">— Sélectionner un client —</option>
+                {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Profil de facturation</label>
+              <select value={billingProfileId} onChange={(e) => handleProfileChange(e.target.value)} className={`${INPUT} bg-white`}>
+                <option value="">— Aucun —</option>
+                {profiles.map((p) => <option key={p.id} value={p.id}>{p.name}{p.is_default ? ' (défaut)' : ''}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Date d'émission</label>
+              <input type="date" value={issueDate} onChange={(e) => handleIssueDateChange(e.target.value)} className={INPUT} />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Date d'échéance</label>
+              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={INPUT} />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Mode de paiement</label>
+              <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className={`${INPUT} bg-white`}>
+                <option value="">— Non spécifié —</option>
+                {PAYMENT_METHODS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Lignes */}
+        <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Lignes</h2>
+            <button
+              onClick={() => setLines((prev) => [...prev, emptyLine()])}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-400 text-white text-xs font-semibold rounded-lg transition"
+            >
+              <Plus className="w-3.5 h-3.5" /> Ajouter une ligne
+            </button>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[800px]">
+              <thead>
+                <tr className="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
+                  <th className="px-2 py-2 w-20">Réf.</th>
+                  <th className="px-2 py-2">Désignation</th>
+                  <th className="px-2 py-2 w-16">Qté</th>
+                  <th className="px-2 py-2 w-20">Unité</th>
+                  <th className="px-2 py-2 w-24">PU HT</th>
+                  <th className="px-2 py-2 w-16">TVA %</th>
+                  <th className="px-2 py-2 w-16">Rem. %</th>
+                  <th className="px-2 py-2 w-24 text-right">Total HT</th>
+                  <th className="px-2 py-2 w-8"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {lines.map((line, i) => {
+                  const lineHT = calcLineHT(line)
+                  return (
+                    <tr key={line.key} className="border-b border-gray-50">
+                      <td className="px-1 py-1.5">
+                        <input type="text" value={line.reference} onChange={(e) => updateLine(i, 'reference', e.target.value)} placeholder="Réf" className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400" />
+                      </td>
+                      <td className="px-1 py-1.5">
+                        <div className="flex items-center gap-1">
+                          <ProductAutocomplete
+                            value={line.description}
+                            onChange={(text) => { updateLine(i, 'description', text); if (line.product_id) updateLine(i, 'product_id', null) }}
+                            onSelect={(p) => selectProduct(i, p)}
+                            clientId={clientId || null}
+                            className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400"
+                            placeholder="Désignation"
+                          />
+                          {!line.product_id && line.description.trim() && (
+                            <span className="shrink-0 text-[9px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full font-medium">Nouveau</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-1 py-1.5">
+                        <input type="number" step="0.01" min="0.01" value={line.quantity} onChange={(e) => updateLine(i, 'quantity', e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 text-right" />
+                      </td>
+                      <td className="px-1 py-1.5">
+                        <UnitCombobox value={line.unit} onChange={(v) => updateLine(i, 'unit', v)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400" />
+                      </td>
+                      <td className="px-1 py-1.5">
+                        <input type="number" step="0.01" value={line.unit_price} onChange={(e) => updateLine(i, 'unit_price', e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 text-right" />
+                      </td>
+                      <td className="px-1 py-1.5">
+                        <select value={line.vat_rate} onChange={(e) => updateLine(i, 'vat_rate', e.target.value)} className="w-full px-1 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 bg-white">
+                          <option value="20">20</option>
+                          <option value="10">10</option>
+                          <option value="5.5">5.5</option>
+                          <option value="2.1">2.1</option>
+                          <option value="0">0</option>
+                        </select>
+                      </td>
+                      <td className="px-1 py-1.5">
+                        <input type="number" step="0.1" min="0" max="100" value={line.discount_percent} onChange={(e) => updateLine(i, 'discount_percent', e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 text-right" />
+                      </td>
+                      <td className="px-2 py-1.5 text-right text-xs font-medium text-gray-900 whitespace-nowrap">
+                        {fmtCurrency(lineHT)}
+                      </td>
+                      <td className="px-1 py-1.5">
+                        <button onClick={() => removeLine(i)} className="p-1 rounded hover:bg-red-50 transition" title="Supprimer">
+                          <Trash2 className="w-3.5 h-3.5 text-gray-400 hover:text-red-500" />
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Pied de facture */}
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-3">
+            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Options</h2>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Remise globale</label>
+              <div className="flex gap-2">
+                <select value={discountType} onChange={(e) => setDiscountType(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white">
+                  <option value="none">Aucune</option>
+                  <option value="percent">Pourcentage</option>
+                  <option value="fixed">Montant fixe</option>
+                </select>
+                {discountType !== 'none' && (
+                  <input type="number" step="0.01" value={discountValue} onChange={(e) => setDiscountValue(e.target.value)}
+                    placeholder={discountType === 'percent' ? '%' : '€'} className={`w-24 ${INPUT}`} />
+                )}
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Notes internes</label>
+              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className={INPUT} placeholder="Visibles uniquement par vous" />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Mentions légales / pied de page</label>
+              <textarea value={footer} onChange={(e) => setFooter(e.target.value)} rows={4} className={INPUT} placeholder="Pénalités de retard, indemnité forfaitaire 40€, escompte..." />
+              <p className="text-[10px] text-gray-400 mt-1">Pré-rempli depuis le profil de facturation. Modifiable ici.</p>
+            </div>
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-2xl p-5">
+            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">Récapitulatif</h2>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Sous-total HT</span>
+                <span className="font-medium text-gray-900">{fmtCurrency(totals.subtotalHT)}</span>
+              </div>
+              {discountType !== 'none' && parseFloat(discountValue) > 0 && (
+                <div className="flex justify-between text-red-600">
+                  <span>Remise {discountType === 'percent' ? `${discountValue}%` : 'fixe'}</span>
+                  <span>-{discountType === 'percent' ? fmtCurrency(lines.reduce((s, l) => s + calcLineHT(l), 0) * (parseFloat(discountValue) || 0) / 100) : fmtCurrency(parseFloat(discountValue) || 0)}</span>
+                </div>
+              )}
+              {Object.entries(totals.vatByRate)
+                .filter(([, v]) => v.vat !== 0)
+                .sort(([a], [b]) => parseFloat(a) - parseFloat(b))
+                .map(([rate, v]) => (
+                  <div key={rate} className="flex justify-between text-gray-500">
+                    <span>TVA {rate}% (base {fmtCurrency(v.base)})</span>
+                    <span>{fmtCurrency(v.vat)}</span>
+                  </div>
+                ))}
+              <div className="border-t border-gray-200 pt-2 flex justify-between">
+                <span className="text-gray-500">Total TVA</span>
+                <span className="font-medium text-gray-900">{fmtCurrency(totals.totalVAT)}</span>
+              </div>
+              <div className="border-t border-gray-200 pt-2 flex justify-between text-base">
+                <span className="font-semibold text-gray-900">Total TTC</span>
+                <span className="font-bold text-orange-600">{fmtCurrency(totals.totalTTC)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={() => handleSave(false)}
+            disabled={saving || !clientId}
+            className="flex items-center gap-1.5 px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold rounded-lg transition disabled:opacity-50"
+          >
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+            {isEdit ? 'Enregistrer' : 'Enregistrer (brouillon)'}
+          </button>
+          <button
+            onClick={() => handleSave(true)}
+            disabled={saving || !clientId}
+            className="flex items-center gap-1.5 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50"
+          >
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            Enregistrer et envoyer
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -294,7 +853,10 @@ function InvoiceDetailView({ invoiceId }: { invoiceId: string }) {
 // ── Page ───────────────────────────────────────────────────────────────────────
 
 export default function InvoicesPage({ path }: { path: string }) {
-  const match = path.match(/^\/app\/factures\/(.+)$/)
-  if (match) return <InvoiceDetailView invoiceId={match[1]} />
+  if (path === '/app/factures/nouveau') return <InvoiceFormPage />
+  const editMatch = path.match(/^\/app\/factures\/(.+)\/modifier$/)
+  if (editMatch) return <InvoiceFormPage invoiceId={editMatch[1]} />
+  const detailMatch = path.match(/^\/app\/factures\/(.+)$/)
+  if (detailMatch) return <InvoiceDetailView invoiceId={detailMatch[1]} />
   return <InvoicesList />
 }
