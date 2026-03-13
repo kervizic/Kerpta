@@ -257,6 +257,8 @@ async def get_organization(
                 o.capital::text   AS capital,
                 o.ape_code,
                 o.billing_siret,
+                o.website,
+                o.company_info_manual,
                 (EXISTS (
                     SELECT 1 FROM organization_logos ol
                     WHERE ol.organization_id = o.id
@@ -496,14 +498,57 @@ async def update_organization(
                 "il ne peut pas être utilisé pour la facturation",
             )
 
+    # Champs toujours éditables vs uniquement en mode manuel
+    always_allowed = {
+        "email", "phone", "website", "vat_regime", "vat_exigibility",
+        "accounting_regime", "billing_siret", "logo_url", "company_info_manual",
+    }
+    manual_only = {
+        "name", "legal_form", "siret", "siren", "vat_number",
+        "ape_code", "rcs_city", "capital", "address",
+    }
+
+    # Vérifier le guard mode manuel pour les champs protégés
+    manual_fields_sent = {k for k in data if k in manual_only and data[k] is not None}
+    if manual_fields_sent:
+        # Le mode manuel doit être activé : soit déjà en BDD, soit dans cette requête
+        is_manual = data.get("company_info_manual")
+        if is_manual is not True:
+            # Vérifier l'état actuel en BDD
+            org_row = await db.execute(
+                text("SELECT company_info_manual FROM organizations WHERE id = :oid"),
+                {"oid": org_id},
+            )
+            org_state = org_row.fetchone()
+            if org_state is None or not org_state[0]:
+                raise HTTPException(
+                    422,
+                    "Les informations légales ne sont modifiables qu'en mode manuel. "
+                    "Activez le mode manuel (company_info_manual) avant de modifier ces champs.",
+                )
+
     # Construire la requête UPDATE dynamiquement
-    allowed = {"email", "phone", "vat_regime", "vat_exigibility", "accounting_regime", "billing_siret", "logo_url"}
+    allowed = always_allowed | manual_only
     updates = {k: v for k, v in data.items() if k in allowed}
     if not updates:
         raise HTTPException(422, "Aucun champ valide à mettre à jour")
 
-    set_clause = ", ".join(f"{k} = :{k}" for k in updates)
-    params = {**updates, "oid": org_id}
+    # Gestion des cas spéciaux
+    set_parts = []
+    params: dict = {"oid": org_id}
+    for k, v in updates.items():
+        if k == "address":
+            # JSONB nécessite un CAST explicite pour asyncpg
+            set_parts.append("address = CAST(:address AS jsonb)")
+            params["address"] = json.dumps(v) if v is not None else None
+        elif k == "capital":
+            set_parts.append("capital = :capital")
+            params["capital"] = str(v) if v is not None else None
+        else:
+            set_parts.append(f"{k} = :{k}")
+            params[k] = v
+
+    set_clause = ", ".join(set_parts)
     await db.execute(
         text(f"UPDATE organizations SET {set_clause} WHERE id = :oid"),
         params,

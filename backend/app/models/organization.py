@@ -48,6 +48,13 @@ class Organization(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     rcs_city: Mapped[str | None] = mapped_column(String(100), nullable=True)
     capital: Mapped[float | None] = mapped_column(Numeric(15, 2), nullable=True)
     ape_code: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    website: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    billing_siret: Mapped[str | None] = mapped_column(
+        __import__("sqlalchemy", fromlist=["CHAR"]).CHAR(14), nullable=True
+    )
+    company_info_manual: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )  # true = infos légales éditables manuellement (pas synchro SIRENE)
     expense_validation_threshold: Mapped[float] = mapped_column(
         Numeric(10, 2), default=0, nullable=False
     )

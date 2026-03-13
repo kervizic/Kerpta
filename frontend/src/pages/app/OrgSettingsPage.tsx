@@ -9,6 +9,7 @@ import {
   MapPin,
   Phone,
   Mail,
+  Globe,
   Info,
   CheckCircle,
   AlertCircle,
@@ -59,6 +60,8 @@ interface OrgDetail {
   capital?: string | null
   ape_code?: string | null
   billing_siret?: string | null
+  website?: string | null
+  company_info_manual?: boolean
   has_logo?: boolean
   etablissements?: EtablissementOut[]
 }
@@ -121,13 +124,31 @@ export default function OrgSettingsPage() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
 
-  // Champs modifiables
+  // Champs modifiables — coordonnées
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
+  const [website, setWebsite] = useState('')
   const [vatRegime, setVatRegime] = useState('')
   const [vatExigibility, setVatExigibility] = useState('encaissements')
   const [accountingRegime, setAccountingRegime] = useState('')
   const [billingSiret, setBillingSiret] = useState('')
+
+  // Toggle auto/manuel pour les informations légales
+  const [companyInfoManual, setCompanyInfoManual] = useState(false)
+
+  // Champs légaux éditables en mode manuel
+  const [editName, setEditName] = useState('')
+  const [editLegalForm, setEditLegalForm] = useState('')
+  const [editSiret, setEditSiret] = useState('')
+  const [editSiren, setEditSiren] = useState('')
+  const [editVatNumber, setEditVatNumber] = useState('')
+  const [editApeCode, setEditApeCode] = useState('')
+  const [editRcsCity, setEditRcsCity] = useState('')
+  const [editCapital, setEditCapital] = useState('')
+  const [editAddrVoie, setEditAddrVoie] = useState('')
+  const [editAddrComplement, setEditAddrComplement] = useState('')
+  const [editAddrCp, setEditAddrCp] = useState('')
+  const [editAddrCommune, setEditAddrCommune] = useState('')
 
   const [saving, setSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
@@ -163,10 +184,27 @@ export default function OrgSettingsPage() {
         setOrg(data)
         setEmail(data.email ?? '')
         setPhone(data.phone ?? '')
+        setWebsite(data.website ?? '')
         setVatRegime(data.vat_regime ?? '')
         setVatExigibility(data.vat_exigibility ?? 'encaissements')
         setAccountingRegime(data.accounting_regime ?? '')
         setBillingSiret(data.billing_siret ?? '')
+        setCompanyInfoManual(data.company_info_manual ?? false)
+
+        // Champs légaux éditables
+        setEditName(data.org_name ?? '')
+        setEditLegalForm(data.legal_form ?? '')
+        setEditSiret(data.org_siret ?? '')
+        setEditSiren(data.org_siren ?? '')
+        setEditVatNumber(data.vat_number ?? '')
+        setEditApeCode(data.ape_code ?? '')
+        setEditRcsCity(data.rcs_city ?? '')
+        setEditCapital(data.capital ?? '')
+        const addr = data.address as AddressOut | null
+        setEditAddrVoie(addr?.voie ?? '')
+        setEditAddrComplement(addr?.complement ?? '')
+        setEditAddrCp(addr?.code_postal ?? '')
+        setEditAddrCommune(addr?.commune ?? '')
 
         // Charger le logo si présent
         if (data.has_logo) {
@@ -279,19 +317,105 @@ export default function OrgSettingsPage() {
     }
   }
 
+  // Formes juridiques sans capital social
+  const formsWithoutCapital = ['EI', 'AE']
+  const hasCapital = !formsWithoutCapital.includes(
+    (companyInfoManual ? editLegalForm : org?.legal_form) ?? ''
+  )
+
+  async function handleToggleManual(checked: boolean) {
+    if (checked) {
+      // Passage en mode manuel — on garde les valeurs actuelles
+      setCompanyInfoManual(true)
+    } else {
+      // Retour en mode auto — re-fetch depuis data.gouv pour restaurer les données SIRENE
+      const siren = org?.org_siren ?? editSiren
+      if (siren) {
+        try {
+          const { data: company } = await apiClient.get<CompanyDetails>(`/companies/${siren}`)
+          const siege = company?.siege ?? null
+          // Restaurer les champs avec les données SIRENE fraîches
+          setEditName(company?.denomination ?? org?.org_name ?? '')
+          if (siege?.adresse) {
+            setEditAddrVoie(siege.adresse.voie ?? '')
+            setEditAddrComplement(siege.adresse.complement ?? '')
+            setEditAddrCp(siege.adresse.code_postal ?? '')
+            setEditAddrCommune(siege.adresse.commune ?? '')
+          }
+          if (siege?.siret) setEditSiret(siege.siret)
+          if (siege?.activite_principale) setEditApeCode(siege.activite_principale)
+          // Mettre à jour les établissements
+          const etabs = company?.etablissements_actifs?.length
+            ? company.etablissements_actifs
+            : siege ? [siege] : []
+          setEtablissements(etabs)
+          setNombreEtabsTotal(company?.nombre_etablissements_actifs ?? etabs.length)
+
+          // Envoyer le PATCH pour sauvegarder le retour en auto + les valeurs SIRENE restaurées
+          const addr = siege?.adresse
+            ? { voie: siege.adresse.voie ?? null, complement: siege.adresse.complement ?? null, code_postal: siege.adresse.code_postal ?? null, commune: siege.adresse.commune ?? null }
+            : null
+          const patchPayload: Record<string, unknown> = {
+            company_info_manual: false,
+            name: company?.denomination ?? org?.org_name ?? editName,
+          }
+          if (siege?.siret) patchPayload.siret = siege.siret
+          if (siege?.activite_principale) patchPayload.ape_code = siege.activite_principale
+          if (addr) patchPayload.address = addr
+          await apiClient.patch(`/organizations/${org!.org_id}`, patchPayload)
+          setOrg((prev) => prev ? { ...prev, company_info_manual: false, org_name: patchPayload.name as string } : prev)
+        } catch {
+          // Même si data.gouv échoue, on désactive le mode manuel
+        }
+      }
+      setCompanyInfoManual(false)
+    }
+  }
+
   async function handleSave() {
     if (!org) return
     setSaving(true)
     setSaveSuccess(false)
     setSaveError(null)
     try {
-      const payload: Record<string, string | null> = {}
+      const payload: Record<string, unknown> = {}
+      // Champs toujours éditables
       if (email !== (org.email ?? '')) payload.email = email || null
       if (phone !== (org.phone ?? '')) payload.phone = phone || null
+      if (website !== (org.website ?? '')) payload.website = website || null
       if (vatRegime !== (org.vat_regime ?? '')) payload.vat_regime = vatRegime || null
       if (vatExigibility !== (org.vat_exigibility ?? 'encaissements')) payload.vat_exigibility = vatExigibility || 'encaissements'
       if (accountingRegime !== (org.accounting_regime ?? '')) payload.accounting_regime = accountingRegime || null
       if (billingSiret !== (org.billing_siret ?? '')) payload.billing_siret = billingSiret || null
+      if (companyInfoManual !== (org.company_info_manual ?? false)) payload.company_info_manual = companyInfoManual
+
+      // Champs éditables en mode manuel
+      if (companyInfoManual) {
+        if (editName !== (org.org_name ?? '')) payload.name = editName || null
+        if (editLegalForm !== (org.legal_form ?? '')) payload.legal_form = editLegalForm || null
+        if (editSiret !== (org.org_siret ?? '')) payload.siret = editSiret || null
+        if (editSiren !== (org.org_siren ?? '')) payload.siren = editSiren || null
+        if (editVatNumber !== (org.vat_number ?? '')) payload.vat_number = editVatNumber || null
+        if (editApeCode !== (org.ape_code ?? '')) payload.ape_code = editApeCode || null
+        if (editRcsCity !== (org.rcs_city ?? '')) payload.rcs_city = editRcsCity || null
+        if (editCapital !== (org.capital ?? '')) payload.capital = editCapital ? parseFloat(editCapital) : null
+
+        // Adresse — comparer champ par champ
+        const prevAddr = org.address as AddressOut | null
+        const addrChanged =
+          editAddrVoie !== (prevAddr?.voie ?? '') ||
+          editAddrComplement !== (prevAddr?.complement ?? '') ||
+          editAddrCp !== (prevAddr?.code_postal ?? '') ||
+          editAddrCommune !== (prevAddr?.commune ?? '')
+        if (addrChanged) {
+          payload.address = {
+            voie: editAddrVoie || null,
+            complement: editAddrComplement || null,
+            code_postal: editAddrCp || null,
+            commune: editAddrCommune || null,
+          }
+        }
+      }
 
       if (Object.keys(payload).length === 0) {
         setSaveSuccess(true)
@@ -299,7 +423,26 @@ export default function OrgSettingsPage() {
       }
 
       await apiClient.patch(`/organizations/${org.org_id}`, payload)
-      setOrg((prev) => prev ? { ...prev, ...payload } : prev)
+      // Mettre à jour l'état local
+      const updatedOrg = { ...org }
+      if (payload.email !== undefined) updatedOrg.email = payload.email as string | null
+      if (payload.phone !== undefined) updatedOrg.phone = payload.phone as string | null
+      if (payload.website !== undefined) updatedOrg.website = payload.website as string | null
+      if (payload.vat_regime !== undefined) updatedOrg.vat_regime = payload.vat_regime as string | null
+      if (payload.vat_exigibility !== undefined) updatedOrg.vat_exigibility = payload.vat_exigibility as string | null
+      if (payload.accounting_regime !== undefined) updatedOrg.accounting_regime = payload.accounting_regime as string | null
+      if (payload.billing_siret !== undefined) updatedOrg.billing_siret = payload.billing_siret as string | null
+      if (payload.company_info_manual !== undefined) updatedOrg.company_info_manual = payload.company_info_manual as boolean
+      if (payload.name !== undefined) updatedOrg.org_name = payload.name as string
+      if (payload.legal_form !== undefined) updatedOrg.legal_form = payload.legal_form as string | null
+      if (payload.siret !== undefined) updatedOrg.org_siret = payload.siret as string | null
+      if (payload.siren !== undefined) updatedOrg.org_siren = payload.siren as string | null
+      if (payload.vat_number !== undefined) updatedOrg.vat_number = payload.vat_number as string | null
+      if (payload.ape_code !== undefined) updatedOrg.ape_code = payload.ape_code as string | null
+      if (payload.rcs_city !== undefined) updatedOrg.rcs_city = payload.rcs_city as string | null
+      if (payload.capital !== undefined) updatedOrg.capital = payload.capital != null ? String(payload.capital) : null
+      if (payload.address !== undefined) updatedOrg.address = payload.address as Record<string, string> | null
+      setOrg(updatedOrg)
       setSaveSuccess(true)
     } catch (err) {
       setSaveError(httpError(err, 'Erreur lors de la sauvegarde'))
@@ -465,74 +608,237 @@ export default function OrgSettingsPage() {
           </div>
         </section>
 
-        {/* Informations légales (lecture seule) */}
+        {/* Informations légales — toggle auto/manuel */}
         <section className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">
-            Informations légales
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">
+              Informations légales
+            </h2>
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <span className="text-xs text-gray-500">Mode manuel</span>
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  checked={companyInfoManual}
+                  onChange={(e) => handleToggleManual(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 bg-gray-200 rounded-full peer-checked:bg-orange-500 transition-colors" />
+                <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform peer-checked:translate-x-4" />
+              </div>
+            </label>
+          </div>
+
+          {/* Note d'information selon le mode */}
+          {!companyInfoManual ? (
+            <p className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 flex items-center gap-1.5">
+              <Info className="w-3.5 h-3.5 shrink-0" />
+              Données issues du registre SIRENE. Activez le mode manuel pour les modifier.
+            </p>
+          ) : (
+            <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-center gap-1.5">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              Mode manuel — les informations ne seront plus synchronisées avec le registre SIRENE.
+            </p>
+          )}
+
           <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+            {/* Dénomination */}
             <div>
               <span className="text-gray-400 block text-xs mb-0.5">Dénomination</span>
-              <span className="font-medium text-gray-900">{org.org_name}</span>
+              {companyInfoManual ? (
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                />
+              ) : (
+                <span className="font-medium text-gray-900">{org.org_name || '—'}</span>
+              )}
             </div>
-            {org.legal_form && (
-              <div>
-                <span className="text-gray-400 block text-xs mb-0.5">Forme juridique</span>
-                <span className="font-medium text-gray-900">{org.legal_form}</span>
-              </div>
-            )}
-            {org.org_siren && (
-              <div>
-                <span className="text-gray-400 block text-xs mb-0.5">SIREN</span>
-                <span className="font-mono text-gray-900">{org.org_siren}</span>
-              </div>
-            )}
-            {org.org_siret && (
-              <div>
-                <span className="text-gray-400 block text-xs mb-0.5">SIRET siège</span>
-                <span className="font-mono text-gray-900">{org.org_siret}</span>
-              </div>
-            )}
-            {org.vat_number && (
-              <div>
-                <span className="text-gray-400 block text-xs mb-0.5">TVA intracommunautaire</span>
-                <span className="font-mono text-gray-900">{org.vat_number}</span>
-              </div>
-            )}
-            {org.ape_code && (
-              <div>
-                <span className="text-gray-400 block text-xs mb-0.5">Code APE</span>
-                <span className="font-mono text-gray-900">{org.ape_code}</span>
-              </div>
-            )}
-            {org.rcs_city && (
-              <div>
-                <span className="text-gray-400 block text-xs mb-0.5">RCS</span>
-                <span className="text-gray-900">{org.rcs_city}</span>
-              </div>
-            )}
-            {org.capital && (
+
+            {/* Forme juridique */}
+            <div>
+              <span className="text-gray-400 block text-xs mb-0.5">Forme juridique</span>
+              {companyInfoManual ? (
+                <select
+                  value={editLegalForm}
+                  onChange={(e) => setEditLegalForm(e.target.value)}
+                  className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300 bg-white"
+                >
+                  <option value="">Non renseigné</option>
+                  <option value="SAS">SAS</option>
+                  <option value="SASU">SASU</option>
+                  <option value="SARL">SARL</option>
+                  <option value="EURL">EURL</option>
+                  <option value="SA">SA</option>
+                  <option value="SNC">SNC</option>
+                  <option value="SCI">SCI</option>
+                  <option value="EI">EI (Entreprise Individuelle)</option>
+                  <option value="AE">AE (Auto-Entrepreneur)</option>
+                </select>
+              ) : (
+                <span className="font-medium text-gray-900">{org.legal_form || '—'}</span>
+              )}
+            </div>
+
+            {/* SIREN */}
+            <div>
+              <span className="text-gray-400 block text-xs mb-0.5">SIREN</span>
+              {companyInfoManual ? (
+                <input
+                  type="text"
+                  value={editSiren}
+                  onChange={(e) => setEditSiren(e.target.value.replace(/\D/g, '').slice(0, 9))}
+                  placeholder="123456789"
+                  maxLength={9}
+                  className="w-full px-3 py-1.5 text-sm font-mono border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                />
+              ) : (
+                <span className="font-mono text-gray-900">{org.org_siren || '—'}</span>
+              )}
+            </div>
+
+            {/* SIRET siège */}
+            <div>
+              <span className="text-gray-400 block text-xs mb-0.5">SIRET siège</span>
+              {companyInfoManual ? (
+                <input
+                  type="text"
+                  value={editSiret}
+                  onChange={(e) => setEditSiret(e.target.value.replace(/\D/g, '').slice(0, 14))}
+                  placeholder="12345678901234"
+                  maxLength={14}
+                  className="w-full px-3 py-1.5 text-sm font-mono border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                />
+              ) : (
+                <span className="font-mono text-gray-900">{org.org_siret || '—'}</span>
+              )}
+            </div>
+
+            {/* TVA intracommunautaire */}
+            <div>
+              <span className="text-gray-400 block text-xs mb-0.5">N° TVA intracommunautaire</span>
+              {companyInfoManual ? (
+                <input
+                  type="text"
+                  value={editVatNumber}
+                  onChange={(e) => setEditVatNumber(e.target.value)}
+                  placeholder="FR12345678901"
+                  className="w-full px-3 py-1.5 text-sm font-mono border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                />
+              ) : (
+                <span className="font-mono text-gray-900">{org.vat_number || '—'}</span>
+              )}
+            </div>
+
+            {/* Code APE */}
+            <div>
+              <span className="text-gray-400 block text-xs mb-0.5">Code APE</span>
+              {companyInfoManual ? (
+                <input
+                  type="text"
+                  value={editApeCode}
+                  onChange={(e) => setEditApeCode(e.target.value)}
+                  placeholder="6201Z"
+                  className="w-full px-3 py-1.5 text-sm font-mono border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                />
+              ) : (
+                <span className="font-mono text-gray-900">{org.ape_code || '—'}</span>
+              )}
+            </div>
+
+            {/* RCS */}
+            <div>
+              <span className="text-gray-400 block text-xs mb-0.5">RCS de...</span>
+              {companyInfoManual ? (
+                <input
+                  type="text"
+                  value={editRcsCity}
+                  onChange={(e) => setEditRcsCity(e.target.value)}
+                  placeholder="Paris"
+                  className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                />
+              ) : (
+                <span className="text-gray-900">{org.rcs_city || '—'}</span>
+              )}
+            </div>
+
+            {/* Capital social — masqué pour EI/AE */}
+            {hasCapital && (
               <div>
                 <span className="text-gray-400 block text-xs mb-0.5">Capital social</span>
-                <span className="text-gray-900">{parseFloat(org.capital).toLocaleString('fr-FR')} €</span>
+                {companyInfoManual ? (
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={editCapital}
+                      onChange={(e) => setEditCapital(e.target.value)}
+                      placeholder="10000"
+                      step="0.01"
+                      min="0"
+                      className="w-full px-3 py-1.5 pr-8 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">€</span>
+                  </div>
+                ) : (
+                  <span className="text-gray-900">
+                    {org.capital ? `${parseFloat(org.capital).toLocaleString('fr-FR')} €` : '—'}
+                  </span>
+                )}
               </div>
             )}
-            {addressStr && (
-              <div className="col-span-2">
+
+            {/* Adresse */}
+            {companyInfoManual ? (
+              <div className="col-span-2 space-y-2">
                 <span className="text-gray-400 block text-xs mb-0.5 flex items-center gap-1">
                   <MapPin className="w-3 h-3" /> Adresse
                 </span>
-                <span className="text-gray-900">{addressStr}</span>
+                <input
+                  type="text"
+                  value={editAddrVoie}
+                  onChange={(e) => setEditAddrVoie(e.target.value)}
+                  placeholder="Numéro et voie"
+                  className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                />
+                <input
+                  type="text"
+                  value={editAddrComplement}
+                  onChange={(e) => setEditAddrComplement(e.target.value)}
+                  placeholder="Complément d'adresse (optionnel)"
+                  className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    value={editAddrCp}
+                    onChange={(e) => setEditAddrCp(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                    placeholder="Code postal"
+                    maxLength={5}
+                    className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  />
+                  <input
+                    type="text"
+                    value={editAddrCommune}
+                    onChange={(e) => setEditAddrCommune(e.target.value)}
+                    placeholder="Commune"
+                    className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  />
+                </div>
               </div>
+            ) : (
+              addressStr && (
+                <div className="col-span-2">
+                  <span className="text-gray-400 block text-xs mb-0.5 flex items-center gap-1">
+                    <MapPin className="w-3 h-3" /> Adresse
+                  </span>
+                  <span className="text-gray-900">{addressStr}</span>
+                </div>
+              )
             )}
           </div>
-          <p className="text-xs text-gray-400 flex items-center gap-1 pt-1">
-            <Info className="w-3 h-3 shrink-0" />
-            Ces informations proviennent du registre INSEE. Pour les modifier, mettez à jour votre SIREN sur{' '}
-            <a href="https://www.infogreffe.fr" target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:underline">
-              Infogreffe
-            </a>.
-          </p>
         </section>
 
         {/* Coordonnées modifiables */}
@@ -562,6 +868,18 @@ export default function OrgSettingsPage() {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="+33 1 23 45 67 89"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1 flex items-center gap-1">
+                <Globe className="w-3 h-3" /> Site web
+              </label>
+              <input
+                type="url"
+                value={website}
+                onChange={(e) => setWebsite(e.target.value)}
+                placeholder="https://www.monentreprise.fr"
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
               />
             </div>

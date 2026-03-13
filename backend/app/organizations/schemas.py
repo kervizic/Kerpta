@@ -105,6 +105,8 @@ class OrgDetailOut(BaseModel):
     capital: str | None
     ape_code: str | None
     billing_siret: str | None
+    website: str | None = None
+    company_info_manual: bool = False
     # True si un logo est stocké dans organization_logos
     has_logo: bool = False
     # Établissements récupérés via l'API INSEE (non stockés en BDD)
@@ -127,15 +129,36 @@ class OrgLogoOut(BaseModel):
 
 
 class OrgUpdateRequest(BaseModel):
-    """Données pour mettre à jour une organisation."""
+    """Données pour mettre à jour une organisation.
 
+    Champs toujours éditables : email, phone, website, vat_regime, vat_exigibility,
+    accounting_regime, billing_siret, logo_url, company_info_manual.
+
+    Champs éditables uniquement en mode manuel (company_info_manual=true) :
+    name, legal_form, siret, siren, vat_number, ape_code, rcs_city, capital, address.
+    """
+
+    # Toujours éditables
     email: str | None = None
     phone: str | None = None
+    website: str | None = None
     vat_regime: str | None = None
     vat_exigibility: str | None = None
     accounting_regime: str | None = None
     billing_siret: str | None = Field(None, min_length=14, max_length=14)
     logo_url: str | None = None
+    company_info_manual: bool | None = None
+
+    # Éditables en mode manuel uniquement
+    name: str | None = Field(None, min_length=1, max_length=255)
+    legal_form: str | None = None
+    siret: str | None = Field(None, min_length=14, max_length=14)
+    siren: str | None = Field(None, min_length=9, max_length=9)
+    vat_number: str | None = None
+    ape_code: str | None = None
+    rcs_city: str | None = None
+    capital: Decimal | None = None
+    address: dict | None = None
 
 
 class JoinRequestCreate(BaseModel):
