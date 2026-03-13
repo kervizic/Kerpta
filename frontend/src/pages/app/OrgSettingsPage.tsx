@@ -192,9 +192,9 @@ export default function OrgSettingsPage() {
   const [editAddrCp, setEditAddrCp] = useState('')
   const [editAddrCommune, setEditAddrCommune] = useState('')
 
-  const [saving, setSaving] = useState(false)
-  const [saveSuccess, setSaveSuccess] = useState(false)
-  const [saveError, setSaveError] = useState<string | null>(null)
+  // Auto-save on blur — micro-feedback par champ
+  const [savingField, setSavingField] = useState<string | null>(null)
+  const [savedField, setSavedField] = useState<string | null>(null)
 
   // Logo
   const [currentLogo, setCurrentLogo] = useState<OrgLogoOut | null>(null)
@@ -552,11 +552,12 @@ export default function OrgSettingsPage() {
     return manualFields.includes(field)
   }
 
-  /** Bascule un champ entre auto et manuel */
+  /** Bascule un champ entre auto et manuel — sauvegarde immédiatement */
   function toggleFieldManual(field: SyncableField) {
     if (isManual(field)) {
       // Retour en auto — restaurer la valeur SIRENE depuis le cache
-      setManualFields((prev) => prev.filter((f) => f !== field))
+      const newManualFields = manualFields.filter((f) => f !== field)
+      setManualFields(newManualFields)
       if (sireneData) {
         const siege = sireneData.siege ?? null
         switch (field) {
@@ -588,70 +589,21 @@ export default function OrgSettingsPage() {
             break
         }
       }
+      void saveField('manual_fields', { manual_fields: newManualFields })
     } else {
       // Passage en manuel — on garde la valeur actuelle
-      setManualFields((prev) => [...prev, field])
+      const newManualFields = [...manualFields, field]
+      setManualFields(newManualFields)
+      void saveField('manual_fields', { manual_fields: newManualFields })
     }
   }
 
-  async function handleSave() {
-    if (!org) return
-    setSaving(true)
-    setSaveSuccess(false)
-    setSaveError(null)
+  /** Sauvegarde un ou plusieurs champs vers l'API (auto-save on blur) */
+  async function saveField(fieldKey: string, payload: Record<string, unknown>) {
+    if (!org || Object.keys(payload).length === 0) return
+    setSavingField(fieldKey)
+    setSavedField(null)
     try {
-      const payload: Record<string, unknown> = {}
-      // Champs toujours éditables
-      if (email !== (org.email ?? '')) payload.email = email || null
-      if (phone !== (org.phone ?? '')) payload.phone = phone || null
-      if (website !== (org.website ?? '')) payload.website = website || null
-      if (vatRegime !== (org.vat_regime ?? '')) payload.vat_regime = vatRegime || null
-      if (vatExigibility !== (org.vat_exigibility ?? 'encaissements')) payload.vat_exigibility = vatExigibility || 'encaissements'
-      if (accountingRegime !== (org.accounting_regime ?? '')) payload.accounting_regime = accountingRegime || null
-      if (billingSiret !== (org.billing_siret ?? '')) payload.billing_siret = billingSiret || null
-
-      // Toujours envoyer manual_fields (la liste des champs en mode manuel)
-      const prevManual = org.manual_fields ?? []
-      if (JSON.stringify(manualFields.sort()) !== JSON.stringify([...prevManual].sort())) {
-        payload.manual_fields = manualFields
-      }
-
-      // Champs synchronisables — éditables seulement si en mode manuel
-      if (manualFields.includes('name') && editName !== (org.org_name ?? '')) payload.name = editName || null
-      if (manualFields.includes('legal_form') && editLegalForm !== (org.legal_form ?? '')) payload.legal_form = editLegalForm || null
-      if (manualFields.includes('siret') && editSiret !== (org.org_siret ?? '')) payload.siret = editSiret || null
-      if (manualFields.includes('siren') && editSiren !== (org.org_siren ?? '')) payload.siren = editSiren || null
-      if (manualFields.includes('vat_number') && editVatNumber !== (org.vat_number ?? '')) payload.vat_number = editVatNumber || null
-      if (manualFields.includes('ape_code') && editApeCode !== (org.ape_code ?? '')) payload.ape_code = editApeCode || null
-
-      // Champs toujours éditables
-      if (editRcsCity !== (org.rcs_city ?? '')) payload.rcs_city = editRcsCity || null
-      // Capital — syncable depuis INPI, éditable si en mode manuel
-      if (manualFields.includes('capital') && editCapital !== (org.capital ?? '')) payload.capital = editCapital ? parseFloat(editCapital) : null
-
-      // Adresse — éditable si en mode manuel
-      if (manualFields.includes('address')) {
-        const prevAddr = org.address as AddressOut | null
-        const addrChanged =
-          editAddrVoie !== (prevAddr?.voie ?? '') ||
-          editAddrComplement !== (prevAddr?.complement ?? '') ||
-          editAddrCp !== (prevAddr?.code_postal ?? '') ||
-          editAddrCommune !== (prevAddr?.commune ?? '')
-        if (addrChanged) {
-          payload.address = {
-            voie: editAddrVoie || null,
-            complement: editAddrComplement || null,
-            code_postal: editAddrCp || null,
-            commune: editAddrCommune || null,
-          }
-        }
-      }
-
-      if (Object.keys(payload).length === 0) {
-        setSaveSuccess(true)
-        return
-      }
-
       await apiClient.patch(`/organizations/${org.org_id}`, payload)
       // Mettre à jour l'état local
       const updatedOrg = { ...org }
@@ -673,11 +625,42 @@ export default function OrgSettingsPage() {
       if (payload.capital !== undefined) updatedOrg.capital = payload.capital != null ? String(payload.capital) : null
       if (payload.address !== undefined) updatedOrg.address = payload.address as Record<string, string> | null
       setOrg(updatedOrg)
-      setSaveSuccess(true)
-    } catch (err) {
-      setSaveError(httpError(err, 'Erreur lors de la sauvegarde'))
+      setSavedField(fieldKey)
+      setTimeout(() => setSavedField((prev) => (prev === fieldKey ? null : prev)), 2000)
+    } catch {
+      // Silencieux — l'utilisateur verra que la valeur n'a pas changé au prochain rechargement
     } finally {
-      setSaving(false)
+      setSavingField(null)
+    }
+  }
+
+  /** Sauvegarde un champ texte si sa valeur a changé par rapport à l'état org */
+  function blurSave(fieldKey: string, apiField: string, value: string, orgValue: string | null | undefined) {
+    const current = value || null
+    const original = orgValue ?? null
+    if (current !== original) {
+      void saveField(fieldKey, { [apiField]: current })
+    }
+  }
+
+  /** Sauvegarde l'adresse complète (4 champs groupés) */
+  function blurSaveAddress() {
+    if (!org) return
+    const prevAddr = org.address as AddressOut | null
+    const addrChanged =
+      editAddrVoie !== (prevAddr?.voie ?? '') ||
+      editAddrComplement !== (prevAddr?.complement ?? '') ||
+      editAddrCp !== (prevAddr?.code_postal ?? '') ||
+      editAddrCommune !== (prevAddr?.commune ?? '')
+    if (addrChanged) {
+      void saveField('address', {
+        address: {
+          voie: editAddrVoie || null,
+          complement: editAddrComplement || null,
+          code_postal: editAddrCp || null,
+          commune: editAddrCommune || null,
+        },
+      })
     }
   }
 
@@ -910,6 +893,7 @@ export default function OrgSettingsPage() {
                   type="text"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
+                  onBlur={() => blurSave('name', 'name', editName, org.org_name)}
                   className="w-full px-3 py-1.5 text-sm border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
                 />
               ) : (
@@ -936,7 +920,10 @@ export default function OrgSettingsPage() {
               {isManual('legal_form') ? (
                 <select
                   value={editLegalForm}
-                  onChange={(e) => setEditLegalForm(e.target.value)}
+                  onChange={(e) => {
+                    setEditLegalForm(e.target.value)
+                    void saveField('legal_form', { legal_form: e.target.value || null })
+                  }}
                   className="w-full px-3 py-1.5 text-sm border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
                 >
                   <option value="">Non renseigné</option>
@@ -976,6 +963,7 @@ export default function OrgSettingsPage() {
                   type="text"
                   value={editSiren}
                   onChange={(e) => setEditSiren(e.target.value.replace(/\D/g, '').slice(0, 9))}
+                  onBlur={() => blurSave('siren', 'siren', editSiren, org.org_siren)}
                   placeholder="123456789"
                   maxLength={9}
                   className="w-full px-3 py-1.5 text-sm font-mono border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
@@ -1006,6 +994,7 @@ export default function OrgSettingsPage() {
                   type="text"
                   value={editSiret}
                   onChange={(e) => setEditSiret(e.target.value.replace(/\D/g, '').slice(0, 14))}
+                  onBlur={() => blurSave('siret', 'siret', editSiret, org.org_siret)}
                   placeholder="12345678901234"
                   maxLength={14}
                   className="w-full px-3 py-1.5 text-sm font-mono border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
@@ -1036,6 +1025,7 @@ export default function OrgSettingsPage() {
                   type="text"
                   value={editVatNumber}
                   onChange={(e) => setEditVatNumber(e.target.value)}
+                  onBlur={() => blurSave('vat_number', 'vat_number', editVatNumber, org.vat_number)}
                   placeholder="FR12345678901"
                   className="w-full px-3 py-1.5 text-sm font-mono border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
                 />
@@ -1065,6 +1055,7 @@ export default function OrgSettingsPage() {
                   type="text"
                   value={editApeCode}
                   onChange={(e) => setEditApeCode(e.target.value)}
+                  onBlur={() => blurSave('ape_code', 'ape_code', editApeCode, org.ape_code)}
                   placeholder="6201Z"
                   className="w-full px-3 py-1.5 text-sm font-mono border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
                 />
@@ -1080,6 +1071,7 @@ export default function OrgSettingsPage() {
                 type="text"
                 value={editRcsCity}
                 onChange={(e) => setEditRcsCity(e.target.value)}
+                onBlur={() => blurSave('rcs_city', 'rcs_city', editRcsCity, org.rcs_city)}
                 placeholder="Paris"
                 className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
               />
@@ -1108,6 +1100,11 @@ export default function OrgSettingsPage() {
                       type="number"
                       value={editCapital}
                       onChange={(e) => setEditCapital(e.target.value)}
+                      onBlur={() => {
+                        if (editCapital !== (org.capital ?? '')) {
+                          void saveField('capital', { capital: editCapital ? parseFloat(editCapital) : null })
+                        }
+                      }}
                       placeholder="10000"
                       step="0.01"
                       min="0"
@@ -1170,6 +1167,7 @@ export default function OrgSettingsPage() {
                     type="text"
                     value={editAddrVoie}
                     onChange={(e) => setEditAddrVoie(e.target.value)}
+                    onBlur={blurSaveAddress}
                     placeholder="Numéro et voie"
                     className="w-full px-3 py-1.5 text-sm border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
                   />
@@ -1177,6 +1175,7 @@ export default function OrgSettingsPage() {
                     type="text"
                     value={editAddrComplement}
                     onChange={(e) => setEditAddrComplement(e.target.value)}
+                    onBlur={blurSaveAddress}
                     placeholder="Complément d'adresse (optionnel)"
                     className="w-full px-3 py-1.5 text-sm border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
                   />
@@ -1185,6 +1184,7 @@ export default function OrgSettingsPage() {
                       type="text"
                       value={editAddrCp}
                       onChange={(e) => setEditAddrCp(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                      onBlur={blurSaveAddress}
                       placeholder="Code postal"
                       maxLength={5}
                       className="px-3 py-1.5 text-sm border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
@@ -1193,6 +1193,7 @@ export default function OrgSettingsPage() {
                       type="text"
                       value={editAddrCommune}
                       onChange={(e) => setEditAddrCommune(e.target.value)}
+                      onBlur={blurSaveAddress}
                       placeholder="Commune"
                       className="px-3 py-1.5 text-sm border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
                     />
@@ -1227,6 +1228,7 @@ export default function OrgSettingsPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                onBlur={() => blurSave('email', 'email', email, org.email)}
                 placeholder="contact@monentreprise.fr"
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
               />
@@ -1239,6 +1241,7 @@ export default function OrgSettingsPage() {
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
+                onBlur={() => blurSave('phone', 'phone', phone, org.phone)}
                 placeholder="+33 1 23 45 67 89"
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
               />
@@ -1251,6 +1254,7 @@ export default function OrgSettingsPage() {
                 type="url"
                 value={website}
                 onChange={(e) => setWebsite(e.target.value)}
+                onBlur={() => blurSave('website', 'website', website, org.website)}
                 placeholder="https://www.monentreprise.fr"
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
               />
@@ -1277,7 +1281,10 @@ export default function OrgSettingsPage() {
               </label>
               <select
                 value={vatRegime}
-                onChange={(e) => setVatRegime(e.target.value)}
+                onChange={(e) => {
+                  setVatRegime(e.target.value)
+                  void saveField('vat_regime', { vat_regime: e.target.value || null })
+                }}
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300 bg-white"
               >
                 <option value="">Non renseigné</option>
@@ -1299,7 +1306,10 @@ export default function OrgSettingsPage() {
               </label>
               <select
                 value={accountingRegime}
-                onChange={(e) => setAccountingRegime(e.target.value)}
+                onChange={(e) => {
+                  setAccountingRegime(e.target.value)
+                  void saveField('accounting_regime', { accounting_regime: e.target.value || null })
+                }}
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300 bg-white"
               >
                 <option value="">Non renseigné</option>
@@ -1324,7 +1334,10 @@ export default function OrgSettingsPage() {
               </label>
               <select
                 value={vatExigibility}
-                onChange={(e) => setVatExigibility(e.target.value)}
+                onChange={(e) => {
+                  setVatExigibility(e.target.value)
+                  void saveField('vat_exigibility', { vat_exigibility: e.target.value || 'encaissements' })
+                }}
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300 bg-white max-w-xs"
               >
                 <option value="encaissements">Sur les encaissements</option>
@@ -1396,7 +1409,12 @@ export default function OrgSettingsPage() {
                   return (
                     <button
                       key={etab.siret}
-                      onClick={() => !isClosed && setBillingSiret(etab.siret)}
+                      onClick={() => {
+                        if (!isClosed) {
+                          setBillingSiret(etab.siret)
+                          void saveField('billing_siret', { billing_siret: etab.siret })
+                        }
+                      }}
                       disabled={isClosed}
                       title={isClosed ? 'Établissement cessé — ne peut pas être sélectionné pour la facturation' : undefined}
                       className={`w-full text-left px-4 py-3 rounded-xl border-2 transition ${
@@ -1755,29 +1773,19 @@ export default function OrgSettingsPage() {
           <CompanyInfoCard siren={org.org_siren} hideIdentity />
         )}
 
-        {/* Bouton Enregistrer */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold rounded-xl transition disabled:opacity-60"
-          >
-            {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-            Enregistrer
-          </button>
-          {saveSuccess && (
-            <span className="flex items-center gap-1.5 text-sm text-green-600">
-              <CheckCircle className="w-4 h-4" />
-              Sauvegardé
-            </span>
-          )}
-          {saveError && (
-            <span className="flex items-center gap-1.5 text-sm text-red-500">
-              <AlertCircle className="w-4 h-4" />
-              {saveError}
-            </span>
-          )}
-        </div>
+        {/* Indicateur de sauvegarde automatique */}
+        {(savingField || savedField) && (
+          <div className="flex items-center gap-1.5 text-xs text-gray-400 justify-end">
+            {savingField && <Loader2 className="w-3 h-3 animate-spin text-orange-400" />}
+            {savingField && 'Enregistrement…'}
+            {!savingField && savedField && (
+              <>
+                <CheckCircle className="w-3 h-3 text-green-500" />
+                <span className="text-green-600">Sauvegardé</span>
+              </>
+            )}
+          </div>
+        )}
 
       </div>
     </div>
