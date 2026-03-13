@@ -129,7 +129,10 @@ async def list_billing_profiles(org_id: uuid.UUID, db: AsyncSession) -> list[dic
                    bp.payment_terms, bp.payment_term_type, bp.payment_term_day,
                    bp.payment_method,
                    bp.late_penalty_rate, bp.discount_rate,
-                   bp.legal_mentions, bp.footer, bp.is_default, bp.created_at
+                   bp.vat_regime, bp.recovery_fee,
+                   bp.early_payment_discount, bp.payment_note,
+                   bp.legal_mentions_auto, bp.legal_mentions,
+                   bp.footer, bp.is_default, bp.created_at
             FROM billing_profiles bp
             LEFT JOIN bank_accounts ba ON ba.id = bp.bank_account_id
             WHERE bp.organization_id = :org_id
@@ -157,11 +160,15 @@ async def create_billing_profile(
                 id, organization_id, name, bank_account_id, payment_terms,
                 payment_term_type, payment_term_day,
                 payment_method, late_penalty_rate, discount_rate,
+                vat_regime, recovery_fee, early_payment_discount,
+                payment_note, legal_mentions_auto,
                 legal_mentions, footer, is_default, created_at
             ) VALUES (
                 :id, :org_id, :name, :bank_id, :terms,
                 :term_type, :term_day,
                 :method, :penalty, :discount,
+                :vat_regime, :recovery_fee, :early_discount,
+                :payment_note, :legal_auto,
                 :mentions, :footer, :is_default, now()
             )
         """),
@@ -176,6 +183,11 @@ async def create_billing_profile(
             "method": data.payment_method,
             "penalty": str(data.late_penalty_rate) if data.late_penalty_rate is not None else None,
             "discount": str(data.discount_rate) if data.discount_rate is not None else None,
+            "vat_regime": data.vat_regime,
+            "recovery_fee": str(data.recovery_fee),
+            "early_discount": data.early_payment_discount,
+            "payment_note": data.payment_note,
+            "legal_auto": data.legal_mentions_auto,
             "mentions": data.legal_mentions,
             "footer": data.footer,
             "is_default": data.is_default,
@@ -202,7 +214,7 @@ async def update_billing_profile(
     params: dict = {"pid": profile_id, "org_id": str(org_id)}
     for key, value in updates.items():
         set_parts.append(f"{key} = :{key}")
-        params[key] = str(value) if value is not None and key in ("late_penalty_rate", "discount_rate") else value
+        params[key] = str(value) if value is not None and key in ("late_penalty_rate", "discount_rate", "recovery_fee") else value
 
     result = await db.execute(
         text(f"UPDATE billing_profiles SET {', '.join(set_parts)} WHERE id = :pid AND organization_id = :org_id"),

@@ -51,6 +51,11 @@ class BillingProfileCreate(BaseModel):
     payment_method: str | None = Field(None, max_length=30)
     late_penalty_rate: Decimal | None = None
     discount_rate: Decimal | None = None
+    vat_regime: str = Field("encaissements", pattern=r"^(encaissements|debits|non_assujetti|franchise)$")
+    recovery_fee: Decimal = Field(default=Decimal("40.00"), ge=0)
+    early_payment_discount: bool = False
+    payment_note: str | None = None
+    legal_mentions_auto: bool = True
     legal_mentions: str | None = None
     footer: str | None = None
     is_default: bool = False
@@ -65,6 +70,11 @@ class BillingProfileUpdate(BaseModel):
     payment_method: str | None = Field(None, max_length=30)
     late_penalty_rate: Decimal | None = None
     discount_rate: Decimal | None = None
+    vat_regime: str | None = Field(None, pattern=r"^(encaissements|debits|non_assujetti|franchise)$")
+    recovery_fee: Decimal | None = Field(None, ge=0)
+    early_payment_discount: bool | None = None
+    payment_note: str | None = None
+    legal_mentions_auto: bool | None = None
     legal_mentions: str | None = None
     footer: str | None = None
     is_default: bool | None = None
@@ -84,6 +94,11 @@ class BillingProfileOut(BaseModel):
     payment_method: str | None = None
     late_penalty_rate: Decimal | None = None
     discount_rate: Decimal | None = None
+    vat_regime: str = "encaissements"
+    recovery_fee: Decimal = Decimal("40.00")
+    early_payment_discount: bool = False
+    payment_note: str | None = None
+    legal_mentions_auto: bool = True
     legal_mentions: str | None = None
     footer: str | None = None
     is_default: bool
