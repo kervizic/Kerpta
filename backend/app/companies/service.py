@@ -909,7 +909,7 @@ async def _enrich_org_row(
     set_clause = ", ".join(updates.values()) if updates else ""
     if set_clause:
         set_clause += ", "
-    set_clause += "last_enriched_at = NOW(), updated_at = NOW()"
+    set_clause += "last_enriched_at = NOW()"
     await db.execute(
         text(f"UPDATE organizations SET {set_clause} WHERE id = :org_id"),
         params,
