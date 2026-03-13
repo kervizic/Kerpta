@@ -111,7 +111,7 @@ class OrgDetailOut(BaseModel):
     date_cloture_exercice: str | None = None
     date_immatriculation_rcs: str | None = None
     # Timestamp du dernier enrichissement data.gouv + INPI
-    last_enriched_at: str | None = None
+    last_enriched_at: datetime | None = None
     # Liste des champs en mode manuel (pas synchro SIRENE)
     manual_fields: list[str] = []
     # True si un logo est stocké dans organization_logos
