@@ -9,6 +9,7 @@ import { ArrowLeft, LogIn } from 'lucide-react'
 interface ProvidersResponse {
   providers: string[]
   auth_url: string
+  setup_completed: boolean
 }
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -73,6 +74,11 @@ export default function LoginPage() {
     fetch('/api/v1/config/providers')
       .then((r) => r.json())
       .then((data: ProvidersResponse) => {
+        if (!data.setup_completed) {
+          // Setup non terminé → rediriger vers le wizard backend
+          window.location.href = '/setup/'
+          return
+        }
         setProviders(data.providers)
         setAuthUrl(data.auth_url)
         setLoading(false)

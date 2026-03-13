@@ -90,14 +90,15 @@ async def get_providers(db: AsyncSession = Depends(get_db)) -> dict:
     Endpoint public utilisé par la page de connexion pour afficher les boutons.
     """
     result = await db.execute(
-        text("SELECT auth_url, oauth_config FROM platform_config LIMIT 1")
+        text("SELECT auth_url, oauth_config, setup_completed FROM platform_config LIMIT 1")
     )
     row = result.fetchone()
     if not row:
-        return {"providers": [], "auth_url": ""}
+        return {"providers": [], "auth_url": "", "setup_completed": False}
 
     auth_url: str = row[0] or ""
     oauth_config: dict = row[1] or {}
+    setup_completed: bool = bool(row[2])
 
     active_providers = [
         p
@@ -106,7 +107,7 @@ async def get_providers(db: AsyncSession = Depends(get_db)) -> dict:
         and oauth_config[p].get("client_id")
     ]
 
-    return {"providers": active_providers, "auth_url": auth_url}
+    return {"providers": active_providers, "auth_url": auth_url, "setup_completed": setup_completed}
 
 
 # ── GET /api-keys — platform_admin ───────────────────────────────────────────
