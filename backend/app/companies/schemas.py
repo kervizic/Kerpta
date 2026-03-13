@@ -89,3 +89,12 @@ class CompanyDetails(BaseModel):
     siege: Etablissement | None = None
     etablissements_actifs: list[Etablissement] = []
     nombre_etablissements_actifs: int = 0
+
+    # ── Données enrichies INPI (absentes de data.gouv) ──
+    capital: float | None = None                       # Montant du capital social
+    devise_capital: str | None = None                  # "EUR"
+    capital_variable: bool | None = None               # Capital variable ?
+    objet_social: str | None = None                    # Objet social complet
+    duree_societe: int | None = None                   # Durée en années
+    date_cloture_exercice: str | None = None           # "3009" = 30 septembre
+    date_immatriculation_rcs: str | None = None        # "2018-03-23"

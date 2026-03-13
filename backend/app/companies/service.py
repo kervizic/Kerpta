@@ -29,6 +29,7 @@ import httpx
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from .inpi import InpiCompanyData, get_inpi_data
 from .schemas import Address, CompanyDetails, CompanySearchResult, Dirigeant, Etablissement, FinanceYear
 
 _log = logging.getLogger(__name__)
@@ -621,12 +622,29 @@ def _build_details_from_api(siren: str, item: dict, matching: list[dict]) -> Com
     )
 
 
+def _enrich_with_inpi(details: CompanyDetails, inpi: InpiCompanyData) -> CompanyDetails:
+    """Enrichit un CompanyDetails avec les données INPI."""
+    details.capital = inpi.capital
+    details.devise_capital = inpi.devise_capital
+    details.capital_variable = inpi.capital_variable
+    details.objet_social = inpi.objet_social
+    details.duree_societe = inpi.duree_societe
+    details.date_cloture_exercice = inpi.date_cloture_exercice
+    details.date_immatriculation_rcs = inpi.date_immatriculation_rcs
+    # Compléter est_ess si absent de data.gouv
+    if details.est_ess is None and inpi.est_ess is not None:
+        details.est_ess = inpi.est_ess
+    return details
+
+
 async def get_company_details(siren: str, db: AsyncSession | None = None) -> CompanyDetails | None:
     """Retourne les détails d'une entreprise active via son SIREN.
 
     Lazy caching : si une session DB est fournie, vérifie le cache local d'abord.
     Si les données ont moins de 24h, retourne le cache sans appel API.
     Sinon, appelle l'API, met à jour le cache, et retourne le résultat.
+
+    Si les identifiants INPI sont configurés, enrichit avec capital, objet social, etc.
     """
     # 1. Vérifier le cache local si DB disponible
     if db is not None:
@@ -634,6 +652,13 @@ async def get_company_details(siren: str, db: AsyncSession | None = None) -> Com
             cached = await _load_from_cache(siren, db)
             if cached is not None:
                 _log.debug("[companies] Cache hit pour SIREN %s", siren)
+                # Enrichir avec INPI même si cache hit (données INPI pas cachées)
+                try:
+                    inpi_data = await get_inpi_data(siren, db)
+                    if inpi_data:
+                        _enrich_with_inpi(cached, inpi_data)
+                except Exception:
+                    _log.debug("[companies] Enrichissement INPI ignoré pour %s (cache)", siren)
                 return cached
         except Exception:
             _log.warning("[companies] Erreur lecture cache pour %s, fallback API", siren)
@@ -653,7 +678,18 @@ async def get_company_details(siren: str, db: AsyncSession | None = None) -> Com
         except Exception:
             _log.warning("[companies] Erreur écriture cache pour %s", siren, exc_info=True)
 
-    return _build_details_from_api(siren, item, matching)
+    details = _build_details_from_api(siren, item, matching)
+
+    # 4. Enrichir avec les données INPI
+    if db is not None:
+        try:
+            inpi_data = await get_inpi_data(siren, db)
+            if inpi_data:
+                _enrich_with_inpi(details, inpi_data)
+        except Exception:
+            _log.debug("[companies] Enrichissement INPI ignoré pour %s", siren)
+
+    return details
 
 
 # ── Intégration VIES — TVA européenne (hors France) ──────────────────────────

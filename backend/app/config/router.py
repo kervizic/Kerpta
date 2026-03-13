@@ -2,15 +2,17 @@
 # Copyright (C) 2026 Emmanuel Kervizic
 # Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
-"""Router de configuration de la plateforme (providers OAuth).
+"""Router de configuration de la plateforme (providers OAuth + clés API externes).
 
 Routes exposées :
   GET  /api/v1/config/providers         — public, retourne les providers actifs
-  GET  /api/v1/config/api-keys          — admin, retourne oauth_config
+  GET  /api/v1/config/api-keys          — admin, retourne oauth_config + api_keys externes
   PUT  /api/v1/config/oauth             — admin, met à jour les providers OAuth + redémarre GoTrue
+  PUT  /api/v1/config/external-keys     — admin, met à jour les clés API externes (INPI, etc.)
 """
 
 import asyncio
+import json
 import logging
 from typing import Any
 from uuid import UUID
@@ -41,6 +43,15 @@ class ProviderConfig(BaseModel):
 class OAuthUpdateRequest(BaseModel):
     providers: dict[str, ProviderConfig]
     custom_oidc: dict[str, Any] | None = None
+
+
+class InpiConfig(BaseModel):
+    username: str = ""
+    password: str = ""
+
+
+class ExternalKeysUpdateRequest(BaseModel):
+    inpi: InpiConfig | None = None
 
 
 # ── GET /me — utilisateur courant ─────────────────────────────────────────────
@@ -131,9 +142,23 @@ async def get_api_keys(
             "client_secret": ("••••" + secret[-4:]) if len(secret) > 4 else ("••••" if secret else ""),
         }
 
+    # Masque les mots de passe des API externes
+    masked_api_keys: dict = {}
+    if api_keys:
+        for service, cfg in api_keys.items():
+            if isinstance(cfg, dict):
+                masked_cfg = {}
+                for k, v in cfg.items():
+                    if k in ("password", "secret", "api_key") and isinstance(v, str) and v:
+                        masked_cfg[k] = ("••••" + v[-4:]) if len(v) > 4 else "••••"
+                    else:
+                        masked_cfg[k] = v
+                masked_api_keys[service] = masked_cfg
+
     return {
         "auth_url": auth_url,
         "oauth_config": masked_oauth,
+        "api_keys": masked_api_keys,
     }
 
 
@@ -184,3 +209,50 @@ async def update_oauth_config(
 
     _log.info("[config] OAuth mis à jour — GoTrue en cours de redémarrage")
     return {"ok": True, "restarting": True}
+
+
+# ── PUT /external-keys — platform_admin ──────────────────────────────────────
+
+
+@router.put("/external-keys", status_code=status.HTTP_200_OK)
+async def update_external_keys(
+    body: ExternalKeysUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    _admin: object = Depends(require_platform_admin),
+) -> dict:
+    """Met à jour les clés API externes (INPI, etc.) dans platform_config.api_keys."""
+    # Récupérer les api_keys existantes
+    result = await db.execute(
+        text("SELECT api_keys FROM platform_config LIMIT 1")
+    )
+    row = result.fetchone()
+    existing: dict = (row[0] if row and row[0] else {}) or {}
+
+    # Fusionner les nouvelles valeurs
+    if body.inpi is not None:
+        existing["inpi"] = {
+            "username": body.inpi.username,
+            "password": body.inpi.password,
+        }
+
+    # UPSERT dans platform_config
+    updated = await db.execute(
+        text("""
+            UPDATE platform_config
+            SET api_keys = CAST(:keys AS jsonb)
+            RETURNING 1
+        """),
+        {"keys": json.dumps(existing)},
+    )
+    if updated.rowcount == 0:
+        # Pas de ligne platform_config — INSERT
+        await db.execute(
+            text("""
+                INSERT INTO platform_config (api_keys) VALUES (CAST(:keys AS jsonb))
+            """),
+            {"keys": json.dumps(existing)},
+        )
+    await db.commit()
+
+    _log.info("[config] Clés API externes mises à jour (services: %s)", list(existing.keys()))
+    return {"ok": True}

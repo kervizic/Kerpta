@@ -2,13 +2,14 @@
 // Copyright (C) 2026 Emmanuel Kervizic
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
-// Section : Providers OAuth (Google, Microsoft, GitHub, …)
+// Sections : Providers OAuth + APIs externes (INPI)
 
 import { useEffect, useState } from 'react'
 import { apiClient } from '@/lib/api'
 import { useAuthStore } from '@/stores/authStore'
 import {
   AlertTriangle,
+  Building2,
   Check,
   ChevronDown,
   ChevronUp,
@@ -29,9 +30,15 @@ interface ProviderCfg {
   client_secret: string
 }
 
+interface InpiCfg {
+  username: string
+  password: string
+}
+
 interface ApiKeysData {
   auth_url: string
   oauth_config: Record<string, ProviderCfg>
+  api_keys: Record<string, Record<string, string>>
 }
 
 // Lien vers la console développeur de chaque provider
@@ -277,6 +284,12 @@ export default function ConfigApiKeysPage() {
   const [oauthStatus, setOauthStatus] = useState<{ ok: boolean; msg: string } | null>(null)
   const [restarting, setRestarting] = useState(false)
 
+  // État local INPI
+  const [inpi, setInpi] = useState<InpiCfg>({ username: '', password: '' })
+  const [inpiSaving, setInpiSaving] = useState(false)
+  const [inpiStatus, setInpiStatus] = useState<{ ok: boolean; msg: string } | null>(null)
+  const [showInpiHelp, setShowInpiHelp] = useState(false)
+
   useEffect(() => {
     // isAdmin === null : fetchMe pas encore terminé → on attend
     if (isAdmin === null) return
@@ -293,6 +306,14 @@ export default function ConfigApiKeysPage() {
           initial[key] = d.oauth_config[key] ?? { enabled: false, client_id: '', client_secret: '' }
         }
         setProviders(initial)
+        // Charger les identifiants INPI existants
+        const inpiData = d.api_keys?.inpi
+        if (inpiData) {
+          setInpi({
+            username: inpiData.username || '',
+            password: '', // Le mot de passe est masqué côté serveur
+          })
+        }
       })
       .catch(() => {
         /* 401 → intercepteur redirige vers /login */
@@ -312,6 +333,25 @@ export default function ConfigApiKeysPage() {
       setOauthStatus({ ok: false, msg: "Erreur lors de l'enregistrement" })
     } finally {
       setOauthSaving(false)
+    }
+  }
+
+  async function saveInpi() {
+    if (!inpi.username || !inpi.password) {
+      setInpiStatus({ ok: false, msg: 'Identifiant et mot de passe requis' })
+      return
+    }
+    setInpiSaving(true)
+    setInpiStatus(null)
+    try {
+      await apiClient.put('/config/external-keys', {
+        inpi: { username: inpi.username, password: inpi.password },
+      })
+      setInpiStatus({ ok: true, msg: 'Identifiants INPI enregistrés' })
+    } catch {
+      setInpiStatus({ ok: false, msg: "Erreur lors de l'enregistrement" })
+    } finally {
+      setInpiSaving(false)
     }
   }
 
@@ -341,6 +381,7 @@ export default function ConfigApiKeysPage() {
   }
 
   const authUrl = data?.auth_url ?? ''
+  const hasInpiConfigured = !!(data?.api_keys?.inpi?.username)
 
   return (
     <div className="flex-1 overflow-y-auto p-8">
@@ -355,6 +396,132 @@ export default function ConfigApiKeysPage() {
             <p className="text-sm text-gray-500">Providers OAuth et connexions aux APIs externes</p>
           </div>
         </div>
+
+        {/* ── Section INPI / RNE ──────────────────────────────────────────────── */}
+        <section className="mb-10">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-gray-500" />
+              <h2 className="text-base font-semibold text-gray-900">
+                INPI — Registre National des Entreprises
+              </h2>
+            </div>
+            {hasInpiConfigured && (
+              <StatusBadge ok={true} message="Configuré" />
+            )}
+          </div>
+
+          <p className="text-sm text-gray-600 mb-4">
+            L'API INPI permet de récupérer automatiquement le <strong>capital social</strong>,
+            l'<strong>objet social</strong>, la <strong>date de clôture d'exercice</strong> et
+            la <strong>date d'immatriculation RCS</strong> — des données absentes de l'API publique
+            data.gouv.
+          </p>
+
+          {/* Aide : comment créer un compte INPI */}
+          <button
+            onClick={() => setShowInpiHelp((h) => !h)}
+            className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 font-medium mb-4 transition"
+          >
+            <HelpCircle className="w-3.5 h-3.5" />
+            Comment obtenir un compte API INPI ?
+            {showInpiHelp ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          </button>
+
+          {showInpiHelp && (
+            <div className="rounded-xl bg-blue-50 border border-blue-200 p-4 mb-4 text-xs text-blue-800 leading-relaxed space-y-2">
+              <div className="font-semibold text-blue-900 flex items-center justify-between gap-2 flex-wrap">
+                <span>Créer un compte API INPI (gratuit)</span>
+                <a
+                  href="https://data.inpi.fr/register"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  data.inpi.fr
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+              <ol className="list-decimal list-inside space-y-1.5 text-blue-700">
+                <li>
+                  Se rendre sur{' '}
+                  <a
+                    href="https://data.inpi.fr/register"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:text-blue-900"
+                  >
+                    data.inpi.fr/register
+                  </a>{' '}
+                  et créer un compte gratuit (email + mot de passe).
+                </li>
+                <li>
+                  Valider l'email de confirmation reçu dans votre boîte mail.
+                </li>
+                <li>
+                  Se connecter sur{' '}
+                  <a
+                    href="https://data.inpi.fr"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:text-blue-900"
+                  >
+                    data.inpi.fr
+                  </a>{' '}
+                  avec vos identifiants.
+                </li>
+                <li>
+                  L'accès API est <strong>automatiquement activé</strong> avec le compte.
+                  Il n'y a pas de clé API à générer — l'authentification se fait
+                  par <strong>email + mot de passe</strong> directement.
+                </li>
+                <li>
+                  Saisir ci-dessous l'email et le mot de passe du compte INPI.
+                </li>
+              </ol>
+              <div className="mt-2 pt-2 border-t border-blue-200 text-blue-600 space-y-1">
+                <p>
+                  <strong>Quota :</strong> 10 000 requêtes/jour (largement suffisant).
+                </p>
+                <p>
+                  <strong>Données fournies :</strong> capital social, objet social, date de clôture
+                  d'exercice, date d'immatriculation RCS, durée de la société, dirigeants détaillés.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Champs identifiants INPI */}
+          <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <InputField
+                label="Email du compte INPI"
+                value={inpi.username}
+                onChange={(v) => setInpi((prev) => ({ ...prev, username: v }))}
+                placeholder="contact@example.fr"
+              />
+              <InputField
+                label="Mot de passe INPI"
+                value={inpi.password}
+                onChange={(v) => setInpi((prev) => ({ ...prev, password: v }))}
+                type="password"
+                placeholder="Mot de passe du compte"
+              />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={saveInpi}
+                disabled={inpiSaving}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white text-sm font-semibold transition"
+              >
+                {inpiSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+                Enregistrer
+              </button>
+              {inpiStatus && <StatusBadge ok={inpiStatus.ok} message={inpiStatus.msg} />}
+            </div>
+          </div>
+        </section>
 
         {/* ── Section OAuth ─────────────────────────────────────────────────── */}
         <section className="mb-10">
