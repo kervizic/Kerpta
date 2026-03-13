@@ -307,10 +307,10 @@ function CreateClientForm() {
   useEffect(() => {
     async function loadProfiles() {
       try {
-        const { data } = await orgGet<BillingProfileShort[]>('/billing/profiles')
-        setBillingProfiles(data)
+        const profiles = await orgGet<BillingProfileShort[]>('/billing/profiles')
+        setBillingProfiles(profiles)
         // Sélectionner le profil par défaut
-        const defaultProfile = data.find((p) => p.is_default)
+        const defaultProfile = profiles.find((p: BillingProfileShort) => p.is_default)
         if (defaultProfile) setBillingProfileId(defaultProfile.id)
       } catch {
         // Pas critique
