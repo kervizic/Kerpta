@@ -268,3 +268,22 @@ async def update_external_keys(
         asyncio.ensure_future(_bg_enrich())
 
     return {"ok": True}
+
+
+# ── POST /enrich-orgs — platform_admin ──────────────────────────────────────
+
+
+@router.post("/enrich-orgs", status_code=status.HTTP_200_OK)
+async def enrich_orgs(
+    _admin: object = Depends(require_platform_admin),
+) -> dict:
+    """Déclenche l'enrichissement data.gouv + INPI de toutes les organisations."""
+    from app.companies.service import enrich_all_orgs
+
+    async def _bg_enrich() -> None:
+        async with AsyncSessionLocal() as bg_db:
+            result = await enrich_all_orgs(bg_db)
+            _log.info("[config] Enrichissement manuel terminé : %s", result)
+
+    asyncio.ensure_future(_bg_enrich())
+    return {"ok": True, "message": "Enrichissement lancé en arrière-plan"}
