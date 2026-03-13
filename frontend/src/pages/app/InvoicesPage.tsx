@@ -411,7 +411,7 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
   // Charger les données de référence
   useEffect(() => {
     Promise.all([
-      orgGet<{ items: ClientOption[] }>('/clients', { page_size: 500 }),
+      orgGet<{ items: ClientOption[] }>('/clients', { page_size: 100 }),
       orgGet<BillingProfile[]>('/billing/profiles'),
     ]).then(([clientsData, profilesData]) => {
       setClients(clientsData.items)
