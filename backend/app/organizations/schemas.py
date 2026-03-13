@@ -21,6 +21,7 @@ class OrgCreateRequest(BaseModel):
     email: str | None = None
     phone: str | None = None
     vat_regime: str | None = None  # none/quarterly/monthly/annual
+    vat_exigibility: str | None = None  # encaissements/debits
     accounting_regime: str | None = None  # micro/simplified/real
     rcs_city: str | None = None
     capital: Decimal | None = None
@@ -98,6 +99,7 @@ class OrgDetailOut(BaseModel):
     email: str | None
     phone: str | None
     vat_regime: str | None
+    vat_exigibility: str | None = "encaissements"
     accounting_regime: str | None
     rcs_city: str | None
     capital: str | None
@@ -130,6 +132,7 @@ class OrgUpdateRequest(BaseModel):
     email: str | None = None
     phone: str | None = None
     vat_regime: str | None = None
+    vat_exigibility: str | None = None
     accounting_regime: str | None = None
     billing_siret: str | None = Field(None, min_length=14, max_length=14)
     logo_url: str | None = None

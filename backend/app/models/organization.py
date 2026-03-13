@@ -39,6 +39,9 @@ class Organization(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     vat_regime: Mapped[str | None] = mapped_column(
         String(20), nullable=True
     )  # none/quarterly/monthly/annual
+    vat_exigibility: Mapped[str] = mapped_column(
+        String(20), default="encaissements", nullable=False
+    )  # encaissements/debits — choix fiscal de l'entreprise
     accounting_regime: Mapped[str | None] = mapped_column(
         String(20), nullable=True
     )  # micro/simplified/real

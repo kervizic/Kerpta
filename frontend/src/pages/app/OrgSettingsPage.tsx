@@ -53,6 +53,7 @@ interface OrgDetail {
   email?: string | null
   phone?: string | null
   vat_regime?: string | null
+  vat_exigibility?: string | null
   accounting_regime?: string | null
   rcs_city?: string | null
   capital?: string | null
@@ -124,6 +125,7 @@ export default function OrgSettingsPage() {
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [vatRegime, setVatRegime] = useState('')
+  const [vatExigibility, setVatExigibility] = useState('encaissements')
   const [accountingRegime, setAccountingRegime] = useState('')
   const [billingSiret, setBillingSiret] = useState('')
 
@@ -162,6 +164,7 @@ export default function OrgSettingsPage() {
         setEmail(data.email ?? '')
         setPhone(data.phone ?? '')
         setVatRegime(data.vat_regime ?? '')
+        setVatExigibility(data.vat_exigibility ?? 'encaissements')
         setAccountingRegime(data.accounting_regime ?? '')
         setBillingSiret(data.billing_siret ?? '')
 
@@ -286,6 +289,7 @@ export default function OrgSettingsPage() {
       if (email !== (org.email ?? '')) payload.email = email || null
       if (phone !== (org.phone ?? '')) payload.phone = phone || null
       if (vatRegime !== (org.vat_regime ?? '')) payload.vat_regime = vatRegime || null
+      if (vatExigibility !== (org.vat_exigibility ?? 'encaissements')) payload.vat_exigibility = vatExigibility || 'encaissements'
       if (accountingRegime !== (org.accounting_regime ?? '')) payload.accounting_regime = accountingRegime || null
       if (billingSiret !== (org.billing_siret ?? '')) payload.billing_siret = billingSiret || null
 
@@ -571,7 +575,20 @@ export default function OrgSettingsPage() {
           </h2>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Régime TVA</label>
+              <label className="block text-xs text-gray-500 mb-1 flex items-center gap-1">
+                Régime de déclaration TVA
+                <span className="relative group">
+                  <Info className="w-3.5 h-3.5 text-gray-400 cursor-help" />
+                  <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 px-3 py-2 bg-gray-800 text-white text-[11px] leading-relaxed rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none">
+                    <strong className="block mb-1">Fréquence de déclaration de TVA :</strong>
+                    <span className="block">• <strong>Franchise en base</strong> : pas de TVA collectée ni déduite (micro-entrepreneurs, CA &lt; seuils).</span>
+                    <span className="block">• <strong>Trimestriel</strong> : déclaration CA3 tous les trimestres.</span>
+                    <span className="block">• <strong>Mensuel</strong> : déclaration CA3 chaque mois (TVA &gt; 4 000 €/an).</span>
+                    <span className="block">• <strong>Annuel</strong> : déclaration CA12 une fois par an (régime simplifié).</span>
+                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-gray-800" />
+                  </span>
+                </span>
+              </label>
               <select
                 value={vatRegime}
                 onChange={(e) => setVatRegime(e.target.value)}
@@ -585,7 +602,19 @@ export default function OrgSettingsPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Régime comptable</label>
+              <label className="block text-xs text-gray-500 mb-1 flex items-center gap-1">
+                Régime comptable
+                <span className="relative group">
+                  <Info className="w-3.5 h-3.5 text-gray-400 cursor-help" />
+                  <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 px-3 py-2 bg-gray-800 text-white text-[11px] leading-relaxed rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none">
+                    <strong className="block mb-1">Régime d'imposition :</strong>
+                    <span className="block">• <strong>Micro</strong> : comptabilité simplifiée, abattement forfaitaire sur le CA.</span>
+                    <span className="block">• <strong>Simplifié</strong> : bilan et compte de résultat simplifiés.</span>
+                    <span className="block">• <strong>Réel normal</strong> : comptabilité complète, obligatoire au-delà de certains seuils.</span>
+                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-gray-800" />
+                  </span>
+                </span>
+              </label>
               <select
                 value={accountingRegime}
                 onChange={(e) => setAccountingRegime(e.target.value)}
@@ -598,6 +627,40 @@ export default function OrgSettingsPage() {
               </select>
             </div>
           </div>
+
+          {/* Exigibilité TVA — visible uniquement si assujetti */}
+          {vatRegime && vatRegime !== 'none' && (
+            <div>
+              <label className="block text-xs text-gray-500 mb-1 flex items-center gap-1">
+                Exigibilité de la TVA
+                <span className="relative group">
+                  <Info className="w-3.5 h-3.5 text-gray-400 cursor-help" />
+                  <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 px-3 py-2 bg-gray-800 text-white text-[11px] leading-relaxed rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none">
+                    <strong className="block mb-1">Quand la TVA est-elle due ?</strong>
+                    <span className="block">• <strong>Sur les encaissements</strong> : la TVA est due au moment où vous recevez le paiement du client. C'est le régime par défaut pour les prestations de services.</span>
+                    <span className="block mt-1">• <strong>Sur les débits</strong> : la TVA est due dès l'émission de la facture, qu'elle soit payée ou non. C'est le régime par défaut pour les ventes de biens.</span>
+                    <span className="block mt-1 text-gray-300">Ce choix est un choix fiscal de l'entreprise qui apparaîtra sur vos factures.</span>
+                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-gray-800" />
+                  </span>
+                </span>
+              </label>
+              <select
+                value={vatExigibility}
+                onChange={(e) => setVatExigibility(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300 bg-white max-w-xs"
+              >
+                <option value="encaissements">Sur les encaissements</option>
+                <option value="debits">Sur les débits</option>
+              </select>
+            </div>
+          )}
+
+          {vatRegime === 'none' && (
+            <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-center gap-1.5">
+              <Info className="w-3.5 h-3.5 shrink-0" />
+              En franchise en base, la mention « TVA non applicable, art. 293 B du CGI » sera ajoutée automatiquement à vos documents.
+            </p>
+          )}
         </section>
 
         {/* Établissements + choix pour la facturation */}

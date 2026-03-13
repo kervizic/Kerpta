@@ -81,13 +81,13 @@ async def create_organization(
             INSERT INTO organizations (
                 id, name, siret, siren, vat_number, legal_form,
                 address, email, phone,
-                vat_regime, accounting_regime,
+                vat_regime, vat_exigibility, accounting_regime,
                 rcs_city, capital, ape_code,
                 created_at
             ) VALUES (
                 :id, :name, :siret, :siren, :vat_number, :legal_form,
                 CAST(:address AS jsonb), :email, :phone,
-                :vat_regime, :accounting_regime,
+                :vat_regime, :vat_exigibility, :accounting_regime,
                 :rcs_city, :capital, :ape_code,
                 now()
             )
@@ -103,6 +103,7 @@ async def create_organization(
             "email": data.email,
             "phone": data.phone,
             "vat_regime": data.vat_regime,
+            "vat_exigibility": data.vat_exigibility or "encaissements",
             "accounting_regime": data.accounting_regime,
             "rcs_city": data.rcs_city,
             "capital": capital,
@@ -250,6 +251,7 @@ async def get_organization(
                 o.email,
                 o.phone,
                 o.vat_regime,
+                o.vat_exigibility,
                 o.accounting_regime,
                 o.rcs_city,
                 o.capital::text   AS capital,
@@ -495,7 +497,7 @@ async def update_organization(
             )
 
     # Construire la requête UPDATE dynamiquement
-    allowed = {"email", "phone", "vat_regime", "accounting_regime", "billing_siret", "logo_url"}
+    allowed = {"email", "phone", "vat_regime", "vat_exigibility", "accounting_regime", "billing_siret", "logo_url"}
     updates = {k: v for k, v in data.items() if k in allowed}
     if not updates:
         raise HTTPException(422, "Aucun champ valide à mettre à jour")

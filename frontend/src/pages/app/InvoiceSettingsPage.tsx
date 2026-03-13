@@ -3,8 +3,10 @@
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
-import { Plus, Loader2, Pencil, Trash2, Star, X, Eye, EyeOff } from 'lucide-react'
+import { Plus, Loader2, Pencil, Trash2, Star, X, Eye, EyeOff, Info } from 'lucide-react'
 import { orgGet, orgPost, orgPatch, orgDelete } from '@/lib/orgApi'
+import { apiClient } from '@/lib/api'
+import { useAuthStore } from '@/stores/authStore'
 
 const INPUT = 'w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 transition'
 
@@ -31,7 +33,6 @@ interface BillingProfile {
   payment_method: string | null
   late_penalty_rate: number | null
   discount_rate: number | null
-  vat_regime: string
   recovery_fee: number
   early_payment_discount: boolean
   payment_note: string | null
@@ -236,11 +237,16 @@ function buildLegalMentions(opts: {
 // ── Section Profils de facturation ──────────────────────────────────────────
 
 function BillingProfilesSection() {
+  const { activeOrgId } = useAuthStore()
   const [items, setItems] = useState<BillingProfile[]>([])
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState<BillingProfile | 'new' | null>(null)
   const [saving, setSaving] = useState(false)
+
+  // Régime TVA de l'organisation (récupéré depuis l'API org)
+  const [orgVatRegime, setOrgVatRegime] = useState<string | null>(null)
+  const [orgVatExigibility, setOrgVatExigibility] = useState('encaissements')
 
   // form state
   const [name, setName] = useState('')
@@ -251,7 +257,6 @@ function BillingProfilesSection() {
   const [paymentMethod, setPaymentMethod] = useState('')
   const [latePenaltyRate, setLatePenaltyRate] = useState('')
   const [discountRate, setDiscountRate] = useState('')
-  const [vatRegime, setVatRegime] = useState('encaissements')
   const [recoveryFee, setRecoveryFee] = useState('40.00')
   const [earlyPaymentDiscount, setEarlyPaymentDiscount] = useState(false)
   const [paymentNote, setPaymentNote] = useState('')
@@ -261,10 +266,13 @@ function BillingProfilesSection() {
   const [isDefault, setIsDefault] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
 
+  // Dériver le régime TVA effectif pour les mentions légales
+  const effectiveVatRegime = orgVatRegime === 'none' ? 'franchise' : orgVatExigibility
+
   // Texte auto-généré (recalculé en temps réel)
   const autoText = useMemo(
-    () => buildLegalMentions({ vatRegime, latePenaltyRate, recoveryFee, earlyDiscount: earlyPaymentDiscount, discountRate }),
-    [vatRegime, latePenaltyRate, recoveryFee, earlyPaymentDiscount, discountRate],
+    () => buildLegalMentions({ vatRegime: effectiveVatRegime, latePenaltyRate, recoveryFee, earlyDiscount: earlyPaymentDiscount, discountRate }),
+    [effectiveVatRegime, latePenaltyRate, recoveryFee, earlyPaymentDiscount, discountRate],
   )
 
   const load = useCallback(async () => {
@@ -276,9 +284,18 @@ function BillingProfilesSection() {
       ])
       setItems(profiles)
       setBankAccounts(accounts)
+
+      // Charger les infos TVA de l'org
+      if (activeOrgId) {
+        try {
+          const { data: orgData } = await apiClient.get<{ vat_regime: string | null; vat_exigibility: string | null }>(`/organizations/${activeOrgId}`)
+          setOrgVatRegime(orgData.vat_regime ?? null)
+          setOrgVatExigibility(orgData.vat_exigibility ?? 'encaissements')
+        } catch { /* */ }
+      }
     } catch { /* */ }
     setLoading(false)
-  }, [])
+  }, [activeOrgId])
 
   useEffect(() => { void load() }, [load])
 
@@ -289,14 +306,14 @@ function BillingProfilesSection() {
     if (item === 'new') {
       setName(''); setBankAccountId(''); setPaymentTerms('30'); setPaymentTermType('net'); setPaymentTermDay('')
       setPaymentMethod(''); setLatePenaltyRate(''); setDiscountRate('')
-      setVatRegime('encaissements'); setRecoveryFee('40.00'); setEarlyPaymentDiscount(false)
+      setRecoveryFee('40.00'); setEarlyPaymentDiscount(false)
       setPaymentNote(''); setLegalMentionsAuto(true); setLegalMentions(''); setFooter(''); setIsDefault(false)
     } else {
       setName(item.name); setBankAccountId(item.bank_account_id || ''); setPaymentTerms(String(item.payment_terms))
       setPaymentTermType(item.payment_term_type || 'net'); setPaymentTermDay(item.payment_term_day ? String(item.payment_term_day) : '')
       setPaymentMethod(item.payment_method || ''); setLatePenaltyRate(item.late_penalty_rate ? String(item.late_penalty_rate) : '')
       setDiscountRate(item.discount_rate ? String(item.discount_rate) : '')
-      setVatRegime(item.vat_regime || 'encaissements'); setRecoveryFee(String(item.recovery_fee ?? 40))
+      setRecoveryFee(String(item.recovery_fee ?? 40))
       setEarlyPaymentDiscount(item.early_payment_discount ?? false)
       setPaymentNote(item.payment_note || ''); setLegalMentionsAuto(item.legal_mentions_auto ?? true)
       setLegalMentions(item.legal_mentions || ''); setFooter(item.footer || ''); setIsDefault(item.is_default)
@@ -328,7 +345,6 @@ function BillingProfilesSection() {
       payment_method: paymentMethod || null,
       late_penalty_rate: latePenaltyRate ? parseFloat(latePenaltyRate) : null,
       discount_rate: discountRate ? parseFloat(discountRate) : null,
-      vat_regime: vatRegime,
       recovery_fee: parseFloat(recoveryFee) || 40,
       early_payment_discount: earlyPaymentDiscount,
       payment_note: paymentNote || null,
@@ -463,19 +479,26 @@ function BillingProfilesSection() {
                 </button>
               </div>
 
+              {/* Régime TVA (lecture seule — configuré dans Ma structure) */}
+              <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg text-xs text-gray-600">
+                <Info className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                <span>
+                  Régime TVA : <strong>{
+                    orgVatRegime === 'none'
+                      ? 'Franchise en base (art. 293 B du CGI)'
+                      : orgVatExigibility === 'debits'
+                        ? 'TVA sur les débits'
+                        : 'TVA sur les encaissements'
+                  }</strong>
+                  <span className="text-gray-400"> — modifiable dans </span>
+                  <a href="/app/config/structure" className="text-orange-500 hover:underline">Ma structure</a>
+                </span>
+              </div>
+
               {legalMentionsAuto ? (
                 <>
                   {/* Champs structurés */}
                   <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs text-gray-500 mb-1 block">Régime TVA</label>
-                      <select value={vatRegime} onChange={(e) => setVatRegime(e.target.value)} className={`${INPUT} bg-white`}>
-                        <option value="encaissements">Sur les encaissements</option>
-                        <option value="debits">Sur les débits</option>
-                        <option value="non_assujetti">Non assujetti (art. 293 B)</option>
-                        <option value="franchise">Franchise en base (art. 293 B)</option>
-                      </select>
-                    </div>
                     <div>
                       <label className="text-xs text-gray-500 mb-1 block">Indemnité de recouvrement</label>
                       <div className="relative">
@@ -483,26 +506,28 @@ function BillingProfilesSection() {
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">€</span>
                       </div>
                     </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-xs text-gray-500 mb-1 block">Pénalités de retard (% annuel)</label>
                       <input type="number" step="0.01" value={latePenaltyRate} onChange={(e) => setLatePenaltyRate(e.target.value)} placeholder="Vide = 3x taux légal" className={INPUT} />
                     </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-xs text-gray-500 mb-1 block">Taux d'escompte (%)</label>
                       <input type="number" step="0.01" value={discountRate} onChange={(e) => setDiscountRate(e.target.value)} placeholder="Ex: 1.50" className={INPUT} disabled={!earlyPaymentDiscount} />
                     </div>
+                    <div className="flex items-end pb-2">
+                      <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={earlyPaymentDiscount}
+                          onChange={(e) => setEarlyPaymentDiscount(e.target.checked)}
+                          className="rounded border-gray-300 text-orange-500 focus:ring-orange-400"
+                        />
+                        Escompte pour paiement anticipé
+                      </label>
+                    </div>
                   </div>
-                  <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={earlyPaymentDiscount}
-                      onChange={(e) => setEarlyPaymentDiscount(e.target.checked)}
-                      className="rounded border-gray-300 text-orange-500 focus:ring-orange-400"
-                    />
-                    Escompte pour paiement anticipé
-                  </label>
 
                   {/* Aperçu auto */}
                   {showPreview && (
@@ -525,8 +550,6 @@ function BillingProfilesSection() {
                     className={INPUT}
                     placeholder="Saisissez vos mentions légales personnalisées..."
                   />
-                  {/* On garde les champs structurés cachés mais ils servent si on repasse en auto */}
-                  <input type="hidden" value={vatRegime} />
                 </>
               )}
             </fieldset>

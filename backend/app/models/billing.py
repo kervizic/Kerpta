@@ -49,7 +49,6 @@ class BillingProfile(Base, UUIDPrimaryKeyMixin):
     payment_method: Mapped[str | None] = mapped_column(String(30), nullable=True)
     late_penalty_rate: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)
     discount_rate: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)
-    vat_regime: Mapped[str] = mapped_column(String(20), default="encaissements", nullable=False)
     recovery_fee: Mapped[float] = mapped_column(Numeric(6, 2), default=40.00, nullable=False)
     early_payment_discount: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     payment_note: Mapped[str | None] = mapped_column(Text, nullable=True)
