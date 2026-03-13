@@ -46,11 +46,14 @@ async def list_products(
     *,
     search: str | None = None,
     client_id: str | None = None,
+    include_archived: bool = False,
     page: int = 1,
     page_size: int = 25,
 ) -> dict:
-    """Liste paginée des articles du catalogue (non archivés)."""
-    conditions = ["p.organization_id = :org_id", "p.archived_at IS NULL"]
+    """Liste paginée des articles du catalogue."""
+    conditions: list[str] = ["p.organization_id = :org_id"]
+    if not include_archived:
+        conditions.append("p.archived_at IS NULL")
     params: dict = {"org_id": str(org_id)}
 
     if client_id:
@@ -193,6 +196,23 @@ async def delete_product(
         raise HTTPException(404, "Article introuvable ou déjà archivé")
     await db.commit()
     return {"status": "archived"}
+
+
+async def unarchive_product(
+    org_id: uuid.UUID, product_id: str, db: AsyncSession
+) -> dict:
+    """Restaure un article archivé."""
+    result = await db.execute(
+        text("""
+            UPDATE products SET archived_at = NULL
+            WHERE id = :pid AND organization_id = :org_id AND archived_at IS NOT NULL
+        """),
+        {"pid": product_id, "org_id": str(org_id)},
+    )
+    if result.rowcount == 0:
+        raise HTTPException(404, "Article introuvable ou non archivé")
+    await db.commit()
+    return {"status": "unarchived"}
 
 
 # ── Variantes client ─────────────────────────────────────────────────────────

@@ -35,13 +35,15 @@ router = APIRouter(prefix="/api/v1/catalog", tags=["catalog"])
 async def list_products(
     search: str | None = None,
     client_id: str | None = None,
+    include_archived: bool = False,
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=100),
     ctx: OrgContext = Depends(get_org_context),
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.list_products(
-        ctx.org_id, db, search=search, client_id=client_id, page=page, page_size=page_size
+        ctx.org_id, db, search=search, client_id=client_id,
+        include_archived=include_archived, page=page, page_size=page_size,
     )
 
 
@@ -80,6 +82,15 @@ async def delete_product(
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.delete_product(ctx.org_id, product_id, db)
+
+
+@router.patch("/products/{product_id}/unarchive")
+async def unarchive_product(
+    product_id: str,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await svc.unarchive_product(ctx.org_id, product_id, db)
 
 
 # ── Variantes client ─────────────────────────────────────────────────────────

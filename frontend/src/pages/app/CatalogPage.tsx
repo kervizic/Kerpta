@@ -4,7 +4,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import {
-  Plus, Search, Loader2, ArrowLeft, Trash2, Archive, Pencil,
+  Plus, Search, Loader2, ArrowLeft, Trash2, Archive, ArchiveRestore, Pencil,
   Layers, ShoppingCart, Users, BarChart3, X,
 } from 'lucide-react'
 import { navigate } from '@/hooks/useRoute'
@@ -139,16 +139,19 @@ function ProductsList() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
+  const [showArchived, setShowArchived] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await orgGet<{ items: Product[]; total: number }>('/catalog/products', { search: search || undefined, page })
+      const params: Record<string, unknown> = { search: search || undefined, page }
+      if (showArchived) params.include_archived = true
+      const data = await orgGet<{ items: Product[]; total: number }>('/catalog/products', params)
       setProducts(data.items)
       setTotal(data.total)
     } catch { /* ignore */ }
     setLoading(false)
-  }, [page, search])
+  }, [page, search, showArchived])
 
   useEffect(() => { void load() }, [load])
 
@@ -162,14 +165,25 @@ function ProductsList() {
           </button>
         </div>
 
-        <div className="relative mb-4">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text" value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-            placeholder="Rechercher un article..."
-            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
-          />
+        <div className="flex gap-3 mb-4">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text" value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+              placeholder="Rechercher un article..."
+              className="w-full pl-10 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+            />
+          </div>
+          <button
+            onClick={() => { setShowArchived(!showArchived); setPage(1) }}
+            className={`flex items-center gap-1.5 px-3 py-2 text-sm border rounded-lg transition whitespace-nowrap ${
+              showArchived ? 'border-orange-300 bg-orange-50 text-orange-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+            }`}
+          >
+            <Archive className="w-3.5 h-3.5" />
+            {showArchived ? 'Masquer archivés' : 'Voir archivés'}
+          </button>
         </div>
 
         <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
@@ -195,7 +209,8 @@ function ProductsList() {
                     className="border-b border-gray-50 hover:bg-orange-50/50 cursor-pointer transition">
                     <td className="px-4 py-3 text-gray-500 font-mono text-xs">{p.reference || '\u2014'}</td>
                     <td className="px-4 py-3 font-medium text-gray-900">
-                      {p.name}
+                      <span className={p.archived_at ? 'text-gray-400' : ''}>{p.name}</span>
+                      {p.archived_at && <span className="ml-2 text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">Archivé</span>}
                       {p.is_composite && <span className="ml-2 text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">Compos&eacute;</span>}
                     </td>
                     <td className="px-4 py-3 text-gray-500">{p.unit || '\u2014'}</td>
@@ -415,6 +430,7 @@ function ProductDetailPage({ productId }: { productId: string }) {
   const [tab, setTab] = useState<'variants' | 'purchases' | 'components' | 'discounts'>('variants')
   const [archiving, setArchiving] = useState(false)
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false)
+  const [unarchiving, setUnarchiving] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -434,6 +450,15 @@ function ProductDetailPage({ productId }: { productId: string }) {
       navigate('/app/catalogue')
     } catch { /* ignore */ }
     setArchiving(false)
+  }
+
+  async function handleUnarchive() {
+    setUnarchiving(true)
+    try {
+      await orgPatch(`/catalog/products/${productId}/unarchive`, {})
+      void load()
+    } catch { /* ignore */ }
+    setUnarchiving(false)
   }
 
   if (loading || !product) {
@@ -461,6 +486,7 @@ function ProductDetailPage({ productId }: { productId: string }) {
             <h1 className="text-xl font-semibold text-gray-900">{product.name}</h1>
             <div className="flex items-center gap-2 mt-1">
               {product.reference && <span className="text-sm text-gray-500 font-mono">{product.reference}</span>}
+              {product.archived_at && <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">Archivé</span>}
               {product.is_in_catalog && <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">Catalogue</span>}
               {product.is_composite && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">Compos&eacute;</span>}
               {product.sale_price_mode === 'coefficient' && (
@@ -475,10 +501,17 @@ function ProductDetailPage({ productId }: { productId: string }) {
               className="flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 transition">
               <Pencil className="w-3.5 h-3.5" /> Modifier
             </button>
-            <button onClick={() => setShowArchiveConfirm(true)}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition">
-              <Archive className="w-3.5 h-3.5" /> Archiver
-            </button>
+            {product.archived_at ? (
+              <button onClick={handleUnarchive} disabled={unarchiving}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm border border-green-200 text-green-600 rounded-lg hover:bg-green-50 transition disabled:opacity-50">
+                {unarchiving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArchiveRestore className="w-3.5 h-3.5" />} Désarchiver
+              </button>
+            ) : (
+              <button onClick={() => setShowArchiveConfirm(true)}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition">
+                <Archive className="w-3.5 h-3.5" /> Archiver
+              </button>
+            )}
           </div>
         </div>
 
@@ -566,7 +599,7 @@ function VariantsTab({ productId }: { productId: string }) {
   useEffect(() => { void load() }, [load])
 
   useEffect(() => {
-    orgGet<{ items: ClientSimple[] }>('/clients', { page_size: 200 }).then(d => setClients(d.items)).catch(() => {})
+    orgGet<{ items: ClientSimple[] }>('/clients', { page_size: 100 }).then(d => setClients(d.items)).catch(() => {})
   }, [])
 
   async function handleDelete(variantId: string) {
@@ -1119,7 +1152,7 @@ function DiscountFormModal({ productId, onClose, onSaved }: {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    orgGet<{ items: ClientSimple[] }>('/clients', { page_size: 200 }).then(d => setClients(d.items)).catch(() => {})
+    orgGet<{ items: ClientSimple[] }>('/clients', { page_size: 100 }).then(d => setClients(d.items)).catch(() => {})
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {
