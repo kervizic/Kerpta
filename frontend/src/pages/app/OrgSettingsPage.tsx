@@ -173,6 +173,9 @@ export default function OrgSettingsPage() {
 
   // Info-bulle aide auto/manuel
   const [showLegalHint, setShowLegalHint] = useState(false)
+  const [showVatRegimeHint, setShowVatRegimeHint] = useState(false)
+  const [showAccountingHint, setShowAccountingHint] = useState(false)
+  const [showVatExigHint, setShowVatExigHint] = useState(false)
 
   // Chargement initial
   useEffect(() => {
@@ -639,8 +642,8 @@ export default function OrgSettingsPage() {
               title="Comment modifier les champs"
               className={`p-1 rounded-md transition ${
                 showLegalHint
-                  ? 'text-blue-600 bg-blue-50'
-                  : 'text-gray-300 hover:text-blue-500 hover:bg-blue-50'
+                  ? 'text-orange-500 bg-orange-50'
+                  : 'text-gray-300 hover:text-orange-500 hover:bg-orange-50'
               }`}
             >
               <Info className="w-4 h-4" />
@@ -648,8 +651,8 @@ export default function OrgSettingsPage() {
           </div>
 
           {showLegalHint && (
-            <div className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2.5 space-y-1.5">
-              <p className="font-medium text-blue-800">Mode auto / manuel par champ</p>
+            <div className="text-xs text-gray-600 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2.5 space-y-1.5">
+              <p className="font-medium text-gray-700">Mode auto / manuel par champ</p>
               <p>
                 Les champs synchronisés depuis le SIRENE sont en lecture seule par défaut.
                 Pour chaque champ, vous pouvez :
@@ -660,11 +663,11 @@ export default function OrgSettingsPage() {
                   <span>Passer en <strong>mode manuel</strong> pour saisir une valeur personnalisée</span>
                 </li>
                 <li className="flex items-center gap-1.5">
-                  <RefreshCw className="w-3 h-3 text-blue-500 shrink-0" />
+                  <RefreshCw className="w-3 h-3 text-orange-500 shrink-0" />
                   <span>Revenir en <strong>mode auto</strong> pour restaurer la valeur SIRENE</span>
                 </li>
               </ul>
-              <p className="text-blue-600 pt-0.5">
+              <p className="text-gray-500 pt-0.5">
                 Le capital social et la ville RCS sont toujours éditables (absents du SIRENE).
               </p>
             </div>
@@ -999,18 +1002,27 @@ export default function OrgSettingsPage() {
             <div>
               <label className="block text-xs text-gray-500 mb-1 flex items-center gap-1">
                 Régime de déclaration TVA
-                <span className="relative group">
-                  <Info className="w-3.5 h-3.5 text-gray-400 cursor-help" />
-                  <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 px-3 py-2 bg-gray-800 text-white text-[11px] leading-relaxed rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none">
-                    <strong className="block mb-1">Fréquence de déclaration de TVA :</strong>
-                    <span className="block">• <strong>Franchise en base</strong> : pas de TVA collectée ni déduite (micro-entrepreneurs, CA &lt; seuils).</span>
-                    <span className="block">• <strong>Trimestriel</strong> : déclaration CA3 tous les trimestres.</span>
-                    <span className="block">• <strong>Mensuel</strong> : déclaration CA3 chaque mois (TVA &gt; 4 000 €/an).</span>
-                    <span className="block">• <strong>Annuel</strong> : déclaration CA12 une fois par an (régime simplifié).</span>
-                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-gray-800" />
-                  </span>
-                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowVatRegimeHint((h) => !h)}
+                  className={`p-0.5 rounded transition ${
+                    showVatRegimeHint
+                      ? 'text-orange-500'
+                      : 'text-gray-400 hover:text-orange-500'
+                  }`}
+                >
+                  <Info className="w-3.5 h-3.5" />
+                </button>
               </label>
+              {showVatRegimeHint && (
+                <div className="text-xs text-gray-600 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 space-y-0.5 mb-1">
+                  <p className="font-medium text-gray-700">Fréquence de déclaration de TVA :</p>
+                  <p>• <strong>Franchise en base</strong> : pas de TVA collectée ni déduite (micro-entrepreneurs, CA &lt; seuils).</p>
+                  <p>• <strong>Trimestriel</strong> : déclaration CA3 tous les trimestres.</p>
+                  <p>• <strong>Mensuel</strong> : déclaration CA3 chaque mois (TVA &gt; 4 000 €/an).</p>
+                  <p>• <strong>Annuel</strong> : déclaration CA12 une fois par an (régime simplifié).</p>
+                </div>
+              )}
               <select
                 value={vatRegime}
                 onChange={(e) => setVatRegime(e.target.value)}
@@ -1026,17 +1038,26 @@ export default function OrgSettingsPage() {
             <div>
               <label className="block text-xs text-gray-500 mb-1 flex items-center gap-1">
                 Régime comptable
-                <span className="relative group">
-                  <Info className="w-3.5 h-3.5 text-gray-400 cursor-help" />
-                  <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 px-3 py-2 bg-gray-800 text-white text-[11px] leading-relaxed rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none">
-                    <strong className="block mb-1">Régime d'imposition :</strong>
-                    <span className="block">• <strong>Micro</strong> : comptabilité simplifiée, abattement forfaitaire sur le CA.</span>
-                    <span className="block">• <strong>Simplifié</strong> : bilan et compte de résultat simplifiés.</span>
-                    <span className="block">• <strong>Réel normal</strong> : comptabilité complète, obligatoire au-delà de certains seuils.</span>
-                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-gray-800" />
-                  </span>
-                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowAccountingHint((h) => !h)}
+                  className={`p-0.5 rounded transition ${
+                    showAccountingHint
+                      ? 'text-orange-500'
+                      : 'text-gray-400 hover:text-orange-500'
+                  }`}
+                >
+                  <Info className="w-3.5 h-3.5" />
+                </button>
               </label>
+              {showAccountingHint && (
+                <div className="text-xs text-gray-600 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 space-y-0.5 mb-1">
+                  <p className="font-medium text-gray-700">Régime d'imposition :</p>
+                  <p>• <strong>Micro</strong> : comptabilité simplifiée, abattement forfaitaire sur le CA.</p>
+                  <p>• <strong>Simplifié</strong> : bilan et compte de résultat simplifiés.</p>
+                  <p>• <strong>Réel normal</strong> : comptabilité complète, obligatoire au-delà de certains seuils.</p>
+                </div>
+              )}
               <select
                 value={accountingRegime}
                 onChange={(e) => setAccountingRegime(e.target.value)}
@@ -1055,17 +1076,26 @@ export default function OrgSettingsPage() {
             <div>
               <label className="block text-xs text-gray-500 mb-1 flex items-center gap-1">
                 Exigibilité de la TVA
-                <span className="relative group">
-                  <Info className="w-3.5 h-3.5 text-gray-400 cursor-help" />
-                  <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 px-3 py-2 bg-gray-800 text-white text-[11px] leading-relaxed rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none">
-                    <strong className="block mb-1">Quand la TVA est-elle due ?</strong>
-                    <span className="block">• <strong>Sur les encaissements</strong> : la TVA est due au moment où vous recevez le paiement du client. C'est le régime par défaut pour les prestations de services.</span>
-                    <span className="block mt-1">• <strong>Sur les débits</strong> : la TVA est due dès l'émission de la facture, qu'elle soit payée ou non. C'est le régime par défaut pour les ventes de biens.</span>
-                    <span className="block mt-1 text-gray-300">Ce choix est un choix fiscal de l'entreprise qui apparaîtra sur vos factures.</span>
-                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-gray-800" />
-                  </span>
-                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowVatExigHint((h) => !h)}
+                  className={`p-0.5 rounded transition ${
+                    showVatExigHint
+                      ? 'text-orange-500'
+                      : 'text-gray-400 hover:text-orange-500'
+                  }`}
+                >
+                  <Info className="w-3.5 h-3.5" />
+                </button>
               </label>
+              {showVatExigHint && (
+                <div className="text-xs text-gray-600 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 space-y-0.5 mb-1">
+                  <p className="font-medium text-gray-700">Quand la TVA est-elle due ?</p>
+                  <p>• <strong>Sur les encaissements</strong> : la TVA est due au moment où vous recevez le paiement du client. C'est le régime par défaut pour les prestations de services.</p>
+                  <p>• <strong>Sur les débits</strong> : la TVA est due dès l'émission de la facture, qu'elle soit payée ou non. C'est le régime par défaut pour les ventes de biens.</p>
+                  <p className="text-gray-500">Ce choix est un choix fiscal de l'entreprise qui apparaîtra sur vos factures.</p>
+                </div>
+              )}
               <select
                 value={vatExigibility}
                 onChange={(e) => setVatExigibility(e.target.value)}
