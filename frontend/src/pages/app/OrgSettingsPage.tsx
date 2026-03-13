@@ -213,7 +213,6 @@ export default function OrgSettingsPage() {
 
   // Associés
   const [shareholders, setShareholders] = useState<Shareholder[]>([])
-  const [shLoading, setShLoading] = useState(false)
   const [shAdding, setShAdding] = useState(false)
 
   // Info-bulle aide auto/manuel
