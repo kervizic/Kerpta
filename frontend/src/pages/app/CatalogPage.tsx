@@ -162,9 +162,21 @@ function ProductsList({ initialSelectedId }: { initialSelectedId?: string } = {}
       <div className="max-w-5xl mx-auto px-6 py-8">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-xl font-semibold text-gray-900">Catalogue</h1>
-          <button onClick={() => navigate('/app/catalogue/new')} className={`flex items-center gap-1.5 ${BTN_PRIMARY}`}>
-            <Plus className="w-4 h-4" /> Nouvel article
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => { setShowArchived(!showArchived); setPage(1) }}
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border transition ${
+                showArchived
+                  ? 'bg-orange-50 border-orange-200 text-orange-700'
+                  : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <Archive className="w-4 h-4" /> Archives
+            </button>
+            <button onClick={() => navigate('/app/catalogue/new')} className={`flex items-center gap-1.5 ${BTN_PRIMARY}`}>
+              <Plus className="w-4 h-4" /> Nouvel article
+            </button>
+          </div>
         </div>
 
         <div className="relative mb-4">
@@ -176,23 +188,6 @@ function ProductsList({ initialSelectedId }: { initialSelectedId?: string } = {}
             className="w-full pl-10 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
           />
         </div>
-
-        <label className="flex items-center gap-2 mb-4 cursor-pointer select-none">
-          <button
-            type="button"
-            role="switch"
-            aria-checked={showArchived}
-            onClick={() => { setShowArchived(!showArchived); setPage(1) }}
-            className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${
-              showArchived ? 'bg-orange-500' : 'bg-gray-200'
-            }`}
-          >
-            <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform transition ${
-              showArchived ? 'translate-x-4' : 'translate-x-0'
-            }`} />
-          </button>
-          <span className="text-sm text-gray-600">Afficher les archivés</span>
-        </label>
 
         <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
           {loading ? (
