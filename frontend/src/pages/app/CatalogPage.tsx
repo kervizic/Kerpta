@@ -4,10 +4,9 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import {
-  Plus, Search, Loader2, ArrowLeft, Trash2, Archive, ArchiveRestore, Pencil,
+  Plus, Search, Loader2, Trash2, Archive, ArchiveRestore, Pencil,
   Layers, ShoppingCart, Users, BarChart3, X,
 } from 'lucide-react'
-import { navigate } from '@/hooks/useRoute'
 import { orgGet, orgPost, orgPatch, orgDelete } from '@/lib/orgApi'
 import UnitCombobox from '@/components/app/UnitCombobox'
 import ModalOverlay from '@/components/app/ModalOverlay'
@@ -118,13 +117,6 @@ function fmtPrice(v: number | null | undefined): string {
 // ── Sub-routing ─────────────────────────────────────────────────────────────
 
 export default function CatalogPage({ path }: { path: string }) {
-  if (path === '/app/catalogue/new') {
-    return <ProductFormPage />
-  }
-  const match = path.match(/^\/app\/catalogue\/([^/]+)\/edit$/)
-  if (match) {
-    return <ProductFormPage productId={match[1]} />
-  }
   const detailMatch = path.match(/^\/app\/catalogue\/([^/]+)$/)
   if (detailMatch) {
     return <ProductsList initialSelectedId={detailMatch[1]} />
@@ -142,6 +134,7 @@ function ProductsList({ initialSelectedId }: { initialSelectedId?: string } = {}
   const [total, setTotal] = useState(0)
   const [showArchived, setShowArchived] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId ?? null)
+  const [showNewModal, setShowNewModal] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -173,7 +166,7 @@ function ProductsList({ initialSelectedId }: { initialSelectedId?: string } = {}
             >
               <Archive className="w-4 h-4" /> Archives
             </button>
-            <button onClick={() => navigate('/app/catalogue/new')} className={`flex items-center gap-1.5 ${BTN_PRIMARY}`}>
+            <button onClick={() => setShowNewModal(true)} className={`flex items-center gap-1.5 ${BTN_PRIMARY}`}>
               <Plus className="w-4 h-4" /> Nouvel article
             </button>
           </div>
@@ -250,58 +243,29 @@ function ProductsList({ initialSelectedId }: { initialSelectedId?: string } = {}
             onClose={() => { setSelectedId(null); void load() }}
           />
         )}
+
+        {/* Modale création article */}
+        {showNewModal && (
+          <NewProductModal
+            onClose={() => setShowNewModal(false)}
+            onCreated={(id) => { setShowNewModal(false); setSelectedId(id); void load() }}
+          />
+        )}
       </div>
     </div>
   )
 }
 
-// ── Formulaire cr&eacute;ation/&eacute;dition (pleine page) ──────────────────────────────
+// ── Formulaire création article (overlay) ──────────────────────────────────
 
-function ProductFormPage({ productId }: { productId?: string }) {
+function NewProductModal({ onClose, onCreated }: { onClose: () => void; onCreated: (id: string) => void }) {
   const [name, setName] = useState('')
   const [reference, setReference] = useState('')
   const [unit, setUnit] = useState('')
   const [unitPrice, setUnitPrice] = useState('')
-  const [purchasePrice, setPurchasePrice] = useState('')
   const [vatRate, setVatRate] = useState('20')
-  const [description, setDescription] = useState('')
-  const [accountCode, setAccountCode] = useState('')
-  const [salePriceMode, setSalePriceMode] = useState('fixed')
-  const [coefficientId, setCoefficientId] = useState('')
-  const [isInCatalog, setIsInCatalog] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [loadingData, setLoadingData] = useState(!!productId)
-  const [coefficients, setCoefficients] = useState<Coefficient[]>([])
-
-  useEffect(() => {
-    orgGet<Coefficient[]>('/catalog/coefficients').then(setCoefficients).catch(() => {})
-  }, [])
-
-  useEffect(() => {
-    if (!productId) return
-    orgGet<Product>(`/catalog/products/${productId}`)
-      .then((p) => {
-        setName(p.name)
-        setReference(p.reference || '')
-        setUnit(p.unit || '')
-        setUnitPrice(p.unit_price != null ? String(p.unit_price) : '')
-        setPurchasePrice(p.purchase_price != null ? String(p.purchase_price) : '')
-        setVatRate(String(p.vat_rate))
-        setDescription(p.description || '')
-        setAccountCode(p.account_code || '')
-        setSalePriceMode(p.sale_price_mode)
-        setCoefficientId(p.sale_price_coefficient_id || '')
-        setIsInCatalog(p.is_in_catalog)
-      })
-      .catch(() => setError('Erreur chargement'))
-      .finally(() => setLoadingData(false))
-  }, [productId])
-
-  const selectedCoef = coefficients.find(c => c.id === coefficientId)
-  const computedPrice = salePriceMode === 'coefficient' && purchasePrice && selectedCoef
-    ? (Number(purchasePrice) * Number(selectedCoef.value)).toFixed(2)
-    : null
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -312,27 +276,13 @@ function ProductFormPage({ productId }: { productId?: string }) {
         name,
         reference: reference || undefined,
         unit: unit || undefined,
+        unit_price: unitPrice ? Number(unitPrice) : undefined,
         vat_rate: Number(vatRate),
-        description: description || undefined,
-        account_code: accountCode || undefined,
-        sale_price_mode: salePriceMode,
-        is_in_catalog: isInCatalog,
-        purchase_price: purchasePrice ? Number(purchasePrice) : undefined,
+        sale_price_mode: 'fixed',
+        is_in_catalog: true,
       }
-      if (salePriceMode === 'fixed') {
-        body.unit_price = unitPrice ? Number(unitPrice) : undefined
-        body.sale_price_coefficient_id = null
-      } else {
-        body.sale_price_coefficient_id = coefficientId || undefined
-        body.unit_price = null
-      }
-      if (productId) {
-        await orgPatch(`/catalog/products/${productId}`, body)
-        navigate(`/app/catalogue/${productId}`)
-      } else {
-        const result = await orgPost<{ id: string }>('/catalog/products', body)
-        navigate(`/app/catalogue/${result.id}`)
-      }
+      const result = await orgPost<{ id: string }>('/catalog/products', body)
+      onCreated(result.id)
     } catch (err) {
       setError(httpError(err, 'Erreur'))
     }
@@ -340,96 +290,47 @@ function ProductFormPage({ productId }: { productId?: string }) {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="max-w-2xl mx-auto px-6 py-8">
-        <button onClick={() => navigate(productId ? `/app/catalogue/${productId}` : '/app/catalogue')}
-          className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4">
-          <ArrowLeft className="w-4 h-4" /> Retour
-        </button>
-
-        <h1 className="text-xl font-semibold text-gray-900 mb-6">
-          {productId ? 'Modifier l\u2019article' : 'Nouvel article'}
-        </h1>
-
-        {error && <div className="p-3 mb-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>}
-
-        {loadingData ? (
-          <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Infos principales */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
-              <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Informations</h2>
-              <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="D&eacute;signation *" required className={INPUT} />
-              <div className="grid grid-cols-2 gap-3">
-                <input type="text" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="R&eacute;f&eacute;rence" className={INPUT} />
-                <UnitCombobox value={unit} onChange={setUnit} className={INPUT} placeholder="Unité" />
-              </div>
-              <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description" rows={2} className={INPUT} />
-              <select value={vatRate} onChange={(e) => setVatRate(e.target.value)} className={SELECT}>
-                <option value="20">TVA 20%</option>
-                <option value="10">TVA 10%</option>
-                <option value="5.5">TVA 5,5%</option>
-                <option value="2.1">TVA 2,1%</option>
-                <option value="0">TVA 0%</option>
-              </select>
-              <label className="flex items-center gap-2 text-sm text-gray-700">
-                <input type="checkbox" checked={isInCatalog} onChange={(e) => setIsInCatalog(e.target.checked)}
-                  className="rounded border-gray-300 text-orange-600 focus:ring-orange-400" />
-                Visible dans le catalogue g&eacute;n&eacute;ral
-              </label>
-            </div>
-
-            {/* Prix */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
-              <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Prix de vente</h2>
-              <input type="number" step="0.01" value={purchasePrice} onChange={(e) => setPurchasePrice(e.target.value)}
-                placeholder="Prix d&apos;achat HT" className={INPUT} />
-
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2 text-sm text-gray-700">
-                  <input type="radio" name="priceMode" value="fixed" checked={salePriceMode === 'fixed'}
-                    onChange={() => setSalePriceMode('fixed')} className="text-orange-600 focus:ring-orange-400" />
-                  Prix fixe
-                </label>
-                <label className="flex items-center gap-2 text-sm text-gray-700">
-                  <input type="radio" name="priceMode" value="coefficient" checked={salePriceMode === 'coefficient'}
-                    onChange={() => setSalePriceMode('coefficient')} className="text-orange-600 focus:ring-orange-400" />
-                  Coefficient
-                </label>
-              </div>
-
-              {salePriceMode === 'fixed' ? (
-                <input type="number" step="0.01" value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)}
-                  placeholder="Prix unitaire HT" className={INPUT} />
-              ) : (
-                <div className="space-y-2">
-                  <select value={coefficientId} onChange={(e) => setCoefficientId(e.target.value)} className={SELECT}>
-                    <option value="">S&eacute;lectionner un coefficient</option>
-                    {coefficients.map(c => (
-                      <option key={c.id} value={c.id}>{c.name} (&times;{Number(c.value)}){c.client_name ? ` \u2014 ${c.client_name}` : ''}</option>
-                    ))}
-                  </select>
-                  {computedPrice && (
-                    <p className="text-sm text-gray-500">
-                      Prix calcul&eacute; : <span className="font-semibold text-gray-700">{fmtPrice(Number(computedPrice))}</span>
-                      <span className="text-xs text-gray-400 ml-1">({fmtPrice(Number(purchasePrice))} &times; {Number(selectedCoef?.value)})</span>
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => navigate(productId ? `/app/catalogue/${productId}` : '/app/catalogue')} className={BTN_SECONDARY}>Annuler</button>
-              <button type="submit" disabled={saving || !name} className={BTN_PRIMARY}>
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : productId ? 'Enregistrer' : 'Cr\u00e9er'}
-              </button>
-            </div>
-          </form>
-        )}
-      </div>
-    </div>
+    <ModalOverlay onClose={onClose} size="lg" title="Nouvel article">
+      {error && <div className="p-3 mb-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="text-xs text-gray-500 mb-1 block">Désignation *</label>
+          <input type="text" value={name} onChange={(e) => setName(e.target.value)} required className={INPUT} placeholder="Nom de l'article" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Référence</label>
+            <input type="text" value={reference} onChange={(e) => setReference(e.target.value)} className={INPUT} placeholder="Réf." />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Unité</label>
+            <UnitCombobox value={unit} onChange={setUnit} className={INPUT} placeholder="Unité" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Prix unitaire HT</label>
+            <input type="number" step="0.01" value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} className={INPUT} placeholder="0,00" />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">TVA</label>
+            <select value={vatRate} onChange={(e) => setVatRate(e.target.value)} className={SELECT}>
+              <option value="20">TVA 20%</option>
+              <option value="10">TVA 10%</option>
+              <option value="5.5">TVA 5,5%</option>
+              <option value="2.1">TVA 2,1%</option>
+              <option value="0">TVA 0%</option>
+            </select>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 pt-2">
+          <button type="button" onClick={onClose} className={BTN_SECONDARY}>Annuler</button>
+          <button type="submit" disabled={saving || !name} className={BTN_PRIMARY}>
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Créer'}
+          </button>
+        </div>
+      </form>
+    </ModalOverlay>
   )
 }
 
@@ -443,6 +344,15 @@ function ProductDetailModal({ productId, onClose }: { productId: string; onClose
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false)
   const [unarchiving, setUnarchiving] = useState(false)
 
+  // Édition inline
+  const [editingName, setEditingName] = useState(false)
+  const [editName, setEditName] = useState('')
+  const [editingRef, setEditingRef] = useState(false)
+  const [editRef, setEditRef] = useState('')
+  const [editingField, setEditingField] = useState<string | null>(null)
+  const [editFieldValue, setEditFieldValue] = useState('')
+  const [savingField, setSavingField] = useState(false)
+
   const load = useCallback(async () => {
     setLoading(true)
     try {
@@ -453,6 +363,18 @@ function ProductDetailModal({ productId, onClose }: { productId: string; onClose
   }, [productId, onClose])
 
   useEffect(() => { void load() }, [load])
+
+  async function saveField(field: string, value: unknown) {
+    setSavingField(true)
+    try {
+      await orgPatch(`/catalog/products/${productId}`, { [field]: value })
+      void load()
+    } catch { /* ignore */ }
+    setSavingField(false)
+    setEditingName(false)
+    setEditingRef(false)
+    setEditingField(null)
+  }
 
   async function handleArchive() {
     setArchiving(true)
@@ -483,15 +405,47 @@ function ProductDetailModal({ productId, onClose }: { productId: string; onClose
     <ModalOverlay onClose={onClose} size="full">
         {/* En-tête */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10 rounded-t-2xl">
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
             <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-center shrink-0">
               {loading ? <Loader2 className="w-5 h-5 animate-spin text-orange-500" /> : <Layers className="w-5 h-5 text-orange-600" />}
             </div>
             {product && (
-              <div className="min-w-0">
-                <h2 className="text-lg font-semibold text-gray-900 truncate">{product.name}</h2>
+              <div className="min-w-0 flex-1">
+                {editingName ? (
+                  <input
+                    autoFocus
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    onBlur={() => { if (editName.trim() && editName !== product.name) saveField('name', editName.trim()); else setEditingName(false) }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.currentTarget.blur() } else if (e.key === 'Escape') setEditingName(false) }}
+                    className="text-lg font-semibold text-gray-900 w-full px-2 py-0.5 border border-orange-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-orange-400"
+                  />
+                ) : (
+                  <div className="flex items-center gap-1.5 group">
+                    <h2 className="text-lg font-semibold text-gray-900 truncate">{product.name}</h2>
+                    <button onClick={() => { setEditName(product.name); setEditingName(true) }}
+                      className="p-1 rounded hover:bg-gray-100 transition opacity-0 group-hover:opacity-100">
+                      <Pencil className="w-3.5 h-3.5 text-gray-400" />
+                    </button>
+                  </div>
+                )}
                 <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                  {product.reference && <span className="text-xs text-gray-500 font-mono">{product.reference}</span>}
+                  {editingRef ? (
+                    <input
+                      autoFocus
+                      value={editRef}
+                      onChange={(e) => setEditRef(e.target.value)}
+                      onBlur={() => { saveField('reference', editRef.trim() || null); setEditingRef(false) }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); else if (e.key === 'Escape') setEditingRef(false) }}
+                      placeholder="Référence"
+                      className="text-xs text-gray-500 font-mono px-1.5 py-0.5 border border-orange-300 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 w-32"
+                    />
+                  ) : (
+                    <button onClick={() => { setEditRef(product.reference || ''); setEditingRef(true) }}
+                      className="text-xs text-gray-500 font-mono hover:text-orange-600 transition">
+                      {product.reference || '+ Réf.'}
+                    </button>
+                  )}
                   {product.archived_at && <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">Archivé</span>}
                   {product.is_composite && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">Composé</span>}
                   {product.sale_price_mode === 'coefficient' && (
@@ -506,10 +460,6 @@ function ProductDetailModal({ productId, onClose }: { productId: string; onClose
           <div className="flex items-center gap-2 shrink-0 ml-3">
             {product && (
               <>
-                <button onClick={() => navigate(`/app/catalogue/${productId}/edit`)}
-                  className="flex items-center gap-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 transition">
-                  <Pencil className="w-3 h-3" /> Modifier
-                </button>
                 {product.archived_at ? (
                   <button onClick={handleUnarchive} disabled={unarchiving}
                     className="flex items-center gap-1 px-2.5 py-1.5 text-xs border border-green-200 text-green-600 rounded-lg hover:bg-green-50 transition disabled:opacity-50">
@@ -523,6 +473,7 @@ function ProductDetailModal({ productId, onClose }: { productId: string; onClose
                 )}
               </>
             )}
+            {savingField && <Loader2 className="w-4 h-4 animate-spin text-orange-500" />}
             <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 transition">
               <X className="w-5 h-5 text-gray-400" />
             </button>
@@ -537,12 +488,61 @@ function ProductDetailModal({ productId, onClose }: { productId: string; onClose
           <div className="py-16 text-center text-gray-400 text-sm">Article introuvable</div>
         ) : (
           <div className="px-6 py-5">
-            {/* Infos résumées */}
+            {/* Infos résumées — éditables au clic */}
             <div className="grid grid-cols-4 gap-3 mb-5">
-              <InfoCard label="Prix HT" value={fmtPrice(product.unit_price)} />
-              <InfoCard label="Prix achat" value={fmtPrice(product.purchase_price)} />
-              <InfoCard label="TVA" value={`${Number(product.vat_rate)} %`} />
-              <InfoCard label="Unité" value={product.unit || '—'} />
+              <EditableInfoCard
+                label="Prix HT"
+                value={fmtPrice(product.unit_price)}
+                editingField={editingField}
+                fieldKey="unit_price"
+                editFieldValue={editFieldValue}
+                onStartEdit={() => { setEditingField('unit_price'); setEditFieldValue(product.unit_price != null ? String(product.unit_price) : '') }}
+                onChangeValue={setEditFieldValue}
+                onSave={() => saveField('unit_price', editFieldValue ? Number(editFieldValue) : null)}
+                onCancel={() => setEditingField(null)}
+                inputType="number"
+                inputStep="0.01"
+              />
+              <EditableInfoCard
+                label="Prix achat"
+                value={fmtPrice(product.purchase_price)}
+                editingField={editingField}
+                fieldKey="purchase_price"
+                editFieldValue={editFieldValue}
+                onStartEdit={() => { setEditingField('purchase_price'); setEditFieldValue(product.purchase_price != null ? String(product.purchase_price) : '') }}
+                onChangeValue={setEditFieldValue}
+                onSave={() => saveField('purchase_price', editFieldValue ? Number(editFieldValue) : null)}
+                onCancel={() => setEditingField(null)}
+                inputType="number"
+                inputStep="0.01"
+              />
+              <EditableInfoCard
+                label="TVA"
+                value={`${Number(product.vat_rate)} %`}
+                editingField={editingField}
+                fieldKey="vat_rate"
+                editFieldValue={editFieldValue}
+                onStartEdit={() => { setEditingField('vat_rate'); setEditFieldValue(String(product.vat_rate)) }}
+                onChangeValue={setEditFieldValue}
+                onSave={() => saveField('vat_rate', Number(editFieldValue))}
+                onCancel={() => setEditingField(null)}
+                selectOptions={[
+                  { value: '20', label: '20 %' }, { value: '10', label: '10 %' },
+                  { value: '5.5', label: '5,5 %' }, { value: '2.1', label: '2,1 %' },
+                  { value: '0', label: '0 %' },
+                ]}
+              />
+              <EditableInfoCard
+                label="Unité"
+                value={product.unit || '—'}
+                editingField={editingField}
+                fieldKey="unit"
+                editFieldValue={editFieldValue}
+                onStartEdit={() => { setEditingField('unit'); setEditFieldValue(product.unit || '') }}
+                onChangeValue={setEditFieldValue}
+                onSave={() => saveField('unit', editFieldValue || null)}
+                onCancel={() => setEditingField(null)}
+              />
             </div>
 
             {product.description && (
@@ -590,11 +590,49 @@ function ProductDetailModal({ productId, onClose }: { productId: string; onClose
   )
 }
 
-function InfoCard({ label, value }: { label: string; value: string }) {
+function EditableInfoCard({ label, value, editingField, fieldKey, editFieldValue, onStartEdit, onChangeValue, onSave, onCancel, inputType, inputStep, selectOptions }: {
+  label: string; value: string; editingField: string | null; fieldKey: string
+  editFieldValue: string; onStartEdit: () => void; onChangeValue: (v: string) => void
+  onSave: () => void; onCancel: () => void
+  inputType?: string; inputStep?: string
+  selectOptions?: { value: string; label: string }[]
+}) {
+  const isEditing = editingField === fieldKey
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-3">
-      <div className="text-xs text-gray-400 uppercase tracking-wide">{label}</div>
-      <div className="text-sm font-semibold text-gray-900 mt-1">{value}</div>
+    <div
+      className={`border rounded-xl p-3 transition cursor-pointer group ${isEditing ? 'border-orange-300 bg-orange-50/30' : 'border-gray-200 bg-white hover:border-orange-200'}`}
+      onClick={() => { if (!isEditing) onStartEdit() }}
+    >
+      <div className="text-xs text-gray-400 uppercase tracking-wide flex items-center justify-between">
+        {label}
+        {!isEditing && <Pencil className="w-2.5 h-2.5 text-gray-300 opacity-0 group-hover:opacity-100 transition" />}
+      </div>
+      {isEditing ? (
+        selectOptions ? (
+          <select
+            autoFocus
+            value={editFieldValue}
+            onChange={(e) => { onChangeValue(e.target.value); }}
+            onBlur={onSave}
+            className="w-full mt-1 text-sm font-semibold text-gray-900 px-1 py-0.5 border border-orange-300 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 bg-white"
+          >
+            {selectOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        ) : (
+          <input
+            autoFocus
+            type={inputType || 'text'}
+            step={inputStep}
+            value={editFieldValue}
+            onChange={(e) => onChangeValue(e.target.value)}
+            onBlur={onSave}
+            onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); else if (e.key === 'Escape') onCancel() }}
+            className="w-full mt-1 text-sm font-semibold text-gray-900 px-1 py-0.5 border border-orange-300 rounded focus:outline-none focus:ring-1 focus:ring-orange-400"
+          />
+        )
+      ) : (
+        <div className="text-sm font-semibold text-gray-900 mt-1">{value}</div>
+      )}
     </div>
   )
 }
