@@ -3,9 +3,10 @@
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, Loader2, Pencil, Trash2, Star, X } from 'lucide-react'
+import { Plus, Loader2, Pencil, Trash2, Star } from 'lucide-react'
 import { orgGet, orgPost, orgPatch, orgDelete } from '@/lib/orgApi'
 import BillingProfileModal, { type BillingProfileData } from '@/components/app/BillingProfileModal'
+import ModalOverlay from '@/components/app/ModalOverlay'
 
 const INPUT = 'w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 transition'
 
@@ -30,15 +31,9 @@ interface Unit {
 
 function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-      <div className={`bg-white rounded-2xl shadow-xl w-full mx-4 max-h-[85vh] overflow-y-auto ${wide ? 'max-w-2xl' : 'max-w-lg'}`}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <h3 className="text-base font-semibold text-gray-900">{title}</h3>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 transition"><X className="w-4 h-4 text-gray-400" /></button>
-        </div>
-        <div className="px-5 py-4">{children}</div>
-      </div>
-    </div>
+    <ModalOverlay onClose={onClose} size={wide ? 'xl' : 'lg'} title={title}>
+      {children}
+    </ModalOverlay>
   )
 }
 

@@ -10,6 +10,7 @@ import {
 import { navigate } from '@/hooks/useRoute'
 import { orgGet, orgPost, orgPatch, orgDelete } from '@/lib/orgApi'
 import UnitCombobox from '@/components/app/UnitCombobox'
+import ModalOverlay from '@/components/app/ModalOverlay'
 import axios from 'axios'
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -484,11 +485,7 @@ function ProductDetailModal({ productId, onClose }: { productId: string; onClose
   ]
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
-      <div
-        className="bg-white rounded-2xl shadow-xl w-full mx-6 max-w-5xl max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <ModalOverlay onClose={onClose} size="full">
         {/* En-tête */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10 rounded-t-2xl">
           <div className="flex items-center gap-3 min-w-0">
@@ -583,9 +580,7 @@ function ProductDetailModal({ productId, onClose }: { productId: string; onClose
 
         {/* Confirm archivage */}
         {showArchiveConfirm && (
-          <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-[60]" onClick={() => setShowArchiveConfirm(false)}>
-            <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl" onClick={e => e.stopPropagation()}>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Archiver cet article ?</h3>
+          <ModalOverlay onClose={() => setShowArchiveConfirm(false)} size="sm" title="Archiver cet article ?" nested>
               <p className="text-sm text-gray-500 mb-4">L&apos;article ne sera plus visible dans le catalogue mais restera dans l&apos;historique.</p>
               <div className="flex justify-end gap-2">
                 <button onClick={() => setShowArchiveConfirm(false)} className={BTN_SECONDARY}>Annuler</button>
@@ -594,11 +589,9 @@ function ProductDetailModal({ productId, onClose }: { productId: string; onClose
                   {archiving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Archiver'}
                 </button>
               </div>
-            </div>
-          </div>
+          </ModalOverlay>
         )}
-      </div>
-    </div>
+    </ModalOverlay>
   )
 }
 
@@ -731,26 +724,21 @@ function VariantFormModal({ productId, clients, onClose, onSaved }: {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Nouvelle variante client</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
-        </div>
+    <ModalOverlay onClose={onClose} size="md" title="Nouvelle variante client">
         {error && <div className="p-3 mb-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>}
         <form onSubmit={handleSubmit} className="space-y-3">
           <select value={clientId} onChange={e => setClientId(e.target.value)} required className={`${INPUT} bg-white`}>
             <option value="">Client *</option>
             {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
-          <input type="text" value={overrideRef} onChange={e => setOverrideRef(e.target.value)} placeholder="R&eacute;f&eacute;rence client" className={INPUT} />
-          <input type="text" value={overrideName} onChange={e => setOverrideName(e.target.value)} placeholder="D&eacute;signation client" className={INPUT} />
+          <input type="text" value={overrideRef} onChange={e => setOverrideRef(e.target.value)} placeholder="Référence client" className={INPUT} />
+          <input type="text" value={overrideName} onChange={e => setOverrideName(e.target.value)} placeholder="Désignation client" className={INPUT} />
           <div className="flex gap-4">
             {['inherit', 'fixed', 'coefficient'].map(m => (
               <label key={m} className="flex items-center gap-1.5 text-sm text-gray-700">
                 <input type="radio" name="variantPriceMode" value={m} checked={priceMode === m}
                   onChange={() => setPriceMode(m)} className="text-orange-600 focus:ring-orange-400" />
-                {m === 'inherit' ? 'H\u00e9riter' : m === 'fixed' ? 'Fixe' : 'Coefficient'}
+                {m === 'inherit' ? 'Hériter' : m === 'fixed' ? 'Fixe' : 'Coefficient'}
               </label>
             ))}
           </div>
@@ -761,16 +749,15 @@ function VariantFormModal({ productId, clients, onClose, onSaved }: {
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className={BTN_SECONDARY}>Annuler</button>
             <button type="submit" disabled={saving || !clientId} className={BTN_PRIMARY}>
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Cr\u00e9er'}
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Créer'}
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </ModalOverlay>
   )
 }
 
-// ── Onglet Achats li&eacute;s ──────────────────────────────────────────────────────
+// ── Onglet Achats liés ──────────────────────────────────────────────────────
 
 function PurchaseLinksTab({ productId }: { productId: string }) {
   const [links, setLinks] = useState<PurchaseLink[]>([])
@@ -897,16 +884,11 @@ function PurchaseLinkFormModal({ productId, onClose, onSaved }: {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Lier un achat</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
-        </div>
+    <ModalOverlay onClose={onClose} size="md" title="Lier un achat">
         {error && <div className="p-3 mb-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>}
         <form onSubmit={handleSubmit} className="space-y-3">
-          <input type="text" value={supplierRef} onChange={e => setSupplierRef(e.target.value)} placeholder="R&eacute;f&eacute;rence fournisseur" className={INPUT} />
-          <input type="number" step="0.01" value={purchasePrice} onChange={e => setPurchasePrice(e.target.value)} placeholder="Prix d&apos;achat HT" className={INPUT} />
+          <input type="text" value={supplierRef} onChange={e => setSupplierRef(e.target.value)} placeholder="Référence fournisseur" className={INPUT} />
+          <input type="number" step="0.01" value={purchasePrice} onChange={e => setPurchasePrice(e.target.value)} placeholder="Prix d'achat HT" className={INPUT} />
           <div className="flex gap-4">
             <label className="flex items-center gap-1.5 text-sm text-gray-700">
               <input type="radio" name="linkPriceMode" value="coefficient" checked={salePriceMode === 'coefficient'}
@@ -922,7 +904,7 @@ function PurchaseLinkFormModal({ productId, onClose, onSaved }: {
           {salePriceMode === 'coefficient' ? (
             <select value={coefficientId} onChange={e => setCoefficientId(e.target.value)} className={`${INPUT} bg-white`}>
               <option value="">Coefficient</option>
-              {coefficients.map(c => <option key={c.id} value={c.id}>{c.name} (&times;{Number(c.value)})</option>)}
+              {coefficients.map(c => <option key={c.id} value={c.id}>{c.name} (×{Number(c.value)})</option>)}
             </select>
           ) : (
             <input type="number" step="0.01" value={fixedSalePrice} onChange={e => setFixedSalePrice(e.target.value)}
@@ -931,17 +913,16 @@ function PurchaseLinkFormModal({ productId, onClose, onSaved }: {
           <label className="flex items-center gap-2 text-sm text-gray-700">
             <input type="checkbox" checked={isDefault} onChange={e => setIsDefault(e.target.checked)}
               className="rounded border-gray-300 text-orange-600 focus:ring-orange-400" />
-            Achat par d&eacute;faut
+            Achat par défaut
           </label>
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className={BTN_SECONDARY}>Annuler</button>
             <button type="submit" disabled={saving} className={BTN_PRIMARY}>
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Cr\u00e9er'}
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Créer'}
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </ModalOverlay>
   )
 }
 
@@ -1069,12 +1050,7 @@ function ComponentFormModal({ productId, products, onClose, onSaved }: {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Ajouter un composant</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
-        </div>
+    <ModalOverlay onClose={onClose} size="md" title="Ajouter un composant">
         {error && <div className="p-3 mb-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>}
         <form onSubmit={handleSubmit} className="space-y-3">
           <select value={componentProductId} onChange={e => setComponentProductId(e.target.value)} required className={`${INPUT} bg-white`}>
@@ -1083,7 +1059,7 @@ function ComponentFormModal({ productId, products, onClose, onSaved }: {
           </select>
           <div className="grid grid-cols-2 gap-3">
             <input type="number" step="0.01" min="0.01" value={quantity} onChange={e => setQuantity(e.target.value)}
-              placeholder="Quantit&eacute; *" required className={INPUT} />
+              placeholder="Quantité *" required className={INPUT} />
             <UnitCombobox value={unit} onChange={setUnit} className={INPUT} placeholder="Unité" />
           </div>
           <div className="flex justify-end gap-2 pt-2">
@@ -1093,8 +1069,7 @@ function ComponentFormModal({ productId, products, onClose, onSaved }: {
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </ModalOverlay>
   )
 }
 
@@ -1203,16 +1178,11 @@ function DiscountFormModal({ productId, onClose, onSaved }: {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Ajouter un palier</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
-        </div>
+    <ModalOverlay onClose={onClose} size="md" title="Ajouter un palier">
         {error && <div className="p-3 mb-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>}
         <form onSubmit={handleSubmit} className="space-y-3">
           <input type="number" step="0.01" min="0.01" value={minQuantity} onChange={e => setMinQuantity(e.target.value)}
-            placeholder="Quantit&eacute; minimum *" required className={INPUT} />
+            placeholder="Quantité minimum *" required className={INPUT} />
           <input type="number" step="0.01" min="0.01" max="100" value={discountPercent} onChange={e => setDiscountPercent(e.target.value)}
             placeholder="Remise en % *" required className={INPUT} />
           <select value={clientId} onChange={e => setClientId(e.target.value)} className={`${INPUT} bg-white`}>
@@ -1222,11 +1192,10 @@ function DiscountFormModal({ productId, onClose, onSaved }: {
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className={BTN_SECONDARY}>Annuler</button>
             <button type="submit" disabled={saving || !minQuantity || !discountPercent} className={BTN_PRIMARY}>
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Cr\u00e9er'}
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Créer'}
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </ModalOverlay>
   )
 }

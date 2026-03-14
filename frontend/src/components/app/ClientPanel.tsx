@@ -8,6 +8,7 @@ import {
   Plus, Trash2, Check, AlertTriangle,
 } from 'lucide-react'
 import { orgGet, orgPost, orgPatch, orgDelete } from '@/lib/orgApi'
+import ModalOverlay from '@/components/app/ModalOverlay'
 import { apiClient } from '@/lib/api'
 import CompanyInfoCard from '@/components/app/CompanyInfoCard'
 
@@ -216,11 +217,7 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
   // ── Rendu ─────────────────────────────────────────────────────────────
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
-      <div
-        className="bg-white rounded-2xl shadow-xl w-full mx-4 max-w-2xl max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <ModalOverlay onClose={onClose} size="xl">
         {/* ── En-tête ──────────────────────────────────────────────── */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10 rounded-t-2xl">
           <div className="flex items-center gap-3">
@@ -500,8 +497,7 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
             )}
           </div>
         )}
-      </div>
-    </div>
+    </ModalOverlay>
   )
 }
 

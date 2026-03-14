@@ -15,6 +15,7 @@ import ClientCombobox from '@/components/app/ClientCombobox'
 import BillingProfileModal, { type BillingProfileData } from '@/components/app/BillingProfileModal'
 import ClientPanel from '@/components/app/ClientPanel'
 import DatePicker from '@/components/app/DatePicker'
+import ModalOverlay from '@/components/app/ModalOverlay'
 import axios from 'axios'
 
 const INPUT = 'w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 transition'
@@ -287,11 +288,7 @@ function InvoiceDetailModal({ invoiceId, onClose }: { invoiceId: string; onClose
   const st = invoice ? (STATUS_LABELS[invoice.status] || { label: invoice.status, cls: 'bg-gray-100 text-gray-600' }) : null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
-      <div
-        className="bg-white rounded-2xl shadow-xl w-full mx-6 max-w-5xl max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <ModalOverlay onClose={onClose} size="full">
         {loading ? (
           <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
         ) : !invoice ? (
@@ -434,8 +431,7 @@ function InvoiceDetailModal({ invoiceId, onClose }: { invoiceId: string; onClose
         </div>
           </>
         )}
-      </div>
-    </div>
+    </ModalOverlay>
   )
 }
 
@@ -843,22 +839,12 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
 
         {/* Lignes */}
         <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Lignes</h2>
-              {lines.some((l) => !l.product_id && l.description.trim()) && (
-                <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">
-                  {lines.filter((l) => !l.product_id && l.description.trim()).length} nouvel article{lines.filter((l) => !l.product_id && l.description.trim()).length > 1 ? 's' : ''} sera créé{lines.filter((l) => !l.product_id && l.description.trim()).length > 1 ? 's' : ''}
-                </span>
-              )}
-            </div>
-            {!isValidated && (
-              <button
-                onClick={() => setLines((prev) => [...prev, emptyLine()])}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-400 text-white text-xs font-semibold rounded-lg transition"
-              >
-                <Plus className="w-3.5 h-3.5" /> Ajouter une ligne
-              </button>
+          <div className="flex items-center gap-3 mb-4">
+            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Lignes</h2>
+            {lines.some((l) => !l.product_id && l.description.trim()) && (
+              <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">
+                {lines.filter((l) => !l.product_id && l.description.trim()).length} nouvel article{lines.filter((l) => !l.product_id && l.description.trim()).length > 1 ? 's' : ''} sera créé{lines.filter((l) => !l.product_id && l.description.trim()).length > 1 ? 's' : ''}
+              </span>
             )}
           </div>
 
@@ -945,6 +931,15 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
             </table>
           </div>
 
+          {!isValidated && (
+            <button
+              onClick={() => setLines((prev) => [...prev, emptyLine()])}
+              className="mt-2 flex items-center gap-1.5 text-xs text-orange-600 hover:text-orange-700 font-medium transition px-2 py-1"
+            >
+              <Plus className="w-3.5 h-3.5" /> Ajouter un élément
+            </button>
+          )}
+
           {/* Alerte TVA 0% */}
           {lines.some((l) => parseFloat(l.vat_rate) === 0 && l.description.trim()) && (
             <div className="mt-3 flex items-start gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
@@ -1013,7 +1008,7 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
               </div>
               <div className="border-t border-gray-200 pt-2 flex justify-between text-base">
                 <span className="font-semibold text-gray-900">Total TTC</span>
-                <span className="font-bold text-orange-600">{fmtCurrency(totals.totalTTC)}</span>
+                <span className="font-bold text-gray-900">{fmtCurrency(totals.totalTTC)}</span>
               </div>
             </div>
           </div>

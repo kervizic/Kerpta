@@ -3,8 +3,9 @@
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
 import { useEffect, useState, useMemo } from 'react'
-import { Loader2, X, Eye, EyeOff, Info } from 'lucide-react'
+import { Loader2, Eye, EyeOff, Info } from 'lucide-react'
 import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
+import ModalOverlay from '@/components/app/ModalOverlay'
 import { apiClient } from '@/lib/api'
 import { useAuthStore } from '@/stores/authStore'
 
@@ -212,13 +213,8 @@ export default function BillingProfileModal({ profile, onClose, onSaved }: Props
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-      <div className="bg-white rounded-2xl shadow-xl w-full mx-4 max-w-2xl max-h-[85vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <h3 className="text-base font-semibold text-gray-900">{isNew ? 'Nouveau profil' : 'Modifier le profil'}</h3>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 transition"><X className="w-4 h-4 text-gray-400" /></button>
-        </div>
-        <div className="px-5 py-4">
+    <ModalOverlay onClose={onClose} size="xl" title={isNew ? 'Nouveau profil' : 'Modifier le profil'}>
+        <div>
           {loadingRef ? (
             <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-orange-500" /></div>
           ) : (
@@ -383,7 +379,6 @@ export default function BillingProfileModal({ profile, onClose, onSaved }: Props
             </form>
           )}
         </div>
-      </div>
-    </div>
+    </ModalOverlay>
   )
 }

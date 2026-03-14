@@ -632,21 +632,13 @@ function QuoteFormPage({ quoteId }: { quoteId?: string }) {
 
         {/* Lignes */}
         <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Lignes</h2>
-              {lines.some((l) => !l.product_id && l.description.trim()) && (
-                <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">
-                  {lines.filter((l) => !l.product_id && l.description.trim()).length} nouvel article{lines.filter((l) => !l.product_id && l.description.trim()).length > 1 ? 's' : ''} sera créé{lines.filter((l) => !l.product_id && l.description.trim()).length > 1 ? 's' : ''}
-                </span>
-              )}
-            </div>
-            <button
-              onClick={() => setLines((prev) => [...prev, emptyLine()])}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-400 text-white text-xs font-semibold rounded-lg transition"
-            >
-              <Plus className="w-3.5 h-3.5" /> Ajouter une ligne
-            </button>
+          <div className="flex items-center gap-3 mb-4">
+            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Lignes</h2>
+            {lines.some((l) => !l.product_id && l.description.trim()) && (
+              <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">
+                {lines.filter((l) => !l.product_id && l.description.trim()).length} nouvel article{lines.filter((l) => !l.product_id && l.description.trim()).length > 1 ? 's' : ''} sera créé{lines.filter((l) => !l.product_id && l.description.trim()).length > 1 ? 's' : ''}
+              </span>
+            )}
           </div>
 
           <div>
@@ -729,6 +721,13 @@ function QuoteFormPage({ quoteId }: { quoteId?: string }) {
             </table>
           </div>
 
+          <button
+            onClick={() => setLines((prev) => [...prev, emptyLine()])}
+            className="mt-2 flex items-center gap-1.5 text-xs text-orange-600 hover:text-orange-700 font-medium transition px-2 py-1"
+          >
+            <Plus className="w-3.5 h-3.5" /> Ajouter un élément
+          </button>
+
           {/* Alerte TVA 0% */}
           {lines.some((l) => parseFloat(l.vat_rate) === 0 && l.description.trim()) && (
             <div className="mt-3 flex items-start gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
@@ -795,7 +794,7 @@ function QuoteFormPage({ quoteId }: { quoteId?: string }) {
               </div>
               <div className="border-t border-gray-200 pt-3 flex justify-between">
                 <span className="text-base font-semibold text-gray-900">Total TTC</span>
-                <span className="text-xl font-bold text-orange-600">{fmtCurrency(totals.totalTTC)}</span>
+                <span className="text-xl font-bold text-gray-900">{fmtCurrency(totals.totalTTC)}</span>
               </div>
             </div>
           </div>

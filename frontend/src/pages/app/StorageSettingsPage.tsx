@@ -5,6 +5,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { HardDrive, Cloud, Server, CheckCircle2, XCircle, Loader2, Trash2, ExternalLink } from 'lucide-react'
 import { orgGet, orgPost, orgDelete } from '@/lib/orgApi'
+import ModalOverlay from '@/components/app/ModalOverlay'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -209,18 +210,8 @@ function FtpModal({
     'block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition'
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">Connexion FTP / SFTP</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">
-            ×
-          </button>
-        </div>
-
-        {/* Body */}
-        <form onSubmit={handleSubmit} className="px-6 py-4 space-y-3">
+    <ModalOverlay onClose={onClose} size="md" title="Connexion FTP / SFTP">
+        <form onSubmit={handleSubmit} className="space-y-3">
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
               <label className="block text-xs font-medium text-gray-700 mb-1">Hôte</label>
@@ -305,8 +296,7 @@ function FtpModal({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </ModalOverlay>
   )
 }
 
