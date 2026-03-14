@@ -109,6 +109,7 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
   const [loading, setLoading] = useState(true)
   const [loadingEtabs, setLoadingEtabs] = useState(false)
   const [showEtabSelector, setShowEtabSelector] = useState(false)
+  const [freeAddressMode, setFreeAddressMode] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
@@ -199,7 +200,15 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
       pays: 'France',
     } : null
     saveField({ siret: etab.siret, billing_address: addr })
+    setFreeAddressMode(false)
     setShowEtabSelector(false)
+  }
+
+  function handleFreeAddress() {
+    setFreeAddressMode(true)
+    setShowEtabSelector(false)
+    // Efface le SIRET pour indiquer qu'on n'utilise pas un établissement INSEE
+    saveField({ siret: null })
   }
 
   // ── Rendu ─────────────────────────────────────────────────────────────
@@ -313,7 +322,14 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
                   </>
                 )}
                 {client.type === 'company' && (
-                  <AutoSaveField label="TVA intracommunautaire" value={client.vat_number || ''} onSave={(v) => saveField({ vat_number: v || null })} />
+                  client.company_siren && client.vat_number ? (
+                    <div>
+                      <label className={LABEL}>TVA intracommunautaire</label>
+                      <p className="px-2.5 py-1.5 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg font-mono">{client.vat_number}</p>
+                    </div>
+                  ) : (
+                    <AutoSaveField label="TVA intracommunautaire" value={client.vat_number || ''} onSave={(v) => saveField({ vat_number: v || null })} />
+                  )
                 )}
               </div>
             </section>
@@ -323,25 +339,44 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
               <section>
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Établissement à facturer</h3>
-                  {etabs.length > 0 && (
-                    <button
-                      onClick={() => setShowEtabSelector(!showEtabSelector)}
-                      className="flex items-center gap-1 text-xs text-orange-500 hover:text-orange-600 transition"
-                      title="Changer d'établissement"
-                    >
-                      <Pencil className="w-3 h-3" /> Modifier
-                    </button>
-                  )}
+                  <button
+                    onClick={() => setShowEtabSelector(!showEtabSelector)}
+                    className="flex items-center gap-1 text-xs text-orange-500 hover:text-orange-600 transition"
+                    title="Changer d'établissement"
+                  >
+                    <Pencil className="w-3 h-3" /> Modifier
+                  </button>
                 </div>
 
-                {/* Adresse actuelle (lecture seule) */}
-                {client.siret ? (
-                  <div className="p-3 bg-gray-50 rounded-xl text-sm space-y-1">
+                {/* Adresse actuelle */}
+                {freeAddressMode ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-semibold rounded uppercase">Saisie libre</span>
+                    </div>
+                    <AutoSaveField label="" value={client.billing_address?.voie || ''} placeholder="Adresse" onSave={(v) => saveField({ billing_address: { ...client.billing_address, voie: v || null } })} />
+                    <AutoSaveField label="" value={client.billing_address?.complement || ''} placeholder="Complément" onSave={(v) => saveField({ billing_address: { ...client.billing_address, complement: v || null } })} />
+                    <div className="grid grid-cols-2 gap-2">
+                      <AutoSaveField label="" value={client.billing_address?.code_postal || ''} placeholder="Code postal" onSave={(v) => saveField({ billing_address: { ...client.billing_address, code_postal: v || null } })} />
+                      <AutoSaveField label="" value={client.billing_address?.commune || ''} placeholder="Ville" onSave={(v) => saveField({ billing_address: { ...client.billing_address, commune: v || null } })} />
+                    </div>
+                    <AutoSaveField label="" value={client.billing_address?.pays || 'France'} placeholder="Pays" onSave={(v) => saveField({ billing_address: { ...client.billing_address, pays: v || null } })} />
+                  </div>
+                ) : client.siret ? (
+                  <button
+                    onClick={() => setShowEtabSelector(!showEtabSelector)}
+                    className="w-full text-left p-3 bg-gray-50 rounded-xl text-sm space-y-1 hover:bg-gray-100 transition cursor-pointer"
+                  >
                     <p className="font-mono font-medium text-gray-900">{formatSiret(client.siret)}</p>
                     <p className="text-gray-600">{formatAddress(client.billing_address)}</p>
-                  </div>
+                  </button>
                 ) : (
-                  <p className="text-sm text-gray-400">Aucun établissement sélectionné</p>
+                  <button
+                    onClick={() => setShowEtabSelector(!showEtabSelector)}
+                    className="w-full text-left text-sm text-gray-400 hover:text-gray-500 transition cursor-pointer"
+                  >
+                    Aucun établissement sélectionné — cliquez pour choisir
+                  </button>
                 )}
 
                 {/* Chargement des établissements */}
@@ -352,11 +387,11 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
                 )}
 
                 {/* Sélecteur d'établissements */}
-                {showEtabSelector && etabs.length > 0 && (
+                {showEtabSelector && (
                   <div className="mt-3 space-y-2">
                     <p className="text-xs text-gray-400">Sélectionnez un établissement :</p>
                     {etabs.map((etab) => {
-                      const isSelected = client.siret === etab.siret
+                      const isSelected = !freeAddressMode && client.siret === etab.siret
                       const isClosed = etab.etat !== 'A'
                       return (
                         <button
@@ -382,6 +417,23 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
                         </button>
                       )
                     })}
+
+                    {/* Option Saisie libre */}
+                    <button
+                      onClick={handleFreeAddress}
+                      className={`w-full text-left p-3 rounded-xl border transition ${
+                        freeAddressMode
+                          ? 'border-amber-400 bg-amber-50 ring-2 ring-amber-200'
+                          : 'border-dashed border-gray-300 bg-white hover:border-gray-400'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Pencil className="w-4 h-4 text-gray-400 shrink-0" />
+                        <span className="text-sm font-medium text-gray-700">Saisie libre</span>
+                        {freeAddressMode && <Check className="w-4 h-4 text-amber-600 ml-auto shrink-0" />}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1 ml-6">Saisir manuellement l'adresse de facturation</p>
+                    </button>
                   </div>
                 )}
               </section>

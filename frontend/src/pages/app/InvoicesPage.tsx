@@ -12,6 +12,7 @@ import UnitCombobox from '@/components/app/UnitCombobox'
 import ProductAutocomplete, { type AutocompleteProduct } from '@/components/app/ProductAutocomplete'
 import ClientCombobox from '@/components/app/ClientCombobox'
 import BillingProfileModal, { type BillingProfileData } from '@/components/app/BillingProfileModal'
+import ClientPanel from '@/components/app/ClientPanel'
 
 const INPUT = 'w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 transition'
 
@@ -409,6 +410,7 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
   const [profiles, setProfiles] = useState<BillingProfile[]>([])
   const [profilesFull, setProfilesFull] = useState<BillingProfileData[]>([])
   const [profileModal, setProfileModal] = useState<BillingProfileData | 'new' | null>(null)
+  const [clientPanelId, setClientPanelId] = useState<string | null>(null)
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodOption[]>([])
   const [docColumns, setDocColumns] = useState({
     reference: true, description: true, quantity: true, unit: true,
@@ -695,7 +697,7 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
                   className={INPUT}
                 />
                 {clientId && (
-                  <button onClick={() => navigate(`/app/clients/${clientId}`)} className="shrink-0 p-1.5 rounded-lg hover:bg-gray-100 transition" title="Voir le client">
+                  <button onClick={() => setClientPanelId(clientId)} className="shrink-0 p-1.5 rounded-lg hover:bg-gray-100 transition" title="Voir le client">
                     <Pencil className="w-3.5 h-3.5 text-gray-400" />
                   </button>
                 )}
@@ -957,6 +959,15 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
                 setProfiles(updated as unknown as BillingProfile[])
               } catch { /* */ }
             }}
+          />
+        )}
+
+        {/* Modale fiche client */}
+        {clientPanelId && (
+          <ClientPanel
+            clientId={clientPanelId}
+            compact
+            onClose={() => setClientPanelId(null)}
           />
         )}
       </div>
