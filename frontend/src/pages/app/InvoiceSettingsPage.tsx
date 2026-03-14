@@ -8,7 +8,7 @@ import { orgGet, orgPost, orgPatch, orgDelete } from '@/lib/orgApi'
 import BillingProfileModal, { type BillingProfileData } from '@/components/app/BillingProfileModal'
 import ModalOverlay from '@/components/app/ModalOverlay'
 
-import { INPUT, SELECT } from '@/lib/formStyles'
+import { INPUT } from '@/lib/formStyles'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
