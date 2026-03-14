@@ -11,6 +11,7 @@ import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
 import UnitCombobox from '@/components/app/UnitCombobox'
 import ProductAutocomplete, { type AutocompleteProduct } from '@/components/app/ProductAutocomplete'
 import ClientCombobox from '@/components/app/ClientCombobox'
+import BillingProfileModal, { type BillingProfileData } from '@/components/app/BillingProfileModal'
 
 const INPUT = 'w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 transition'
 
@@ -406,6 +407,8 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
   // Données de référence
   const [clients, setClients] = useState<ClientOption[]>([])
   const [profiles, setProfiles] = useState<BillingProfile[]>([])
+  const [profilesFull, setProfilesFull] = useState<BillingProfileData[]>([])
+  const [profileModal, setProfileModal] = useState<BillingProfileData | 'new' | null>(null)
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodOption[]>([])
   const [docColumns, setDocColumns] = useState({
     reference: true, description: true, quantity: true, unit: true,
@@ -433,6 +436,7 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
     ]).then(([clientsData, profilesData, methodsData]) => {
       setClients(clientsData.items)
       setProfiles(profilesData)
+      setProfilesFull(profilesData as unknown as BillingProfileData[])
       setPaymentMethods(methodsData)
       // Auto-sélectionner le profil par défaut
       if (!isEdit) {
@@ -701,7 +705,7 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
               <label className="text-xs text-gray-500 mb-1 block">Profil de facturation</label>
               <div className="flex items-center gap-1.5">
                 <select value={billingProfileId} onChange={(e) => {
-                  if (e.target.value === '__new__') { navigate('/app/config/facturation'); return }
+                  if (e.target.value === '__new__') { setProfileModal('new'); return }
                   handleProfileChange(e.target.value)
                 }} className={`${INPUT} bg-white`}>
                   <option value="">— Aucun —</option>
@@ -709,7 +713,10 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
                   <option value="__new__">+ Nouveau profil</option>
                 </select>
                 {billingProfileId && (
-                  <button onClick={() => navigate('/app/config/facturation')} className="shrink-0 p-1.5 rounded-lg hover:bg-gray-100 transition" title="Modifier le profil">
+                  <button onClick={() => {
+                    const full = profilesFull.find((p) => p.id === billingProfileId)
+                    if (full) setProfileModal(full)
+                  }} className="shrink-0 p-1.5 rounded-lg hover:bg-gray-100 transition" title="Modifier le profil">
                     <Pencil className="w-3.5 h-3.5 text-gray-400" />
                   </button>
                 )}
@@ -922,6 +929,21 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
             Enregistrer et envoyer
           </button>
         </div>
+
+        {/* Modale profil de facturation */}
+        {profileModal !== null && (
+          <BillingProfileModal
+            profile={profileModal === 'new' ? null : profileModal}
+            onClose={() => setProfileModal(null)}
+            onSaved={async () => {
+              try {
+                const updated = await orgGet<BillingProfileData[]>('/billing/profiles')
+                setProfilesFull(updated)
+                setProfiles(updated as unknown as BillingProfile[])
+              } catch { /* */ }
+            }}
+          />
+        )}
       </div>
     </div>
   )
