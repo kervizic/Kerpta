@@ -808,11 +808,13 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
                           <input type="number" step="0.1" min="0" max="100" value={line.discount_percent} onChange={(e) => updateLine(i, 'discount_percent', e.target.value)} className={`${LINE_INPUT} text-right`} />
                         </td>
                       )}
-                      <td className="px-2 py-1.5 text-right text-xs font-medium text-gray-900 whitespace-nowrap align-middle">
-                        {fmtCurrency(lineHT)}
+                      <td className="px-2 text-right text-xs font-medium text-gray-900 whitespace-nowrap">
+                        <div className="h-[30px] flex items-center justify-end">
+                          {fmtCurrency(lineHT)}
+                        </div>
                       </td>
-                      <td className="px-1 py-1.5">
-                        <div className="flex gap-0.5">
+                      <td className="px-1">
+                        <div className="h-[30px] flex items-center gap-0.5">
                           {line.product_id && (
                             <button onClick={() => refreshLine(i)} className="p-1 rounded hover:bg-blue-50 transition" title="Actualiser depuis le catalogue">
                               <RefreshCw className="w-3.5 h-3.5 text-gray-400 hover:text-blue-500" />

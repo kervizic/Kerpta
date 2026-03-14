@@ -994,8 +994,10 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
                           <input type="number" step="0.1" min="0" max="100" value={line.discount_percent} onChange={(e) => updateLine(i, 'discount_percent', e.target.value)} className={`${LINE_INPUT} text-right`} disabled={isValidated} />
                         </td>
                       )}
-                      <td className="px-2 py-1.5 text-right text-xs font-medium text-gray-900 whitespace-nowrap align-middle">
-                        {fmtCurrency(lineHT)}
+                      <td className="px-2 text-right text-xs font-medium text-gray-900 whitespace-nowrap">
+                        <div className="h-[30px] flex items-center justify-end">
+                          {fmtCurrency(lineHT)}
+                        </div>
                       </td>
                       {!isValidated && (
                         <td className="px-1 py-1.5">
