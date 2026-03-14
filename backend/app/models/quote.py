@@ -14,7 +14,7 @@ from app.models.base import TimestampUpdateMixin, UUIDPrimaryKeyMixin
 
 
 class Quote(Base, UUIDPrimaryKeyMixin, TimestampUpdateMixin):
-    """Devis client — numérotation DEV-YYYY-NNNN."""
+    """Devis client — numérotation DV-YYYY-NNNN."""
 
     __tablename__ = "quotes"
 

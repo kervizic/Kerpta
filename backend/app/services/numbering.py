@@ -4,8 +4,17 @@
 
 """Service de numérotation séquentielle sans trou.
 
-Génère les numéros de documents (FA-YYYY-NNNN, DEV-YYYY-NNNN, etc.)
+Génère les numéros de documents (FA-YYYY-NNNN, DV-YYYY-NNNN, etc.)
 de façon atomique avec advisory lock PostgreSQL.
+
+Nomenclature :
+  FA  — Facture
+  DV  — Devis
+  PF  — Proforma (brouillon facture)
+  BC  — Bon de commande client
+  AV  — Avoir
+  BL  — Bon de livraison
+  CT  — Contrat
 """
 
 import uuid
@@ -17,13 +26,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # Mapping type de document → préfixe + table + colonne number
 _DOC_CONFIG: dict[str, dict] = {
     "invoice": {"prefix": "FA", "table": "invoices"},
-    "credit_note": {"prefix": "CN", "table": "invoices"},
-    "quote": {"prefix": "DEV", "table": "quotes"},
+    "proforma": {"prefix": "PF", "table": "invoices", "col": "proforma_number"},
+    "credit_note": {"prefix": "AV", "table": "invoices"},
+    "quote": {"prefix": "DV", "table": "quotes"},
     "contract": {"prefix": "CT", "table": "contracts", "col": "reference"},
-    "purchase_order": {"prefix": "BCR", "table": "client_purchase_orders"},
-    "supplier_quote": {"prefix": "DRF", "table": "supplier_quotes"},
-    "supplier_order": {"prefix": "BCF", "table": "supplier_orders"},
-    "supplier_invoice": {"prefix": "FF", "table": "supplier_invoices"},
+    "purchase_order": {"prefix": "BC", "table": "client_purchase_orders"},
+    "delivery_note": {"prefix": "BL", "table": "delivery_notes"},
 }
 
 

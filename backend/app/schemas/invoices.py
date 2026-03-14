@@ -80,7 +80,8 @@ class InvoiceOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
-    number: str
+    number: str | None = None
+    proforma_number: str | None = None
     client_id: str
     client_name: str | None = None
     quote_id: str | None = None

@@ -71,7 +71,8 @@ async def list_invoices(
 
     result = await db.execute(
         text(f"""
-            SELECT i.id::text, i.number, i.client_id::text,
+            SELECT i.id::text, i.number, i.proforma_number,
+                   i.client_id::text,
                    COALESCE(i.client_name, c.name) AS client_name,
                    i.quote_id::text, i.purchase_order_id::text,
                    i.contract_id::text, i.situation_id::text,
@@ -100,9 +101,13 @@ async def list_invoices(
 async def create_invoice(
     org_id: uuid.UUID, user_id: uuid.UUID, data: InvoiceCreate, db: AsyncSession
 ) -> dict:
-    """Crée une facture avec ses lignes."""
+    """Crée une facture brouillon avec ses lignes.
+
+    Le numéro définitif FA-YYYY-NNNN est attribué à la validation.
+    En attendant, un numéro proforma PF-YYYY-NNNN est généré.
+    """
     invoice_id = uuid.uuid4()
-    number = await generate_number("invoice", org_id, db)
+    proforma_number = await generate_number("proforma", org_id, db)
 
     # Copier le nom du client en dur
     client_name_result = await db.execute(
@@ -146,7 +151,8 @@ async def create_invoice(
     await db.execute(
         text("""
             INSERT INTO invoices (
-                id, organization_id, client_id, client_name, number,
+                id, organization_id, client_id, client_name,
+                proforma_number,
                 quote_id, purchase_order_id, contract_id,
                 billing_profile_id, billing_profile_name,
                 customer_reference, purchase_order_number,
@@ -156,7 +162,8 @@ async def create_invoice(
                 payment_terms, payment_method, bank_details,
                 notes, footer, created_at, updated_at
             ) VALUES (
-                :id, :org_id, :client_id, :client_name, :number,
+                :id, :org_id, :client_id, :client_name,
+                :proforma_number,
                 :quote_id, :po_id, :contract_id,
                 :billing_profile_id, :billing_profile_name,
                 :customer_reference, :purchase_order_number,
@@ -172,7 +179,7 @@ async def create_invoice(
             "org_id": str(org_id),
             "client_id": data.client_id,
             "client_name": client_name,
-            "number": number,
+            "proforma_number": proforma_number,
             "quote_id": data.quote_id,
             "po_id": data.purchase_order_id,
             "contract_id": data.contract_id,
@@ -231,7 +238,7 @@ async def create_invoice(
         )
 
     await db.commit()
-    return {"id": str(invoice_id), "number": number}
+    return {"id": str(invoice_id), "proforma_number": proforma_number}
 
 
 async def get_invoice(
@@ -240,7 +247,8 @@ async def get_invoice(
     """Détail d'une facture avec ses lignes."""
     result = await db.execute(
         text("""
-            SELECT i.id::text, i.number, i.client_id::text,
+            SELECT i.id::text, i.number, i.proforma_number,
+                   i.client_id::text,
                    COALESCE(i.client_name, c.name) AS client_name,
                    i.quote_id::text, i.purchase_order_id::text,
                    i.contract_id::text, i.situation_id::text,
@@ -456,9 +464,9 @@ async def _build_snapshots(
 async def validate_invoice(
     org_id: uuid.UUID, invoice_id: str, db: AsyncSession
 ) -> dict:
-    """Valide une facture : fige les snapshots, verrouille les champs légaux."""
+    """Valide une facture : attribue le numéro définitif FA/AV, fige les snapshots."""
     status_check = await db.execute(
-        text("SELECT status FROM invoices WHERE id = :iid AND organization_id = :org_id"),
+        text("SELECT status, is_credit_note FROM invoices WHERE id = :iid AND organization_id = :org_id"),
         {"iid": invoice_id, "org_id": str(org_id)},
     )
     row = status_check.fetchone()
@@ -467,12 +475,17 @@ async def validate_invoice(
     if row[0] != "draft":
         raise HTTPException(409, "Seules les factures en brouillon peuvent être validées")
 
+    # Générer le numéro définitif (FA pour facture, AV pour avoir)
+    doc_type = "credit_note" if row[1] else "invoice"
+    number = await generate_number(doc_type, org_id, db)
+
     # Figer les snapshots au moment de la validation
     client_snap, seller_snap, legal_mentions = await _build_snapshots(org_id, invoice_id, db)
 
     await db.execute(
         text("""
             UPDATE invoices SET
+                number = :number,
                 status = 'validated',
                 validated_at = now(),
                 updated_at = now(),
@@ -484,13 +497,14 @@ async def validate_invoice(
         {
             "iid": invoice_id,
             "org_id": str(org_id),
+            "number": number,
             "client_snap": client_snap,
             "seller_snap": seller_snap,
             "legal_mentions": legal_mentions,
         },
     )
     await db.commit()
-    return {"status": "validated"}
+    return {"status": "validated", "number": number}
 
 
 async def send_invoice(
@@ -498,7 +512,7 @@ async def send_invoice(
 ) -> dict:
     """Marque une facture comme envoyée. Accepte draft ou validated."""
     status_check = await db.execute(
-        text("SELECT status FROM invoices WHERE id = :iid AND organization_id = :org_id"),
+        text("SELECT status, is_credit_note, number FROM invoices WHERE id = :iid AND organization_id = :org_id"),
         {"iid": invoice_id, "org_id": str(org_id)},
     )
     row = status_check.fetchone()
@@ -507,25 +521,29 @@ async def send_invoice(
     if row[0] not in ("draft", "validated"):
         raise HTTPException(409, "La facture ne peut pas être envoyée (statut invalide)")
 
-    # Si on envoie depuis draft, figer les snapshots maintenant
-    if row[0] == "draft":
-        client_snap, seller_snap, legal_mentions = await _build_snapshots(org_id, invoice_id, db)
-    else:
-        # Déjà figés lors de la validation
-        client_snap, seller_snap, legal_mentions = None, None, None
-
     set_parts = ["status = 'sent'", "sent_at = now()", "updated_at = now()"]
     params: dict = {"iid": invoice_id, "org_id": str(org_id)}
 
-    if client_snap is not None:
+    # Si on envoie depuis draft, générer le numéro définitif + figer les snapshots
+    if row[0] == "draft":
+        doc_type = "credit_note" if row[1] else "invoice"
+        number = await generate_number(doc_type, org_id, db)
+        set_parts.append("number = :number")
+        params["number"] = number
+
+        client_snap, seller_snap, legal_mentions = await _build_snapshots(org_id, invoice_id, db)
         set_parts.append("client_snapshot = CAST(:client_snap AS jsonb)")
         params["client_snap"] = client_snap
-    if seller_snap is not None:
         set_parts.append("seller_snapshot = CAST(:seller_snap AS jsonb)")
         params["seller_snap"] = seller_snap
-    if legal_mentions is not None:
         set_parts.append("legal_mentions = COALESCE(:legal_mentions, legal_mentions)")
         params["legal_mentions"] = legal_mentions
+    elif row[2] is None:
+        # Validée mais pas encore de numéro définitif (cas improbable mais sécurité)
+        doc_type = "credit_note" if row[1] else "invoice"
+        number = await generate_number(doc_type, org_id, db)
+        set_parts.append("number = :number")
+        params["number"] = number
 
     await db.execute(
         text(f"UPDATE invoices SET {', '.join(set_parts)} WHERE id = :iid AND organization_id = :org_id"),
@@ -591,7 +609,7 @@ async def create_credit_note(
         raise HTTPException(409, "Impossible de créer un avoir pour cette facture")
 
     credit_id = uuid.uuid4()
-    credit_number = await generate_number("credit_note", org_id, db)
+    proforma_number = await generate_number("proforma", org_id, db)
 
     ht = Decimal(str(inv[3]))
     vat = Decimal(str(inv[4]))
@@ -600,14 +618,16 @@ async def create_credit_note(
     await db.execute(
         text("""
             INSERT INTO invoices (
-                id, organization_id, client_id, client_name, number,
+                id, organization_id, client_id, client_name,
+                proforma_number,
                 contract_id, is_credit_note, credit_note_for,
                 status, issue_date, currency,
                 subtotal_ht, total_vat, total_ttc,
                 amount_paid, discount_type, discount_value,
                 payment_terms, notes, created_at, updated_at
             ) VALUES (
-                :id, :org_id, :client_id, :client_name, :number,
+                :id, :org_id, :client_id, :client_name,
+                :proforma_number,
                 :contract_id, true, :cn_for,
                 'draft', CURRENT_DATE, 'EUR',
                 :ht, :vat, :ttc,
@@ -620,7 +640,7 @@ async def create_credit_note(
             "org_id": str(org_id),
             "client_id": inv[1],
             "client_name": inv[7],
-            "number": credit_number,
+            "proforma_number": proforma_number,
             "contract_id": inv[2],
             "cn_for": invoice_id,
             "ht": str(-ht),
@@ -681,4 +701,4 @@ async def create_credit_note(
     )
 
     await db.commit()
-    return {"id": str(credit_id), "number": credit_number}
+    return {"id": str(credit_id), "proforma_number": proforma_number}

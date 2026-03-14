@@ -24,7 +24,8 @@ const INPUT = 'w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:
 
 interface Invoice {
   id: string
-  number: string
+  number: string | null
+  proforma_number: string | null
   client_name: string | null
   is_credit_note: boolean
   is_situation: boolean
@@ -223,8 +224,7 @@ function InvoicesList({ initialSelectedId }: { initialSelectedId?: string } = {}
                   return (
                     <tr key={inv.id} onClick={() => setSelectedId(inv.id)} className="border-b border-gray-50 hover:bg-orange-50/50 cursor-pointer transition">
                       <td className="px-4 py-3 font-mono text-xs text-gray-700">
-                        {inv.is_credit_note && <span className="text-red-500 mr-1">CN</span>}
-                        {inv.number}
+                        {inv.number || inv.proforma_number || '—'}
                       </td>
                       <td className="px-4 py-3 font-medium text-gray-900">{inv.client_name || '—'}</td>
                       <td className="px-4 py-3 text-gray-500">{inv.issue_date}</td>
@@ -303,7 +303,7 @@ function InvoiceDetailModal({ invoiceId, onClose }: { invoiceId: string; onClose
             </div>
             <div className="min-w-0">
               <h2 className="text-lg font-semibold text-gray-900 truncate">
-                {invoice.is_credit_note ? 'Avoir' : 'Facture'} {invoice.number}
+                {invoice.is_credit_note ? 'Avoir' : invoice.number ? 'Facture' : 'Proforma'} {invoice.number || invoice.proforma_number}
                 {invoice.is_situation && <span className="text-gray-400 ml-2 text-sm">(Situation n°{invoice.situation_number})</span>}
               </h2>
               <div className="flex items-center gap-2 mt-0.5">

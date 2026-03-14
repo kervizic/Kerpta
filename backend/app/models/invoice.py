@@ -14,7 +14,7 @@ from app.models.base import TimestampMixin, TimestampUpdateMixin, UUIDPrimaryKey
 
 
 class Invoice(Base, UUIDPrimaryKeyMixin, TimestampUpdateMixin):
-    """Facture client — numérotation FA-YYYY-NNNN (avoir : CN-YYYY-NNNN)."""
+    """Facture client — numérotation FA-YYYY-NNNN (avoir : AV-YYYY-NNNN, proforma : PF-YYYY-NNNN)."""
 
     __tablename__ = "invoices"
 
@@ -41,7 +41,8 @@ class Invoice(Base, UUIDPrimaryKeyMixin, TimestampUpdateMixin):
     is_situation: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     situation_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
-    number: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    number: Mapped[str | None] = mapped_column(String(50), unique=True, nullable=True)
+    proforma_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
     is_credit_note: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     credit_note_for: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("invoices.id"), nullable=True
