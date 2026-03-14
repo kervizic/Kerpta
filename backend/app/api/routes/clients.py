@@ -15,7 +15,7 @@ from app.schemas.clients import (
     ClientUpdate,
     PaginatedClients,
 )
-from app.schemas.contacts import ContactCreate
+from app.schemas.contacts import ContactCreate, ContactUpdate
 from app.services import clients as svc
 from app.services import contacts as contacts_svc
 
@@ -120,3 +120,24 @@ async def create_contact(
     db: AsyncSession = Depends(get_db),
 ):
     return await contacts_svc.create_contact(ctx.org_id, client_id, data, db)
+
+
+@router.patch("/{client_id}/contacts/{contact_id}")
+async def update_contact(
+    client_id: str,
+    contact_id: str,
+    data: ContactUpdate,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await contacts_svc.update_contact(ctx.org_id, client_id, contact_id, data, db)
+
+
+@router.delete("/{client_id}/contacts/{contact_id}", status_code=204)
+async def delete_contact(
+    client_id: str,
+    contact_id: str,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    await contacts_svc.delete_contact(ctx.org_id, client_id, contact_id, db)

@@ -10,7 +10,7 @@ from fastapi import HTTPException
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.schemas.contacts import ContactCreate
+from app.schemas.contacts import ContactCreate, ContactUpdate
 
 
 async def create_contact(
@@ -83,3 +83,54 @@ async def list_contacts(
         {"cid": client_id, "oid": str(org_id)},
     )
     return [dict(row._mapping) for row in result.fetchall()]
+
+
+async def update_contact(
+    org_id: uuid.UUID,
+    client_id: str,
+    contact_id: str,
+    data: ContactUpdate,
+    db: AsyncSession,
+) -> dict:
+    """Met à jour un contact existant."""
+    updates = data.model_dump(exclude_unset=True)
+    if not updates:
+        raise HTTPException(422, "Aucun champ à mettre à jour")
+
+    set_parts = []
+    params: dict = {"contact_id": contact_id, "cid": client_id, "oid": str(org_id)}
+    for key, value in updates.items():
+        set_parts.append(f"{key} = :{key}")
+        params[key] = value
+
+    set_clause = ", ".join(set_parts)
+    result = await db.execute(
+        text(
+            f"UPDATE contacts SET {set_clause} "
+            "WHERE id = :contact_id AND client_id = :cid AND organization_id = :oid"
+        ),
+        params,
+    )
+    if result.rowcount == 0:
+        raise HTTPException(404, "Contact introuvable")
+    await db.commit()
+    return {"status": "updated"}
+
+
+async def delete_contact(
+    org_id: uuid.UUID,
+    client_id: str,
+    contact_id: str,
+    db: AsyncSession,
+) -> None:
+    """Supprime un contact."""
+    result = await db.execute(
+        text(
+            "DELETE FROM contacts "
+            "WHERE id = :contact_id AND client_id = :cid AND organization_id = :oid"
+        ),
+        {"contact_id": contact_id, "cid": client_id, "oid": str(org_id)},
+    )
+    if result.rowcount == 0:
+        raise HTTPException(404, "Contact introuvable")
+    await db.commit()

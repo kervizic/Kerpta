@@ -16,6 +16,15 @@ class ContactCreate(BaseModel):
     is_primary: bool = False
 
 
+class ContactUpdate(BaseModel):
+    first_name: str | None = Field(None, max_length=100)
+    last_name: str | None = Field(None, max_length=100)
+    email: str | None = Field(None, max_length=255)
+    phone: str | None = Field(None, max_length=20)
+    job_title: str | None = Field(None, max_length=100)
+    is_primary: bool | None = None
+
+
 class ContactOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

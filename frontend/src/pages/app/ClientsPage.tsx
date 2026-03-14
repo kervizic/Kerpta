@@ -5,12 +5,13 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   Plus, Search, UserRound, ArrowLeft, Loader2,
-  Building2, MapPin, CheckCircle2, Pencil, X,
+  Building2, MapPin, CheckCircle2,
 } from 'lucide-react'
 import { navigate } from '@/hooks/useRoute'
-import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
+import { orgGet, orgPost } from '@/lib/orgApi'
 import { apiClient } from '@/lib/api'
 import CompanyInfoCard from '@/components/app/CompanyInfoCard'
+import ClientPanel from '@/components/app/ClientPanel'
 import { COUNTRIES, getCountryMode } from '@/data/countries'
 import axios from 'axios'
 
@@ -35,31 +36,6 @@ interface Client {
   billing_profile_name: string | null
   created_at: string | null
   archived_at: string | null
-}
-
-interface ClientDetail extends Client {
-  country_code: string
-  company_siren: string | null
-  vat_number: string | null
-  billing_address: Record<string, string | null> | null
-  shipping_address: Record<string, string | null> | null
-  notes: string | null
-  quote_count: number
-  invoice_count: number
-  contract_count: number
-  total_invoiced: number
-  total_paid: number
-  balance: number
-}
-
-interface ContactOut {
-  id: string
-  first_name: string | null
-  last_name: string | null
-  email: string | null
-  phone: string | null
-  job_title: string | null
-  is_primary: boolean
 }
 
 interface PaginatedClients {
@@ -133,14 +109,15 @@ function formatSiret(s: string): string {
   return s.replace(/(\d{3})(\d{3})(\d{3})(\d{5})/, '$1 $2 $3 $4')
 }
 
-// ── Liste des clients ─────────────────────────────────────────────────────────
+// ── Liste des clients (master-detail) ─────────────────────────────────────────
 
-function ClientsList() {
+function ClientsList({ initialClientId }: { initialClientId?: string }) {
   const [clients, setClients] = useState<Client[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
+  const [selectedId, setSelectedId] = useState<string | null>(initialClientId ?? null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -154,9 +131,22 @@ function ClientsList() {
 
   useEffect(() => { void load() }, [load])
 
+  // Sync URL without full navigation
+  useEffect(() => {
+    if (selectedId) {
+      window.history.replaceState(null, '', `/app/clients/${selectedId}`)
+    } else {
+      window.history.replaceState(null, '', '/app/clients')
+    }
+  }, [selectedId])
+
+  function handleSelect(id: string) {
+    setSelectedId((prev) => prev === id ? null : id)
+  }
+
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="max-w-5xl mx-auto px-6 py-8">
+      <div className={`mx-auto px-6 py-8 ${selectedId ? 'max-w-7xl' : 'max-w-5xl'} transition-all`}>
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-xl font-semibold text-gray-900">Clients</h1>
           <button
@@ -167,78 +157,101 @@ function ClientsList() {
           </button>
         </div>
 
-        {/* Barre de recherche */}
-        <div className="relative mb-4">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-            placeholder="Rechercher un client..."
-            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
-          />
-        </div>
-
-        {/* Table */}
-        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-          {loading ? (
-            <div className="flex justify-center py-12">
-              <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
+        <div className={`flex gap-6 ${selectedId ? '' : ''}`}>
+          {/* ── Liste ──────────────────────────────────────────────── */}
+          <div className={`${selectedId ? 'w-1/2 min-w-0' : 'w-full'} transition-all`}>
+            {/* Barre de recherche */}
+            <div className="relative mb-4">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+                placeholder="Rechercher un client..."
+                className="w-full pl-10 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+              />
             </div>
-          ) : clients.length === 0 ? (
-            <div className="py-12 text-center text-gray-400 text-sm">Aucun client trouvé</div>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
-                  <th className="px-4 py-3">Nom</th>
-                  <th className="px-4 py-3">Type</th>
-                  <th className="px-4 py-3">SIRET</th>
-                  <th className="px-4 py-3">Email</th>
-                  <th className="px-4 py-3">Tél</th>
-                </tr>
-              </thead>
-              <tbody>
-                {clients.map((c) => (
-                  <tr
-                    key={c.id}
-                    onClick={() => navigate(`/app/clients/${c.id}`)}
-                    className="border-b border-gray-50 hover:bg-orange-50/50 cursor-pointer transition"
-                  >
-                    <td className="px-4 py-3 font-medium text-gray-900">{c.name}</td>
-                    <td className="px-4 py-3 text-gray-500">{c.type === 'company' ? 'Entreprise' : 'Particulier'}</td>
-                    <td className="px-4 py-3 text-gray-500 font-mono text-xs">{c.siret || '—'}</td>
-                    <td className="px-4 py-3 text-gray-500">{c.email || '—'}</td>
-                    <td className="px-4 py-3 text-gray-500">{c.phone || '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+
+            {/* Table */}
+            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+              {loading ? (
+                <div className="flex justify-center py-12">
+                  <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
+                </div>
+              ) : clients.length === 0 ? (
+                <div className="py-12 text-center text-gray-400 text-sm">Aucun client trouvé</div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
+                      <th className="px-4 py-3">Nom</th>
+                      {!selectedId && <th className="px-4 py-3">Type</th>}
+                      <th className="px-4 py-3">SIRET</th>
+                      <th className="px-4 py-3">Email</th>
+                      {!selectedId && <th className="px-4 py-3">Tél</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {clients.map((c) => (
+                      <tr
+                        key={c.id}
+                        onClick={() => handleSelect(c.id)}
+                        className={`border-b border-gray-50 cursor-pointer transition ${
+                          c.id === selectedId
+                            ? 'bg-orange-50 border-l-2 border-l-orange-500'
+                            : 'hover:bg-orange-50/50'
+                        }`}
+                      >
+                        <td className="px-4 py-3 font-medium text-gray-900">{c.name}</td>
+                        {!selectedId && (
+                          <td className="px-4 py-3 text-gray-500">{c.type === 'company' ? 'Entreprise' : 'Particulier'}</td>
+                        )}
+                        <td className="px-4 py-3 text-gray-500 font-mono text-xs">{c.siret || '—'}</td>
+                        <td className="px-4 py-3 text-gray-500">{c.email || '—'}</td>
+                        {!selectedId && (
+                          <td className="px-4 py-3 text-gray-500">{c.phone || '—'}</td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Pagination */}
+            {total > 25 && (
+              <div className="flex justify-center gap-2 mt-4">
+                <button
+                  disabled={page <= 1}
+                  onClick={() => setPage(page - 1)}
+                  className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-50 hover:bg-gray-50"
+                >
+                  Précédent
+                </button>
+                <span className="px-3 py-1.5 text-sm text-gray-500">
+                  Page {page} / {Math.ceil(total / 25)}
+                </span>
+                <button
+                  disabled={page * 25 >= total}
+                  onClick={() => setPage(page + 1)}
+                  className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-50 hover:bg-gray-50"
+                >
+                  Suivant
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* ── Panneau détail (inline) ────────────────────────────── */}
+          {selectedId && (
+            <div className="w-1/2 min-w-0 sticky top-0">
+              <ClientPanel
+                clientId={selectedId}
+                onClose={() => setSelectedId(null)}
+              />
+            </div>
           )}
         </div>
-
-        {/* Pagination */}
-        {total > 25 && (
-          <div className="flex justify-center gap-2 mt-4">
-            <button
-              disabled={page <= 1}
-              onClick={() => setPage(page - 1)}
-              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-50 hover:bg-gray-50"
-            >
-              Précédent
-            </button>
-            <span className="px-3 py-1.5 text-sm text-gray-500">
-              Page {page} / {Math.ceil(total / 25)}
-            </span>
-            <button
-              disabled={page * 25 >= total}
-              onClick={() => setPage(page + 1)}
-              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-50 hover:bg-gray-50"
-            >
-              Suivant
-            </button>
-          </div>
-        )}
       </div>
     </div>
   )
@@ -743,289 +756,13 @@ function CreateClientForm() {
 
 // ── Modal édition client ──────────────────────────────────────────────────────
 
-function EditClientModal({ client, onClose, onSaved }: {
-  client: ClientDetail
-  onClose: () => void
-  onSaved: () => void
-}) {
-  const [name, setName] = useState(client.name)
-  const [email, setEmail] = useState(client.email || '')
-  const [phone, setPhone] = useState(client.phone || '')
-  const [vatNumber, setVatNumber] = useState(client.vat_number || '')
-  const [billingProfileId, setBillingProfileId] = useState<string | null>(client.billing_profile_id)
-  const [billingProfiles, setBillingProfiles] = useState<BillingProfileShort[]>([])
-  const [billingAddress, setBillingAddress] = useState({
-    voie: client.billing_address?.voie ?? '',
-    complement: client.billing_address?.complement ?? '',
-    code_postal: client.billing_address?.code_postal ?? '',
-    commune: client.billing_address?.commune ?? '',
-    pays: client.billing_address?.pays ?? 'France',
-  })
-  const [notes, setNotes] = useState(client.notes || '')
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-
-  useEffect(() => {
-    orgGet<BillingProfileShort[]>('/billing/profiles')
-      .then(setBillingProfiles)
-      .catch(() => {})
-  }, [])
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setSaving(true)
-    setError('')
-    try {
-      await orgPatch(`/clients/${client.id}`, {
-        name,
-        email: email || null,
-        phone: phone || null,
-        vat_number: vatNumber || null,
-        billing_profile_id: billingProfileId || null,
-        billing_address: billingAddress.voie ? billingAddress : null,
-        notes: notes || null,
-      })
-      onSaved()
-      onClose()
-    } catch (err) {
-      setError(httpError(err, 'Erreur lors de la mise à jour'))
-    }
-    setSaving(false)
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-      <div className="bg-white rounded-2xl shadow-xl w-full mx-4 max-w-lg max-h-[85vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <h3 className="text-base font-semibold text-gray-900">Modifier le client</h3>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 transition"><X className="w-4 h-4 text-gray-400" /></button>
-        </div>
-        <form onSubmit={handleSubmit} className="px-5 py-4 space-y-4">
-          {error && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>}
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">
-              {client.type === 'company' ? 'Raison sociale' : 'Nom'}
-            </label>
-            <input type="text" value={name} onChange={(e) => setName(e.target.value)} required className={INPUT} />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Email</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={INPUT} />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Téléphone</label>
-              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={INPUT} />
-            </div>
-          </div>
-
-          {client.type === 'company' && (
-            <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">TVA intracommunautaire</label>
-              <input type="text" value={vatNumber} onChange={(e) => setVatNumber(e.target.value)} className={INPUT} />
-            </div>
-          )}
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Profil de facturation</label>
-            {billingProfiles.length > 0 ? (
-              <select
-                value={billingProfileId ?? ''}
-                onChange={(e) => setBillingProfileId(e.target.value || null)}
-                className={`${INPUT} bg-white`}
-              >
-                <option value="">Aucun profil</option>
-                {billingProfiles.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} — {p.payment_terms}j {p.payment_term_type === 'net' ? 'net' : p.payment_term_type === 'end_of_month' ? 'fin de mois' : `le ${p.payment_terms}`}
-                    {p.is_default ? ' (par défaut)' : ''}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <p className="text-xs text-gray-400">Aucun profil disponible</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Adresse de facturation</label>
-            <div className="space-y-2">
-              <input type="text" value={billingAddress.voie} onChange={(e) => setBillingAddress((p) => ({ ...p, voie: e.target.value }))} placeholder="Adresse" className={INPUT} />
-              <input type="text" value={billingAddress.complement} onChange={(e) => setBillingAddress((p) => ({ ...p, complement: e.target.value }))} placeholder="Complément" className={INPUT} />
-              <div className="grid grid-cols-2 gap-2">
-                <input type="text" value={billingAddress.code_postal} onChange={(e) => setBillingAddress((p) => ({ ...p, code_postal: e.target.value }))} placeholder="Code postal" className={INPUT} />
-                <input type="text" value={billingAddress.commune} onChange={(e) => setBillingAddress((p) => ({ ...p, commune: e.target.value }))} placeholder="Ville" className={INPUT} />
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Notes</label>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className={INPUT} />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg transition">Annuler</button>
-            <button type="submit" disabled={saving || !name} className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
-}
-
-// ── Détail client ─────────────────────────────────────────────────────────────
-
-function ClientDetailView({ clientId }: { clientId: string }) {
-  const [client, setClient] = useState<ClientDetail | null>(null)
-  const [contacts, setContacts] = useState<ContactOut[]>([])
-  const [loading, setLoading] = useState(true)
-  const [editModal, setEditModal] = useState(false)
-
-  const loadClient = useCallback(() => {
-    setLoading(true)
-    Promise.all([
-      orgGet<ClientDetail>(`/clients/${clientId}`),
-      orgGet<ContactOut[]>(`/clients/${clientId}/contacts`).catch(() => [] as ContactOut[]),
-    ])
-      .then(([c, ct]) => { setClient(c); setContacts(ct) })
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [clientId])
-
-  useEffect(() => { loadClient() }, [loadClient])
-
-  if (loading) {
-    return (
-      <div className="flex-1 flex justify-center items-center">
-        <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
-      </div>
-    )
-  }
-  if (!client) {
-    return <div className="flex-1 flex justify-center items-center text-gray-400">Client introuvable</div>
-  }
-
-  return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="max-w-4xl mx-auto px-6 py-8">
-        <button onClick={() => navigate('/app/clients')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-4 transition">
-          <ArrowLeft className="w-4 h-4" /> Retour
-        </button>
-
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-center">
-              <UserRound className="w-5 h-5 text-orange-600" />
-            </div>
-            <div>
-              <h1 className="text-xl font-semibold text-gray-900">{client.name}</h1>
-              <p className="text-sm text-gray-400">
-                {client.type === 'company' ? 'Entreprise' : 'Particulier'}
-                {client.siret && <span className="ml-2 font-mono">{client.siret}</span>}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={() => setEditModal(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold rounded-lg transition"
-          >
-            <Pencil className="w-4 h-4" /> Modifier
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="bg-white border border-gray-200 rounded-xl p-4">
-            <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Devis</p>
-            <p className="text-2xl font-bold text-gray-900">{client.quote_count}</p>
-          </div>
-          <div className="bg-white border border-gray-200 rounded-xl p-4">
-            <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Facturé</p>
-            <p className="text-2xl font-bold text-gray-900">{Number(client.total_invoiced).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</p>
-          </div>
-          <div className="bg-white border border-gray-200 rounded-xl p-4">
-            <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Solde</p>
-            <p className={`text-2xl font-bold ${Number(client.balance) > 0 ? 'text-red-600' : 'text-green-600'}`}>
-              {Number(client.balance).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <section className="bg-white border border-gray-200 rounded-2xl p-5 space-y-3">
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Contacts</h2>
-            {contacts.length === 0 ? (
-              <div className="space-y-2 text-sm">
-                <p><span className="text-gray-400">Email :</span> {client.email || '—'}</p>
-                <p><span className="text-gray-400">Tél :</span> {client.phone || '—'}</p>
-                <p><span className="text-gray-400">TVA :</span> {client.vat_number || '—'}</p>
-                <p><span className="text-gray-400">Profil :</span> {client.billing_profile_name || '—'}</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {contacts.map((ct) => (
-                  <div key={ct.id} className="text-sm space-y-0.5">
-                    <p className="font-medium text-gray-900">
-                      {[ct.first_name, ct.last_name].filter(Boolean).join(' ') || '—'}
-                      {ct.is_primary && <span className="ml-1.5 px-1.5 py-0.5 bg-orange-100 text-orange-700 text-[10px] font-semibold rounded uppercase">Principal</span>}
-                    </p>
-                    {ct.job_title && <p className="text-gray-500">{ct.job_title}</p>}
-                    {ct.email && <p className="text-gray-500">{ct.email}</p>}
-                    {ct.phone && <p className="text-gray-500">{ct.phone}</p>}
-                  </div>
-                ))}
-                <div className="pt-2 border-t border-gray-100 text-sm">
-                  <p><span className="text-gray-400">TVA :</span> {client.vat_number || '—'}</p>
-                  <p><span className="text-gray-400">Profil :</span> {client.billing_profile_name || '—'}</p>
-                </div>
-              </div>
-            )}
-          </section>
-
-          <section className="bg-white border border-gray-200 rounded-2xl p-5 space-y-3">
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Informations</h2>
-            <div className="space-y-2 text-sm">
-              <p><span className="text-gray-400">Adresse :</span> {formatAddress(client.billing_address)}</p>
-              <p><span className="text-gray-400">Devis :</span> {client.quote_count}</p>
-              <p><span className="text-gray-400">Factures :</span> {client.invoice_count}</p>
-              <p><span className="text-gray-400">Contrats :</span> {client.contract_count}</p>
-              <p><span className="text-gray-400">Payé :</span> {Number(client.total_paid).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</p>
-            </div>
-          </section>
-        </div>
-
-        {/* Données entreprise (INSEE) */}
-        {client.company_siren && (
-          <div className="mt-6">
-            <CompanyInfoCard siren={client.company_siren} />
-          </div>
-        )}
-
-        {editModal && client && (
-          <EditClientModal
-            client={client}
-            onClose={() => setEditModal(false)}
-            onSaved={loadClient}
-          />
-        )}
-      </div>
-    </div>
-  )
-}
-
 // ── Page principale ───────────────────────────────────────────────────────────
 
 export default function ClientsPage({ path }: { path: string }) {
   if (path === '/app/clients/new') {
     return <CreateClientForm />
   }
-  const match = path.match(/^\/app\/clients\/(.+)$/)
-  if (match) {
-    return <ClientDetailView clientId={match[1]} />
-  }
-  return <ClientsList />
+  // /app/clients/{id} → ouvre la liste avec le panneau client inline
+  const match = path.match(/^\/app\/clients\/([^/]+)$/)
+  return <ClientsList initialClientId={match?.[1]} />
 }
