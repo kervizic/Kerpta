@@ -264,26 +264,26 @@ function InvoicesList() {
         </div>
 
         <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-          {loading ? (
-            <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
-          ) : invoices.length === 0 ? (
-            <div className="py-12 text-center text-gray-400 text-sm">Aucune facture trouvée</div>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 text-left">
-                  <ColumnFilterHeader filter={INVOICE_FILTERS[0]} value={filters.number || ''} onChange={(v) => updateFilter('number', v)} />
-                  <ColumnFilterHeader filter={INVOICE_FILTERS[1]} value={filters.type || ''} onChange={(v) => updateFilter('type', v)} />
-                  <ColumnFilterHeader filter={INVOICE_FILTERS[2]} value={filters.client || ''} onChange={(v) => updateFilter('client', v)} />
-                  <ColumnFilterHeader filter={INVOICE_FILTERS[3]} value={filters.date || []} onChange={(v) => updateFilter('date', v)} />
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase">Échéance</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase">Total TTC</th>
-                  <ColumnFilterHeader filter={INVOICE_FILTERS[4]} value={filters.payment || ''} onChange={(v) => updateFilter('payment', v)} align="right" />
-                  <ColumnFilterHeader filter={INVOICE_FILTERS[5]} value={filters.status || []} onChange={(v) => updateFilter('status', v)} />
-                </tr>
-              </thead>
-              <tbody>
-                {invoices.map((inv) => {
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 text-left">
+                <ColumnFilterHeader filter={INVOICE_FILTERS[0]} value={filters.number || ''} onChange={(v) => updateFilter('number', v)} />
+                <ColumnFilterHeader filter={INVOICE_FILTERS[1]} value={filters.type || ''} onChange={(v) => updateFilter('type', v)} />
+                <ColumnFilterHeader filter={INVOICE_FILTERS[2]} value={filters.client || ''} onChange={(v) => updateFilter('client', v)} />
+                <ColumnFilterHeader filter={INVOICE_FILTERS[3]} value={filters.date || []} onChange={(v) => updateFilter('date', v)} />
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase">Échéance</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase">Total TTC</th>
+                <ColumnFilterHeader filter={INVOICE_FILTERS[4]} value={filters.payment || ''} onChange={(v) => updateFilter('payment', v)} align="right" />
+                <ColumnFilterHeader filter={INVOICE_FILTERS[5]} value={filters.status || []} onChange={(v) => updateFilter('status', v)} />
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={8} className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin text-orange-500 mx-auto" /></td></tr>
+              ) : invoices.length === 0 ? (
+                <tr><td colSpan={8} className="py-12 text-center text-gray-400 text-sm">Aucune facture trouvée</td></tr>
+              ) : (
+                invoices.map((inv) => {
                   const st = STATUS_LABELS[inv.status] || { label: inv.status, cls: 'bg-gray-100 text-gray-600' }
                   const isEditable = ['draft', 'validated'].includes(inv.status)
                   return (
@@ -302,10 +302,10 @@ function InvoicesList() {
                       <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${st.cls}`}>{st.label}</span></td>
                     </tr>
                   )
-                })}
-              </tbody>
-            </table>
-          )}
+                })
+              )}
+            </tbody>
+          </table>
         </div>
 
         {total > 25 && (

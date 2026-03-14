@@ -219,24 +219,24 @@ function QuotesList() {
         </div>
 
         <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-          {loading ? (
-            <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
-          ) : quotes.length === 0 ? (
-            <div className="py-12 text-center text-gray-400 text-sm">Aucun devis trouvé</div>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 text-left">
-                  <ColumnFilterHeader filter={QUOTE_FILTERS[0]} value={filters.number || ''} onChange={(v) => updateFilter('number', v)} />
-                  <ColumnFilterHeader filter={QUOTE_FILTERS[1]} value={filters.type || ''} onChange={(v) => updateFilter('type', v)} />
-                  <ColumnFilterHeader filter={QUOTE_FILTERS[2]} value={filters.client || ''} onChange={(v) => updateFilter('client', v)} />
-                  <ColumnFilterHeader filter={QUOTE_FILTERS[3]} value={filters.date || []} onChange={(v) => updateFilter('date', v)} />
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase">Total HT</th>
-                  <ColumnFilterHeader filter={QUOTE_FILTERS[4]} value={filters.status || []} onChange={(v) => updateFilter('status', v)} />
-                </tr>
-              </thead>
-              <tbody>
-                {quotes.map((q) => {
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 text-left">
+                <ColumnFilterHeader filter={QUOTE_FILTERS[0]} value={filters.number || ''} onChange={(v) => updateFilter('number', v)} />
+                <ColumnFilterHeader filter={QUOTE_FILTERS[1]} value={filters.type || ''} onChange={(v) => updateFilter('type', v)} />
+                <ColumnFilterHeader filter={QUOTE_FILTERS[2]} value={filters.client || ''} onChange={(v) => updateFilter('client', v)} />
+                <ColumnFilterHeader filter={QUOTE_FILTERS[3]} value={filters.date || []} onChange={(v) => updateFilter('date', v)} />
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase">Total HT</th>
+                <ColumnFilterHeader filter={QUOTE_FILTERS[4]} value={filters.status || []} onChange={(v) => updateFilter('status', v)} />
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={6} className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin text-orange-500 mx-auto" /></td></tr>
+              ) : quotes.length === 0 ? (
+                <tr><td colSpan={6} className="py-12 text-center text-gray-400 text-sm">Aucun devis trouvé</td></tr>
+              ) : (
+                quotes.map((q) => {
                   const st = STATUS_LABELS[q.status] || { label: q.status, cls: 'bg-gray-100 text-gray-600' }
                   const typeLabel = q.is_avenant ? `Avenant n°${q.avenant_number}` : (DOC_LABELS[q.document_type] || q.document_type)
                   const isEditable = q.status === 'draft'
@@ -250,10 +250,10 @@ function QuotesList() {
                       <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${st.cls}`}>{st.label}</span></td>
                     </tr>
                   )
-                })}
-              </tbody>
-            </table>
-          )}
+                })
+              )}
+            </tbody>
+          </table>
         </div>
 
         {total > 25 && (

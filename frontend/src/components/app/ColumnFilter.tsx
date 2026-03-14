@@ -54,6 +54,17 @@ function FilterPopover({
   anchorRect: DOMRect
 }) {
   const ref = useRef<HTMLDivElement>(null)
+  // État local pour le champ texte — évite de re-render le parent à chaque frappe
+  const [localText, setLocalText] = useState((value as string) || '')
+  const onChangeRef = useRef(onChange)
+  onChangeRef.current = onChange
+
+  // Debounce : propage la valeur au parent après 400ms d'inactivité
+  useEffect(() => {
+    if (filter.type !== 'text') return
+    const timer = setTimeout(() => { onChangeRef.current(localText) }, 400)
+    return () => clearTimeout(timer)
+  }, [localText, filter.type])
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -86,8 +97,9 @@ function FilterPopover({
         <input
           type="text"
           autoFocus
-          value={(value as string) || ''}
-          onChange={(e) => onChange(e.target.value)}
+          value={localText}
+          onChange={(e) => setLocalText(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { onChangeRef.current(localText); onClose() } }}
           placeholder={filter.placeholder || `Filtrer par ${filter.label.toLowerCase()}...`}
           className={inputCls}
         />
@@ -180,9 +192,12 @@ function FilterPopover({
       )}
 
       {/* Bouton effacer */}
-      {((typeof value === 'string' && value) || (Array.isArray(value) && value.some(Boolean))) && (
+      {((filter.type === 'text' && localText) || (typeof value === 'string' && value && filter.type !== 'text') || (Array.isArray(value) && value.some(Boolean))) && (
         <button
-          onClick={() => onChange(filter.type === 'multi-select' || filter.type === 'date-range' ? [] : '')}
+          onClick={() => {
+            if (filter.type === 'text') setLocalText('')
+            onChange(filter.type === 'multi-select' || filter.type === 'date-range' ? [] : '')
+          }}
           className="mt-2 w-full text-center text-[10px] text-gray-400 hover:text-red-500 transition py-1"
         >
           Effacer le filtre
