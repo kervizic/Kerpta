@@ -212,7 +212,7 @@ function QuotesList() {
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="max-w-5xl mx-auto px-6 py-8">
+      <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 md:py-8">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-semibold text-gray-900">Devis</h1>
@@ -236,7 +236,8 @@ function QuotesList() {
           </button>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+        {/* Desktop : tableau */}
+        <div className="hidden md:block bg-white border border-gray-200 rounded-2xl overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 text-left">
@@ -272,6 +273,38 @@ function QuotesList() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile : cartes */}
+        <div className="md:hidden space-y-2">
+          {loading ? (
+            <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
+          ) : quotes.length === 0 ? (
+            <div className="py-12 text-center text-gray-400 text-sm">Aucun devis trouvé</div>
+          ) : (
+            quotes.map((q) => {
+              const st = STATUS_LABELS[q.status] || { label: q.status, cls: 'bg-gray-100 text-gray-600' }
+              const typeLabel = q.is_avenant ? `Avenant n°${q.avenant_number}` : (docTypeLabels[q.document_type] || q.document_type)
+              const isEditable = q.status === 'draft'
+              return (
+                <div
+                  key={q.id}
+                  onClick={() => isEditable ? setEditId(q.id) : setSelectedId(q.id)}
+                  className="bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:border-orange-200 transition active:bg-orange-50/50"
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="font-mono text-xs text-gray-500">{q.number}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${st.cls}`}>{st.label}</span>
+                  </div>
+                  <p className="text-sm font-medium text-gray-900 truncate">{q.client_name || '—'}</p>
+                  <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
+                    <span>{typeLabel} — {q.issue_date}</span>
+                    <span className="font-semibold text-gray-900">{fmtCurrency(q.subtotal_ht)}</span>
+                  </div>
+                </div>
+              )
+            })
+          )}
         </div>
 
         {total > 25 && (
@@ -734,7 +767,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
         {/* En-tête */}
         <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-4 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">En-tête</h2>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Client *</label>
               <div className="flex items-center gap-1.5">
@@ -767,7 +800,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
               </select>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Date d'émission</label>
               <DatePicker value={issueDate} onChange={setIssueDate} className={INPUT} placeholder="Date d'émission" />
@@ -797,7 +830,8 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
             )}
           </div>
 
-          <div>
+          {/* Desktop : tableau des lignes */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
@@ -883,6 +917,83 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
             </table>
           </div>
 
+          {/* Mobile : cartes des lignes */}
+          <div className="md:hidden space-y-3">
+            {lines.map((line, i) => {
+              const lineHT = calcLineHT(line)
+              return (
+                <div key={line.key} className="border border-gray-200 rounded-xl p-3 space-y-2.5">
+                  {/* Désignation (pleine largeur) */}
+                  <ProductAutocomplete
+                    value={line.description}
+                    onChange={(text) => { updateLine(i, 'description', text); if (line.product_id) updateLine(i, 'product_id', null) }}
+                    onSelect={(p) => selectProduct(i, p)}
+                    clientId={clientId || null}
+                    className={INPUT}
+                    placeholder="Désignation"
+                  />
+
+                  {/* Grille 2 colonnes pour les champs numériques */}
+                  <div className="grid grid-cols-2 gap-2">
+                    {activeColumns.reference && (
+                      <div>
+                        <label className="text-[10px] text-gray-400 mb-0.5 block">Réf.</label>
+                        <input type="text" value={line.reference} onChange={(e) => updateLine(i, 'reference', e.target.value)} placeholder="Réf" className={INPUT} />
+                      </div>
+                    )}
+                    {activeColumns.quantity && (
+                      <div>
+                        <label className="text-[10px] text-gray-400 mb-0.5 block">Qté</label>
+                        <input type="number" step="0.01" min="0.01" value={line.quantity} onChange={(e) => updateLine(i, 'quantity', e.target.value)} className={`${INPUT} text-right`} />
+                      </div>
+                    )}
+                    {activeColumns.unit && (
+                      <div>
+                        <label className="text-[10px] text-gray-400 mb-0.5 block">Unité</label>
+                        <UnitCombobox value={line.unit} onChange={(v) => updateLine(i, 'unit', v)} className={INPUT} />
+                      </div>
+                    )}
+                    <div>
+                      <label className="text-[10px] text-gray-400 mb-0.5 block">PU HT</label>
+                      <input type="number" step="0.01" value={line.unit_price} onChange={(e) => updateLine(i, 'unit_price', e.target.value)} className={`${INPUT} text-right`} />
+                    </div>
+                    {activeColumns.vat_rate && (
+                      <div>
+                        <label className="text-[10px] text-gray-400 mb-0.5 block">TVA %</label>
+                        <select value={line.vat_rate} onChange={(e) => updateLine(i, 'vat_rate', e.target.value)} className={SELECT}>
+                          {vatRates.map((vr) => <option key={vr.rate} value={vr.rate}>{vr.rate}%</option>)}
+                        </select>
+                      </div>
+                    )}
+                    {activeColumns.discount_percent && (
+                      <div>
+                        <label className="text-[10px] text-gray-400 mb-0.5 block">Rem. %</label>
+                        <input type="number" step="0.1" min="0" max="100" value={line.discount_percent} onChange={(e) => updateLine(i, 'discount_percent', e.target.value)} className={`${INPUT} text-right`} />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Total + actions */}
+                  <div className="flex items-center justify-between pt-1 border-t border-gray-100">
+                    {activeColumns.total_ht && (
+                      <span className="text-sm font-semibold text-gray-900">{fmtCurrency(lineHT)}</span>
+                    )}
+                    <div className="flex items-center gap-1 ml-auto">
+                      {line.product_id && (
+                        <button onClick={() => refreshLine(i)} className="p-1.5 rounded hover:bg-blue-50 transition">
+                          <RefreshCw className="w-4 h-4 text-gray-400" />
+                        </button>
+                      )}
+                      <button onClick={() => removeLine(i)} className="p-1.5 rounded hover:bg-red-50 transition">
+                        <Trash2 className="w-4 h-4 text-gray-400" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
           <button
             onClick={() => setLines((prev) => [...prev, emptyLine()])}
             className="mt-2 flex items-center gap-1.5 text-xs text-orange-600 hover:text-orange-700 font-medium transition px-2 py-1"
@@ -904,7 +1015,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
         </div>
 
         {/* Pied de devis */}
-        <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-3">
             <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Options</h2>
             <div>
@@ -1017,7 +1128,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
   // Mode pleine page (création)
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="max-w-5xl mx-auto px-6 py-8">
+      <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 md:py-8">
         <button onClick={() => navigate('/app/devis')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-4 transition">
           <ArrowLeft className="w-4 h-4" /> Retour
         </button>

@@ -465,7 +465,7 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string; onCl
 
 // ── Situation detail (overlay) ────────────────────────────────────────────────
 
-function SituationEditorPanel({ contractId, situationId, onClose }: { contractId: string; situationId: string; onClose: () => void }) {
+function SituationEditorPanel({ contractId: _contractId, situationId, onClose }: { contractId: string; situationId: string; onClose: () => void }) {
   const [situation, setSituation] = useState<{
     id: string; situation_number: number; period_label: string; status: string
     cumulative_total: number; previously_invoiced: number; invoice_amount: number
