@@ -782,7 +782,7 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Mode de règlement</label>
-              <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className={`${INPUT} bg-white`}>
+              <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className={`${INPUT} bg-white h-[38px]`}>
                 <option value="">— Non spécifié —</option>
                 {paymentMethods.map((m) => <option key={m.id} value={m.label}>{m.label}</option>)}
               </select>
@@ -870,8 +870,8 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
                       </td>
                       {docColumns.vat_rate && (
                         <td className="px-1 py-1.5">
-                          <select value={line.vat_rate} onChange={(e) => updateLine(i, 'vat_rate', e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 bg-white" disabled={isValidated}>
-                            {vatRates.map((vr) => <option key={vr.rate} value={vr.rate}>{vr.label || `${vr.rate}%`}</option>)}
+                          <select value={line.vat_rate} onChange={(e) => updateLine(i, 'vat_rate', e.target.value)} className="w-full px-2 py-0 h-[30px] text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 bg-white" disabled={isValidated}>
+                            {vatRates.map((vr) => <option key={vr.rate} value={vr.rate}>{vr.rate}%</option>)}
                           </select>
                         </td>
                       )}
@@ -927,7 +927,7 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Remise globale</label>
               <div className="flex gap-2">
-                <select value={discountType} onChange={(e) => setDiscountType(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white" disabled={isValidated}>
+                <select value={discountType} onChange={(e) => setDiscountType(e.target.value)} className="px-3 py-2 h-[38px] text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white" disabled={isValidated}>
                   <option value="none">Aucune</option>
                   <option value="percent">Pourcentage</option>
                   <option value="fixed">Montant fixe</option>
