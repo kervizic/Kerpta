@@ -155,6 +155,11 @@ const INVOICE_FILTERS: FilterOption[] = [
   ] },
   { column: 'client', label: 'Client', type: 'text', placeholder: 'Rechercher un client...' },
   { column: 'date', label: 'Date', type: 'date-range' },
+  { column: 'payment', label: 'Payé', type: 'select', options: [
+    { value: 'no', label: 'Non' },
+    { value: 'partial', label: 'Partiellement' },
+    { value: 'yes', label: 'Oui' },
+  ] },
   { column: 'status', label: 'Statut', type: 'multi-select', options: [
     { value: 'draft', label: 'Brouillon' },
     { value: 'validated', label: 'Validée' },
@@ -204,6 +209,16 @@ function InvoicesList({ initialSelectedId }: { initialSelectedId?: string } = {}
       // Filtrage côté client pour multi-status (le backend ne supporte qu'un seul)
       if (statusArr && statusArr.length > 1) {
         items = items.filter((inv) => statusArr.includes(inv.status))
+      }
+
+      // Filtrage côté client pour le paiement
+      const paymentFilter = filters.payment as string | undefined
+      if (paymentFilter === 'no') {
+        items = items.filter((inv) => inv.amount_paid === 0)
+      } else if (paymentFilter === 'partial') {
+        items = items.filter((inv) => inv.amount_paid > 0 && inv.amount_paid < inv.total_ttc)
+      } else if (paymentFilter === 'yes') {
+        items = items.filter((inv) => inv.amount_paid >= inv.total_ttc && inv.total_ttc > 0)
       }
 
       setInvoices(items)
@@ -263,8 +278,8 @@ function InvoicesList({ initialSelectedId }: { initialSelectedId?: string } = {}
                   <ColumnFilterHeader filter={INVOICE_FILTERS[3]} value={filters.date || []} onChange={(v) => updateFilter('date', v)} />
                   <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase">Échéance</th>
                   <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase">Total TTC</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase">Payé</th>
-                  <ColumnFilterHeader filter={INVOICE_FILTERS[4]} value={filters.status || []} onChange={(v) => updateFilter('status', v)} />
+                  <ColumnFilterHeader filter={INVOICE_FILTERS[4]} value={filters.payment || ''} onChange={(v) => updateFilter('payment', v)} align="right" />
+                  <ColumnFilterHeader filter={INVOICE_FILTERS[5]} value={filters.status || []} onChange={(v) => updateFilter('status', v)} />
                 </tr>
               </thead>
               <tbody>
