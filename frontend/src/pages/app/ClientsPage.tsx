@@ -5,10 +5,10 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   Plus, Search, UserRound, ArrowLeft, Loader2,
-  Building2, MapPin, CheckCircle2,
+  Building2, MapPin, CheckCircle2, Pencil, X,
 } from 'lucide-react'
 import { navigate } from '@/hooks/useRoute'
-import { orgGet, orgPost } from '@/lib/orgApi'
+import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
 import { apiClient } from '@/lib/api'
 import CompanyInfoCard from '@/components/app/CompanyInfoCard'
 import { COUNTRIES, getCountryMode } from '@/data/countries'
@@ -741,14 +741,152 @@ function CreateClientForm() {
   )
 }
 
+// ── Modal édition client ──────────────────────────────────────────────────────
+
+function EditClientModal({ client, onClose, onSaved }: {
+  client: ClientDetail
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [name, setName] = useState(client.name)
+  const [email, setEmail] = useState(client.email || '')
+  const [phone, setPhone] = useState(client.phone || '')
+  const [vatNumber, setVatNumber] = useState(client.vat_number || '')
+  const [billingProfileId, setBillingProfileId] = useState<string | null>(client.billing_profile_id)
+  const [billingProfiles, setBillingProfiles] = useState<BillingProfileShort[]>([])
+  const [billingAddress, setBillingAddress] = useState({
+    voie: client.billing_address?.voie ?? '',
+    complement: client.billing_address?.complement ?? '',
+    code_postal: client.billing_address?.code_postal ?? '',
+    commune: client.billing_address?.commune ?? '',
+    pays: client.billing_address?.pays ?? 'France',
+  })
+  const [notes, setNotes] = useState(client.notes || '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    orgGet<BillingProfileShort[]>('/billing/profiles')
+      .then(setBillingProfiles)
+      .catch(() => {})
+  }, [])
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    setError('')
+    try {
+      await orgPatch(`/clients/${client.id}`, {
+        name,
+        email: email || null,
+        phone: phone || null,
+        vat_number: vatNumber || null,
+        billing_profile_id: billingProfileId || null,
+        billing_address: billingAddress.voie ? billingAddress : null,
+        notes: notes || null,
+      })
+      onSaved()
+      onClose()
+    } catch (err) {
+      setError(httpError(err, 'Erreur lors de la mise à jour'))
+    }
+    setSaving(false)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+      <div className="bg-white rounded-2xl shadow-xl w-full mx-4 max-w-lg max-h-[85vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <h3 className="text-base font-semibold text-gray-900">Modifier le client</h3>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 transition"><X className="w-4 h-4 text-gray-400" /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="px-5 py-4 space-y-4">
+          {error && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>}
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">
+              {client.type === 'company' ? 'Raison sociale' : 'Nom'}
+            </label>
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)} required className={INPUT} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Email</label>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={INPUT} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Téléphone</label>
+              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={INPUT} />
+            </div>
+          </div>
+
+          {client.type === 'company' && (
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">TVA intracommunautaire</label>
+              <input type="text" value={vatNumber} onChange={(e) => setVatNumber(e.target.value)} className={INPUT} />
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Profil de facturation</label>
+            {billingProfiles.length > 0 ? (
+              <select
+                value={billingProfileId ?? ''}
+                onChange={(e) => setBillingProfileId(e.target.value || null)}
+                className={`${INPUT} bg-white`}
+              >
+                <option value="">Aucun profil</option>
+                {billingProfiles.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} — {p.payment_terms}j {p.payment_term_type === 'net' ? 'net' : p.payment_term_type === 'end_of_month' ? 'fin de mois' : `le ${p.payment_terms}`}
+                    {p.is_default ? ' (par défaut)' : ''}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <p className="text-xs text-gray-400">Aucun profil disponible</p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Adresse de facturation</label>
+            <div className="space-y-2">
+              <input type="text" value={billingAddress.voie} onChange={(e) => setBillingAddress((p) => ({ ...p, voie: e.target.value }))} placeholder="Adresse" className={INPUT} />
+              <input type="text" value={billingAddress.complement} onChange={(e) => setBillingAddress((p) => ({ ...p, complement: e.target.value }))} placeholder="Complément" className={INPUT} />
+              <div className="grid grid-cols-2 gap-2">
+                <input type="text" value={billingAddress.code_postal} onChange={(e) => setBillingAddress((p) => ({ ...p, code_postal: e.target.value }))} placeholder="Code postal" className={INPUT} />
+                <input type="text" value={billingAddress.commune} onChange={(e) => setBillingAddress((p) => ({ ...p, commune: e.target.value }))} placeholder="Ville" className={INPUT} />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Notes</label>
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className={INPUT} />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg transition">Annuler</button>
+            <button type="submit" disabled={saving || !name} className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 // ── Détail client ─────────────────────────────────────────────────────────────
 
 function ClientDetailView({ clientId }: { clientId: string }) {
   const [client, setClient] = useState<ClientDetail | null>(null)
   const [contacts, setContacts] = useState<ContactOut[]>([])
   const [loading, setLoading] = useState(true)
+  const [editModal, setEditModal] = useState(false)
 
-  useEffect(() => {
+  const loadClient = useCallback(() => {
     setLoading(true)
     Promise.all([
       orgGet<ClientDetail>(`/clients/${clientId}`),
@@ -758,6 +896,8 @@ function ClientDetailView({ clientId }: { clientId: string }) {
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [clientId])
+
+  useEffect(() => { loadClient() }, [loadClient])
 
   if (loading) {
     return (
@@ -777,17 +917,25 @@ function ClientDetailView({ clientId }: { clientId: string }) {
           <ArrowLeft className="w-4 h-4" /> Retour
         </button>
 
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-center">
-            <UserRound className="w-5 h-5 text-orange-600" />
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-center">
+              <UserRound className="w-5 h-5 text-orange-600" />
+            </div>
+            <div>
+              <h1 className="text-xl font-semibold text-gray-900">{client.name}</h1>
+              <p className="text-sm text-gray-400">
+                {client.type === 'company' ? 'Entreprise' : 'Particulier'}
+                {client.siret && <span className="ml-2 font-mono">{client.siret}</span>}
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900">{client.name}</h1>
-            <p className="text-sm text-gray-400">
-              {client.type === 'company' ? 'Entreprise' : 'Particulier'}
-              {client.siret && <span className="ml-2 font-mono">{client.siret}</span>}
-            </p>
-          </div>
+          <button
+            onClick={() => setEditModal(true)}
+            className="flex items-center gap-1.5 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold rounded-lg transition"
+          >
+            <Pencil className="w-4 h-4" /> Modifier
+          </button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -855,6 +1003,14 @@ function ClientDetailView({ clientId }: { clientId: string }) {
           <div className="mt-6">
             <CompanyInfoCard siren={client.company_siren} />
           </div>
+        )}
+
+        {editModal && client && (
+          <EditClientModal
+            client={client}
+            onClose={() => setEditModal(false)}
+            onSaved={loadClient}
+          />
         )}
       </div>
     </div>
