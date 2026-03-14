@@ -126,20 +126,21 @@ export default function CatalogPage({ path }: { path: string }) {
   }
   const detailMatch = path.match(/^\/app\/catalogue\/([^/]+)$/)
   if (detailMatch) {
-    return <ProductDetailPage productId={detailMatch[1]} />
+    return <ProductsList initialSelectedId={detailMatch[1]} />
   }
   return <ProductsList />
 }
 
 // ── Liste des articles ──────────────────────────────────────────────────────
 
-function ProductsList() {
+function ProductsList({ initialSelectedId }: { initialSelectedId?: string } = {}) {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [showArchived, setShowArchived] = useState(false)
+  const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId ?? null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -211,7 +212,7 @@ function ProductsList() {
               </thead>
               <tbody>
                 {products.map((p) => (
-                  <tr key={p.id} onClick={() => navigate(`/app/catalogue/${p.id}`)}
+                  <tr key={p.id} onClick={() => setSelectedId(p.id)}
                     className="border-b border-gray-50 hover:bg-orange-50/50 cursor-pointer transition">
                     <td className="px-4 py-3 text-gray-500 font-mono text-xs">{p.reference || '\u2014'}</td>
                     <td className="px-4 py-3 font-medium text-gray-900">
@@ -244,6 +245,14 @@ function ProductsList() {
             <span className="px-3 py-1.5 text-sm text-gray-500">Page {page} / {Math.ceil(total / 25)}</span>
             <button disabled={page * 25 >= total} onClick={() => setPage(page + 1)} className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-50 hover:bg-gray-50">Suivant</button>
           </div>
+        )}
+
+        {/* Modale détail article */}
+        {selectedId && (
+          <ProductDetailModal
+            productId={selectedId}
+            onClose={() => { setSelectedId(null); void load() }}
+          />
         )}
       </div>
     </div>
@@ -430,7 +439,7 @@ function ProductFormPage({ productId }: { productId?: string }) {
 
 // ── D&eacute;tail article ──────────────────────────────────────────────────────────
 
-function ProductDetailPage({ productId }: { productId: string }) {
+function ProductDetailModal({ productId, onClose }: { productId: string; onClose: () => void }) {
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'variants' | 'purchases' | 'components' | 'discounts'>('variants')
@@ -443,9 +452,9 @@ function ProductDetailPage({ productId }: { productId: string }) {
     try {
       const p = await orgGet<Product>(`/catalog/products/${productId}`)
       setProduct(p)
-    } catch { navigate('/app/catalogue') }
+    } catch { onClose() }
     setLoading(false)
-  }, [productId])
+  }, [productId, onClose])
 
   useEffect(() => { void load() }, [load])
 
@@ -453,7 +462,7 @@ function ProductDetailPage({ productId }: { productId: string }) {
     setArchiving(true)
     try {
       await orgDelete(`/catalog/products/${productId}`)
-      navigate('/app/catalogue')
+      onClose()
     } catch { /* ignore */ }
     setArchiving(false)
   }
@@ -467,97 +476,114 @@ function ProductDetailPage({ productId }: { productId: string }) {
     setUnarchiving(false)
   }
 
-  if (loading || !product) {
-    return <div className="flex-1 flex justify-center items-center"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
-  }
-
   const tabs = [
-    { key: 'variants' as const, label: 'Variantes client', icon: Users },
-    { key: 'purchases' as const, label: 'Achats li\u00e9s', icon: ShoppingCart },
+    { key: 'variants' as const, label: 'Variantes', icon: Users },
+    { key: 'purchases' as const, label: 'Achats', icon: ShoppingCart },
     { key: 'components' as const, label: 'Composition', icon: Layers },
-    { key: 'discounts' as const, label: 'Paliers quantit\u00e9', icon: BarChart3 },
+    { key: 'discounts' as const, label: 'Paliers', icon: BarChart3 },
   ]
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="max-w-5xl mx-auto px-6 py-8">
-        {/* Retour */}
-        <button onClick={() => navigate('/app/catalogue')} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4">
-          <ArrowLeft className="w-4 h-4" /> Catalogue
-        </button>
-
-        {/* En-t&ecirc;te */}
-        <div className="flex items-start justify-between mb-6">
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900">{product.name}</h1>
-            <div className="flex items-center gap-2 mt-1">
-              {product.reference && <span className="text-sm text-gray-500 font-mono">{product.reference}</span>}
-              {product.archived_at && <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">Archivé</span>}
-              {product.is_in_catalog && <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">Catalogue</span>}
-              {product.is_composite && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">Compos&eacute;</span>}
-              {product.sale_price_mode === 'coefficient' && (
-                <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full">
-                  {product.coefficient_name} &times;{Number(product.coefficient_value)}
-                </span>
-              )}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+      <div
+        className="bg-white rounded-2xl shadow-xl w-full mx-4 max-w-3xl max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* En-tête */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10 rounded-t-2xl">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-center shrink-0">
+              {loading ? <Loader2 className="w-5 h-5 animate-spin text-orange-500" /> : <Layers className="w-5 h-5 text-orange-600" />}
             </div>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={() => navigate(`/app/catalogue/${productId}/edit`)}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 transition">
-              <Pencil className="w-3.5 h-3.5" /> Modifier
-            </button>
-            {product.archived_at ? (
-              <button onClick={handleUnarchive} disabled={unarchiving}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm border border-green-200 text-green-600 rounded-lg hover:bg-green-50 transition disabled:opacity-50">
-                {unarchiving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArchiveRestore className="w-3.5 h-3.5" />} Désarchiver
-              </button>
-            ) : (
-              <button onClick={() => setShowArchiveConfirm(true)}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition">
-                <Archive className="w-3.5 h-3.5" /> Archiver
-              </button>
+            {product && (
+              <div className="min-w-0">
+                <h2 className="text-lg font-semibold text-gray-900 truncate">{product.name}</h2>
+                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                  {product.reference && <span className="text-xs text-gray-500 font-mono">{product.reference}</span>}
+                  {product.archived_at && <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">Archivé</span>}
+                  {product.is_composite && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">Composé</span>}
+                  {product.sale_price_mode === 'coefficient' && (
+                    <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full">
+                      {product.coefficient_name} ×{Number(product.coefficient_value)}
+                    </span>
+                  )}
+                </div>
+              </div>
             )}
           </div>
+          <div className="flex items-center gap-2 shrink-0 ml-3">
+            {product && (
+              <>
+                <button onClick={() => navigate(`/app/catalogue/${productId}/edit`)}
+                  className="flex items-center gap-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                  <Pencil className="w-3 h-3" /> Modifier
+                </button>
+                {product.archived_at ? (
+                  <button onClick={handleUnarchive} disabled={unarchiving}
+                    className="flex items-center gap-1 px-2.5 py-1.5 text-xs border border-green-200 text-green-600 rounded-lg hover:bg-green-50 transition disabled:opacity-50">
+                    {unarchiving ? <Loader2 className="w-3 h-3 animate-spin" /> : <ArchiveRestore className="w-3 h-3" />} Désarchiver
+                  </button>
+                ) : (
+                  <button onClick={() => setShowArchiveConfirm(true)}
+                    className="flex items-center gap-1 px-2.5 py-1.5 text-xs border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition">
+                    <Archive className="w-3 h-3" /> Archiver
+                  </button>
+                )}
+              </>
+            )}
+            <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 transition">
+              <X className="w-5 h-5 text-gray-400" />
+            </button>
+          </div>
         </div>
 
-        {/* Infos r&eacute;sum&eacute;es */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <InfoCard label="Prix HT" value={fmtPrice(product.unit_price)} />
-          <InfoCard label="Prix achat" value={fmtPrice(product.purchase_price)} />
-          <InfoCard label="TVA" value={`${Number(product.vat_rate)} %`} />
-          <InfoCard label="Unit&eacute;" value={product.unit || '\u2014'} />
-        </div>
+        {loading ? (
+          <div className="flex justify-center py-16">
+            <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
+          </div>
+        ) : !product ? (
+          <div className="py-16 text-center text-gray-400 text-sm">Article introuvable</div>
+        ) : (
+          <div className="px-6 py-5">
+            {/* Infos résumées */}
+            <div className="grid grid-cols-4 gap-3 mb-5">
+              <InfoCard label="Prix HT" value={fmtPrice(product.unit_price)} />
+              <InfoCard label="Prix achat" value={fmtPrice(product.purchase_price)} />
+              <InfoCard label="TVA" value={`${Number(product.vat_rate)} %`} />
+              <InfoCard label="Unité" value={product.unit || '—'} />
+            </div>
 
-        {product.description && (
-          <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-6">
-            <p className="text-sm text-gray-600">{product.description}</p>
+            {product.description && (
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 mb-5">
+                <p className="text-sm text-gray-600 whitespace-pre-line">{product.description}</p>
+              </div>
+            )}
+
+            {/* Onglets */}
+            <div className="border-b border-gray-200 mb-4">
+              <div className="flex gap-1">
+                {tabs.map(t => (
+                  <button key={t.key} onClick={() => setTab(t.key)}
+                    className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition ${
+                      tab === t.key ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}>
+                    <t.icon className="w-3 h-3" /> {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Contenu onglet */}
+            {tab === 'variants' && <VariantsTab productId={productId} />}
+            {tab === 'purchases' && <PurchaseLinksTab productId={productId} />}
+            {tab === 'components' && <ComponentsTab productId={productId} />}
+            {tab === 'discounts' && <QuantityDiscountsTab productId={productId} />}
           </div>
         )}
 
-        {/* Onglets */}
-        <div className="border-b border-gray-200 mb-4">
-          <div className="flex gap-1">
-            {tabs.map(t => (
-              <button key={t.key} onClick={() => setTab(t.key)}
-                className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition ${
-                  tab === t.key ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}>
-                <t.icon className="w-3.5 h-3.5" /> {t.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Contenu onglet */}
-        {tab === 'variants' && <VariantsTab productId={productId} />}
-        {tab === 'purchases' && <PurchaseLinksTab productId={productId} />}
-        {tab === 'components' && <ComponentsTab productId={productId} />}
-        {tab === 'discounts' && <QuantityDiscountsTab productId={productId} />}
-
         {/* Confirm archivage */}
         {showArchiveConfirm && (
-          <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={() => setShowArchiveConfirm(false)}>
+          <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-[60]" onClick={() => setShowArchiveConfirm(false)}>
             <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl" onClick={e => e.stopPropagation()}>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Archiver cet article ?</h3>
               <p className="text-sm text-gray-500 mb-4">L&apos;article ne sera plus visible dans le catalogue mais restera dans l&apos;historique.</p>
