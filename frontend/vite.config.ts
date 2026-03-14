@@ -12,13 +12,15 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Regrouper React + react-dom
-          'vendor-react': ['react', 'react-dom'],
-          // Toutes les icônes Lucide dans un seul chunk
-          'vendor-lucide': ['lucide-react'],
-          // Autres libs tierces
-          'vendor-misc': ['axios', 'zustand'],
+        manualChunks(id) {
+          // Regrouper React
+          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
+            return 'vendor-react'
+          }
+          // Regrouper les autres libs tierces (sans lucide pour garder le tree-shaking)
+          if (id.includes('node_modules/axios/') || id.includes('node_modules/zustand/')) {
+            return 'vendor-misc'
+          }
         },
       },
     },
