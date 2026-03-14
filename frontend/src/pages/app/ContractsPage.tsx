@@ -3,9 +3,10 @@
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, Loader2, ArrowLeft, BarChart3 } from 'lucide-react'
+import { Plus, Loader2, ArrowLeft, BarChart3, Info } from 'lucide-react'
 import { navigate } from '@/hooks/useRoute'
 import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
+import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
 
 interface Contract {
   id: string
@@ -80,73 +81,117 @@ function fmtCurrency(v: number) {
   return Number(v).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
 }
 
+// ── Filtres colonnes ──────────────────────────────────────────────────────────
+
+const CONTRACT_FILTERS: FilterOption[] = [
+  { column: 'reference', label: 'Réf.', type: 'text', placeholder: 'Rechercher une référence...' },
+  { column: 'client', label: 'Client', type: 'text', placeholder: 'Rechercher un client...' },
+  { column: 'type', label: 'Type', type: 'select', options: [
+    { value: 'purchase_order', label: 'Bon de commande' },
+    { value: 'fixed_price', label: 'Prix fixe' },
+    { value: 'progress_billing', label: 'Avancement' },
+    { value: 'recurring', label: 'Récurrent' },
+  ] },
+  { column: 'status', label: 'Statut', type: 'multi-select', options: [
+    { value: 'draft', label: 'Brouillon' },
+    { value: 'active', label: 'Actif' },
+    { value: 'completed', label: 'Terminé' },
+    { value: 'terminated', label: 'Résilié' },
+    { value: 'cancelled', label: 'Annulé' },
+  ] },
+]
+
 // ── Liste ─────────────────────────────────────────────────────────────────────
 
 function ContractsList() {
   const [contracts, setContracts] = useState<Contract[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
-  const [filterType, setFilterType] = useState('')
-  const [filterStatus, setFilterStatus] = useState('')
+  const [filters, setFilters] = useState<FilterValues>({})
   const [loading, setLoading] = useState(true)
+
+  const updateFilter = useCallback((column: string, value: string | string[]) => {
+    setFilters((prev) => ({ ...prev, [column]: value }))
+    setPage(1)
+  }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await orgGet<{ items: Contract[]; total: number }>('/contracts', {
-        page, contract_type: filterType || undefined, status: filterStatus || undefined,
-      })
-      setContracts(data.items)
+      const params: Record<string, string | number | undefined> = { page }
+
+      if (filters.type) params.contract_type = filters.type as string
+      const statusArr = filters.status as string[] | undefined
+      if (statusArr?.length === 1) params.status = statusArr[0]
+
+      const data = await orgGet<{ items: Contract[]; total: number }>('/contracts', params)
+      let items = data.items
+
+      // Filtrage côté client pour référence et client (pas de param backend dédié)
+      const refSearch = (filters.reference as string || '').toLowerCase()
+      if (refSearch) items = items.filter((c) => c.reference.toLowerCase().includes(refSearch))
+      const clientSearch = (filters.client as string || '').toLowerCase()
+      if (clientSearch) items = items.filter((c) => (c.client_name || '').toLowerCase().includes(clientSearch))
+      // Multi-status côté client
+      if (statusArr && statusArr.length > 1) {
+        items = items.filter((c) => statusArr.includes(c.status))
+      }
+
+      setContracts(items)
       setTotal(data.total)
     } catch { /* ignore */ }
     setLoading(false)
-  }, [page, filterType, filterStatus])
+  }, [page, filters])
 
-  useEffect(() => { void load() }, [load])
+  // Debounce pour les filtres texte
+  useEffect(() => {
+    const timer = setTimeout(() => { void load() }, 300)
+    return () => clearTimeout(timer)
+  }, [load])
+
+  const activeFilterCount = Object.values(filters).filter((v) =>
+    (typeof v === 'string' && v) || (Array.isArray(v) && v.some(Boolean))
+  ).length
 
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="max-w-5xl mx-auto px-6 py-8">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-semibold text-gray-900">Contrats & Commandes</h1>
-        </div>
-
-        <div className="flex gap-3 mb-4">
-          <select value={filterType} onChange={(e) => { setFilterType(e.target.value); setPage(1) }} className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white">
-            <option value="">Tous types</option>
-            <option value="purchase_order">Bon de commande</option>
-            <option value="fixed_price">Prix fixe</option>
-            <option value="progress_billing">Avancement</option>
-            <option value="recurring">Récurrent</option>
-          </select>
-          <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setPage(1) }} className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white">
-            <option value="">Tous statuts</option>
-            <option value="draft">Brouillon</option>
-            <option value="active">Actif</option>
-            <option value="completed">Terminé</option>
-            <option value="terminated">Résilié</option>
-          </select>
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-semibold text-gray-900">Contrats & Commandes</h1>
+            <div className="relative group">
+              <Info className="w-4 h-4 text-gray-300 hover:text-gray-500 transition cursor-help" />
+              <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 px-3 py-2 bg-gray-800 text-white text-[11px] rounded-lg shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition z-50">
+                Cliquez sur les en-têtes de colonnes pour filtrer
+              </div>
+            </div>
+            {activeFilterCount > 0 && (
+              <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">
+                {activeFilterCount} filtre{activeFilterCount > 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-          {loading ? (
-            <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
-          ) : contracts.length === 0 ? (
-            <div className="py-12 text-center text-gray-400 text-sm">Aucun contrat trouvé</div>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
-                  <th className="px-4 py-3">Réf.</th>
-                  <th className="px-4 py-3">Client</th>
-                  <th className="px-4 py-3">Type</th>
-                  <th className="px-4 py-3 text-right">Budget</th>
-                  <th className="px-4 py-3 text-right">Facturé</th>
-                  <th className="px-4 py-3">Statut</th>
-                </tr>
-              </thead>
-              <tbody>
-                {contracts.map((c) => {
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 text-left">
+                <ColumnFilterHeader filter={CONTRACT_FILTERS[0]} value={filters.reference || ''} onChange={(v) => updateFilter('reference', v)} />
+                <ColumnFilterHeader filter={CONTRACT_FILTERS[1]} value={filters.client || ''} onChange={(v) => updateFilter('client', v)} />
+                <ColumnFilterHeader filter={CONTRACT_FILTERS[2]} value={filters.type || ''} onChange={(v) => updateFilter('type', v)} />
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase">Budget</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase">Facturé</th>
+                <ColumnFilterHeader filter={CONTRACT_FILTERS[3]} value={filters.status || []} onChange={(v) => updateFilter('status', v)} />
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={6} className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin text-orange-500 mx-auto" /></td></tr>
+              ) : contracts.length === 0 ? (
+                <tr><td colSpan={6} className="py-12 text-center text-gray-400 text-sm">Aucun contrat trouvé</td></tr>
+              ) : (
+                contracts.map((c) => {
                   const st = STATUS_LABELS[c.status] || { label: c.status, cls: 'bg-gray-100 text-gray-600' }
                   return (
                     <tr key={c.id} onClick={() => navigate(`/app/contrats/${c.id}`)} className="border-b border-gray-50 hover:bg-orange-50/50 cursor-pointer transition">
@@ -158,10 +203,10 @@ function ContractsList() {
                       <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${st.cls}`}>{st.label}</span></td>
                     </tr>
                   )
-                })}
-              </tbody>
-            </table>
-          )}
+                })
+              )}
+            </tbody>
+          </table>
         </div>
 
         {total > 25 && (
