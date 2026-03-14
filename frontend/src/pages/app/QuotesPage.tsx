@@ -147,6 +147,8 @@ function QuotesList() {
   const [page, setPage] = useState(1)
   const [filters, setFilters] = useState<FilterValues>({})
   const [loading, setLoading] = useState(true)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [editId, setEditId] = useState<string | null>(null)
 
   const updateFilter = useCallback((column: string, value: string | string[]) => {
     setFilters((prev) => ({ ...prev, [column]: value }))
@@ -239,7 +241,7 @@ function QuotesList() {
                   const typeLabel = q.is_avenant ? `Avenant n°${q.avenant_number}` : (DOC_LABELS[q.document_type] || q.document_type)
                   const isEditable = q.status === 'draft'
                   return (
-                    <tr key={q.id} onClick={() => navigate(isEditable ? `/app/devis/${q.id}/edit` : `/app/devis/${q.id}`)} className="border-b border-gray-50 hover:bg-orange-50/50 cursor-pointer transition">
+                    <tr key={q.id} onClick={() => isEditable ? setEditId(q.id) : setSelectedId(q.id)} className="border-b border-gray-50 hover:bg-orange-50/50 cursor-pointer transition">
                       <td className="px-4 py-3 font-mono text-xs text-gray-700">{q.number}</td>
                       <td className="px-4 py-3 text-gray-500">{typeLabel}</td>
                       <td className="px-4 py-3 font-medium text-gray-900">{q.client_name || '—'}</td>
@@ -261,6 +263,21 @@ function QuotesList() {
             <button disabled={page * 25 >= total} onClick={() => setPage(page + 1)} className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-50 hover:bg-gray-50">Suivant</button>
           </div>
         )}
+        {/* Panneau détail devis (lecture seule) */}
+        {selectedId && (
+          <QuoteDetailPanel
+            quoteId={selectedId}
+            onClose={() => { setSelectedId(null); void load() }}
+          />
+        )}
+
+        {/* Formulaire édition en overlay */}
+        {editId && (
+          <QuoteFormPage
+            quoteId={editId}
+            onClose={() => { setEditId(null); void load() }}
+          />
+        )}
       </div>
     </div>
   )
@@ -268,7 +285,7 @@ function QuotesList() {
 
 // ── Détail ─────────────────────────────────────────────────────────────────────
 
-function QuoteDetailView({ quoteId }: { quoteId: string }) {
+function QuoteDetailPanel({ quoteId, onClose }: { quoteId: string; onClose: () => void }) {
   const [quote, setQuote] = useState<QuoteDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState('')
@@ -291,52 +308,66 @@ function QuoteDetailView({ quoteId }: { quoteId: string }) {
     setActionLoading('')
   }
 
-  if (loading) return <div className="flex-1 flex justify-center items-center"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
-  if (!quote) return <div className="flex-1 flex justify-center items-center text-gray-400">Devis introuvable</div>
-
-  const st = STATUS_LABELS[quote.status] || { label: quote.status, cls: 'bg-gray-100 text-gray-600' }
+  const st = quote ? (STATUS_LABELS[quote.status] || { label: quote.status, cls: 'bg-gray-100 text-gray-600' }) : null
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="max-w-4xl mx-auto px-6 py-8">
-        <button onClick={() => navigate('/app/devis')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-4 transition">
-          <ArrowLeft className="w-4 h-4" /> Retour
-        </button>
-
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900">
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 overflow-y-auto"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-xl w-full mx-6 max-w-4xl mt-8 mb-8"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {loading ? (
+          <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
+        ) : !quote ? (
+          <div className="py-16 text-center text-gray-400 text-sm">Devis introuvable</div>
+        ) : (
+          <>
+        {/* En-tête */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10 rounded-t-2xl">
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold text-gray-900 truncate">
               {quote.is_avenant ? `Avenant n°${quote.avenant_number}` : (DOC_LABELS[quote.document_type] || 'Devis')} {quote.number}
-            </h1>
-            <p className="text-sm text-gray-400">{quote.client_name} — {quote.issue_date}</p>
+            </h2>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-xs text-gray-500">{quote.client_name} — {quote.issue_date}</span>
+              {st && <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${st.cls}`}>{st.label}</span>}
+            </div>
           </div>
-          <span className={`px-3 py-1 rounded-full text-sm font-medium ${st.cls}`}>{st.label}</span>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 transition ml-3">
+            <X className="w-5 h-5 text-gray-400" />
+          </button>
         </div>
 
+        <div className="px-6 py-5">
         {/* Actions */}
-        {quote.status === 'draft' && (
-          <div className="flex gap-2 mb-6">
-            <button onClick={() => doAction('send')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
-              {actionLoading === 'send' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Envoyer
-            </button>
-            <button onClick={() => doAction('duplicate')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition disabled:opacity-50">
-              <Copy className="w-4 h-4" /> Dupliquer
-            </button>
-          </div>
-        )}
-        {quote.status === 'sent' && (
-          <div className="flex gap-2 mb-6">
-            <button onClick={() => doAction('accept')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
-              {actionLoading === 'accept' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Accepter
-            </button>
-            <button onClick={() => doAction('refuse')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 text-sm font-medium rounded-lg transition disabled:opacity-50">
-              <X className="w-4 h-4" /> Refuser
-            </button>
-            <button onClick={() => doAction('duplicate')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition disabled:opacity-50">
-              <Copy className="w-4 h-4" /> Dupliquer
-            </button>
-          </div>
-        )}
+        <div className="flex flex-wrap gap-2 mb-5">
+          {quote.status === 'draft' && (
+            <>
+              <button onClick={() => doAction('send')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
+                {actionLoading === 'send' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Envoyer
+              </button>
+              <button onClick={() => doAction('duplicate')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition disabled:opacity-50">
+                <Copy className="w-4 h-4" /> Dupliquer
+              </button>
+            </>
+          )}
+          {quote.status === 'sent' && (
+            <>
+              <button onClick={() => doAction('accept')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
+                {actionLoading === 'accept' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Accepter
+              </button>
+              <button onClick={() => doAction('refuse')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 text-sm font-medium rounded-lg transition disabled:opacity-50">
+                <X className="w-4 h-4" /> Refuser
+              </button>
+              <button onClick={() => doAction('duplicate')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition disabled:opacity-50">
+                <Copy className="w-4 h-4" /> Dupliquer
+              </button>
+            </>
+          )}
+        </div>
 
         {/* Totaux */}
         <div className="grid grid-cols-3 gap-4 mb-6">
@@ -389,6 +420,9 @@ function QuoteDetailView({ quoteId }: { quoteId: string }) {
             <p className="text-sm text-gray-700 whitespace-pre-wrap">{quote.notes}</p>
           </div>
         )}
+        </div>
+          </>
+        )}
       </div>
     </div>
   )
@@ -396,7 +430,7 @@ function QuoteDetailView({ quoteId }: { quoteId: string }) {
 
 // ── Formulaire création/édition ──────────────────────────────────────────────
 
-function QuoteFormPage({ quoteId }: { quoteId?: string }) {
+function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () => void }) {
   const isEdit = !!quoteId
 
   // Données du formulaire
@@ -610,25 +644,35 @@ function QuoteFormPage({ quoteId }: { quoteId?: string }) {
         await orgPost(`/quotes/${resultId}/send`)
       }
 
-      navigate(resultId ? `/app/devis/${resultId}` : '/app/devis')
+      if (onClose) onClose()
+      else navigate('/app/devis')
     } catch { /* */ }
     setSaving(false)
   }
 
   if (loading) {
+    if (onClose) return (
+      <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 overflow-y-auto" onClick={onClose}>
+        <div className="bg-white rounded-2xl shadow-xl w-full mx-6 max-w-5xl mt-8 mb-8 flex justify-center py-16" onClick={(e) => e.stopPropagation()}>
+          <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
+        </div>
+      </div>
+    )
     return <div className="flex-1 flex justify-center items-center"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
   }
 
-  return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="max-w-5xl mx-auto px-6 py-8">
-        <button onClick={() => navigate(quoteId ? `/app/devis/${quoteId}` : '/app/devis')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-4 transition">
-          <ArrowLeft className="w-4 h-4" /> Retour
-        </button>
-
-        <h1 className="text-xl font-semibold text-gray-900 mb-6">
-          {isEdit ? 'Modifier le devis' : 'Nouveau devis'}
-        </h1>
+  const formContent = (
+    <>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-xl font-semibold text-gray-900">
+            {isEdit ? 'Modifier le devis' : 'Nouveau devis'}
+          </h1>
+          {onClose && (
+            <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 transition">
+              <X className="w-5 h-5 text-gray-400" />
+            </button>
+          )}
+        </div>
 
         {/* En-tête */}
         <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-4 space-y-4">
@@ -844,7 +888,7 @@ function QuoteFormPage({ quoteId }: { quoteId?: string }) {
         {/* Actions */}
         <div className="flex justify-end gap-3 pb-8">
           <button
-            onClick={() => navigate(quoteId ? `/app/devis/${quoteId}` : '/app/devis')}
+            onClick={() => onClose ? onClose() : navigate('/app/devis')}
             className="px-4 py-2.5 text-sm text-gray-500 hover:bg-gray-100 rounded-lg transition"
           >
             Annuler
@@ -864,7 +908,34 @@ function QuoteFormPage({ quoteId }: { quoteId?: string }) {
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Send className="w-4 h-4" /> Enregistrer et envoyer</>}
           </button>
         </div>
+    </>
+  )
 
+  // Mode overlay (édition depuis la liste)
+  if (onClose) {
+    return (
+      <div
+        className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 overflow-y-auto"
+        onClick={onClose}
+      >
+        <div
+          className="bg-white rounded-2xl shadow-xl w-full mx-6 max-w-5xl mt-8 mb-8 px-6 py-6"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {formContent}
+        </div>
+      </div>
+    )
+  }
+
+  // Mode pleine page (création)
+  return (
+    <div className="flex-1 overflow-y-auto">
+      <div className="max-w-5xl mx-auto px-6 py-8">
+        <button onClick={() => navigate('/app/devis')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-4 transition">
+          <ArrowLeft className="w-4 h-4" /> Retour
+        </button>
+        {formContent}
       </div>
     </div>
   )
@@ -873,17 +944,6 @@ function QuoteFormPage({ quoteId }: { quoteId?: string }) {
 // ── Page ───────────────────────────────────────────────────────────────────────
 
 export default function QuotesPage({ path }: { path: string }) {
-  // /app/devis/new
   if (path === '/app/devis/new') return <QuoteFormPage />
-
-  // /app/devis/{id}/edit
-  const editMatch = path.match(/^\/app\/devis\/(.+)\/edit$/)
-  if (editMatch) return <QuoteFormPage quoteId={editMatch[1]} />
-
-  // /app/devis/{id}
-  const detailMatch = path.match(/^\/app\/devis\/([^/]+)$/)
-  if (detailMatch) return <QuoteDetailView quoteId={detailMatch[1]} />
-
-  // /app/devis
   return <QuotesList />
 }
