@@ -384,6 +384,9 @@ async def _load_from_cache(siren: str, db: AsyncSession) -> CompanyDetails | Non
     nat_jur = c["legal_form_code"]
     conventions, est_ess, est_association, est_qualiopi = _extract_complements(raw)
 
+    # Données INPI cachées dans raw_data._inpi
+    inpi = raw.get("_inpi") or {}
+
     return CompanyDetails(
         siren=siren,
         denomination=c["denomination"],
@@ -405,13 +408,21 @@ async def _load_from_cache(siren: str, db: AsyncSession) -> CompanyDetails | Non
         dirigeants=_extract_dirigeants(raw),
         finances=_extract_finances(raw),
         conventions_collectives=conventions,
-        est_ess=est_ess,
+        est_ess=est_ess if est_ess is not None else inpi.get("est_ess"),
         est_association=est_association,
         est_qualiopi=est_qualiopi,
         date_mise_a_jour=raw.get("date_mise_a_jour"),
         siege=siege_etab,
         etablissements_actifs=etabs_actifs,
         nombre_etablissements_actifs=len(etabs_actifs),
+        # Données INPI (depuis le cache)
+        capital=inpi.get("capital"),
+        devise_capital=inpi.get("devise_capital"),
+        capital_variable=inpi.get("capital_variable"),
+        objet_social=inpi.get("objet_social"),
+        duree_societe=inpi.get("duree_societe"),
+        date_cloture_exercice=inpi.get("date_cloture_exercice"),
+        date_immatriculation_rcs=inpi.get("date_immatriculation_rcs"),
     )
 
 
@@ -662,13 +673,8 @@ async def get_company_details(siren: str, db: AsyncSession | None = None) -> Com
             cached = await _load_from_cache(siren, db)
             if cached is not None:
                 _log.debug("[companies] Cache hit pour SIREN %s", siren)
-                # Enrichir avec INPI même si cache hit (données INPI pas cachées)
-                try:
-                    inpi_data = await get_inpi_data(siren, db)
-                    if inpi_data:
-                        _enrich_with_inpi(cached, inpi_data)
-                except Exception:
-                    _log.debug("[companies] Enrichissement INPI ignoré pour %s (cache)", siren)
+                # Les données INPI sont enrichies lors de la mise en cache (étape 4)
+                # Pas d'appel réseau supplémentaire sur un cache hit
                 return cached
         except Exception:
             _log.warning("[companies] Erreur lecture cache pour %s, fallback API", siren)
@@ -680,7 +686,19 @@ async def get_company_details(siren: str, db: AsyncSession | None = None) -> Com
 
     item, matching = result
 
-    # 3. Sauvegarder dans le cache
+    # 3. Enrichir avec les données INPI (avant la sauvegarde pour les inclure dans le cache)
+    inpi_dict: dict | None = None
+    if db is not None:
+        try:
+            inpi_data = await get_inpi_data(siren, db)
+            if inpi_data:
+                from dataclasses import asdict
+                inpi_dict = {k: v for k, v in asdict(inpi_data).items() if v is not None}
+                item["_inpi"] = inpi_dict
+        except Exception:
+            _log.debug("[companies] Enrichissement INPI ignoré pour %s", siren)
+
+    # 4. Sauvegarder dans le cache (inclut les données INPI dans raw_data)
     if db is not None:
         try:
             await _save_to_cache(siren, item, matching, db)
@@ -690,14 +708,17 @@ async def get_company_details(siren: str, db: AsyncSession | None = None) -> Com
 
     details = _build_details_from_api(siren, item, matching)
 
-    # 4. Enrichir avec les données INPI
-    if db is not None:
-        try:
-            inpi_data = await get_inpi_data(siren, db)
-            if inpi_data:
-                _enrich_with_inpi(details, inpi_data)
-        except Exception:
-            _log.debug("[companies] Enrichissement INPI ignoré pour %s", siren)
+    # 5. Appliquer l'enrichissement INPI au résultat
+    if inpi_dict:
+        details.capital = inpi_dict.get("capital")
+        details.devise_capital = inpi_dict.get("devise_capital")
+        details.capital_variable = inpi_dict.get("capital_variable")
+        details.objet_social = inpi_dict.get("objet_social")
+        details.duree_societe = inpi_dict.get("duree_societe")
+        details.date_cloture_exercice = inpi_dict.get("date_cloture_exercice")
+        details.date_immatriculation_rcs = inpi_dict.get("date_immatriculation_rcs")
+        if details.est_ess is None:
+            details.est_ess = inpi_dict.get("est_ess")
 
     return details
 
