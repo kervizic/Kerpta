@@ -852,7 +852,7 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
                           onChange={(text) => { updateLine(i, 'description', text); if (line.product_id) updateLine(i, 'product_id', null) }}
                           onSelect={(p) => selectProduct(i, p)}
                           clientId={clientId || null}
-                          className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400"
+                          className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400"
                           placeholder="Désignation"
                           disabled={isValidated}
                         />
@@ -870,7 +870,7 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
                       </td>
                       {docColumns.vat_rate && (
                         <td className="px-1 py-1.5">
-                          <select value={line.vat_rate} onChange={(e) => updateLine(i, 'vat_rate', e.target.value)} className="w-full px-1 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 bg-white" disabled={isValidated}>
+                          <select value={line.vat_rate} onChange={(e) => updateLine(i, 'vat_rate', e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 bg-white" disabled={isValidated}>
                             {vatRates.map((vr) => <option key={vr.rate} value={vr.rate}>{vr.label || `${vr.rate}%`}</option>)}
                           </select>
                         </td>
