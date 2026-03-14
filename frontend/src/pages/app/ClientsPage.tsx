@@ -134,7 +134,7 @@ function ClientsList() {
     <div className="flex-1 overflow-y-auto">
       <div className="max-w-5xl mx-auto px-6 py-8">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-semibold text-gray-900">Clients</h1>
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Clients</h1>
           <button
             onClick={() => navigate('/app/clients/new')}
             className="flex items-center gap-1.5 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold rounded-lg transition"
@@ -145,28 +145,28 @@ function ClientsList() {
 
         {/* Barre de recherche */}
         <div className="relative mb-4">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
           <input
             type="text"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1) }}
             placeholder="Rechercher un client..."
-            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white dark:bg-gray-800 dark:text-white"
           />
         </div>
 
         {/* Table */}
-        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden">
           {loading ? (
             <div className="flex justify-center py-12">
               <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
             </div>
           ) : clients.length === 0 ? (
-            <div className="py-12 text-center text-gray-400 text-sm">Aucun client trouvé</div>
+            <div className="py-12 text-center text-gray-400 dark:text-gray-500 text-sm">Aucun client trouvé</div>
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
+                <tr className="border-b border-gray-100 dark:border-gray-700 text-left text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase">
                   <th className="px-4 py-3">Nom</th>
                   <th className="px-4 py-3">Type</th>
                   <th className="px-4 py-3">SIRET</th>
@@ -179,13 +179,13 @@ function ClientsList() {
                   <tr
                     key={c.id}
                     onClick={() => setSelectedId(c.id)}
-                    className="border-b border-gray-50 hover:bg-orange-50/50 cursor-pointer transition"
+                    className="border-b border-gray-50 dark:border-gray-700 hover:bg-orange-50/50 dark:hover:bg-gray-700/50 cursor-pointer transition"
                   >
-                    <td className="px-4 py-3 font-medium text-gray-900">{c.name}</td>
-                    <td className="px-4 py-3 text-gray-500">{c.type === 'company' ? 'Entreprise' : 'Particulier'}</td>
-                    <td className="px-4 py-3 text-gray-500 font-mono text-xs">{c.siret || '—'}</td>
-                    <td className="px-4 py-3 text-gray-500">{c.email || '—'}</td>
-                    <td className="px-4 py-3 text-gray-500">{c.phone || '—'}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{c.name}</td>
+                    <td className="px-4 py-3 text-gray-500 dark:text-gray-400">{c.type === 'company' ? 'Entreprise' : 'Particulier'}</td>
+                    <td className="px-4 py-3 text-gray-500 dark:text-gray-400 font-mono text-xs">{c.siret || '—'}</td>
+                    <td className="px-4 py-3 text-gray-500 dark:text-gray-400">{c.email || '—'}</td>
+                    <td className="px-4 py-3 text-gray-500 dark:text-gray-400">{c.phone || '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -199,17 +199,17 @@ function ClientsList() {
             <button
               disabled={page <= 1}
               onClick={() => setPage(page - 1)}
-              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-50 hover:bg-gray-50"
+              className="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-200"
             >
               Précédent
             </button>
-            <span className="px-3 py-1.5 text-sm text-gray-500">
+            <span className="px-3 py-1.5 text-sm text-gray-500 dark:text-gray-400">
               Page {page} / {Math.ceil(total / 25)}
             </span>
             <button
               disabled={page * 25 >= total}
               onClick={() => setPage(page + 1)}
-              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-50 hover:bg-gray-50"
+              className="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-200"
             >
               Suivant
             </button>
@@ -437,22 +437,22 @@ function CreateClientForm() {
       <div className="max-w-2xl mx-auto px-6 py-8">
         <button
           onClick={() => navigate('/app/clients')}
-          className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-4 transition"
+          className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 mb-4 transition"
         >
           <ArrowLeft className="w-4 h-4" /> Retour
         </button>
 
-        <h1 className="text-xl font-semibold text-gray-900 mb-6">Nouveau client</h1>
+        <h1 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Nouveau client</h1>
 
         {error && (
-          <div className="p-3 mb-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>
+          <div className="p-3 mb-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg text-sm text-red-700 dark:text-red-400">{error}</div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
 
           {/* ── Type ─────────────────────────────────────────────────────── */}
           <section>
-            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Type</label>
+            <label className="block text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1.5">Type</label>
             <select
               value={type}
               onChange={(e) => setType(e.target.value as 'company' | 'individual')}
@@ -466,7 +466,7 @@ function CreateClientForm() {
           {/* ── Pays (entreprise) ─────────────────────────────────────────── */}
           {type === 'company' && (
             <section>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Pays</label>
+              <label className="block text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1.5">Pays</label>
               <div className="relative" ref={countryRef}>
                 <input
                   type="text"
@@ -477,9 +477,9 @@ function CreateClientForm() {
                   className={INPUT}
                 />
                 {showCountryDropdown && (
-                  <div className="absolute z-20 mt-1 w-full max-h-48 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg">
+                  <div className="absolute z-20 mt-1 w-full max-h-48 overflow-y-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg dark:shadow-black/50">
                     {filteredCountries.length === 0 ? (
-                      <div className="px-3 py-2 text-sm text-gray-400">Aucun pays trouvé</div>
+                      <div className="px-3 py-2 text-sm text-gray-400 dark:text-gray-500">Aucun pays trouvé</div>
                     ) : (
                       filteredCountries.map((c) => (
                         <button
@@ -496,8 +496,8 @@ function CreateClientForm() {
                             setSiret('')
                             setVatNumber('')
                           }}
-                          className={`w-full text-left px-3 py-2 text-sm hover:bg-orange-50 transition ${
-                            c.code === countryCode ? 'bg-orange-50 text-orange-600 font-medium' : 'text-gray-700'
+                          className={`w-full text-left px-3 py-2 text-sm hover:bg-orange-50 dark:hover:bg-orange-900/30 transition ${
+                            c.code === countryCode ? 'bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 font-medium' : 'text-gray-700 dark:text-gray-200'
                           }`}
                         >
                           {c.name}
@@ -513,25 +513,25 @@ function CreateClientForm() {
           {/* ── Identification ────────────────────────────────────────────── */}
           {type === 'company' && (
             <section className="space-y-3">
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">Identification</label>
+              <label className="block text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Identification</label>
 
               {mode === 'france' && (
                 <>
                   <div className="flex gap-2">
                     <input type="text" value={siren} onChange={(e) => setSiren(e.target.value)} placeholder="SIREN (9 chiffres)" maxLength={11} className={`${INPUT} flex-1`} />
-                    <button type="button" onClick={() => handleSearch(siren)} disabled={searching || siren.replace(/\s/g, '').length < 9} className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition disabled:opacity-50">
+                    <button type="button" onClick={() => handleSearch(siren)} disabled={searching || siren.replace(/\s/g, '').length < 9} className="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition disabled:opacity-50">
                       {searching ? <Loader2 className="w-4 h-4 animate-spin text-gray-500" /> : <Search className="w-4 h-4 text-gray-500" />}
                     </button>
                   </div>
                   <div className="flex gap-2">
                     <input type="text" value={siret} onChange={(e) => setSiret(e.target.value)} placeholder="SIRET (14 chiffres)" maxLength={17} className={`${INPUT} flex-1`} />
-                    <button type="button" onClick={() => handleSearch(siret)} disabled={searching || siret.replace(/\s/g, '').length < 14} className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition disabled:opacity-50">
+                    <button type="button" onClick={() => handleSearch(siret)} disabled={searching || siret.replace(/\s/g, '').length < 14} className="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition disabled:opacity-50">
                       <Search className="w-4 h-4 text-gray-500" />
                     </button>
                   </div>
                   <div className="flex gap-2">
                     <input type="text" value={vatNumber} onChange={(e) => setVatNumber(e.target.value)} placeholder="TVA intracommunautaire" className={`${INPUT} flex-1`} />
-                    <button type="button" onClick={() => handleSearch(vatNumber)} disabled={searching || vatNumber.length < 4} className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition disabled:opacity-50">
+                    <button type="button" onClick={() => handleSearch(vatNumber)} disabled={searching || vatNumber.length < 4} className="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition disabled:opacity-50">
                       <Search className="w-4 h-4 text-gray-500" />
                     </button>
                   </div>
@@ -541,7 +541,7 @@ function CreateClientForm() {
               {mode === 'eu' && (
                 <div className="flex gap-2">
                   <input type="text" value={vatNumber} onChange={(e) => setVatNumber(e.target.value)} placeholder="N° TVA intracommunautaire" className={`${INPUT} flex-1`} />
-                  <button type="button" onClick={() => handleSearch(vatNumber)} disabled={searching || vatNumber.length < 4} className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition disabled:opacity-50">
+                  <button type="button" onClick={() => handleSearch(vatNumber)} disabled={searching || vatNumber.length < 4} className="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition disabled:opacity-50">
                     {searching ? <Loader2 className="w-4 h-4 animate-spin text-gray-500" /> : <Search className="w-4 h-4 text-gray-500" />}
                   </button>
                 </div>
@@ -555,7 +555,7 @@ function CreateClientForm() {
 
           {/* ── Nom / Raison sociale ──────────────────────────────────────── */}
           <section>
-            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+            <label className="block text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1.5">
               {type === 'company' ? 'Raison sociale' : 'Nom'}
             </label>
             <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={type === 'company' ? 'Raison sociale' : 'Nom du client'} required className={INPUT} />
@@ -563,9 +563,9 @@ function CreateClientForm() {
 
           {/* ── Adresse de facturation ────────────────────────────────────── */}
           <section>
-            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Adresse de facturation</label>
+            <label className="block text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1.5">Adresse de facturation</label>
             {hasSiren && companyDetails ? (
-              <p className="text-sm text-gray-500 italic">
+              <p className="text-sm text-gray-500 dark:text-gray-400 italic">
                 <MapPin className="w-3.5 h-3.5 inline mr-1" />
                 Sélectionnez un établissement ci-dessous pour définir l'adresse.
               </p>
@@ -574,9 +574,9 @@ function CreateClientForm() {
                 <div className="relative">
                   <input type="text" value={billingAddress.voie} onChange={(e) => handleAddressInput(e.target.value)} placeholder="Adresse" className={INPUT} />
                   {addressSuggestions.length > 0 && (
-                    <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    <div className="absolute z-20 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg dark:shadow-black/50 max-h-48 overflow-y-auto">
                       {addressSuggestions.map((s, i) => (
-                        <button key={i} type="button" onClick={() => selectAddressSuggestion(s)} className="w-full text-left px-3 py-2 text-sm hover:bg-orange-50 transition text-gray-700">
+                        <button key={i} type="button" onClick={() => selectAddressSuggestion(s)} className="w-full text-left px-3 py-2 text-sm hover:bg-orange-50 dark:hover:bg-orange-900/30 transition text-gray-700 dark:text-gray-200">
                           {s.label}
                         </button>
                       ))}
@@ -596,31 +596,31 @@ function CreateClientForm() {
           {/* ── Résultats SIRENE (sous tous les champs) ───────────────────── */}
           {companyDetails && (
             <section className="space-y-4">
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">Informations entreprise</label>
-              <div className="bg-green-50 border border-green-200 rounded-xl p-4 space-y-1.5">
+              <label className="block text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Informations entreprise</label>
+              <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-xl p-4 space-y-1.5">
                 <div className="flex items-center gap-2 mb-2">
                   <CheckCircle2 className="w-4 h-4 text-green-600" />
-                  <span className="text-sm font-semibold text-green-800">Entreprise trouvée</span>
+                  <span className="text-sm font-semibold text-green-800 dark:text-green-400">Entreprise trouvée</span>
                 </div>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                  <div><span className="text-gray-500">Dénomination :</span> <span className="text-gray-900 font-medium">{companyDetails.denomination ?? '—'}</span></div>
-                  <div><span className="text-gray-500">Forme juridique :</span> <span className="text-gray-900">{companyDetails.categorie_juridique_libelle ?? '—'}</span></div>
-                  <div><span className="text-gray-500">SIREN :</span> <span className="text-gray-900 font-mono">{companyDetails.siren}</span></div>
-                  <div><span className="text-gray-500">TVA intra :</span> <span className="text-gray-900 font-mono">{companyDetails.tva_intracom}</span></div>
-                  <div><span className="text-gray-500">Code APE :</span> <span className="text-gray-900">{companyDetails.activite_principale ?? '—'}</span></div>
-                  <div><span className="text-gray-500">Date création :</span> <span className="text-gray-900">{companyDetails.date_creation ?? '—'}</span></div>
+                  <div><span className="text-gray-500 dark:text-gray-400">Dénomination :</span> <span className="text-gray-900 dark:text-white font-medium">{companyDetails.denomination ?? '—'}</span></div>
+                  <div><span className="text-gray-500 dark:text-gray-400">Forme juridique :</span> <span className="text-gray-900 dark:text-white">{companyDetails.categorie_juridique_libelle ?? '—'}</span></div>
+                  <div><span className="text-gray-500 dark:text-gray-400">SIREN :</span> <span className="text-gray-900 dark:text-white font-mono">{companyDetails.siren}</span></div>
+                  <div><span className="text-gray-500 dark:text-gray-400">TVA intra :</span> <span className="text-gray-900 dark:text-white font-mono">{companyDetails.tva_intracom}</span></div>
+                  <div><span className="text-gray-500 dark:text-gray-400">Code APE :</span> <span className="text-gray-900 dark:text-white">{companyDetails.activite_principale ?? '—'}</span></div>
+                  <div><span className="text-gray-500 dark:text-gray-400">Date création :</span> <span className="text-gray-900 dark:text-white">{companyDetails.date_creation ?? '—'}</span></div>
                   {companyDetails.tranche_effectifs_libelle && (
-                    <div><span className="text-gray-500">Effectifs :</span> <span className="text-gray-900">{companyDetails.tranche_effectifs_libelle}</span></div>
+                    <div><span className="text-gray-500 dark:text-gray-400">Effectifs :</span> <span className="text-gray-900 dark:text-white">{companyDetails.tranche_effectifs_libelle}</span></div>
                   )}
                   {companyDetails.categorie_entreprise && (
-                    <div><span className="text-gray-500">Catégorie :</span> <span className="text-gray-900">{companyDetails.categorie_entreprise}</span></div>
+                    <div><span className="text-gray-500 dark:text-gray-400">Catégorie :</span> <span className="text-gray-900 dark:text-white">{companyDetails.categorie_entreprise}</span></div>
                   )}
                 </div>
               </div>
 
               {companyDetails.etablissements_actifs.length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                  <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">
                     Établissements actifs ({companyDetails.etablissements_actifs.length}{companyDetails.nombre_etablissements_actifs > companyDetails.etablissements_actifs.length ? ` / ${companyDetails.nombre_etablissements_actifs} au total` : ''})
                   </p>
                   <div className="space-y-2">
@@ -628,16 +628,16 @@ function CreateClientForm() {
                       const isSelected = selectedEtab === etab.siret
                       return (
                         <button key={etab.siret} type="button" onClick={() => handleSelectEtab(etab)}
-                          className={`w-full text-left p-3 rounded-xl border transition ${isSelected ? 'border-orange-400 bg-orange-50 ring-2 ring-orange-200' : 'border-gray-200 bg-white hover:border-gray-300'}`}
+                          className={`w-full text-left p-3 rounded-xl border transition ${isSelected ? 'border-orange-400 bg-orange-50 dark:bg-orange-900/30 ring-2 ring-orange-200 dark:ring-orange-700' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-300'}`}
                         >
                           <div className="flex items-center gap-2 mb-1">
-                            <Building2 className="w-4 h-4 text-gray-400" />
-                            <span className="text-sm font-mono font-medium text-gray-900">{formatSiret(etab.siret)}</span>
-                            {etab.siege && <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-[10px] font-semibold rounded uppercase">Siège</span>}
+                            <Building2 className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                            <span className="text-sm font-mono font-medium text-gray-900 dark:text-white">{formatSiret(etab.siret)}</span>
+                            {etab.siege && <span className="px-1.5 py-0.5 bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-400 text-[10px] font-semibold rounded uppercase">Siège</span>}
                             {isSelected && <CheckCircle2 className="w-4 h-4 text-orange-600 ml-auto" />}
                           </div>
-                          <p className="text-xs text-gray-500 ml-6">{formatAddress(etab.adresse)}</p>
-                          {etab.activite_principale && <p className="text-xs text-gray-400 ml-6 mt-0.5">APE : {etab.activite_principale}</p>}
+                          <p className="text-xs text-gray-500 dark:text-gray-400 ml-6">{formatAddress(etab.adresse)}</p>
+                          {etab.activite_principale && <p className="text-xs text-gray-400 dark:text-gray-500 ml-6 mt-0.5">APE : {etab.activite_principale}</p>}
                         </button>
                       )
                     })}
@@ -650,16 +650,16 @@ function CreateClientForm() {
           {/* Résultats VIES (entreprise UE sans SIREN) */}
           {!companyDetails && searchResults.length > 0 && (
             <section>
-              <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+              <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <CheckCircle2 className="w-4 h-4 text-green-600" />
-                  <span className="text-sm font-semibold text-green-800">Entreprise trouvée (VIES)</span>
+                  <span className="text-sm font-semibold text-green-800 dark:text-green-400">Entreprise trouvée (VIES)</span>
                 </div>
                 <div className="text-sm space-y-1">
-                  <div><span className="text-gray-500">Dénomination :</span> <span className="text-gray-900 font-medium">{searchResults[0].denomination ?? '—'}</span></div>
-                  <div><span className="text-gray-500">TVA :</span> <span className="text-gray-900 font-mono">{searchResults[0].tva_intracom}</span></div>
+                  <div><span className="text-gray-500 dark:text-gray-400">Dénomination :</span> <span className="text-gray-900 dark:text-white font-medium">{searchResults[0].denomination ?? '—'}</span></div>
+                  <div><span className="text-gray-500 dark:text-gray-400">TVA :</span> <span className="text-gray-900 dark:text-white font-mono">{searchResults[0].tva_intracom}</span></div>
                   {searchResults[0].siege_adresse && (
-                    <div><span className="text-gray-500">Adresse :</span> <span className="text-gray-900">{formatAddress(searchResults[0].siege_adresse)}</span></div>
+                    <div><span className="text-gray-500 dark:text-gray-400">Adresse :</span> <span className="text-gray-900 dark:text-white">{formatAddress(searchResults[0].siege_adresse)}</span></div>
                   )}
                 </div>
               </div>
@@ -668,7 +668,7 @@ function CreateClientForm() {
 
           {/* ── Contact (optionnel) ──────────────────────────────────────── */}
           <section>
-            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Contact (optionnel)</label>
+            <label className="block text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1.5">Contact (optionnel)</label>
             <div className="space-y-2">
               <div className="grid grid-cols-2 gap-2">
                 <input type="text" value={contactLastName} onChange={(e) => setContactLastName(e.target.value)} placeholder="Nom" className={INPUT} />
@@ -684,7 +684,7 @@ function CreateClientForm() {
 
           {/* ── Profil de facturation ──────────────────────────────────── */}
           <section>
-            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Profil de facturation</label>
+            <label className="block text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1.5">Profil de facturation</label>
             {billingProfiles.length > 0 ? (
               <select
                 value={billingProfileId ?? ''}
@@ -700,7 +700,7 @@ function CreateClientForm() {
                 ))}
               </select>
             ) : (
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-gray-400 dark:text-gray-500">
                 Aucun profil de facturation. Créez-en un dans Paramètres &gt; Facturation.
               </p>
             )}
@@ -708,13 +708,13 @@ function CreateClientForm() {
 
           {/* ── Notes ────────────────────────────────────────────────────── */}
           <section>
-            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Notes</label>
+            <label className="block text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1.5">Notes</label>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="Notes internes..." className={INPUT} />
           </section>
 
           {/* ── Boutons ──────────────────────────────────────────────────── */}
           <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={() => navigate('/app/clients')} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition">Annuler</button>
+            <button type="button" onClick={() => navigate('/app/clients')} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">Annuler</button>
             <button type="submit" disabled={saving || !name} className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Créer'}
             </button>

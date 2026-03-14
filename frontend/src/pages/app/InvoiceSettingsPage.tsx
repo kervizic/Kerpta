@@ -91,9 +91,9 @@ function BankAccountsSection() {
   }
 
   return (
-    <section className="bg-white border border-gray-200 rounded-2xl p-5">
+    <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Comptes bancaires</h2>
+        <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Comptes bancaires</h2>
         <button onClick={() => openModal('new')} className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-400 text-white text-xs font-semibold rounded-lg transition">
           <Plus className="w-3.5 h-3.5" /> Ajouter
         </button>
@@ -101,23 +101,23 @@ function BankAccountsSection() {
       {loading ? (
         <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-orange-500" /></div>
       ) : items.length === 0 ? (
-        <p className="text-sm text-gray-400 text-center py-6">Aucun compte bancaire</p>
+        <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-6">Aucun compte bancaire</p>
       ) : (
         <table className="w-full text-sm">
-          <thead><tr className="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
+          <thead><tr className="border-b border-gray-100 dark:border-gray-700 text-left text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase">
             <th className="px-3 py-2">Libellé</th><th className="px-3 py-2">Banque</th><th className="px-3 py-2">IBAN</th><th className="px-3 py-2">BIC</th><th className="px-3 py-2 text-center">Défaut</th><th className="px-3 py-2"></th>
           </tr></thead>
           <tbody>{items.map((a) => (
-            <tr key={a.id} className="border-b border-gray-50 hover:bg-gray-50/50">
-              <td className="px-3 py-2 font-medium text-gray-900">{a.label}</td>
-              <td className="px-3 py-2 text-gray-500">{a.bank_name || '—'}</td>
-              <td className="px-3 py-2 font-mono text-xs text-gray-600">{a.iban}</td>
-              <td className="px-3 py-2 font-mono text-xs text-gray-500">{a.bic || '—'}</td>
+            <tr key={a.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50/50 dark:hover:bg-gray-700/50">
+              <td className="px-3 py-2 font-medium text-gray-900 dark:text-white">{a.label}</td>
+              <td className="px-3 py-2 text-gray-500 dark:text-gray-400">{a.bank_name || '—'}</td>
+              <td className="px-3 py-2 font-mono text-xs text-gray-600 dark:text-gray-300">{a.iban}</td>
+              <td className="px-3 py-2 font-mono text-xs text-gray-500 dark:text-gray-400">{a.bic || '—'}</td>
               <td className="px-3 py-2 text-center">{a.is_default && <Star className="w-4 h-4 text-orange-500 mx-auto" />}</td>
               <td className="px-3 py-2">
                 <div className="flex gap-1 justify-end">
-                  <button onClick={() => openModal(a)} className="p-1.5 rounded hover:bg-gray-100"><Pencil className="w-3.5 h-3.5 text-gray-400" /></button>
-                  <button onClick={() => handleDelete(a.id)} className="p-1.5 rounded hover:bg-red-50"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
+                  <button onClick={() => openModal(a)} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700"><Pencil className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" /></button>
+                  <button onClick={() => handleDelete(a.id)} className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/30"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
                 </div>
               </td>
             </tr>
@@ -132,12 +132,12 @@ function BankAccountsSection() {
             <input type="text" value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="Nom de la banque" className={INPUT} />
             <input type="text" value={iban} onChange={(e) => setIban(e.target.value)} placeholder="IBAN *" required className={INPUT} />
             <input type="text" value={bic} onChange={(e) => setBic(e.target.value)} placeholder="BIC" className={INPUT} />
-            <label className="flex items-center gap-2 text-sm text-gray-700">
+            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
               <input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} className="rounded border-gray-300 text-orange-500 focus:ring-orange-400" />
               Compte par défaut
             </label>
             <div className="flex justify-end gap-2 pt-2">
-              <button type="button" onClick={() => setModal(null)} className="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg transition">Annuler</button>
+              <button type="button" onClick={() => setModal(null)} className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">Annuler</button>
               <button type="submit" disabled={saving} className="px-4 py-2 text-sm bg-orange-500 hover:bg-orange-400 text-white font-semibold rounded-lg transition disabled:opacity-50">
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
               </button>
@@ -170,9 +170,9 @@ function BillingProfilesSection() {
   }
 
   return (
-    <section className="bg-white border border-gray-200 rounded-2xl p-5">
+    <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Profils de facturation</h2>
+        <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Profils de facturation</h2>
         <button onClick={() => setModal('new')} className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-400 text-white text-xs font-semibold rounded-lg transition">
           <Plus className="w-3.5 h-3.5" /> Ajouter
         </button>
@@ -180,26 +180,26 @@ function BillingProfilesSection() {
       {loading ? (
         <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-orange-500" /></div>
       ) : items.length === 0 ? (
-        <p className="text-sm text-gray-400 text-center py-6">Aucun profil de facturation</p>
+        <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-6">Aucun profil de facturation</p>
       ) : (
         <table className="w-full text-sm">
-          <thead><tr className="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
+          <thead><tr className="border-b border-gray-100 dark:border-gray-700 text-left text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase">
             <th className="px-3 py-2">Nom</th><th className="px-3 py-2">Compte</th><th className="px-3 py-2">Délai</th><th className="px-3 py-2">Méthode</th><th className="px-3 py-2 text-center">Défaut</th><th className="px-3 py-2"></th>
           </tr></thead>
           <tbody>{items.map((p) => (
-            <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50/50">
-              <td className="px-3 py-2 font-medium text-gray-900">{p.name}</td>
-              <td className="px-3 py-2 text-gray-500">{p.bank_account_label || '—'}</td>
-              <td className="px-3 py-2 text-gray-500">
+            <tr key={p.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50/50 dark:hover:bg-gray-700/50">
+              <td className="px-3 py-2 font-medium text-gray-900 dark:text-white">{p.name}</td>
+              <td className="px-3 py-2 text-gray-500 dark:text-gray-400">{p.bank_account_label || '—'}</td>
+              <td className="px-3 py-2 text-gray-500 dark:text-gray-400">
                 {p.payment_terms}j{' '}
                 {p.payment_term_type === 'end_of_month' ? 'fin de mois' : p.payment_term_type === 'end_of_month_the' ? `fin de mois le ${p.payment_term_day ?? '—'}` : 'net'}
               </td>
-              <td className="px-3 py-2 text-gray-500 capitalize">{p.payment_method || '—'}</td>
+              <td className="px-3 py-2 text-gray-500 dark:text-gray-400 capitalize">{p.payment_method || '—'}</td>
               <td className="px-3 py-2 text-center">{p.is_default && <Star className="w-4 h-4 text-orange-500 mx-auto" />}</td>
               <td className="px-3 py-2">
                 <div className="flex gap-1 justify-end">
-                  <button onClick={() => setModal(p)} className="p-1.5 rounded hover:bg-gray-100"><Pencil className="w-3.5 h-3.5 text-gray-400" /></button>
-                  <button onClick={() => handleDelete(p.id)} className="p-1.5 rounded hover:bg-red-50"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
+                  <button onClick={() => setModal(p)} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700"><Pencil className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" /></button>
+                  <button onClick={() => handleDelete(p.id)} className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/30"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
                 </div>
               </td>
             </tr>
@@ -274,11 +274,11 @@ function UnitsSection() {
   }
 
   return (
-    <section className="bg-white border border-gray-200 rounded-2xl p-5">
+    <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Unités</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Unités de mesure disponibles dans les formulaires</p>
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Unités</h2>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Unités de mesure disponibles dans les formulaires</p>
         </div>
         <button onClick={addRow} className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-400 text-white text-xs font-semibold rounded-lg transition">
           <Plus className="w-3.5 h-3.5" /> Ajouter
@@ -298,8 +298,8 @@ function UnitsSection() {
                   placeholder="Libellé de l'unité..."
                   className={`flex-1 ${INPUT}`}
                 />
-                <button onClick={() => removeRow(u.id)} className="p-1.5 rounded hover:bg-red-50 transition" title="Supprimer">
-                  <Trash2 className="w-3.5 h-3.5 text-gray-400 hover:text-red-500" />
+                <button onClick={() => removeRow(u.id)} className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/30 transition" title="Supprimer">
+                  <Trash2 className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 hover:text-red-500" />
                 </button>
               </div>
             ))}
@@ -381,11 +381,11 @@ function PaymentMethodsSection() {
   }
 
   return (
-    <section className="bg-white border border-gray-200 rounded-2xl p-5">
+    <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Modes de règlement</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Méthodes de paiement disponibles dans les profils de facturation</p>
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Modes de règlement</h2>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Méthodes de paiement disponibles dans les profils de facturation</p>
         </div>
         <button onClick={addRow} className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-400 text-white text-xs font-semibold rounded-lg transition">
           <Plus className="w-3.5 h-3.5" /> Ajouter
@@ -405,8 +405,8 @@ function PaymentMethodsSection() {
                   placeholder="Libellé du mode de règlement..."
                   className={`flex-1 ${INPUT}`}
                 />
-                <button onClick={() => removeRow(m.id)} className="p-1.5 rounded hover:bg-red-50 transition" title="Supprimer">
-                  <Trash2 className="w-3.5 h-3.5 text-gray-400 hover:text-red-500" />
+                <button onClick={() => removeRow(m.id)} className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/30 transition" title="Supprimer">
+                  <Trash2 className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 hover:text-red-500" />
                 </button>
               </div>
             ))}
@@ -466,11 +466,11 @@ function VatRatesSection() {
   }
 
   return (
-    <section className="bg-white border border-gray-200 rounded-2xl p-5">
+    <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Taux de TVA</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Taux disponibles dans les formulaires de devis et factures</p>
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Taux de TVA</h2>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Taux disponibles dans les formulaires de devis et factures</p>
         </div>
         <button onClick={addRate} className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-400 text-white text-xs font-semibold rounded-lg transition">
           <Plus className="w-3.5 h-3.5" /> Ajouter
@@ -502,8 +502,8 @@ function VatRatesSection() {
                   placeholder="Libellé (ex: Normal, Réduit...)"
                   className={`flex-1 ${INPUT}`}
                 />
-                <button onClick={() => removeRate(i)} className="p-1.5 rounded hover:bg-red-50 transition" title="Supprimer">
-                  <Trash2 className="w-3.5 h-3.5 text-gray-400 hover:text-red-500" />
+                <button onClick={() => removeRate(i)} className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/30 transition" title="Supprimer">
+                  <Trash2 className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 hover:text-red-500" />
                 </button>
               </div>
             ))}
@@ -621,15 +621,15 @@ function QuoteDocumentTypesSection() {
   }
 
   return (
-    <section className="bg-white border border-gray-200 rounded-2xl p-5">
+    <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Types de documents</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Types disponibles lors de la création d'un devis, avec leurs colonnes</p>
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Types de documents</h2>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Types disponibles lors de la création d'un devis, avec leurs colonnes</p>
         </div>
         <div className="flex items-center gap-2">
           {saving && <Loader2 className="w-4 h-4 animate-spin text-orange-500" />}
-          <button onClick={startAdd} className="flex items-center gap-1 text-xs text-orange-600 hover:text-orange-700 font-medium transition">
+          <button onClick={startAdd} className="flex items-center gap-1 text-xs text-orange-600 dark:text-orange-400 hover:text-orange-700 font-medium transition">
             <Plus className="w-3.5 h-3.5" /> Ajouter
           </button>
         </div>
@@ -639,21 +639,21 @@ function QuoteDocumentTypesSection() {
       ) : (
         <div className="space-y-2">
           {types.map((t, idx) => (
-            <div key={t.key} className="border border-gray-200 rounded-lg">
+            <div key={t.key} className="border border-gray-200 dark:border-gray-700 rounded-lg">
               {editIdx === idx ? (
                 <div className="p-4 space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs text-gray-500 mb-1 block">Clé (identifiant)</label>
+                      <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Clé (identifiant)</label>
                       <input value={editKey} onChange={(e) => setEditKey(e.target.value)} className={INPUT} placeholder="ex: devis" />
                     </div>
                     <div>
-                      <label className="text-xs text-gray-500 mb-1 block">Titre affiché sur le document</label>
+                      <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Titre affiché sur le document</label>
                       <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className={INPUT} placeholder="ex: Devis" />
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs text-gray-500 mb-1.5 block">Colonnes visibles</label>
+                    <label className="text-xs text-gray-500 dark:text-gray-400 mb-1.5 block">Colonnes visibles</label>
                     <div className="flex flex-wrap gap-2">
                       {ALL_COLUMNS.map((col) => {
                         const on = editColumns[col.key] !== false
@@ -665,8 +665,8 @@ function QuoteDocumentTypesSection() {
                             disabled={locked}
                             onClick={() => setEditColumns((prev) => ({ ...prev, [col.key]: !prev[col.key] }))}
                             className={`px-2.5 py-1 text-xs rounded-full border transition ${
-                              locked ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-default' :
-                              on ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-white border-gray-200 text-gray-400 hover:border-gray-300'
+                              locked ? 'bg-gray-100 dark:bg-gray-700 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 cursor-default' :
+                              on ? 'bg-orange-50 dark:bg-orange-900/30 border-orange-200 dark:border-orange-700 text-orange-700 dark:text-orange-400' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:border-gray-300'
                             }`}
                           >
                             {col.label}
@@ -679,7 +679,7 @@ function QuoteDocumentTypesSection() {
                     <button onClick={confirmEdit} disabled={!editKey.trim() || !editTitle.trim()} className="px-3 py-1.5 text-xs bg-orange-500 text-white rounded-lg hover:bg-orange-400 transition disabled:opacity-50">
                       Enregistrer
                     </button>
-                    <button onClick={cancelEdit} className="px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-100 rounded-lg transition">
+                    <button onClick={cancelEdit} className="px-3 py-1.5 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">
                       Annuler
                     </button>
                   </div>
@@ -687,21 +687,21 @@ function QuoteDocumentTypesSection() {
               ) : (
                 <div className="flex items-center justify-between px-4 py-3">
                   <div className="flex items-center gap-3">
-                    <span className="text-sm font-medium text-gray-900">{t.title}</span>
-                    <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded font-mono">{t.key}</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">{t.title}</span>
+                    <span className="text-[10px] text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded font-mono">{t.key}</span>
                     <div className="flex gap-1">
                       {ALL_COLUMNS.filter((c) => t.columns[c.key] !== false).map((c) => (
-                        <span key={c.key} className="text-[10px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded">{c.label}</span>
+                        <span key={c.key} className="text-[10px] bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 px-1.5 py-0.5 rounded">{c.label}</span>
                       ))}
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
-                    <button onClick={() => startEdit(idx)} className="p-1.5 rounded hover:bg-gray-100 transition" title="Modifier">
-                      <Pencil className="w-3.5 h-3.5 text-gray-400" />
+                    <button onClick={() => startEdit(idx)} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition" title="Modifier">
+                      <Pencil className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
                     </button>
                     {types.length > 1 && (
-                      <button onClick={() => remove(idx)} className="p-1.5 rounded hover:bg-red-50 transition" title="Supprimer">
-                        <Trash2 className="w-3.5 h-3.5 text-gray-400 hover:text-red-500" />
+                      <button onClick={() => remove(idx)} className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/30 transition" title="Supprimer">
+                        <Trash2 className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 hover:text-red-500" />
                       </button>
                     )}
                   </div>
@@ -711,7 +711,7 @@ function QuoteDocumentTypesSection() {
           ))}
 
           {addMode && (
-            <div className="border border-orange-200 rounded-lg p-4 space-y-3 bg-orange-50/30">
+            <div className="border border-orange-200 dark:border-orange-700 rounded-lg p-4 space-y-3 bg-orange-50/30 dark:bg-orange-900/20">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-gray-500 mb-1 block">Clé (identifiant)</label>
@@ -809,11 +809,11 @@ function DocumentColumnsSection() {
   }
 
   return (
-    <section className="bg-white border border-gray-200 rounded-2xl p-5">
+    <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Colonnes du document</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Colonnes affichées sur les devis, factures et PDF</p>
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Colonnes du document</h2>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Colonnes affichées sur les devis, factures et PDF</p>
         </div>
         {saving && <Loader2 className="w-4 h-4 animate-spin text-orange-500" />}
       </div>
@@ -828,8 +828,8 @@ function DocumentColumnsSection() {
               <label
                 key={key}
                 className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border transition cursor-pointer select-none ${
-                  locked ? 'border-gray-100 bg-gray-50 cursor-default' :
-                  enabled ? 'border-orange-200 bg-orange-50' : 'border-gray-200 hover:bg-gray-50'
+                  locked ? 'border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 cursor-default' :
+                  enabled ? 'border-orange-200 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/30' : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}
               >
                 <button
@@ -839,16 +839,16 @@ function DocumentColumnsSection() {
                   disabled={locked}
                   onClick={() => toggle(key)}
                   className={`relative inline-flex h-4 w-7 shrink-0 rounded-full border-2 border-transparent transition-colors ${
-                    locked ? 'bg-gray-300 cursor-default' : enabled ? 'bg-orange-500' : 'bg-gray-200'
+                    locked ? 'bg-gray-300 dark:bg-gray-600 cursor-default' : enabled ? 'bg-orange-500' : 'bg-gray-200 dark:bg-gray-600'
                   }`}
                 >
                   <span className={`pointer-events-none inline-block h-3 w-3 rounded-full bg-white shadow transform transition ${
                     enabled ? 'translate-x-3' : 'translate-x-0'
                   }`} />
                 </button>
-                <span className={`text-sm ${locked ? 'text-gray-400' : 'text-gray-700'}`}>
+                <span className={`text-sm ${locked ? 'text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200'}`}>
                   {label}
-                  {locked && <span className="text-[10px] text-gray-400 ml-1">(obligatoire)</span>}
+                  {locked && <span className="text-[10px] text-gray-400 dark:text-gray-500 ml-1">(obligatoire)</span>}
                 </span>
               </label>
             )
@@ -909,11 +909,11 @@ function RoundingSection() {
   }
 
   return (
-    <section className="bg-white border border-gray-200 rounded-2xl p-5">
+    <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Arrondis</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Précision des quantités et prix sur les documents et dans les calculs</p>
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Arrondis</h2>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Précision des quantités et prix sur les documents et dans les calculs</p>
         </div>
         {saving && <Loader2 className="w-4 h-4 animate-spin text-orange-500" />}
       </div>
@@ -922,12 +922,12 @@ function RoundingSection() {
       ) : config ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {ROUNDING_FIELDS.map((field) => (
-            <div key={field.key} className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border border-gray-200">
-              <span className="text-sm text-gray-700">{field.label}</span>
+            <div key={field.key} className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700">
+              <span className="text-sm text-gray-700 dark:text-gray-200">{field.label}</span>
               <select
                 value={config[field.key]}
                 onChange={(e) => handleChange(field.key, parseInt(e.target.value))}
-                className="px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
+                className="px-2 py-1 text-xs border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white dark:bg-gray-800 dark:text-gray-200"
               >
                 {DECIMAL_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -947,7 +947,7 @@ export default function InvoiceSettingsPage() {
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
-        <h1 className="text-xl font-semibold text-gray-900">Paramètres de vente</h1>
+        <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Paramètres de vente</h1>
         <BankAccountsSection />
         <BillingProfilesSection />
         <PaymentMethodsSection />
