@@ -11,6 +11,7 @@ import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
 import UnitCombobox from '@/components/app/UnitCombobox'
 import ProductAutocomplete, { type AutocompleteProduct } from '@/components/app/ProductAutocomplete'
 import ClientCombobox from '@/components/app/ClientCombobox'
+import DatePicker from '@/components/app/DatePicker'
 
 const INPUT = 'w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 transition'
 
@@ -613,11 +614,11 @@ function QuoteFormPage({ quoteId }: { quoteId?: string }) {
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Date d'émission</label>
-              <input type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} className={INPUT} />
+              <DatePicker value={issueDate} onChange={setIssueDate} className={INPUT} placeholder="Date d'émission" />
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Date d'expiration</label>
-              <input type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} className={INPUT} />
+              <DatePicker value={expiryDate} onChange={setExpiryDate} className={INPUT} placeholder="Date d'expiration" clearable />
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Profil de facturation</label>

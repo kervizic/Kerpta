@@ -14,6 +14,7 @@ import ProductAutocomplete, { type AutocompleteProduct } from '@/components/app/
 import ClientCombobox from '@/components/app/ClientCombobox'
 import BillingProfileModal, { type BillingProfileData } from '@/components/app/BillingProfileModal'
 import ClientPanel from '@/components/app/ClientPanel'
+import DatePicker from '@/components/app/DatePicker'
 
 const INPUT = 'w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 transition'
 
@@ -773,11 +774,11 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Date d'émission</label>
-              <input type="date" value={issueDate} onChange={(e) => handleIssueDateChange(e.target.value)} className={INPUT} disabled={isValidated} />
+              <DatePicker value={issueDate} onChange={handleIssueDateChange} className={INPUT} disabled={isValidated} placeholder="Date d'émission" />
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Date d'échéance</label>
-              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={INPUT} disabled={isValidated} />
+              <DatePicker value={dueDate} onChange={setDueDate} className={INPUT} disabled={isValidated} placeholder="Date d'échéance" clearable />
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Mode de règlement</label>

@@ -9,3 +9,36 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ── DatePicker (react-day-picker) ──────────────────────────────────────── */
+.datepicker-kerpta .rdp-root {
+  --rdp-accent-color: #f97316;
+  --rdp-accent-background-color: #fff7ed;
+  --rdp-day_button-height: 32px;
+  --rdp-day_button-width: 32px;
+  font-size: 0.8125rem;
+}
+.datepicker-kerpta .rdp-month_caption {
+  font-weight: 600;
+  font-size: 0.8125rem;
+  color: #374151;
+  text-transform: capitalize;
+}
+.datepicker-kerpta .rdp-button_previous,
+.datepicker-kerpta .rdp-button_next {
+  border-radius: 0.5rem;
+}
+.datepicker-kerpta .rdp-button_previous:hover,
+.datepicker-kerpta .rdp-button_next:hover {
+  background-color: #f3f4f6;
+}
+.datepicker-kerpta .rdp-day button {
+  border-radius: 0.5rem;
+}
+.datepicker-kerpta .rdp-today:not(.rdp-selected) .rdp-day_button {
+  font-weight: 700;
+  color: #f97316;
+}
+.datepicker-kerpta .rdp-outside {
+  opacity: 0.35;
+}
