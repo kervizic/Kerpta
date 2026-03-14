@@ -15,6 +15,7 @@ import ClientCombobox from '@/components/app/ClientCombobox'
 import BillingProfileModal, { type BillingProfileData } from '@/components/app/BillingProfileModal'
 import ClientPanel from '@/components/app/ClientPanel'
 import DatePicker from '@/components/app/DatePicker'
+import axios from 'axios'
 
 const INPUT = 'w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 transition'
 
@@ -108,7 +109,7 @@ function emptyLine(): FormLine {
 
 const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
   draft: { label: 'Brouillon', cls: 'bg-gray-100 text-gray-600' },
-  validated: { label: 'Validée', cls: 'bg-purple-100 text-purple-700' },
+  validated: { label: 'Validée', cls: 'bg-orange-100 text-orange-700' },
   sent: { label: 'Envoyée', cls: 'bg-blue-100 text-blue-700' },
   partial: { label: 'Partiel', cls: 'bg-yellow-100 text-yellow-700' },
   paid: { label: 'Payée', cls: 'bg-green-100 text-green-700' },
@@ -304,7 +305,7 @@ function InvoiceDetailView({ invoiceId }: { invoiceId: string }) {
               <button onClick={() => navigate(`/app/factures/${invoiceId}/modifier`)} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold rounded-lg transition">
                 <Pencil className="w-4 h-4" /> Modifier
               </button>
-              <button onClick={() => doAction('validate')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
+              <button onClick={() => doAction('validate')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
                 {actionLoading === 'validate' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />} Valider
               </button>
               <button onClick={() => window.open(`/api/v1/invoices/${invoiceId}/pdf?proforma=true`, '_blank')} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition">
@@ -451,6 +452,7 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
   const [invoiceStatus, setInvoiceStatus] = useState('draft')
   const [loading, setLoading] = useState(isEdit)
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
 
   const isValidated = invoiceStatus === 'validated'
 
@@ -603,6 +605,7 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
   async function handleSave(andSend = false, andValidate = false) {
     if (!clientId) return
     setSaving(true)
+    setError('')
 
     // Créer les nouveaux articles (lignes sans product_id)
     const updatedLines = [...lines]
@@ -669,7 +672,15 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
       }
 
       navigate(resultId ? `/app/factures/${resultId}` : '/app/factures')
-    } catch { /* */ }
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        const d = err.response?.data as { detail?: unknown }
+        if (typeof d?.detail === 'string') setError(d.detail)
+        else setError(`Erreur ${err.response?.status || ''} — impossible d'enregistrer la facture`)
+      } else {
+        setError("Erreur inattendue lors de l'enregistrement")
+      }
+    }
     setSaving(false)
   }
 
@@ -716,12 +727,16 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
           {isEdit ? 'Modifier la facture' : 'Nouvelle facture'}
         </h1>
 
+        {error && (
+          <div className="p-3 mb-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>
+        )}
+
         {isValidated && (
-          <div className="flex items-start gap-3 px-5 py-4 bg-purple-50 border border-purple-200 rounded-2xl mb-4">
-            <Lock className="w-5 h-5 text-purple-500 shrink-0 mt-0.5" />
+          <div className="flex items-start gap-3 px-5 py-4 bg-orange-50 border border-orange-200 rounded-2xl mb-4">
+            <Lock className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-semibold text-purple-800">Facture validée</p>
-              <p className="text-xs text-purple-600 mt-0.5">
+              <p className="text-sm font-semibold text-orange-800">Facture validée</p>
+              <p className="text-xs text-orange-600 mt-0.5">
                 Seuls les notes internes et le mode de règlement sont modifiables après validation (obligation légale française).
               </p>
             </div>
@@ -992,7 +1007,7 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
             <button
               onClick={() => handleSave(false, true)}
               disabled={saving || !clientId}
-              className="flex items-center gap-1.5 px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50"
+              className="flex items-center gap-1.5 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
               Valider

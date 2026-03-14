@@ -5,7 +5,7 @@
 """Service de numérotation séquentielle sans trou.
 
 Génère les numéros de documents (FA-YYYY-NNNN, DEV-YYYY-NNNN, etc.)
-de façon atomique avec verrou en lecture (FOR UPDATE).
+de façon atomique avec advisory lock PostgreSQL.
 """
 
 import uuid
@@ -35,8 +35,8 @@ async def generate_number(
 ) -> str:
     """Génère le prochain numéro séquentiel pour un type de document.
 
-    Utilise un SELECT ... FOR UPDATE SKIP LOCKED sur la table cible
-    pour garantir l'unicité sans trou, même en cas d'accès concurrent.
+    Utilise un advisory lock transactionnel (pg_advisory_xact_lock) pour
+    garantir l'unicité sans trou, même en cas d'accès concurrent.
 
     Args:
         doc_type: Type de document (invoice, credit_note, quote, contract, etc.)
@@ -57,8 +57,12 @@ async def generate_number(
     year = year or date.today().year
     pattern = f"{prefix}-{year}-%"
 
-    # Verrouillage : on sélectionne le max actuel pour cette org + année
-    # Le LIKE filtre sur le préfixe + année pour isoler credit_notes vs invoices
+    # Advisory lock par org + type pour garantir l'unicité en concurrent
+    # On utilise un hash stable du (org_id, doc_type) comme clé de lock
+    lock_key = abs(hash((str(organization_id), doc_type))) % (2**31)
+    await db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": lock_key})
+
+    # Récupérer le dernier numéro séquentiel pour cette org + année
     result = await db.execute(
         text(f"""
             SELECT COALESCE(
@@ -68,7 +72,6 @@ async def generate_number(
             FROM {table}
             WHERE organization_id = :org_id
               AND {col} LIKE :pattern
-            FOR UPDATE
         """),
         {"org_id": str(organization_id), "pattern": pattern},
     )
