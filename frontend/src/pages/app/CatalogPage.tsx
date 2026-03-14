@@ -486,7 +486,7 @@ function ProductDetailModal({ productId, onClose }: { productId: string; onClose
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
       <div
-        className="bg-white rounded-2xl shadow-xl w-full mx-4 max-w-3xl max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-2xl shadow-xl w-full mx-6 max-w-5xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* En-tête */}
