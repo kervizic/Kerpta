@@ -10,7 +10,7 @@ import { navigate } from '@/hooks/useRoute'
 import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
 import UnitCombobox from '@/components/app/UnitCombobox'
 import ProductAutocomplete, { type AutocompleteProduct } from '@/components/app/ProductAutocomplete'
-import ClientCombobox from '@/components/app/ClientCombobox'
+import ClientCombobox, { type ClientItem } from '@/components/app/ClientCombobox'
 import DatePicker from '@/components/app/DatePicker'
 import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
 import { INPUT, SELECT, LINE_INPUT, LINE_SELECT } from '@/lib/formStyles'
@@ -479,6 +479,30 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
     }).catch(() => {})
   }, [isEdit])
 
+  // Appliquer un profil de facturation
+  function applyProfile(profile: BillingProfile) {
+    setBillingProfileId(profile.id)
+    if (profile.footer) setFooter(profile.footer)
+  }
+
+  // Quand le client change, appliquer son profil par défaut
+  function handleClientSelect(client: ClientItem | null) {
+    if (client?.billing_profile_id) {
+      const profile = profiles.find((p) => p.id === client.billing_profile_id)
+      if (profile) applyProfile(profile)
+    }
+  }
+
+  // Quand le profil change manuellement
+  function handleProfileChange(profileId: string) {
+    const profile = profiles.find((p) => p.id === profileId)
+    if (profile) {
+      applyProfile(profile)
+    } else {
+      setBillingProfileId(profileId)
+    }
+  }
+
   // Charger le devis si édition
   useEffect(() => {
     if (!quoteId) return
@@ -682,6 +706,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
               <ClientCombobox
                 value={clientId}
                 onChange={setClientId}
+                onSelect={handleClientSelect}
                 onNewClient={() => navigate('/app/clients?action=nouveau')}
                 className={INPUT}
               />
@@ -706,7 +731,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Profil de facturation</label>
-              <select value={billingProfileId} onChange={(e) => setBillingProfileId(e.target.value)} className={SELECT}>
+              <select value={billingProfileId} onChange={(e) => handleProfileChange(e.target.value)} className={SELECT}>
                 <option value="">— Aucun —</option>
                 {profiles.map((p) => <option key={p.id} value={p.id}>{p.name}{p.is_default ? ' (défaut)' : ''}</option>)}
               </select>

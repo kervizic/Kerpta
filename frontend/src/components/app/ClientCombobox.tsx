@@ -15,13 +15,15 @@ export interface ClientItem {
 interface ClientComboboxProps {
   value: string
   onChange: (clientId: string) => void
+  /** Callback avec l'objet client complet (pour récupérer billing_profile_id, etc.) */
+  onSelect?: (client: ClientItem | null) => void
   onNewClient?: () => void
   className?: string
   placeholder?: string
   disabled?: boolean
 }
 
-export default function ClientCombobox({ value, onChange, onNewClient, className = '', placeholder = 'Rechercher un client...', disabled }: ClientComboboxProps) {
+export default function ClientCombobox({ value, onChange, onSelect, onNewClient, className = '', placeholder = 'Rechercher un client...', disabled }: ClientComboboxProps) {
   const [clients, setClients] = useState<ClientItem[]>([])
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -60,6 +62,7 @@ export default function ClientCombobox({ value, onChange, onNewClient, className
 
   function handleSelect(client: ClientItem) {
     onChange(client.id)
+    onSelect?.(client)
     setSearch('')
     setOpen(false)
   }
@@ -115,6 +118,7 @@ export default function ClientCombobox({ value, onChange, onNewClient, className
             // Si on efface tout, désélectionner
             if (!e.target.value && value) {
               onChange('')
+              onSelect?.(null)
             }
           }}
           onFocus={() => {
