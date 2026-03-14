@@ -227,65 +227,99 @@ function BillingProfilesSection() {
 
 function UnitsSection() {
   const [items, setItems] = useState<Unit[]>([])
+  const [edits, setEdits] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [newLabel, setNewLabel] = useState('')
-  const [adding, setAdding] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
-    try { setItems(await orgGet<Unit[]>('/billing/units')) } catch { /* */ }
+    try {
+      const data = await orgGet<Unit[]>('/billing/units')
+      setItems(data)
+      setEdits(Object.fromEntries(data.map((u) => [u.id, u.label])))
+    } catch { /* */ }
     setLoading(false)
   }, [])
 
   useEffect(() => { void load() }, [load])
 
-  async function handleAdd(e: React.FormEvent) {
-    e.preventDefault()
-    if (!newLabel.trim()) return
-    setAdding(true)
-    try {
-      await orgPost('/billing/units', { label: newLabel.trim(), position: items.length })
-      setNewLabel('')
-      await load()
-    } catch { /* */ }
-    setAdding(false)
+  function addRow() {
+    setNewLabel('')
+    setItems((prev) => [...prev, { id: '__new__', label: '', position: prev.length }])
+    setEdits((prev) => ({ ...prev, __new__: '' }))
   }
 
-  async function handleDelete(id: string) {
+  async function removeRow(id: string) {
+    if (id === '__new__') {
+      setItems((prev) => prev.filter((u) => u.id !== '__new__'))
+      setEdits((prev) => { const { __new__, ...rest } = prev; return rest })
+      return
+    }
     try { await orgDelete(`/billing/units/${id}`); await load() } catch { /* */ }
+  }
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      // Create new items
+      for (const item of items) {
+        if (item.id === '__new__') {
+          const label = (edits['__new__'] || '').trim()
+          if (label) await orgPost('/billing/units', { label, position: items.length })
+        }
+      }
+      // Update existing items
+      for (const item of items) {
+        if (item.id !== '__new__' && edits[item.id] !== undefined && edits[item.id].trim() !== item.label) {
+          await orgPatch(`/billing/units/${item.id}`, { label: edits[item.id].trim() })
+        }
+      }
+      await load()
+    } catch { /* */ }
+    setSaving(false)
   }
 
   return (
     <section className="bg-white border border-gray-200 rounded-2xl p-5">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Unités</h2>
+        <div>
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Unités</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Unités de mesure disponibles dans les formulaires</p>
+        </div>
+        <button onClick={addRow} className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-400 text-white text-xs font-semibold rounded-lg transition">
+          <Plus className="w-3.5 h-3.5" /> Ajouter
+        </button>
       </div>
       {loading ? (
         <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-orange-500" /></div>
       ) : (
         <>
-          <div className="flex flex-wrap gap-2 mb-4">
+          <div className="space-y-2 mb-4">
             {items.map((u) => (
-              <span key={u.id} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded-full text-sm text-gray-700">
-                {u.label}
-                <button onClick={() => handleDelete(u.id)} className="p-0.5 rounded-full hover:bg-red-100 transition">
-                  <X className="w-3 h-3 text-gray-400 hover:text-red-500" />
+              <div key={u.id} className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={edits[u.id] ?? u.label}
+                  onChange={(e) => setEdits((prev) => ({ ...prev, [u.id]: e.target.value }))}
+                  placeholder="Libellé de l'unité..."
+                  className={`flex-1 ${INPUT}`}
+                />
+                <button onClick={() => removeRow(u.id)} className="p-1.5 rounded hover:bg-red-50 transition" title="Supprimer">
+                  <Trash2 className="w-3.5 h-3.5 text-gray-400 hover:text-red-500" />
                 </button>
-              </span>
+              </div>
             ))}
           </div>
-          <form onSubmit={handleAdd} className="flex gap-2">
-            <input
-              type="text"
-              value={newLabel}
-              onChange={(e) => setNewLabel(e.target.value)}
-              placeholder="Nouvelle unité..."
-              className={`flex-1 ${INPUT}`}
-            />
-            <button type="submit" disabled={adding || !newLabel.trim()} className="px-3 py-2 bg-orange-500 hover:bg-orange-400 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
-              {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+          <div className="flex justify-end">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50"
+            >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
             </button>
-          </form>
+          </div>
         </>
       )}
     </section>
@@ -302,65 +336,97 @@ interface PaymentMethodItem {
 
 function PaymentMethodsSection() {
   const [items, setItems] = useState<PaymentMethodItem[]>([])
+  const [edits, setEdits] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
-  const [newLabel, setNewLabel] = useState('')
-  const [adding, setAdding] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
-    try { setItems(await orgGet<PaymentMethodItem[]>('/billing/payment-methods')) } catch { /* */ }
+    try {
+      const data = await orgGet<PaymentMethodItem[]>('/billing/payment-methods')
+      setItems(data)
+      setEdits(Object.fromEntries(data.map((m) => [m.id, m.label])))
+    } catch { /* */ }
     setLoading(false)
   }, [])
 
   useEffect(() => { void load() }, [load])
 
-  async function handleAdd(e: React.FormEvent) {
-    e.preventDefault()
-    if (!newLabel.trim()) return
-    setAdding(true)
-    try {
-      await orgPost('/billing/payment-methods', { label: newLabel.trim() })
-      setNewLabel('')
-      await load()
-    } catch { /* */ }
-    setAdding(false)
+  function addRow() {
+    setItems((prev) => [...prev, { id: '__new__', label: '', position: prev.length }])
+    setEdits((prev) => ({ ...prev, __new__: '' }))
   }
 
-  async function handleDelete(id: string) {
+  async function removeRow(id: string) {
+    if (id === '__new__') {
+      setItems((prev) => prev.filter((m) => m.id !== '__new__'))
+      setEdits((prev) => { const { __new__, ...rest } = prev; return rest })
+      return
+    }
     try { await orgDelete(`/billing/payment-methods/${id}`); await load() } catch { /* */ }
+  }
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      // Create new items
+      for (const item of items) {
+        if (item.id === '__new__') {
+          const label = (edits['__new__'] || '').trim()
+          if (label) await orgPost('/billing/payment-methods', { label })
+        }
+      }
+      // Update existing items
+      for (const item of items) {
+        if (item.id !== '__new__' && edits[item.id] !== undefined && edits[item.id].trim() !== item.label) {
+          await orgPatch(`/billing/payment-methods/${item.id}`, { label: edits[item.id].trim() })
+        }
+      }
+      await load()
+    } catch { /* */ }
+    setSaving(false)
   }
 
   return (
     <section className="bg-white border border-gray-200 rounded-2xl p-5">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Modes de règlement</h2>
+        <div>
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Modes de règlement</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Méthodes de paiement disponibles dans les profils de facturation</p>
+        </div>
+        <button onClick={addRow} className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-400 text-white text-xs font-semibold rounded-lg transition">
+          <Plus className="w-3.5 h-3.5" /> Ajouter
+        </button>
       </div>
       {loading ? (
         <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-orange-500" /></div>
       ) : (
         <>
-          <div className="flex flex-wrap gap-2 mb-4">
+          <div className="space-y-2 mb-4">
             {items.map((m) => (
-              <span key={m.id} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded-full text-sm text-gray-700">
-                {m.label}
-                <button onClick={() => handleDelete(m.id)} className="p-0.5 rounded-full hover:bg-red-100 transition">
-                  <X className="w-3 h-3 text-gray-400 hover:text-red-500" />
+              <div key={m.id} className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={edits[m.id] ?? m.label}
+                  onChange={(e) => setEdits((prev) => ({ ...prev, [m.id]: e.target.value }))}
+                  placeholder="Libellé du mode de règlement..."
+                  className={`flex-1 ${INPUT}`}
+                />
+                <button onClick={() => removeRow(m.id)} className="p-1.5 rounded hover:bg-red-50 transition" title="Supprimer">
+                  <Trash2 className="w-3.5 h-3.5 text-gray-400 hover:text-red-500" />
                 </button>
-              </span>
+              </div>
             ))}
           </div>
-          <form onSubmit={handleAdd} className="flex gap-2">
-            <input
-              type="text"
-              value={newLabel}
-              onChange={(e) => setNewLabel(e.target.value)}
-              placeholder="Nouveau mode de règlement..."
-              className={`flex-1 ${INPUT}`}
-            />
-            <button type="submit" disabled={adding || !newLabel.trim()} className="px-3 py-2 bg-orange-500 hover:bg-orange-400 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
-              {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+          <div className="flex justify-end">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50"
+            >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
             </button>
-          </form>
+          </div>
         </>
       )}
     </section>
@@ -572,10 +638,10 @@ export default function InvoiceSettingsPage() {
       <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
         <h1 className="text-xl font-semibold text-gray-900">Paramètres de vente</h1>
         <DocumentColumnsSection />
-        <VatRatesSection />
         <BankAccountsSection />
         <BillingProfilesSection />
         <PaymentMethodsSection />
+        <VatRatesSection />
         <UnitsSection />
       </div>
     </div>
