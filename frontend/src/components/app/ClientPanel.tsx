@@ -4,7 +4,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import {
-  Loader2, UserRound, Building2, Star, X,
+  Loader2, UserRound, Building2, Star, X, Pencil,
   Plus, Trash2, Check, AlertTriangle,
 } from 'lucide-react'
 import { orgGet, orgPost, orgPatch, orgDelete } from '@/lib/orgApi'
@@ -66,6 +66,11 @@ interface EtablissementOut {
 }
 
 interface CompanyDetailsOut {
+  siren: string
+  denomination: string | null
+  categorie_juridique_libelle: string | null
+  activite_principale: string | null
+  tva_intracom: string
   etablissements_actifs?: EtablissementOut[]
 }
 
@@ -92,7 +97,6 @@ function formatAddress(a: Record<string, string | null> | null | undefined): str
 
 interface ClientPanelProps {
   clientId: string
-  /** Mode compact (pas de stats, pas de notes) — pour les formulaires devis/factures */
   compact?: boolean
   onClose: () => void
 }
@@ -103,6 +107,8 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
   const [profiles, setProfiles] = useState<BillingProfileShort[]>([])
   const [etabs, setEtabs] = useState<EtablissementOut[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingEtabs, setLoadingEtabs] = useState(false)
+  const [showEtabSelector, setShowEtabSelector] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
@@ -119,16 +125,20 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
       setClient(c)
       setContacts(ct)
       setProfiles(p)
+      setLoading(false)
 
-      // Charger les établissements si SIREN
+      // Charger les établissements en arrière-plan (non bloquant)
       if (c.company_siren) {
+        setLoadingEtabs(true)
         try {
           const { data } = await apiClient.get<CompanyDetailsOut>(`/companies/${c.company_siren}`)
           setEtabs(data.etablissements_actifs ?? [])
         } catch { /* pas critique */ }
+        setLoadingEtabs(false)
       }
-    } catch { /* */ }
-    setLoading(false)
+    } catch {
+      setLoading(false)
+    }
   }, [clientId])
 
   useEffect(() => { void loadAll() }, [loadAll])
@@ -177,12 +187,27 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
     } catch { /* */ }
   }
 
+  // ── Sélection établissement ───────────────────────────────────────────
+
+  function handleSelectEtab(etab: EtablissementOut) {
+    // Met à jour le SIRET + adresse depuis l'établissement
+    const addr = etab.adresse ? {
+      voie: etab.adresse.voie || null,
+      code_postal: etab.adresse.code_postal || null,
+      commune: etab.adresse.commune || null,
+      complement: null,
+      pays: 'France',
+    } : null
+    saveField({ siret: etab.siret, billing_address: addr })
+    setShowEtabSelector(false)
+  }
+
   // ── Rendu ─────────────────────────────────────────────────────────────
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
       <div
-        className="bg-white rounded-2xl shadow-xl w-full mx-4 max-w-3xl max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-2xl shadow-xl w-full mx-4 max-w-2xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* ── En-tête ──────────────────────────────────────────────── */}
@@ -223,151 +248,201 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
           <div className="py-16 text-center text-gray-400 text-sm">Client introuvable</div>
         ) : (
           <div className="px-6 py-5 space-y-6">
-            {/* ── Statistiques ──────────────────────────────────────── */}
-            {!compact && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                  <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Devis</p>
-                  <p className="text-2xl font-bold text-gray-900">{client.quote_count}</p>
-                </div>
-                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                  <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Facturé</p>
-                  <p className="text-2xl font-bold text-gray-900">{Number(client.total_invoiced).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</p>
-                </div>
-                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                  <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Solde</p>
-                  <p className={`text-2xl font-bold ${Number(client.balance) > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                    {Number(client.balance).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
-                  </p>
-                </div>
+
+            {/* ── 1. Contacts ──────────────────────────────────────── */}
+            <section>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Contacts</h3>
+                <button
+                  onClick={addContact}
+                  className="flex items-center gap-1 text-xs text-orange-500 hover:text-orange-600 transition"
+                >
+                  <Plus className="w-3 h-3" /> Ajouter
+                </button>
               </div>
-            )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* ── Colonne gauche : Infos éditables ────────────────── */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Informations</h3>
-
+              {contacts.length === 0 ? (
+                <div className="space-y-2 text-sm text-gray-500">
+                  <p>Aucun contact enregistré</p>
+                  <div className="space-y-2">
+                    <AutoSaveField label="Email" value={client.email || ''} onSave={(v) => saveField({ email: v || null })} type="email" />
+                    <AutoSaveField label="Téléphone" value={client.phone || ''} onSave={(v) => saveField({ phone: v || null })} type="tel" />
+                  </div>
+                </div>
+              ) : (
                 <div className="space-y-3">
-                  <AutoSaveField label={client.type === 'company' ? 'Raison sociale' : 'Nom'} value={client.name} onSave={(v) => saveField({ name: v })} required />
-                  <AutoSaveField label="Email" value={client.email || ''} onSave={(v) => saveField({ email: v || null })} type="email" />
-                  <AutoSaveField label="Téléphone" value={client.phone || ''} onSave={(v) => saveField({ phone: v || null })} type="tel" />
-                  {client.type === 'company' && (
-                    <AutoSaveField label="TVA intracommunautaire" value={client.vat_number || ''} onSave={(v) => saveField({ vat_number: v || null })} />
+                  {contacts.map((ct) => (
+                    <ContactRow
+                      key={ct.id}
+                      contact={ct}
+                      onSave={(patch) => saveContact(ct.id, patch)}
+                      onDelete={() => deleteContact(ct.id)}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* ── 2. Profil de facturation ──────────────────────────── */}
+            <section>
+              <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-2">Profil de facturation</h3>
+              <select
+                value={client.billing_profile_id ?? ''}
+                onChange={(e) => saveField({ billing_profile_id: e.target.value || null })}
+                className={`${INPUT} bg-white`}
+              >
+                <option value="">Aucun profil</option>
+                {profiles.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} — {p.payment_terms}j {p.payment_term_type === 'net' ? 'net' : 'fin de mois'}
+                    {p.is_default ? ' ★' : ''}
+                  </option>
+                ))}
+              </select>
+            </section>
+
+            {/* ── 3. Informations société ───────────────────────────── */}
+            <section>
+              <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-3">Informations</h3>
+              <div className="space-y-3">
+                <AutoSaveField label={client.type === 'company' ? 'Raison sociale' : 'Nom'} value={client.name} onSave={(v) => saveField({ name: v })} required />
+                {contacts.length > 0 && (
+                  <>
+                    <AutoSaveField label="Email" value={client.email || ''} onSave={(v) => saveField({ email: v || null })} type="email" />
+                    <AutoSaveField label="Téléphone" value={client.phone || ''} onSave={(v) => saveField({ phone: v || null })} type="tel" />
+                  </>
+                )}
+                {client.type === 'company' && (
+                  <AutoSaveField label="TVA intracommunautaire" value={client.vat_number || ''} onSave={(v) => saveField({ vat_number: v || null })} />
+                )}
+              </div>
+            </section>
+
+            {/* ── 4. Établissement & Adresse ────────────────────────── */}
+            {client.type === 'company' && (
+              <section>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Établissement à facturer</h3>
+                  {etabs.length > 0 && (
+                    <button
+                      onClick={() => setShowEtabSelector(!showEtabSelector)}
+                      className="flex items-center gap-1 text-xs text-orange-500 hover:text-orange-600 transition"
+                      title="Changer d'établissement"
+                    >
+                      <Pencil className="w-3 h-3" /> Modifier
+                    </button>
                   )}
                 </div>
 
-                {/* Profil de facturation */}
-                <div>
-                  <label className={LABEL}>Profil de facturation</label>
-                  <select
-                    value={client.billing_profile_id ?? ''}
-                    onChange={(e) => saveField({ billing_profile_id: e.target.value || null })}
-                    className={`${INPUT} bg-white`}
-                  >
-                    <option value="">Aucun profil</option>
-                    {profiles.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} — {p.payment_terms}j {p.payment_term_type === 'net' ? 'net' : 'fin de mois'}
-                        {p.is_default ? ' ★' : ''}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Établissement à facturer */}
-                {client.type === 'company' && etabs.length > 0 && (
-                  <div>
-                    <label className={LABEL}>Établissement à facturer</label>
-                    <select
-                      value={client.siret || ''}
-                      onChange={(e) => saveField({ siret: e.target.value || null })}
-                      className={`${INPUT} bg-white`}
-                    >
-                      <option value="">— Sélectionner —</option>
-                      {etabs.map((e) => (
-                        <option key={e.siret} value={e.siret}>
-                          {formatSiret(e.siret)} {e.siege ? '(Siège)' : ''} — {formatEtabAddress(e.adresse)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {/* Adresse de facturation */}
-                <div>
-                  <label className={LABEL}>Adresse de facturation</label>
-                  <div className="space-y-2">
-                    <AutoSaveField label="" value={client.billing_address?.voie || ''} placeholder="Adresse" onSave={(v) => saveField({ billing_address: { ...client.billing_address, voie: v || null } })} />
-                    <AutoSaveField label="" value={client.billing_address?.complement || ''} placeholder="Complément" onSave={(v) => saveField({ billing_address: { ...client.billing_address, complement: v || null } })} />
-                    <div className="grid grid-cols-2 gap-2">
-                      <AutoSaveField label="" value={client.billing_address?.code_postal || ''} placeholder="Code postal" onSave={(v) => saveField({ billing_address: { ...client.billing_address, code_postal: v || null } })} />
-                      <AutoSaveField label="" value={client.billing_address?.commune || ''} placeholder="Ville" onSave={(v) => saveField({ billing_address: { ...client.billing_address, commune: v || null } })} />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Notes */}
-                {!compact && (
-                  <div>
-                    <label className={LABEL}>Notes internes</label>
-                    <AutoSaveTextarea value={client.notes || ''} onSave={(v) => saveField({ notes: v || null })} placeholder="Notes..." />
-                  </div>
-                )}
-              </div>
-
-              {/* ── Colonne droite : Contacts ──────────────────────── */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Contacts</h3>
-                  <button
-                    onClick={addContact}
-                    className="flex items-center gap-1 text-xs text-orange-500 hover:text-orange-600 transition"
-                  >
-                    <Plus className="w-3 h-3" /> Ajouter
-                  </button>
-                </div>
-
-                {contacts.length === 0 ? (
-                  <div className="text-sm text-gray-400">
-                    <p>Aucun contact</p>
-                    <p className="mt-2">
-                      <span className="text-gray-400">Email :</span> {client.email || '—'}
-                    </p>
-                    <p>
-                      <span className="text-gray-400">Tél :</span> {client.phone || '—'}
-                    </p>
+                {/* Adresse actuelle (lecture seule) */}
+                {client.siret ? (
+                  <div className="p-3 bg-gray-50 rounded-xl text-sm space-y-1">
+                    <p className="font-mono font-medium text-gray-900">{formatSiret(client.siret)}</p>
+                    <p className="text-gray-600">{formatAddress(client.billing_address)}</p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {contacts.map((ct) => (
-                      <ContactRow
-                        key={ct.id}
-                        contact={ct}
-                        onSave={(patch) => saveContact(ct.id, patch)}
-                        onDelete={() => deleteContact(ct.id)}
-                      />
-                    ))}
+                  <p className="text-sm text-gray-400">Aucun établissement sélectionné</p>
+                )}
+
+                {/* Chargement des établissements */}
+                {loadingEtabs && (
+                  <div className="flex items-center gap-2 mt-2 text-xs text-gray-400">
+                    <Loader2 className="w-3 h-3 animate-spin" /> Chargement des établissements...
                   </div>
                 )}
 
-                {/* Infos supplémentaires */}
-                {!compact && (
-                  <div className="pt-3 border-t border-gray-100 space-y-2 text-sm">
-                    <p><span className="text-gray-400">Adresse :</span> <span className="text-gray-700">{formatAddress(client.billing_address)}</span></p>
-                    <p><span className="text-gray-400">Factures :</span> <span className="text-gray-700">{client.invoice_count}</span></p>
-                    <p><span className="text-gray-400">Contrats :</span> <span className="text-gray-700">{client.contract_count}</span></p>
-                    <p><span className="text-gray-400">Payé :</span> <span className="text-gray-700">{Number(client.total_paid).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</span></p>
+                {/* Sélecteur d'établissements */}
+                {showEtabSelector && etabs.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    <p className="text-xs text-gray-400">Sélectionnez un établissement :</p>
+                    {etabs.map((etab) => {
+                      const isSelected = client.siret === etab.siret
+                      const isClosed = etab.etat !== 'A'
+                      return (
+                        <button
+                          key={etab.siret}
+                          onClick={() => handleSelectEtab(etab)}
+                          className={`w-full text-left p-3 rounded-xl border transition ${
+                            isSelected
+                              ? 'border-orange-400 bg-orange-50 ring-2 ring-orange-200'
+                              : 'border-gray-200 bg-white hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Building2 className="w-4 h-4 text-gray-400 shrink-0" />
+                            <span className="text-sm font-mono font-medium text-gray-900">{formatSiret(etab.siret)}</span>
+                            {etab.siege && <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-[10px] font-semibold rounded uppercase">Siège</span>}
+                            {isClosed && <span className="px-1.5 py-0.5 bg-red-100 text-red-700 text-[10px] font-semibold rounded uppercase">Fermé</span>}
+                            {isSelected && <Check className="w-4 h-4 text-orange-600 ml-auto shrink-0" />}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1 ml-6">{formatEtabAddress(etab.adresse)}</p>
+                          {etab.activite_principale && (
+                            <p className="text-xs text-gray-400 ml-6">APE : {etab.activite_principale}</p>
+                          )}
+                        </button>
+                      )
+                    })}
                   </div>
                 )}
-              </div>
-            </div>
+              </section>
+            )}
 
-            {/* ── Données entreprise (INSEE) ──────────────────────── */}
+            {/* Adresse pour les particuliers (éditable directement) */}
+            {client.type === 'individual' && (
+              <section>
+                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-2">Adresse de facturation</h3>
+                <div className="space-y-2">
+                  <AutoSaveField label="" value={client.billing_address?.voie || ''} placeholder="Adresse" onSave={(v) => saveField({ billing_address: { ...client.billing_address, voie: v || null } })} />
+                  <AutoSaveField label="" value={client.billing_address?.complement || ''} placeholder="Complément" onSave={(v) => saveField({ billing_address: { ...client.billing_address, complement: v || null } })} />
+                  <div className="grid grid-cols-2 gap-2">
+                    <AutoSaveField label="" value={client.billing_address?.code_postal || ''} placeholder="Code postal" onSave={(v) => saveField({ billing_address: { ...client.billing_address, code_postal: v || null } })} />
+                    <AutoSaveField label="" value={client.billing_address?.commune || ''} placeholder="Ville" onSave={(v) => saveField({ billing_address: { ...client.billing_address, commune: v || null } })} />
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* ── 5. Notes ─────────────────────────────────────────── */}
+            {!compact && (
+              <section>
+                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-2">Notes internes</h3>
+                <AutoSaveTextarea value={client.notes || ''} onSave={(v) => saveField({ notes: v || null })} placeholder="Notes..." />
+              </section>
+            )}
+
+            {/* ── 6. Statistiques ──────────────────────────────────── */}
+            {!compact && (
+              <section>
+                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-3">Statistiques</h3>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-center">
+                    <p className="text-[10px] text-gray-400 uppercase font-semibold">Devis</p>
+                    <p className="text-xl font-bold text-gray-900">{client.quote_count}</p>
+                  </div>
+                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-center">
+                    <p className="text-[10px] text-gray-400 uppercase font-semibold">Facturé</p>
+                    <p className="text-xl font-bold text-gray-900">{Number(client.total_invoiced).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</p>
+                  </div>
+                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-center">
+                    <p className="text-[10px] text-gray-400 uppercase font-semibold">Solde</p>
+                    <p className={`text-xl font-bold ${Number(client.balance) > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      {Number(client.balance).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-2 grid grid-cols-3 gap-3 text-sm text-gray-500">
+                  <p>Factures : {client.invoice_count}</p>
+                  <p>Contrats : {client.contract_count}</p>
+                  <p>Payé : {Number(client.total_paid).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</p>
+                </div>
+              </section>
+            )}
+
+            {/* ── 7. Données entreprise (INSEE) ───────────────────── */}
             {client.company_siren && (
-              <div>
+              <section>
                 <CompanyInfoCard siren={client.company_siren} />
-              </div>
+              </section>
             )}
           </div>
         )}
