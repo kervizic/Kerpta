@@ -728,6 +728,103 @@ function PaymentMethodsSection() {
   )
 }
 
+// ── Section Taux de TVA ──────────────────────────────────────────────────────
+
+interface VatRate { rate: string; label: string }
+
+function VatRatesSection() {
+  const [rates, setRates] = useState<VatRate[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    orgGet<VatRate[]>('/billing/vat-rates')
+      .then(setRates)
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  function updateRate(index: number, field: keyof VatRate, value: string) {
+    setRates((prev) => prev.map((r, i) => i === index ? { ...r, [field]: value } : r))
+  }
+
+  function removeRate(index: number) {
+    setRates((prev) => prev.length <= 1 ? prev : prev.filter((_, i) => i !== index))
+  }
+
+  function addRate() {
+    setRates((prev) => [...prev, { rate: '', label: '' }])
+  }
+
+  async function handleSave() {
+    const cleaned = rates.filter((r) => r.rate.trim())
+    if (cleaned.length === 0) return
+    setSaving(true)
+    try {
+      const result = await orgPatch<VatRate[]>('/billing/vat-rates', cleaned)
+      setRates(result)
+    } catch { /* */ }
+    setSaving(false)
+  }
+
+  return (
+    <section className="bg-white border border-gray-200 rounded-2xl p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Taux de TVA</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Taux disponibles dans les formulaires de devis et factures</p>
+        </div>
+        <button onClick={addRate} className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-400 text-white text-xs font-semibold rounded-lg transition">
+          <Plus className="w-3.5 h-3.5" /> Ajouter
+        </button>
+      </div>
+      {loading ? (
+        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-orange-500" /></div>
+      ) : (
+        <>
+          <div className="space-y-2 mb-4">
+            {rates.map((r, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <div className="w-24">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value={r.rate}
+                    onChange={(e) => updateRate(i, 'rate', e.target.value)}
+                    placeholder="Taux %"
+                    className={INPUT}
+                  />
+                </div>
+                <input
+                  type="text"
+                  value={r.label}
+                  onChange={(e) => updateRate(i, 'label', e.target.value)}
+                  placeholder="Libellé (ex: Normal, Réduit...)"
+                  className={`flex-1 ${INPUT}`}
+                />
+                <button onClick={() => removeRate(i)} className="p-1.5 rounded hover:bg-red-50 transition" title="Supprimer">
+                  <Trash2 className="w-3.5 h-3.5 text-gray-400 hover:text-red-500" />
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-end">
+            <button
+              onClick={handleSave}
+              disabled={saving || rates.filter((r) => r.rate.trim()).length === 0}
+              className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50"
+            >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
+            </button>
+          </div>
+        </>
+      )}
+    </section>
+  )
+}
+
 // ── Page principale ──────────────────────────────────────────────────────────
 
 // ── Section Colonnes du document ─────────────────────────────────────────
@@ -836,6 +933,7 @@ export default function InvoiceSettingsPage() {
       <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
         <h1 className="text-xl font-semibold text-gray-900">Paramètres de vente</h1>
         <DocumentColumnsSection />
+        <VatRatesSection />
         <BankAccountsSection />
         <BillingProfilesSection />
         <PaymentMethodsSection />

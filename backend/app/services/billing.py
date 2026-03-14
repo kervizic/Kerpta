@@ -85,6 +85,67 @@ async def update_document_columns(
     return merged
 
 
+# ── Taux de TVA ────────────────────────────────────────────────────────────
+
+DEFAULT_VAT_RATES = [
+    {"rate": "20", "label": "Normal (20%)"},
+    {"rate": "10", "label": "Intermédiaire (10%)"},
+    {"rate": "5.5", "label": "Réduit (5,5%)"},
+    {"rate": "2.1", "label": "Super réduit (2,1%)"},
+    {"rate": "0", "label": "Exonéré (0%)"},
+]
+
+
+async def get_vat_rates(org_id: uuid.UUID, db: AsyncSession) -> list[dict]:
+    """Retourne la config des taux de TVA depuis module_config."""
+    result = await db.execute(
+        text("SELECT module_config FROM organizations WHERE id = :org_id"),
+        {"org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    if not row or not row[0]:
+        return [r.copy() for r in DEFAULT_VAT_RATES]
+    config = row[0] if isinstance(row[0], dict) else {}
+    return config.get("vat_rates", [r.copy() for r in DEFAULT_VAT_RATES])
+
+
+async def update_vat_rates(
+    org_id: uuid.UUID, rates: list[dict], db: AsyncSession
+) -> list[dict]:
+    """Met à jour les taux de TVA dans module_config.vat_rates."""
+    # Valider les entrées
+    cleaned = []
+    for r in rates:
+        rate_str = str(r.get("rate", "")).strip()
+        label_str = str(r.get("label", "")).strip()
+        if not rate_str:
+            continue
+        cleaned.append({"rate": rate_str, "label": label_str or f"{rate_str}%"})
+
+    if not cleaned:
+        raise HTTPException(422, "Au moins un taux de TVA est requis")
+
+    # Lire module_config actuel
+    result = await db.execute(
+        text("SELECT module_config FROM organizations WHERE id = :org_id"),
+        {"org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    config = (row[0] if row and row[0] and isinstance(row[0], dict) else {})
+
+    config["vat_rates"] = cleaned
+
+    await db.execute(
+        text("""
+            UPDATE organizations SET module_config = CAST(:config AS jsonb)
+            WHERE id = :org_id
+        """),
+        {"org_id": str(org_id), "config": json.dumps(config)},
+    )
+    await db.commit()
+    return cleaned
+
+
 # ── Comptes bancaires ────────────────────────────────────────────────────────
 
 

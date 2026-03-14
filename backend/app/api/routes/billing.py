@@ -44,6 +44,26 @@ async def update_document_columns(
     return await svc.update_document_columns(ctx.org_id, data, db)
 
 
+# ── Taux de TVA ────────────────────────────────────────────────────────────
+
+
+@router.get("/vat-rates")
+async def get_vat_rates(
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await svc.get_vat_rates(ctx.org_id, db)
+
+
+@router.patch("/vat-rates")
+async def update_vat_rates(
+    data: list[dict],
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await svc.update_vat_rates(ctx.org_id, data, db)
+
+
 # ── Comptes bancaires ────────────────────────────────────────────────────────
 
 

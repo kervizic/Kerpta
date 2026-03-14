@@ -411,12 +411,18 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
     reference: true, description: true, quantity: true, unit: true,
     unit_price: true, vat_rate: true, discount_percent: true, total_ht: true,
   })
+  const [vatRates, setVatRates] = useState<{ rate: string; label: string }[]>([
+    { rate: '20', label: 'Normal (20%)' }, { rate: '10', label: 'Intermédiaire (10%)' },
+    { rate: '5.5', label: 'Réduit (5,5%)' }, { rate: '2.1', label: 'Super réduit (2,1%)' },
+    { rate: '0', label: 'Exonéré (0%)' },
+  ])
   const [loading, setLoading] = useState(isEdit)
   const [saving, setSaving] = useState(false)
 
   // Charger les données de référence
   useEffect(() => {
     orgGet<Record<string, boolean>>('/billing/document-columns').then((cols) => setDocColumns((prev) => ({ ...prev, ...cols }))).catch(() => {})
+    orgGet<{ rate: string; label: string }[]>('/billing/vat-rates').then(setVatRates).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -807,11 +813,7 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
                       {docColumns.vat_rate && (
                         <td className="px-1 py-1.5">
                           <select value={line.vat_rate} onChange={(e) => updateLine(i, 'vat_rate', e.target.value)} className="w-full px-1 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 bg-white">
-                            <option value="20">20</option>
-                            <option value="10">10</option>
-                            <option value="5.5">5.5</option>
-                            <option value="2.1">2.1</option>
-                            <option value="0">0</option>
+                            {vatRates.map((vr) => <option key={vr.rate} value={vr.rate}>{vr.rate}</option>)}
                           </select>
                         </td>
                       )}
