@@ -4,13 +4,12 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import {
-  Plus, Search, UserRound, ArrowLeft, Loader2,
+  Plus, Search, ArrowLeft, Loader2,
   Building2, MapPin, CheckCircle2,
 } from 'lucide-react'
 import { navigate } from '@/hooks/useRoute'
 import { orgGet, orgPost } from '@/lib/orgApi'
 import { apiClient } from '@/lib/api'
-import CompanyInfoCard from '@/components/app/CompanyInfoCard'
 import ClientPanel from '@/components/app/ClientPanel'
 import { COUNTRIES, getCountryMode } from '@/data/countries'
 import axios from 'axios'
