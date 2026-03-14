@@ -32,7 +32,7 @@ Les articles composés (assemblages de plusieurs articles) sont prévus dans le 
 
 ## La facture générée depuis un bon de commande conserve la référence
 
-Quand une facture est créée depuis un Bon de Commande Reçu (BCR), elle inclut automatiquement la référence du bon de commande client. Cela facilite le rapprochement comptable côté client.
+Quand une facture est créée depuis un Bon de Commande client (BC), elle inclut automatiquement la référence du bon de commande client. Cela facilite le rapprochement comptable côté client.
 
 ---
 

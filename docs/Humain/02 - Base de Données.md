@@ -188,7 +188,7 @@ Décomposition d'un article en composants. Activé uniquement si l'article a `is
 
 Un devis est une proposition commerciale envoyée à un client avant facturation.
 
-- **number** — numéro unique au format DEV-2026-0001, généré automatiquement et séquentiel. Ne peut pas être modifié manuellement.
+- **number** — numéro unique au format DV-2026-0001, généré automatiquement et séquentiel. Ne peut pas être modifié manuellement.
 - **document_type** — intitulé choisi pour ce document parmi la liste de l'organisation (ex : "Devis", "Attachement", "BPU"). C'est cet intitulé qui apparaît en titre sur le PDF généré.
 - **show_quantity** — indique si la colonne quantité doit être affichée dans le formulaire et sur le PDF. Activé par défaut. Quand ce champ est désactivé, les totaux par ligne et les totaux globaux sont automatiquement masqués également — sans quantité, les montants n'ont pas de sens et n'apportent rien. C'est le mode typique d'un BPU (Bordereau de Prix Unitaire) : chaque prestation est listée avec sa description et son prix unitaire HT uniquement, sans engagement sur les volumes ni sur le montant total.
 - **status** — état du devis : brouillon, envoyé, accepté, refusé, expiré.
@@ -224,7 +224,7 @@ Structure très similaire aux devis, avec des champs supplémentaires liés au p
 
 - **is_credit_note** — indique si c'est un avoir (remboursement) plutôt qu'une facture normale.
 - **credit_note_for** — référence vers la facture d'origine si c'est un avoir.
-- **purchase_order_id** — référence vers le bon de commande client (BCR) si la facture a été générée depuis un BCR. Permet d'imprimer la référence BC du client sur la facture, facilitant son rapprochement de son côté.
+- **purchase_order_id** — référence vers le bon de commande client (BC) si la facture a été générée depuis un BC. Permet d'imprimer la référence BC du client sur la facture, facilitant son rapprochement de son côté.
 - **amount_paid** — montant déjà encaissé sur cette facture. Mis à jour à chaque enregistrement de paiement.
 - **payment_method** — mode de paiement : virement, chèque, carte, espèces.
 - **bank_details** — coordonnées bancaires (IBAN et BIC) affichées sur la facture pour faciliter le virement du client.
@@ -236,7 +236,7 @@ Structure très similaire aux devis, avec des champs supplémentaires liés au p
 
 Document reçu d'un client confirmant une commande, généralement en réponse à un devis accepté.
 
-- **number** — numérotation interne Kerpta au format BCR-2026-0001.
+- **number** — numérotation interne Kerpta au format BC-2026-0001.
 - **client_reference** — le numéro de bon de commande du client (leur référence propre), conservé séparément pour pouvoir le mentionner sur les factures.
 - **quote_id** — lien vers le devis qui a donné lieu à ce bon de commande, si applicable.
 - **status** — état : reçu, confirmé, facturé, annulé.
@@ -249,7 +249,7 @@ Document reçu d'un client confirmant une commande, généralement en réponse �
 
 Devis envoyé par un fournisseur en réponse à une demande de prix.
 
-- **number** — numérotation interne au format DRF-2026-0001.
+- **number** — référence du fournisseur (pas de numérotation interne Kerpta).
 - **supplier_reference** — référence du devis chez le fournisseur, pour les échanges avec lui.
 - **status** — état : reçu, accepté, refusé, expiré.
 - **expiry_date** — date limite de validité du devis fournisseur.
@@ -262,7 +262,7 @@ Devis envoyé par un fournisseur en réponse à une demande de prix.
 
 Document envoyé à un fournisseur pour passer commande.
 
-- **number** — numérotation interne au format BCF-2026-0001.
+- **number** — référence du fournisseur (pas de numérotation interne Kerpta).
 - **supplier_quote_id** — lien vers le devis fournisseur retenu, si applicable.
 - **status** — état : brouillon, envoyé, confirmé par le fournisseur, annulé.
 - **expected_delivery_date** — date de livraison attendue.
@@ -273,7 +273,7 @@ Document envoyé à un fournisseur pour passer commande.
 
 Facture reçue d'un fournisseur à la suite d'une commande ou d'une prestation.
 
-- **number** — numérotation interne au format FF-2026-0001.
+- **number** — référence du fournisseur (pas de numérotation interne Kerpta).
 - **supplier_reference** — le numéro de facture du fournisseur (leur référence propre), indispensable pour les échanges et le rapprochement.
 - **supplier_order_id** — lien vers le bon de commande correspondant, si applicable.
 - **status** — état : reçue, validée (écriture comptable générée), payée, contestée.

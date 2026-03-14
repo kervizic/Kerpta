@@ -139,8 +139,13 @@ kerpta/
 
 ## Domaine métier — règles critiques
 
-- Numérotation factures : séquentielle, sans trou — format `FA-YYYY-NNNN`
-- Numérotation devis : `DEV-YYYY-NNNN`
+- Numérotation proforma : `PF-YYYY-NNNN` — attribué à la création d'une facture brouillon
+- Numérotation factures : séquentielle, sans trou — format `FA-YYYY-NNNN` — attribué à la validation (pas à la création)
+- Numérotation avoirs : `AV-YYYY-NNNN` — attribué à la validation
+- Numérotation devis : `DV-YYYY-NNNN`
+- Numérotation bons de commande clients : `BC-YYYY-NNNN`
+- Numérotation bons de livraison : `BL-YYYY-NNNN`
+- Documents fournisseurs : pas de préfixe interne, on conserve la numérotation du fournisseur
 - Toute facture générée = fichier Factur-X EN 16931 (pas un simple PDF)
 - Taux TVA valides : `0`, `2.1`, `5.5`, `10`, `20`
 - Devise unique : EUR

@@ -60,7 +60,7 @@ Worker
 ```xml
 <rsm:CrossIndustryInvoice>
   <rsm:ExchangedDocument>
-    <ram:ID>{invoice.number}</ram:ID>            <!-- FA-2026-0042 -->
+    <ram:ID>{invoice.number}</ram:ID>            <!-- FA-2026-0042 (numéro définitif attribué à la validation) -->
     <ram:TypeCode>380</ram:TypeCode>             <!-- 380=facture, 381=avoir -->
     <ram:IssueDateTime>{invoice.issue_date}</ram:IssueDateTime>
   </rsm:ExchangedDocument>
@@ -124,7 +124,7 @@ pdp_submitted_at TIMESTAMP     -- nullable
 ## Checklist conformité v1
 
 - [x] Schéma BDD complet (organization, clients, invoice_lines avec TVA)
-- [x] Numérotation séquentielle sans trou (invoice.number FA-YYYY-NNNN)
+- [x] Numérotation : PF-YYYY-NNNN (proforma à la création) puis FA-YYYY-NNNN (définitif à la validation)
 - [x] Colonnes PDP en base (nullables)
 - [ ] Template HTML facture avec toutes les mentions légales obligatoires
 - [ ] Génération PDF/A-3 via Playwright

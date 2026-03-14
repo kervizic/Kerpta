@@ -4,7 +4,7 @@
 
 Kerpta s'adresse aux TPE, indépendants, artisans et auto-entrepreneurs français ayant entre 1 et 10 salariés. L'objectif est de remplacer les outils bricolés (Word, Excel, PDF en ligne) par une application professionnelle qui gère l'ensemble de la comptabilité d'une petite structure.
 
-Chaque module peut être activé ou désactivé indépendamment par organisation depuis les Paramètres. Un module désactivé disparaît complètement de la navigation. Par défaut, tous les modules sont actifs. Les modules disponibles sont : Devis, Factures, Bons de commande clients, Achats fournisseurs, Notes de frais, Paie, Comptabilité, Contrats, Signature électronique, Rapprochement bancaire et Mini-site vitrine.
+Chaque module peut être activé ou désactivé indépendamment par organisation depuis les Paramètres. Un module désactivé disparaît complètement de la navigation. Par défaut, tous les modules sont actifs. Les modules disponibles sont : Devis, Factures, Bons de commande clients, Achats fournisseurs, Notes de frais, Paie, Comptabilité, PV d'Assemblées Générales, Contrats, Signature électronique, Rapprochement bancaire, Mini-site vitrine, et Déclaration CA URSSAF (pour les auto-entrepreneurs uniquement).
 
 La philosophie de l'interface est d'être aussi simple qu'une recherche Google ou qu'un iPhone : une action = un écran, rien de superflu. Derrière cette simplicité se cachent des normes comptables françaises complètes et rigoureuses.
 
@@ -30,7 +30,7 @@ Le catalogue est le référentiel central de tout ce que l'organisation vend ou 
 
 ### Devis
 
-Un devis permet de proposer une offre commerciale à un client avant facturation. Dans Kerpta, chaque devis suit un cycle de vie clair : brouillon → envoyé → accepté / refusé / expiré. La numérotation est automatique (format DEV-2026-0001) et ne peut pas être modifiée manuellement — c'est une exigence légale. La durée de validité par défaut est de 30 jours, paramétrable. Une fois un devis accepté par le client, il peut être converti en facture en un seul clic, et son contenu est alors verrouillé et ne peut plus être modifié.
+Un devis permet de proposer une offre commerciale à un client avant facturation. Dans Kerpta, chaque devis suit un cycle de vie clair : brouillon → envoyé → accepté / refusé / expiré. La numérotation est automatique (format DV-2026-0001) et ne peut pas être modifiée manuellement — c'est une exigence légale. La durée de validité par défaut est de 30 jours, paramétrable. Une fois un devis accepté par le client, il peut être converti en facture en un seul clic, et son contenu est alors verrouillé et ne peut plus être modifié.
 
 **Intitulé du document configurable.** Le titre imprimé en haut du PDF n'est pas forcément « Devis » : chaque organisation dispose d'une liste d'intitulés personnalisables, avec par défaut trois options — Devis, Attachement et BPU (Bordereau de Prix Unitaire). L'utilisateur choisit l'intitulé au moment de la création du document. La liste peut être enrichie ou réduite depuis les Paramètres de l'organisation.
 
@@ -42,27 +42,27 @@ Les mentions légales obligatoires restent présentes sur tous les documents : n
 
 ### Factures
 
-Les factures sont le cœur du système. Elles peuvent être créées directement ou générées depuis un devis accepté. La numérotation suit le format FA-2026-0001, est séquentielle, sans trou, et ne peut plus être modifiée une fois la facture envoyée — obligation légale en France. Le cycle de vie d'une facture est : brouillon → envoyée → partiellement payée / payée / en retard / annulée.
+Les factures sont le cœur du système. Elles peuvent être créées directement ou générées depuis un devis accepté. À la création, la facture reçoit un numéro de proforma au format PF-2026-0001. À la validation, elle reçoit son numéro définitif au format FA-2026-0001, séquentiel, sans trou, et immuable — obligation légale en France. Le cycle de vie d'une facture est : brouillon (proforma) → validée → envoyée → partiellement payée / payée / en retard / annulée.
 
 Le format de sortie est **Factur-X EN 16931**, qui est bien plus qu'un simple PDF : c'est un fichier hybride lisible par l'humain et traitable automatiquement par les logiciels comptables. C'est la norme européenne qui deviendra obligatoire en France dès 2026-2027.
 
-Les avoirs (remboursements) suivent le format CN-2026-0001, reprennent les lignes de la facture d'origine en négatif, et sont toujours liés à la facture concernée.
+Les avoirs (remboursements) reçoivent leur numéro définitif au format AV-2026-0001 à la validation, reprennent les lignes de la facture d'origine en négatif, et sont toujours liés à la facture concernée.
 
 Les mentions obligatoires légales sont les mêmes que pour les devis, avec en plus la date de prestation, la date d'échéance, les pénalités de retard applicables, et l'indemnité forfaitaire de 40€ pour les transactions entre professionnels.
 
 ### Bons de commande clients
 
-Quand un client envoie un bon de commande en réponse à un devis accepté, ce document sert de référence officielle pour la facturation. Il est enregistré dans Kerpta avec sa propre numérotation interne (BCR-2026-0001) et la référence du client conservée séparément. Le statut suit le cycle : reçu → confirmé → facturé → annulé. Depuis un bon de commande confirmé, la création de la facture se fait en un clic — la facture générée inclut automatiquement la référence du bon de commande client, ce qui permet au client de rapprocher la facture avec son propre BC.
+Quand un client envoie un bon de commande en réponse à un devis accepté, ce document sert de référence officielle pour la facturation. Il est enregistré dans Kerpta avec sa propre numérotation interne (BC-2026-0001) et la référence du client conservée séparément. Le statut suit le cycle : reçu → confirmé → facturé → annulé. Depuis un bon de commande confirmé, la création de la facture se fait en un clic — la facture générée inclut automatiquement la référence du bon de commande client, ce qui permet au client de rapprocher la facture avec son propre BC.
 
 ### Achats fournisseurs
 
 Ce module couvre l'intégralité du cycle achat en trois étapes.
 
-Quand un fournisseur envoie un devis, il est enregistré comme **devis reçu fournisseur** (numérotation DRF-2026-0001) avec la référence interne du fournisseur conservée séparément. Plusieurs devis reçus pour le même besoin peuvent être comparés. Une fois le devis retenu, il est converti en bon de commande fournisseur en un clic.
+Quand un fournisseur envoie un devis, il est enregistré comme **devis reçu fournisseur** avec la référence du fournisseur (pas de numérotation interne Kerpta). Plusieurs devis reçus pour le même besoin peuvent être comparés. Une fois le devis retenu, il est converti en bon de commande fournisseur en un clic.
 
-Le **bon de commande fournisseur** (numérotation BCF-2026-0001) est le document envoyé au fournisseur pour passer commande. Il conserve le lien avec le devis d'origine. Son statut suit le cycle : brouillon → envoyé → confirmé → annulé.
+Le **bon de commande fournisseur** est le document envoyé au fournisseur pour passer commande — on conserve la numérotation propre du fournisseur. Il conserve le lien avec le devis d'origine. Son statut suit le cycle : brouillon → envoyé → confirmé → annulé.
 
-À réception de la marchandise ou de la prestation, la **facture fournisseur** est enregistrée (numérotation interne FF-2026-0001, référence fournisseur conservée séparément). Elle est liée au bon de commande correspondant. À validation, les écritures comptables sont générées automatiquement : dette fournisseur au crédit, charge HT au débit sur le bon compte PCG, TVA déductible au débit.
+À réception de la marchandise ou de la prestation, la **facture fournisseur** est enregistrée avec la référence du fournisseur (pas de numérotation interne Kerpta). Elle est liée au bon de commande correspondant. À validation, les écritures comptables sont générées automatiquement : dette fournisseur au crédit, charge HT au débit sur le bon compte PCG, TVA déductible au débit.
 
 ### Notes de frais
 
@@ -74,13 +74,39 @@ Les catégories sont pré-définies et associées aux bons comptes comptables : 
 
 Ce module calcule automatiquement les salaires et cotisations selon les taux en vigueur (mis à jour dans un fichier de configuration versionné). Il gère le cycle complet : génération de la fiche → validation → paiement. L'export DSN (Déclaration Sociale Nominative) est produit selon la norme v3 pour envoi à Net-Entreprises, avec les délais légaux du 5 ou du 15 du mois. Les bulletins sont archivés pendant 5 ans côté employeur et indéfiniment côté salarié, comme l'exige la loi.
 
-### Contrats
+### Commandes & Contrats
 
-Ce module permet de gérer tout type de contrat qui ne rentre pas dans les catégories devis ou bon de commande : contrats de prestation de services, contrats de travail CDI/CDD, accords de confidentialité (NDA), conventions de partenariat, contrats de location de matériel, etc.
+Dans Kerpta, les bons de commande clients et les contrats sont présentés dans la même section, filtrables par type. En pratique, un bon de commande et un contrat fonctionnent de la même façon — c'est juste une question de nom et de complexité.
 
-Chaque contrat est numéroté automatiquement (CT-2026-0001), lié à un client ou un fournisseur, et peut être rédigé directement dans l'éditeur intégré ou importé sous forme de PDF. La date de début et de fin sont renseignables — pour un CDI ou un contrat sans terme défini, la date de fin reste vide. Si le renouvellement automatique est activé, Kerpta envoie une alerte avant l'échéance (30 jours par défaut) pour ne jamais laisser expirer un contrat silencieusement.
+**Les types disponibles :**
+- **Commande client (BC)** — commande simple, une facturation directe depuis la commande
+- **Contrat à prix fixe** — contrat issu d'un devis accepté, facturation directe
+- **Contrat à l'avancement** — pour les chantiers, projets longs, prestations progressives (voir ci-dessous)
+- **Contrat récurrent** — abonnement ou prestation mensuelle reconduite automatiquement
+- **Contrat de travail** — géré dans le module RH pour les CDI/CDD
+- **NDA / Confidentialité** — accord sans facturation associée
+- **Autre** — contrat libre
 
-La signature électronique est disponible directement sur le contrat, avec support multi-signataires et ordre de signature configurable.
+Chaque contrat est numéroté automatiquement (CT-2026-0001). Il peut regrouper plusieurs devis (le devis initial, des attachements, des avenants) et garder une vision centralisée du budget total et du montant déjà facturé. Si le renouvellement automatique est activé, Kerpta envoie une alerte avant l'échéance pour ne jamais laisser expirer un contrat silencieusement.
+
+**Les avenants** sont des devis ordinaires marqués comme avenant (Avenant n°1, n°2…) et rattachés au contrat — pas besoin d'un type de document séparé. Ils s'ajoutent au budget total du contrat.
+
+La signature électronique est disponible sur les contrats NDA, de travail et libres, avec support multi-signataires.
+
+### Situations d'avancement (facturation progressive)
+
+Cette fonctionnalité est disponible sur les contrats de type "à l'avancement". Elle permet de facturer un chantier ou un projet au fur et à mesure de son exécution, ligne par ligne, sans risque d'erreur ou de sur-facturation.
+
+**Comment ça fonctionne :**
+
+Vous commencez par établir un BPU (Bordereau de Prix Unitaires) qui liste toutes les prestations du projet avec leur prix unitaire. Ce BPU, une fois accepté, devient le référentiel du contrat. À chaque échéance (mensuelle, trimestrielle, ou par phase), vous créez une nouvelle situation : vous indiquez pour chaque ligne l'avancement **cumulé depuis le début** (en pourcentage). Kerpta affiche automatiquement ce qui a déjà été facturé (en grisé) et calcule ce qu'il reste à facturer — vous n'avez qu'à valider.
+
+**Exemple :**
+- Ligne "Terrassement" — Total : 10 000 €
+  - Situation 1 : 80% cumulé → Kerpta facture 8 000 €
+  - Situation 2 : 100% cumulé → Kerpta facture automatiquement les 2 000 € restants
+
+Cette logique fonctionne pour tout secteur, pas seulement le BTP : un développeur qui livre un projet en phases, un consultant qui facture par étapes, ou même des acomptes simples sur un contrat à prix fixe.
 
 ### Signature électronique
 
@@ -159,6 +185,28 @@ La page se construit avec un éditeur glisser-déposer accessible depuis Paramè
 **Le badge Kerpta** est un petit bouton toujours présent sur le site, avec la police et la couleur de Kerpta. Sur le plan gratuit il est fixe en bas à droite. Sur Vitrine+ vous pouvez le déplacer.
 
 **L'annuaire de l'équipe** est une section visible uniquement par les membres connectés de votre organisation. Chaque employé active lui-même, depuis son profil, s'il veut apparaître dans l'annuaire et s'il accepte que son email et son téléphone soient affichés. Tout est désactivé par défaut.
+
+### Déclaration CA Auto-Entrepreneur (URSSAF)
+
+Ce module est disponible uniquement pour les auto-entrepreneurs. Il permet de déclarer son chiffre d'affaires et de payer ses cotisations directement depuis Kerpta, sans se connecter séparément sur autoentrepreneur.urssaf.fr.
+
+Kerpta est connecté à l'API officielle de Tierce Déclaration de l'URSSAF. Après avoir donné votre consentement une seule fois (Paramètres → URSSAF AE), Kerpta est enregistré comme votre tiers-déclarant. À chaque échéance mensuelle ou trimestrielle, votre chiffre d'affaires est pré-rempli automatiquement depuis vos factures — vous n'avez qu'à vérifier, estimer vos cotisations en un clic, puis valider la déclaration et le paiement SEPA. Kerpta vous envoie un rappel 7 jours avant chaque date limite.
+
+Vous pouvez toujours modifier votre déclaration directement sur le site de l'URSSAF jusqu'à la date d'exigibilité.
+
+### PV d'Assemblées Générales
+
+Ce module vous permet de rédiger vos procès-verbaux d'AG directement dans Kerpta, en quelques minutes au lieu de repartir d'un modèle Word à chaque fois.
+
+**Le principe :** vous créez une AG (ordinaire, extraordinaire ou mixte), vous renseignez les informations de base (date, lieu, convocation), puis vous établissez la feuille de présence — pré-remplie automatiquement depuis vos associés enregistrés. Ensuite, vous piochez dans une bibliothèque de résolutions pré-rédigées, vous les personnalisez si besoin dans un éditeur de texte, et les données comptables sont injectées automatiquement là où c'est pertinent (résultat net, report à nouveau, réserve légale…).
+
+**Les résolutions disponibles par défaut :**
+
+Les plus courantes sont déjà pré-rédigées : approbation des comptes annuels, affectation du résultat (dividendes, report, réserve), quitus au dirigeant, nomination ou révocation d'un dirigeant, fixation de la rémunération. Pour les assemblées extraordinaires : changement de dénomination, transfert de siège, modification de l'objet social, augmentation ou réduction de capital, cession de parts avec agrément d'un nouvel associé. Des résolutions spécifiques sont aussi prévues selon la forme juridique : autorisation d'emprunt ou de vente pour les SCI, rémunération du président pour les SAS, transformation de SARL en SAS, dissolution et liquidation. Vous pouvez bien sûr ajouter vos propres modèles de résolutions depuis les paramètres.
+
+**Le vote :** pour chaque résolution, vous indiquez le nombre de voix pour, contre et abstentions. Kerpta calcule automatiquement si la résolution est adoptée selon la majorité requise (simple, 2/3, unanimité — selon votre forme juridique et le type d'AG).
+
+**Le résultat :** un PDF professionnel avec l'en-tête de votre société, la feuille de présence, l'ordre du jour, le texte de chaque résolution avec son résultat de vote, et les emplacements de signature. Le PV peut être envoyé en signature électronique directement depuis Kerpta.
 
 ### Comptabilité
 

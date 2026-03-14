@@ -16,7 +16,7 @@ Règle : une feature n'entre dans un sprint que si elle peut être utilisée de 
 
 ### Mois 2 — Facturation cœur
 - [ ] Création de factures (formulaire complet)
-- [ ] Numérotation automatique séquentielle `FA-YYYY-NNNN`
+- [ ] Numérotation automatique : `PF-YYYY-NNNN` (proforma à la création), `FA-YYYY-NNNN` (définitif à la validation)
 - [ ] Génération PDF/A-3 (Playwright + template Jinja2)
 - [ ] **Génération Factur-X EN 16931** (lib `factur-x` Python)
 - [ ] Envoi email avec fichier Factur-X en pièce jointe (Resend)
@@ -26,9 +26,9 @@ Règle : une feature n'entre dans un sprint que si elle peut être utilisée de 
 - [ ] Colonnes PDP en base (nullables)
 
 ### Mois 3 — Devis + Dashboard
-- [ ] Création de devis (`DEV-YYYY-NNNN`)
+- [ ] Création de devis (`DV-YYYY-NNNN`)
 - [ ] Conversion devis → facture en 1 clic
-- [ ] Avoir (`CN-YYYY-NNNN`, lignes en négatif, lié à la facture d'origine)
+- [ ] Avoir (`AV-YYYY-NNNN`, attribué à la validation, lignes en négatif, lié à la facture d'origine)
 - [ ] Tableau de bord : 4 KPIs + graphique CA 12 mois
 - [ ] Alertes : impayés, devis expirant < 3j
 - [ ] Export liste factures CSV

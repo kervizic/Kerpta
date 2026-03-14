@@ -5,11 +5,60 @@
 TPE, indépendants, artisans, auto-entrepreneurs français (1–10 salariés).
 Positionnement : interface aussi simple que Google Search ou un iPhone — une action, un écran, rien de superflu. Normes comptables françaises complètes en dessous.
 
+## Architecture des menus
+
+```
+🏠  Tableau de bord
+
+💼  Vente
+    ├── Clients
+    ├── Catalogue          (articles & services)
+    ├── Devis              (DV / BPU / Attachement — filtrés par document_type)
+    ├── Commandes & Contrats  (BC + Contrats — même section, filtre par type)
+    └── Factures & Avoirs
+
+🛒  Achat
+    ├── Fournisseurs
+    ├── Devis reçus
+    ├── Commandes
+    ├── Factures reçues
+    └── Notes de frais
+
+👥  RH
+    ├── Employés
+    ├── Fiches de paie
+    └── Contrats de travail  (→ contracts WHERE type = 'employment')
+
+📊  Comptabilité
+    ├── Journal
+    ├── Déclaration TVA
+    ├── Export FEC
+    ├── Bilan & Résultat
+    ├── PV d'Assemblées     (AG, résolutions, signature)
+    └── URSSAF AE          (visible uniquement si legal_form = 'AE')
+
+🌐  Mini-site              (entrée directe dans la sidebar)
+
+⚙️  Paramètres
+    ├── Général            (infos org, SIRET, logo, couleurs, police)
+    ├── Membres & Rôles
+    ├── Modules
+    ├── Documents          (colonnes, intitulés, numérotation)
+    ├── Stockage
+    ├── Banque
+    ├── Mini-site
+    └── Intégrations       (URSSAF AE, DocuSeal, Nordigen)
+```
+
+**Règles de visibilité :** chaque entrée de menu disparaît si le module correspondant est désactivé (`module_*_enabled = false`). Le menu RH → Contrats de travail n'est visible que si `module_contracts_enabled = true`.
+
+---
+
 ## Activation des modules
 
 Chaque module peut être activé ou désactivé indépendamment par organisation depuis Paramètres → Modules. Par défaut tous les modules sont actifs. Un module désactivé disparaît complètement de la navigation et de l'API pour les membres de cette organisation.
 
-Colonnes BDD : `module_quotes_enabled`, `module_invoices_enabled`, `module_purchase_orders_enabled`, `module_purchases_enabled`, `module_expenses_enabled`, `module_payroll_enabled`, `module_accounting_enabled`, `module_esignature_enabled`, `module_banking_enabled`, `module_contracts_enabled`, `module_minisite_enabled` — toutes BOOLEAN DEFAULT true.
+Colonnes BDD : `module_quotes_enabled`, `module_invoices_enabled`, `module_purchase_orders_enabled`, `module_purchases_enabled`, `module_expenses_enabled`, `module_payroll_enabled`, `module_accounting_enabled`, `module_esignature_enabled`, `module_banking_enabled`, `module_contracts_enabled`, `module_minisite_enabled`, `module_urssaf_ae_enabled` — toutes BOOLEAN DEFAULT true, sauf `module_urssaf_ae_enabled` DEFAULT false (activé uniquement si `legal_form = 'AE'`).
 
 ---
 
@@ -49,14 +98,26 @@ Référentiel central des articles, prestations et fournitures de l'organisation
 - La valorisation d'un article composé est calculée à partir des prix de ses composants.
 
 ### Devis
+
+Document commercial adressé à un client avant toute commande ou contrat.
+
 - Création, envoi PDF/email, suivi statut
 - Statuts : `draft → sent → accepted / refused / expired`
 - Conversion devis → facture en 1 clic
-- Numérotation : `DEV-YYYY-NNNN` — automatique, non modifiable
+- Numérotation : `DV-YYYY-NNNN` — automatique, non modifiable
 - Validité par défaut : 30 jours (paramétrable)
 - Un devis converti est verrouillé (immuable)
 
 **Intitulé configurable :** chaque document peut avoir un intitulé choisi parmi une liste configurable par organisation. Liste par défaut : `["Devis", "Attachement", "BPU"]`. L'organisation peut ajouter ou retirer des intitulés depuis les Paramètres. Stocké dans `organizations.quote_document_types JSONB`.
+
+**Types de devis et lien aux contrats :**
+
+| Type (`document_type`) | Usage | Lien contrat |
+|---|---|---|
+| `devis` | Devis standard, prestation ou fourniture | Optionnel (`contract_id` nullable) |
+| `bpu` | Bordereau de Prix Unitaires — tarification sans quantités | Devient le référentiel de prix du contrat (`bpu_source_id`) |
+| `attachement` | Détail d'exécution sur une période, valorisé depuis le BPU | Obligatoire (`contract_id` non null) |
+| `avenant` | Modification d'un contrat existant (`is_avenant = true`) | Obligatoire (`contract_id` + `avenant_number`) |
 
 **Mode BPU — champ unique :**
 `show_quantity` (défaut `true`) : si `false`, la colonne quantité **et** tous les totaux (ligne + globaux) sont masqués. Sans quantité les montants n'ont pas de sens — les deux sont donc liés à ce seul champ. Seul le prix unitaire HT par prestation est affiché.
@@ -74,10 +135,11 @@ Référentiel central des articles, prestations et fournitures de l'organisation
 
 ### Factures
 - Création depuis devis ou directe
-- Numérotation : `FA-YYYY-NNNN` — séquentielle, sans trou, immuable après envoi
+- Numérotation proforma : `PF-YYYY-NNNN` — attribué automatiquement à la création (brouillon)
+- Numérotation définitive : `FA-YYYY-NNNN` — attribué à la validation, séquentielle, sans trou, immuable
 - Format de sortie : **Factur-X EN 16931** (pas un simple PDF)
-- Statuts : `draft → sent → partial / paid / overdue / cancelled`
-- Avoir : `CN-YYYY-NNNN` — reprend les lignes en négatif, lié à la facture d'origine
+- Statuts : `draft → validated → sent → partial / paid / overdue / cancelled`
+- Avoir : `AV-YYYY-NNNN` — attribué à la validation, reprend les lignes en négatif, lié à la facture d'origine
 - Relances automatiques configurables
 
 **Mentions obligatoires (art. L441-9 Code de commerce) :** numéro unique, date émission, date prestation, identité vendeur (SIRET + TVA), identité acheteur, description, quantité, PU HT, taux TVA, total HT/TVA/TTC, échéance, pénalités de retard, indemnité forfaitaire 40€.
@@ -86,30 +148,30 @@ Référentiel central des articles, prestations et fournitures de l'organisation
 
 Document reçu d'un client qui confirme une commande, généralement émis par le client en réponse à un devis accepté. Sert de référence pour la facturation.
 
-- Numérotation : `BCR-YYYY-NNNN` (Bon de Commande Reçu)
+- Numérotation : `BC-YYYY-NNNN` (Bon de Commande client)
 - Statuts : `received → confirmed → invoiced / cancelled`
 - Lié à un devis amont (optionnel)
-- Génère une facture en 1 clic — la facture référence le numéro BCR du client via `invoices.purchase_order_id`
-- Mentions sur la facture issue du BCR : numéro BC client, date réception BC, référence devis associé
+- Génère une facture en 1 clic — la facture référence le numéro BC du client via `invoices.purchase_order_id`
+- Mentions sur la facture issue du BC : numéro BC client, date réception BC, référence devis associé
 
 ### Achats fournisseurs
 
 Gestion complète du cycle achat en trois étapes.
 
 **Devis fournisseur reçu**
-- Numérotation : `DRF-YYYY-NNNN` (Devis Reçu Fournisseur)
+- Pas de numérotation interne Kerpta — on conserve la référence du fournisseur
 - Statuts : `received → accepted / refused / expired`
 - Conversion en bon de commande fournisseur en 1 clic
 - Archivage pour comparaison tarifaire
 
 **Bon de commande fournisseur**
-- Numérotation : `BCF-YYYY-NNNN` (Bon de Commande Fournisseur)
+- Pas de numérotation interne Kerpta — on conserve la référence du fournisseur
 - Statuts : `draft → sent → confirmed / cancelled`
 - Lié au devis fournisseur d'origine (optionnel)
 - Lié à la facture fournisseur à réception
 
 **Facture fournisseur reçue**
-- Numérotation interne : `FF-YYYY-NNNN` (référence propre du fournisseur conservée séparément)
+- Pas de numérotation interne Kerpta (référence propre du fournisseur conservée)
 - Statuts : `received → validated → paid / contested`
 - Lié au bon de commande fournisseur (optionnel)
 - Génération automatique des écritures comptables (401xxx Fournisseurs + 6xxxxx Charges + 44566x TVA déductible)
@@ -274,20 +336,78 @@ Disponible sur les **factures clients** et les **fiches de paie**.
 - Statuts : `active` → `reconciled` (supprimé à la validation du rapprochement) / `expired` (si date d'échéance dépassée)
 - Libellé SEPA limité à 140 caractères — format : `{N° facture} {Raison sociale client tronquée}`
 
-### Contrats
+### Contrats & Commandes
 
-Module de gestion des contrats libres (hors devis et bons de commande) — contrats clients, fournisseurs, de travail, NDA, etc.
+Un contrat dans Kerpta est une **enveloppe légère** qui regroupe des devis, des avenants et des situations. Il n'a pas de lignes propres — sa valeur découle des documents qui lui sont rattachés.
 
-- Numérotation : `CT-YYYY-NNNN`
-- Statuts : `draft → sent → awaiting_signature → signed / refused / expired / terminated`
-- Lié à un client **ou** un fournisseur (nullable des deux)
-- Renouvellement automatique configurable (`auto_renew`, `renewal_notice_days`) : alerte J-30 avant échéance
-- Champ `content` pour rédaction libre dans l'éditeur, ou upload d'un PDF existant
-- Signature électronique via DocuSeal (module `esignature`) : multi-signataires, owner peut signer en premier
-- Stockage du PDF final signé via `StorageAdapter`
-- Types : `client / supplier / employment / nda / other`
+**Principe :** un BC (commande client reçue) et un contrat sont fonctionnellement identiques — la différence est le type. La même vue "Commandes & Contrats" les affiche ensemble, filtrables par type.
 
-> Voir `Agent/11 - Signature Électronique.md` pour le détail du flux de signature.
+**Numérotation :**
+- Contrat : `CT-YYYY-NNNN`
+- Bon de commande client : `BC-YYYY-NNNN`
+
+**Statuts :** `draft → active → completed / terminated / cancelled`
+
+**Types (`contract_type`) :**
+
+| Type | Usage |
+|---|---|
+| `purchase_order` | Commande client reçue (BC) — simple commande ponctuelle |
+| `fixed_price` | Contrat à prix fixe — devis accepté, facturation directe |
+| `progress_billing` | Contrat à facturation à l'avancement (BTP, chantiers) — situations par étapes |
+| `recurring` | Contrat récurrent (abonnement, prestation mensuelle) |
+| `employment` | Contrat de travail — géré dans le module RH |
+| `nda` | Accord de confidentialité |
+| `other` | Contrat libre |
+
+**Structure d'un contrat :**
+```
+Contrat CT-2026-0001  (enveloppe)
+  ├── Devis DV-2026-0010  (BPU ou devis initial — bpu_source_id)
+  ├── Devis DV-2026-0011  (Attachement 1)
+  ├── Devis DV-2026-0012  (Avenant n°1 — is_avenant = true, avenant_number = 1)
+  ├── Situation 1           (Facture de situation FA-2026-0020 générée à la validation)
+  └── Situation 2           (Facture de situation FA-2026-0021 générée à la validation)
+```
+
+**Champs clés :**
+- `client_id` — client lié (nullable si contrat fournisseur/RH)
+- `total_budget NUMERIC` — calculé depuis les devis liés (BPU + avenants)
+- `total_invoiced NUMERIC` — somme des factures de situation ou factures directes
+- `auto_renew BOOLEAN` + `renewal_notice_days INTEGER` — renouvellement auto avec alerte J-N avant échéance
+- `signed_pdf_url TEXT` — PDF signé stocké via `StorageAdapter`
+
+**Avenants :**
+Un avenant est un devis ordinaire avec `is_avenant = true` + `avenant_number` + `contract_id`. Il modifie le périmètre ou le budget du contrat. Pas de type de document séparé.
+
+**Signature électronique :** via DocuSeal (module `esignature`) — bouton disponible sur les contrats `employment`, `nda`, et `other` ; multi-signataires, PDF signé avec audit trail.
+
+> Voir `Agent/15 - Contrats & Situations.md` pour le détail technique complet.
+> Voir `Agent/11 - Signature Électronique.md` pour le flux de signature.
+
+### Situations d'avancement
+
+Mécanisme de facturation progressive pour les contrats à facturation à l'avancement (`progress_billing`). Applicable à tout secteur (BTP, informatique, conseil, etc.).
+
+**Principe :** l'avancement est saisi ligne par ligne en pourcentage **cumulé depuis le début du chantier**. Kerpta calcule automatiquement le delta à facturer (ce qui reste à facturer après déduction des situations précédentes).
+
+**Workflow :**
+```
+BPU accepté → Contrat créé → Nouvelle situation
+  └─ Saisie % cumulé par ligne
+  └─ Kerpta affiche : déjà facturé (grisé) / à facturer ce mois (calculé)
+  └─ Validation → Facture de situation générée automatiquement
+```
+
+**Exemple sur une ligne :**
+- Montant total BPU ligne : 10 000 €
+- Situation 1 : 30% cumulé → facturé 3 000 €
+- Situation 2 : 70% cumulé → delta = (70% - 30%) × 10 000 = 4 000 € facturés
+- Situation 3 : 100% cumulé → delta = 3 000 € facturés → clôture de la ligne
+
+**Tables BDD :** `situations` (en-tête par période) + `situation_lines` (détail par ligne de BPU).
+
+> Voir `Agent/15 - Contrats & Situations.md` pour le schéma BDD complet et les règles métier.
 
 ### Design tokens & personnalisation de marque
 
@@ -437,6 +557,131 @@ Documentation publique de Kerpta, servie par le même frontend React à `kerpta.
 - `kerpta.fr/docs/contribuer/` — guide contributeurs open source (architecture, conventions, PR)
 
 > Voir `Agent/13 - Documentation Intégrée.md` pour le détail technique.
+
+### URSSAF — Tierce Déclaration Auto-Entrepreneur
+
+Disponible uniquement si `organizations.legal_form = 'AE'`. Permet aux auto-entrepreneurs de déclarer leur chiffre d'affaires et de payer leurs cotisations directement depuis Kerpta, via l'**API Tierce Déclaration AE** de l'URSSAF (REST, OAuth2 Client Credentials, gratuite).
+
+**Prérequis :**
+- Habilitation Kerpta soumise sur https://portailapi.urssaf.fr/fr/catalogue-api/prd/td-ae/souscription-api
+- `URSSAF_AE_CLIENT_ID` / `URSSAF_AE_CLIENT_SECRET` dans `.env` — token OAuth2 mis en cache Redis (TTL), jamais en BDD
+- NIR de l'AE stocké chiffré AES-256 (`organizations.urssaf_ae_nir_encrypted`)
+- Logo **AE Connect** affiché obligatoirement dans l'interface (kit URSSAF)
+- Un seul tiers-déclarant autorisé à la fois par AE
+
+**Endpoints URSSAF utilisés :**
+- `GET /td-ae/comptes/{nir|siret}` — vérification éligibilité + périodicité
+- `POST /td-ae/mandats` — enregistrement du mandat de tierce déclaration
+- `DELETE /td-ae/mandats/{id}` — révocation
+- `POST /td-ae/estimer` — simulation cotisations (avant soumission)
+- `POST /td-ae/declarer` — soumission officielle du CA (par NIR ou SIRET)
+- `POST /td-ae/payer` — initialisation du télépaiement SEPA
+- `GET|POST|DELETE /td-ae/sepa-mandats` — gestion des mandats SEPA
+
+**Parcours :** consentement AE → mandat → saisie CA (pré-rempli depuis factures) → estimation temps réel → déclaration → paiement SEPA → confirmation. L'AE peut toujours modifier sa déclaration directement sur autoentrepreneur.urssaf.fr jusqu'à la date d'exigibilité.
+
+> Voir `Agent/14 - URSSAF Auto-Entrepreneur.md` pour le détail technique complet (auth, endpoints, gestion erreurs, sécurité).
+
+### PV d'Assemblées Générales
+
+Module de génération de procès-verbaux d'assemblée générale, intégré à la comptabilité. Permet de produire un PV complet en quelques minutes, avec des résolutions pré-rédigées et des données comptables injectées automatiquement.
+
+**Workflow complet :**
+
+```
+1. Créer une AG → type (AGO / AGE / Mixte)
+2. Renseigner les champs généraux → date, lieu, convocation, quorum
+3. Établir la feuille de présence → associés, parts/actions, pouvoirs
+4. Choisir des résolutions depuis la bibliothèque
+5. Éditer chaque résolution (TipTap) → variables auto-remplies
+6. Voter chaque résolution → pour / contre / abstention
+7. Prévisualiser le PV complet (PDF)
+8. Valider → PDF final → envoi signature électronique (DocuSeal)
+```
+
+**Types d'assemblées :** `AGO` (Assemblée Générale Ordinaire), `AGE` (Extraordinaire), `AGM` (Mixte — les deux à la fois).
+
+**Champs généraux du PV :**
+- Dénomination sociale, forme juridique, capital, siège, SIRET, RCS
+- Date, heure, lieu (ou mention visioconférence / consultation écrite)
+- Convocation : date, mode (LRAR, email, remise en main propre), délai respecté
+- Ordre du jour : liste numérotée des résolutions
+- Bureau : président de séance, secrétaire (optionnel), scrutateur (optionnel)
+
+**Feuille de présence :**
+- Pré-remplie depuis la table `organization_memberships` + données associés
+- Colonnes : nom, qualité (associé / représenté par), parts/actions, voix, présent/représenté/absent
+- Calcul automatique du quorum et de la majorité requise selon le type d'AG et la forme juridique
+
+**Bibliothèque de résolutions :**
+
+Chaque résolution est un template avec :
+- Titre (ex: "Approbation des comptes de l'exercice clos le {{end_date}}")
+- Corps (texte TipTap avec variables `{{...}}`)
+- Variables disponibles (auto-remplies depuis la compta, l'org, ou saisies manuellement)
+- Majorité requise (simple, 2/3, unanimité — selon forme juridique et type de résolution)
+- Catégorie (`recurring` / `specific` / `event`)
+
+**Résolutions pré-établies (bibliothèque par défaut) :**
+
+| Catégorie | Résolution | Variables auto-remplies |
+|---|---|---|
+| **Récurrentes (toutes sociétés)** | | |
+| | Approbation des comptes annuels | `{{resultat_net}}`, `{{total_actif}}`, `{{total_passif}}`, `{{exercice_start}}`, `{{exercice_end}}` |
+| | Affectation du résultat | `{{resultat_net}}`, `{{report_a_nouveau_precedent}}`, `{{dividende_par_part}}`, `{{reserve_legale}}` |
+| | Quitus au dirigeant | `{{nom_dirigeant}}`, `{{qualite_dirigeant}}` |
+| | Nomination / renouvellement de dirigeant | `{{nom_dirigeant}}`, `{{qualite}}`, `{{duree_mandat}}`, `{{date_fin_mandat}}` |
+| | Révocation de dirigeant | `{{nom_dirigeant}}`, `{{qualite}}` |
+| | Fixation de la rémunération du dirigeant | `{{nom_dirigeant}}`, `{{montant_remuneration}}`, `{{periodicite}}` |
+| **Modifications statutaires** | | |
+| | Changement de dénomination sociale | `{{ancienne_denomination}}`, `{{nouvelle_denomination}}` |
+| | Transfert de siège social | `{{ancien_siege}}`, `{{nouveau_siege}}` |
+| | Modification de l'objet social | `{{ancien_objet}}`, `{{nouvel_objet}}` |
+| | Changement de date de clôture | `{{ancienne_date}}`, `{{nouvelle_date}}` |
+| | Augmentation de capital (numéraire) | `{{ancien_capital}}`, `{{nouveau_capital}}`, `{{prix_emission}}`, `{{nb_parts_nouvelles}}` |
+| | Réduction de capital | `{{ancien_capital}}`, `{{nouveau_capital}}`, `{{motif}}` |
+| | Cession de parts / agrément associé | `{{nom_cedant}}`, `{{nom_cessionnaire}}`, `{{nb_parts}}`, `{{prix_cession}}` |
+| **Spécifiques par forme juridique** | | |
+| | SCI — Autorisation d'emprunt | `{{montant_emprunt}}`, `{{objet_emprunt}}`, `{{organisme_preteur}}` |
+| | SCI — Autorisation de vente immobilière | `{{adresse_bien}}`, `{{prix_vente}}` |
+| | SAS/SASU — Fixation rémunération président | `{{nom_president}}`, `{{montant}}` |
+| | SARL — Transformation en SAS | — |
+| **Événementiels** | | |
+| | Dissolution anticipée | — |
+| | Liquidation amiable — Nomination liquidateur | `{{nom_liquidateur}}`, `{{pouvoirs}}` |
+| | Clôture de liquidation | `{{boni_mali}}` |
+| | Prorogation de la durée | `{{duree_prorogation}}` |
+| | Transformation de forme juridique | `{{ancienne_forme}}`, `{{nouvelle_forme}}` |
+
+**Personnalisation par l'organisation :**
+- L'utilisateur peut ajouter ses propres templates de résolution depuis Paramètres → PV d'AG
+- Il peut aussi modifier la rédaction des résolutions par défaut (une copie org-spécifique est créée au premier edit)
+- Templates organisés par catégorie dans l'interface
+
+**Injection de données comptables :**
+- À la création d'un PV d'AGO avec "Approbation des comptes", Kerpta pré-remplit automatiquement les variables depuis :
+  - `journal_entries` → résultat net de l'exercice
+  - `tax_declarations` → TVA collectée / déductible
+  - `organizations` → capital, forme juridique, siège
+  - `organization_memberships` → associés et parts
+- Les variables sont modifiables manuellement après injection
+
+**Vote et majorité :**
+- Chaque résolution a un vote : pour, contre, abstention — en nombre de voix
+- La majorité requise est calculée automatiquement selon la forme juridique :
+  - SARL/AGO : majorité simple (> 50% des voix)
+  - SARL/AGE : majorité des 2/3 (≥ 66,67%)
+  - SAS : selon les statuts (paramétrable)
+  - SA : majorité simple AGO, 2/3 AGE
+  - SCI : unanimité par défaut (sauf statuts)
+- Résultat affiché : ✅ Adoptée / ❌ Rejetée
+
+**Génération du PDF :**
+- PDF professionnel, format A4, avec en-tête société
+- Sections : en-tête, feuille de présence, ordre du jour, texte de chaque résolution + vote + résultat, clôture de séance, signatures
+- Signature électronique via DocuSeal : envoi au président de séance + secrétaire
+
+> Voir `Agent/16 - PV d'Assemblées Générales.md` pour le détail technique complet.
 
 ### Comptabilité
 - Journal comptable automatique à partir des factures et dépenses

@@ -16,7 +16,7 @@ Le premier mois pose les bases techniques et les premiers écrans utilisables. O
 
 ### Mois 2 — La facturation
 
-C'est le cœur du produit. La création de factures avec le formulaire complet (splitscreen formulaire + aperçu PDF en temps réel). La numérotation automatique au format FA-2026-0001, séquentielle et sans trou. La génération du fichier Factur-X EN 16931 (PDF/A-3 + XML). L'envoi par email avec le fichier en pièce jointe via Resend. L'enregistrement des paiements reçus. La mise à jour automatique des statuts (facture passée en retard si la date d'échéance est dépassée, gérée par une tâche Celery planifiée). La liste des factures avec filtres et recherche. Et la préparation des colonnes pour la connexion future à une PDP (nullables pour l'instant).
+C'est le cœur du produit. La création de factures avec le formulaire complet (splitscreen formulaire + aperçu PDF en temps réel). La numérotation automatique : PF-2026-0001 (proforma à la création) puis FA-2026-0001 (définitif à la validation), séquentielle et sans trou. La génération du fichier Factur-X EN 16931 (PDF/A-3 + XML). L'envoi par email avec le fichier en pièce jointe via Resend. L'enregistrement des paiements reçus. La mise à jour automatique des statuts (facture passée en retard si la date d'échéance est dépassée, gérée par une tâche Celery planifiée). La liste des factures avec filtres et recherche. Et la préparation des colonnes pour la connexion future à une PDP (nullables pour l'instant).
 
 ### Mois 3 — Devis et tableau de bord
 

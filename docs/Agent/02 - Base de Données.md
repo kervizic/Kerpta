@@ -25,6 +25,9 @@ Organizations ──< TaxDeclarations
 Organizations ──< Invitations
 Organizations ──< OrganizationJoinRequests ──> Users
 Organizations ──< Contracts       ──> SignatureRequests
+                                   ──< Quotes (contract_id)
+                                   ──< Situations ──< SituationLines ──> QuoteLines
+                                   ──< Invoices (contract_id)
 Organizations ──< SignatureRequests
 Organizations ──< BankConnections
 Organizations ──< BankAccounts    ──< BankTransactions ──< BankReconciliations
@@ -34,9 +37,15 @@ Organizations ──< UrssafAeConsents
 Organizations ──< SiteArticles
 Organizations ──< SiteContacts
 Organizations ──< SiteContactSubmissions
+Organizations ──< PvResolutionTemplates
+Organizations ──< PvAssemblees  ──< PvResolutions (résolutions choisies pour ce PV)
+                                ──< PvParticipants (feuille de présence)
 
-Quotes ──> Invoices (conversion)
-ClientPurchaseOrders ──> Invoices (génération facture depuis BCR)
+Quotes ──> Invoices (conversion directe)
+Quotes ──> Contracts (BPU, attachements, avenants via contract_id)
+Situations ──> Invoices (génération facture de situation)
+ClientPurchaseOrders ──> Invoices (génération facture depuis BC)
+ClientPurchaseOrders ──> Contracts (BC lié à un contrat-cadre, optionnel)
 BankReconciliations ──> Invoices | SupplierInvoices | Expenses | Payslips (polymorphique)
 PaymentQrCodes ──> Invoices | Payslips (polymorphique)
 SignatureRequests ──> Quotes | Contracts | SupplierOrders | Payslips (polymorphique)
@@ -282,9 +291,13 @@ Contrainte UNIQUE : `(product_id, client_id, variant_index)`
 | id | UUID PK | |
 | organization_id | UUID FK | |
 | client_id | UUID FK clients | |
-| number | VARCHAR(50) UNIQUE | DEV-YYYY-NNNN |
-| document_type | VARCHAR(100) DEFAULT 'Devis' | intitulé choisi parmi organizations.quote_document_types |
-| show_quantity | BOOLEAN DEFAULT true | false = quantité masquée + totaux masqués (BPU — prix unitaire seul) |
+| number | VARCHAR(50) UNIQUE | DV-YYYY-NNNN selon document_type |
+| document_type | VARCHAR(100) DEFAULT 'Devis' | intitulé choisi parmi organizations.quote_document_types (Devis, BPU, Attachement…) |
+| show_quantity | BOOLEAN DEFAULT true | false = quantité masquée + totaux masqués (BPU) |
+| contract_id | UUID FK contracts | nullable — contrat parent auquel ce devis/attachement/avenant est rattaché |
+| is_avenant | BOOLEAN DEFAULT false | true = avenant d'un contrat existant |
+| avenant_number | INTEGER | nullable — numéro d'ordre de l'avenant (1, 2, 3…) relatif au contrat parent |
+| bpu_source_id | UUID FK quotes | nullable — pour un Attachement : BPU de référence dont les prix sont hérités |
 | status | ENUM | draft/sent/accepted/refused/expired |
 | issue_date | DATE | |
 | expiry_date | DATE | |
@@ -296,7 +309,7 @@ Contrainte UNIQUE : `(product_id, client_id, variant_index)`
 | discount_value | DECIMAL(15,2) | |
 | notes | TEXT | |
 | footer | TEXT | mentions légales |
-| invoice_id | UUID FK invoices | nullable, si converti |
+| invoice_id | UUID FK invoices | nullable, si converti en facture directe |
 | pdf_url | TEXT | URL dans le storage externe de l'organisation |
 | sent_at | TIMESTAMP | nullable |
 | accepted_at | TIMESTAMP | nullable |
@@ -328,9 +341,13 @@ Contrainte UNIQUE : `(product_id, client_id, variant_index)`
 | id | UUID PK | |
 | organization_id | UUID FK | |
 | client_id | UUID FK clients | |
-| quote_id | UUID FK quotes | nullable |
-| purchase_order_id | UUID FK client_purchase_orders | nullable — si générée depuis un BCR |
-| number | VARCHAR(50) UNIQUE | FA-YYYY-NNNN |
+| quote_id | UUID FK quotes | nullable — si générée depuis un devis/attachement |
+| purchase_order_id | UUID FK client_purchase_orders | nullable — si générée depuis un BC |
+| contract_id | UUID FK contracts | nullable — facturation directe depuis un contrat |
+| situation_id | UUID FK situations | nullable — si générée depuis une situation d'avancement |
+| is_situation | BOOLEAN DEFAULT false | true = facture de situation (avancement) |
+| situation_number | INTEGER | nullable — numéro de situation (1, 2, 3…) relatif au contrat |
+| number | VARCHAR(50) UNIQUE | PF-YYYY-NNNN (proforma, à la création) puis FA-YYYY-NNNN (à la validation) / AV-YYYY-NNNN (avoir, à la validation) |
 | is_credit_note | BOOLEAN DEFAULT false | avoir |
 | credit_note_for | UUID FK invoices | nullable |
 | status | ENUM | draft/sent/partial/paid/overdue/cancelled |
@@ -381,7 +398,8 @@ Contrainte UNIQUE : `(product_id, client_id, variant_index)`
 | organization_id | UUID FK | |
 | client_id | UUID FK clients | |
 | quote_id | UUID FK quotes | nullable — si généré depuis un devis |
-| number | VARCHAR(50) UNIQUE | BCR-YYYY-NNNN |
+| contract_id | UUID FK contracts | nullable — si le BC s'inscrit dans un contrat-cadre |
+| number | VARCHAR(50) UNIQUE | BC-YYYY-NNNN |
 | client_reference | VARCHAR(255) | numéro BC du client (leur référence interne) |
 | status | ENUM | received/confirmed/invoiced/cancelled |
 | issue_date | DATE | |
@@ -415,7 +433,7 @@ Contrainte UNIQUE : `(product_id, client_id, variant_index)`
 | id | UUID PK | |
 | organization_id | UUID FK | |
 | supplier_id | UUID FK suppliers | |
-| number | VARCHAR(50) UNIQUE | DRF-YYYY-NNNN (numérotation interne) |
+| number | VARCHAR(50) UNIQUE | référence du fournisseur (pas de préfixe interne Kerpta) |
 | supplier_reference | VARCHAR(255) | référence du devis chez le fournisseur |
 | status | ENUM | received/accepted/refused/expired |
 | issue_date | DATE | |
@@ -449,7 +467,7 @@ Contrainte UNIQUE : `(product_id, client_id, variant_index)`
 | organization_id | UUID FK | |
 | supplier_id | UUID FK suppliers | |
 | supplier_quote_id | UUID FK supplier_quotes | nullable |
-| number | VARCHAR(50) UNIQUE | BCF-YYYY-NNNN |
+| number | VARCHAR(50) UNIQUE | référence du fournisseur (pas de préfixe interne Kerpta) |
 | status | ENUM | draft/sent/confirmed/cancelled |
 | issue_date | DATE | |
 | expected_delivery_date | DATE | nullable |
@@ -483,7 +501,7 @@ Contrainte UNIQUE : `(product_id, client_id, variant_index)`
 | organization_id | UUID FK | |
 | supplier_id | UUID FK suppliers | |
 | supplier_order_id | UUID FK supplier_orders | nullable |
-| number | VARCHAR(50) UNIQUE | FF-YYYY-NNNN (numérotation interne) |
+| number | VARCHAR(50) UNIQUE | référence du fournisseur (pas de préfixe interne Kerpta) |
 | supplier_reference | VARCHAR(255) | numéro de facture du fournisseur |
 | status | ENUM | received/validated/paid/contested |
 | issue_date | DATE | |
@@ -755,7 +773,7 @@ Demande de signature DocuSeal — table centrale polymorphique, partagée par to
 
 ### `contracts`
 
-Contrats libres (hors devis et bons de commande) — contrats clients, fournisseurs, de travail, NDA, etc.
+**Enveloppe légère** — un contrat est un conteneur qui regroupe des devis (BPU, attachements, avenants) et des situations d'avancement. Il n'a pas de lignes propres : tout le détail chiffré est dans les `quotes` liés. Affiché dans le menu Vente → Commandes & Contrats avec filtre par type.
 
 | Colonne | Type | Notes |
 |---|---|---|
@@ -766,21 +784,165 @@ Contrats libres (hors devis et bons de commande) — contrats clients, fournisse
 | number | VARCHAR(50) UNIQUE | CT-YYYY-NNNN |
 | title | VARCHAR(255) | intitulé libre du contrat |
 | type | ENUM | client/supplier/employment/nda/other |
-| status | ENUM | draft/sent/awaiting_signature/signed/refused/expired/terminated |
-| content | TEXT | nullable — corps du contrat rédigé dans l'éditeur |
-| pdf_url | TEXT | nullable — PDF uploadé ou généré |
+| status | ENUM | draft/active/awaiting_signature/signed/terminated/expired |
+| total_budget | DECIMAL(15,2) | nullable — montant global du contrat (calculé ou saisi) |
+| total_invoiced | DECIMAL(15,2) DEFAULT 0 | calculé — somme des factures de situation émises |
 | signed_pdf_url | TEXT | nullable — PDF signé final |
 | signature_request_id | UUID FK signature_requests | nullable |
 | valid_from | DATE | nullable |
-| valid_until | DATE | nullable — null = durée indéterminée (CDI, etc.) |
+| valid_until | DATE | nullable — null = durée indéterminée |
 | auto_renew | BOOLEAN DEFAULT false | renouvellement automatique |
 | renewal_notice_days | INTEGER DEFAULT 30 | alerte avant échéance (jours) |
-| notes | TEXT | |
+| notes | TEXT | nullable |
 | created_by | UUID FK users | |
 | created_at | TIMESTAMP | |
 | updated_at | TIMESTAMP | |
 
-Contrainte CHECK : `client_id IS NOT NULL OR supplier_id IS NOT NULL` — au moins une partie liée.
+Contrainte CHECK : `client_id IS NOT NULL OR supplier_id IS NOT NULL`
+
+> Les devis, BPU, attachements et avenants liés à ce contrat sont dans `quotes.contract_id`. Les situations d'avancement sont dans `situations.contract_id`. Les factures directes sont dans `invoices.contract_id`.
+
+### `situations`
+
+Situations de travaux / facturations à l'avancement, liées à un contrat.
+
+| Colonne | Type | Notes |
+|---|---|---|
+| id | UUID PK | |
+| organization_id | UUID FK organizations | |
+| contract_id | UUID FK contracts | |
+| bpu_quote_id | UUID FK quotes | nullable — BPU de référence (prix de base) |
+| situation_number | INTEGER | numéro d'ordre auto-incrémenté par contrat (1, 2, 3…) |
+| period_label | VARCHAR(100) | ex : "Situation n°1 — Janvier 2026" |
+| status | ENUM DEFAULT 'draft' | draft / submitted / validated / invoiced |
+| cumulative_total | DECIMAL(15,2) | calculé depuis les lignes |
+| previously_invoiced | DECIMAL(15,2) DEFAULT 0 | somme des `invoice_amount` des situations précédentes |
+| invoice_amount | DECIMAL(15,2) | = cumulative_total - previously_invoiced |
+| invoice_id | UUID FK invoices | nullable — facture générée depuis cette situation |
+| notes | TEXT | nullable |
+| created_by | UUID FK users | |
+| created_at | TIMESTAMP | |
+| updated_at | TIMESTAMP | |
+
+Contrainte UNIQUE : `(contract_id, situation_number)`
+
+### `situation_lines`
+
+Lignes d'une situation d'avancement — une ligne par ligne du BPU référencé.
+
+| Colonne | Type | Notes |
+|---|---|---|
+| id | UUID PK | |
+| situation_id | UUID FK situations | |
+| quote_line_id | UUID FK quote_lines | ligne du BPU de référence |
+| position | INTEGER | ordre d'affichage |
+| description | TEXT | copié du BPU |
+| unit | VARCHAR(50) | copié du BPU |
+| unit_price | DECIMAL(15,4) | copié du BPU |
+| vat_rate | DECIMAL(5,2) | copié du BPU |
+| total_contract | DECIMAL(15,2) | montant total de cette ligne dans le contrat |
+| previous_completion_percent | DECIMAL(5,2) DEFAULT 0 | % cumulé de la situation précédente (affiché en gris) |
+| completion_percent | DECIMAL(5,2) | % cumulé saisi par l'utilisateur pour cette situation |
+| cumulative_amount | DECIMAL(15,2) | = total_contract × completion_percent / 100 |
+| previously_invoiced | DECIMAL(15,2) DEFAULT 0 | = total_contract × previous_completion_percent / 100 |
+| line_invoice_amount | DECIMAL(15,2) | = cumulative_amount - previously_invoiced (delta à facturer) |
+
+### `pv_resolution_templates`
+
+Bibliothèque de modèles de résolutions pour les PV d'AG. Inclut des templates par défaut (système) et des templates créés par l'organisation.
+
+| Colonne | Type | Notes |
+|---|---|---|
+| id | UUID PK | |
+| organization_id | UUID FK organizations | nullable — null = template système (défaut Kerpta) |
+| title | VARCHAR(255) | ex: "Approbation des comptes annuels" |
+| body_template | JSONB | contenu TipTap avec variables `{{...}}` |
+| category | ENUM | `recurring` / `statutory_change` / `form_specific` / `event` / `custom` |
+| applicable_forms | JSONB DEFAULT '[]' | formes juridiques applicables (ex: `["SARL", "SAS", "SCI"]`), vide = toutes |
+| default_majority | ENUM | `simple` / `two_thirds` / `unanimous` / `custom` |
+| variables | JSONB DEFAULT '[]' | liste des variables attendues avec label et source (`auto` / `manual`) |
+| sort_order | INTEGER DEFAULT 0 | ordre d'affichage dans la bibliothèque |
+| is_system | BOOLEAN DEFAULT false | true = template Kerpta non supprimable |
+| is_active | BOOLEAN DEFAULT true | |
+| created_at | TIMESTAMP | |
+| updated_at | TIMESTAMP | |
+
+> Les templates système (`is_system = true`, `organization_id = null`) sont visibles par toutes les organisations. Quand une org modifie un template système, une copie org-spécifique est créée (copie-on-write).
+
+### `pv_assemblees`
+
+Assemblée générale — document PV en cours de rédaction ou finalisé.
+
+| Colonne | Type | Notes |
+|---|---|---|
+| id | UUID PK | |
+| organization_id | UUID FK organizations | |
+| reference | VARCHAR(50) UNIQUE | `PV-YYYY-NNNN` — numérotation séquentielle par org |
+| ag_type | ENUM | `AGO` / `AGE` / `AGM` |
+| title | VARCHAR(255) | ex: "AG Ordinaire Annuelle — Exercice 2025" |
+| ag_date | DATE | date de tenue de l'assemblée |
+| ag_time | TIME | heure de début |
+| ag_location | TEXT | lieu ou mention "visioconférence" |
+| ag_mode | ENUM DEFAULT 'presentiel' | `presentiel` / `visio` / `consultation_ecrite` |
+| convocation_date | DATE | date d'envoi des convocations |
+| convocation_mode | VARCHAR(100) | ex: "LRAR", "email", "remise en main propre" |
+| president_name | VARCHAR(255) | président de séance |
+| secretary_name | VARCHAR(255) | nullable — secrétaire de séance |
+| scrutineer_name | VARCHAR(255) | nullable — scrutateur |
+| total_parts | INTEGER | total parts/actions de la société |
+| parts_present | INTEGER | parts représentées (présents + pouvoirs) |
+| quorum_required | DECIMAL(5,2) | % minimum requis pour la validité (calculé auto) |
+| quorum_reached | BOOLEAN | calculé depuis feuille de présence |
+| exercice_start | DATE | nullable — début exercice (pour AGO comptes) |
+| exercice_end | DATE | nullable — fin exercice (pour AGO comptes) |
+| status | ENUM DEFAULT 'draft' | `draft` / `finalized` / `signed` |
+| pdf_url | TEXT | nullable — URL du PDF généré |
+| signed_pdf_url | TEXT | nullable — PDF signé via DocuSeal |
+| signature_request_id | UUID FK signature_requests | nullable |
+| notes | TEXT | nullable — notes internes |
+| created_by | UUID FK users | |
+| created_at | TIMESTAMP | |
+| updated_at | TIMESTAMP | |
+
+### `pv_participants`
+
+Feuille de présence de l'assemblée.
+
+| Colonne | Type | Notes |
+|---|---|---|
+| id | UUID PK | |
+| assemblee_id | UUID FK pv_assemblees | |
+| name | VARCHAR(255) | nom de l'associé/actionnaire |
+| quality | VARCHAR(100) | ex: "Associé", "Gérant associé", "Représenté par…" |
+| parts_held | INTEGER | nombre de parts/actions détenues |
+| voting_rights | INTEGER | nombre de voix (= parts sauf clause contraire) |
+| status | ENUM | `present` / `represented` / `absent` |
+| represented_by | VARCHAR(255) | nullable — nom du mandataire si représenté |
+| sort_order | INTEGER | ordre dans la feuille de présence |
+
+### `pv_resolutions`
+
+Résolutions sélectionnées pour un PV, avec texte édité et résultat du vote.
+
+| Colonne | Type | Notes |
+|---|---|---|
+| id | UUID PK | |
+| assemblee_id | UUID FK pv_assemblees | |
+| template_id | UUID FK pv_resolution_templates | nullable — null si résolution libre |
+| resolution_number | INTEGER | numéro dans l'ordre du jour (1, 2, 3…) |
+| title | VARCHAR(255) | titre affiché (peut être édité après sélection) |
+| body | JSONB | contenu TipTap final (variables remplacées + éditions manuelles) |
+| majority_type | ENUM | `simple` / `two_thirds` / `unanimous` / `custom` |
+| custom_majority_percent | DECIMAL(5,2) | nullable — si majority_type = custom |
+| votes_pour | INTEGER DEFAULT 0 | nombre de voix pour |
+| votes_contre | INTEGER DEFAULT 0 | nombre de voix contre |
+| votes_abstention | INTEGER DEFAULT 0 | nombre de voix abstention |
+| is_adopted | BOOLEAN | nullable — null tant que non voté, calculé auto |
+| sort_order | INTEGER | ordre d'affichage (= resolution_number par défaut) |
+| created_at | TIMESTAMP | |
+| updated_at | TIMESTAMP | |
+
+Contrainte UNIQUE : `(assemblee_id, resolution_number)`
 
 ### `bank_connections`
 
@@ -1003,7 +1165,15 @@ CREATE UNIQUE INDEX idx_quote_number   ON quotes(organization_id, number);
 -- Signature électronique
 CREATE INDEX idx_signature_requests_doc     ON signature_requests(document_type, document_id);
 CREATE INDEX idx_signature_requests_org     ON signature_requests(organization_id, status);
+-- Contrats & Situations
 CREATE INDEX idx_contracts_org              ON contracts(organization_id, status);
+CREATE INDEX idx_contracts_client           ON contracts(client_id);
+CREATE INDEX idx_quotes_contract            ON quotes(contract_id) WHERE contract_id IS NOT NULL;
+CREATE INDEX idx_quotes_is_avenant          ON quotes(contract_id, is_avenant) WHERE is_avenant = true;
+CREATE INDEX idx_situations_contract        ON situations(contract_id, situation_number);
+CREATE INDEX idx_situation_lines_sit        ON situation_lines(situation_id);
+CREATE INDEX idx_invoices_contract          ON invoices(contract_id) WHERE contract_id IS NOT NULL;
+CREATE INDEX idx_invoices_situation         ON invoices(situation_id) WHERE situation_id IS NOT NULL;
 -- Rapprochement bancaire
 CREATE INDEX idx_bank_transactions_account  ON bank_transactions(account_id, date DESC);
 CREATE INDEX idx_bank_transactions_status   ON bank_transactions(organization_id, status);
@@ -1021,6 +1191,13 @@ CREATE INDEX idx_site_contact_org           ON site_contact_submissions(organiza
 CREATE UNIQUE INDEX idx_site_article_slug   ON site_articles(organization_id, slug);
 CREATE INDEX idx_site_articles_org_status   ON site_articles(organization_id, status, published_at DESC);
 CREATE INDEX idx_site_contacts_org          ON site_contacts(organization_id, created_at DESC);
+-- PV d'AG
+CREATE INDEX idx_pv_assemblees_org          ON pv_assemblees(organization_id, ag_date DESC);
+CREATE INDEX idx_pv_assemblees_status       ON pv_assemblees(organization_id, status);
+CREATE INDEX idx_pv_resolutions_assemblee   ON pv_resolutions(assemblee_id, resolution_number);
+CREATE INDEX idx_pv_participants_assemblee  ON pv_participants(assemblee_id);
+CREATE INDEX idx_pv_templates_org           ON pv_resolution_templates(organization_id) WHERE organization_id IS NOT NULL;
+CREATE INDEX idx_pv_templates_system        ON pv_resolution_templates(category) WHERE is_system = true;
 -- URSSAF AE
 CREATE UNIQUE INDEX idx_urssaf_ae_decl_period ON urssaf_ae_declarations(organization_id, period);
 CREATE INDEX idx_urssaf_ae_decl_status        ON urssaf_ae_declarations(organization_id, status);

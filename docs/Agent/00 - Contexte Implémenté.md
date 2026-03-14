@@ -47,10 +47,10 @@ Fichiers : `01 - Vision & Modules.md`, `02 - Base de Données.md`, `03 - Interfa
 
 ---
 
-## BCR → Facture
+## BC → Facture
 
 - `invoices.purchase_order_id` → FK `client_purchase_orders`
-- La facture générée depuis un BCR inclut automatiquement la référence du bon de commande client.
+- La facture générée depuis un BC inclut automatiquement la référence du bon de commande client.
 
 ---
 
