@@ -175,7 +175,7 @@ function ProductsList({ initialSelectedId }: { initialSelectedId?: string } = {}
             <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
           ) : products.length === 0 ? (
             <div className="py-12 text-center text-gray-400 text-sm">Aucun article trouv&eacute;</div>
-          ) : (
+          ) : (<>
             {/* Desktop table */}
             <table className="w-full text-sm hidden md:table">
               <thead>
@@ -229,7 +229,7 @@ function ProductsList({ initialSelectedId }: { initialSelectedId?: string } = {}
                 </div>
               ))}
             </div>
-          )}
+          </>)}
         </div>
 
         {total > 25 && (

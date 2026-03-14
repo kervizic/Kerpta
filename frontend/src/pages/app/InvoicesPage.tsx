@@ -16,6 +16,7 @@ import BillingProfileModal, { type BillingProfileData } from '@/components/app/B
 import ClientPanel from '@/components/app/ClientPanel'
 import DatePicker from '@/components/app/DatePicker'
 import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
+import MobileFilterPanel from '@/components/app/MobileFilterPanel'
 import { INPUT, SELECT, LINE_INPUT, LINE_SELECT } from '@/lib/formStyles'
 import axios from 'axios'
 
@@ -177,6 +178,7 @@ function InvoicesList() {
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editId, setEditId] = useState<string | null>(null)
+  const [showMobileFilters, setShowMobileFilters] = useState(false)
 
   const updateFilter = useCallback((column: string, value: string | string[]) => {
     setFilters((prev) => ({ ...prev, [column]: value }))
@@ -238,11 +240,11 @@ function InvoicesList() {
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="max-w-5xl mx-auto px-6 py-8">
+      <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 md:py-8">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-semibold text-gray-900">Factures</h1>
-            <div className="relative group">
+            <div className="relative group hidden md:block">
               <Info className="w-4 h-4 text-gray-300 hover:text-gray-500 transition cursor-help" />
               <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 px-3 py-2 bg-gray-800 text-white text-[11px] rounded-lg shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition z-50">
                 Cliquez sur les en-têtes de colonnes pour filtrer
@@ -254,15 +256,34 @@ function InvoicesList() {
               </span>
             )}
           </div>
-          <button
-            onClick={() => navigate('/app/factures/nouveau')}
-            className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white text-sm font-semibold rounded-lg transition"
-          >
-            <Plus className="w-4 h-4" /> Nouvelle facture
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Bouton filtres mobile */}
+            <button
+              onClick={() => setShowMobileFilters(true)}
+              className={`md:hidden relative p-2 rounded-lg border transition ${
+                activeFilterCount > 0 ? 'border-orange-300 bg-orange-50 text-orange-600' : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              {activeFilterCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => navigate('/app/factures/nouveau')}
+              className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white text-sm font-semibold rounded-lg transition"
+            >
+              <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Nouvelle facture</span>
+            </button>
+          </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+        {/* Desktop : tableau */}
+        <div className="hidden md:block bg-white border border-gray-200 rounded-2xl overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 text-left">
@@ -307,6 +328,37 @@ function InvoicesList() {
           </table>
         </div>
 
+        {/* Mobile : cartes */}
+        <div className="md:hidden space-y-2">
+          {loading ? (
+            <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
+          ) : invoices.length === 0 ? (
+            <div className="py-12 text-center text-gray-400 text-sm">Aucune facture trouvée</div>
+          ) : (
+            invoices.map((inv) => {
+              const st = STATUS_LABELS[inv.status] || { label: inv.status, cls: 'bg-gray-100 text-gray-600' }
+              const isEditable = ['draft', 'validated'].includes(inv.status)
+              return (
+                <div
+                  key={inv.id}
+                  onClick={() => isEditable ? setEditId(inv.id) : setSelectedId(inv.id)}
+                  className="bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:border-orange-200 transition active:bg-orange-50/50"
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="font-mono text-xs text-gray-500">{inv.number || inv.proforma_number || '—'}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${st.cls}`}>{st.label}</span>
+                  </div>
+                  <p className="text-sm font-medium text-gray-900 truncate">{inv.client_name || '—'}</p>
+                  <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
+                    <span>{inv.is_credit_note ? 'Avoir' : 'Facture'} — {inv.issue_date}</span>
+                    <span className="font-semibold text-gray-900">{fmtCurrency(inv.subtotal_ht)}</span>
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
+
         {total > 25 && (
           <div className="flex justify-center gap-2 mt-4">
             <button disabled={page <= 1} onClick={() => setPage(page - 1)} className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-50 hover:bg-gray-50">Précédent</button>
@@ -328,6 +380,16 @@ function InvoicesList() {
           <InvoiceFormPage
             invoiceId={editId}
             onClose={() => { setEditId(null); void load() }}
+          />
+        )}
+
+        {/* Panneau filtres mobile */}
+        {showMobileFilters && (
+          <MobileFilterPanel
+            filters={INVOICE_FILTERS}
+            values={filters}
+            onChange={updateFilter}
+            onClose={() => setShowMobileFilters(false)}
           />
         )}
       </div>
@@ -368,7 +430,7 @@ function InvoiceDetailPanel({ invoiceId, onClose }: { invoiceId: string; onClose
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-xl w-full mx-6 max-w-4xl mt-8 mb-8"
+        className="bg-white rounded-2xl shadow-xl w-full mx-2 md:mx-6 max-w-4xl mt-2 md:mt-8 mb-2 md:mb-8"
         onClick={(e) => e.stopPropagation()}
       >
         {loading ? (
@@ -815,7 +877,7 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
   if (loading) {
     if (onClose) return (
       <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 overflow-y-auto" onClick={onClose}>
-        <div className="bg-white rounded-2xl shadow-xl w-full mx-6 max-w-5xl mt-8 mb-8 flex justify-center py-16" onClick={(e) => e.stopPropagation()}>
+        <div className="bg-white rounded-2xl shadow-xl w-full mx-2 md:mx-6 max-w-5xl mt-2 md:mt-8 mb-2 md:mb-8 flex justify-center py-16" onClick={(e) => e.stopPropagation()}>
           <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
         </div>
       </div>
@@ -855,7 +917,7 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
         {/* En-tête */}
         <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-4 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">En-tête</h2>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Client *</label>
               <div className="flex items-center gap-1.5">
@@ -895,7 +957,7 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
               </div>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Date d'émission</label>
               <DatePicker value={issueDate} onChange={handleIssueDateChange} className={INPUT} disabled={isValidated} placeholder="Date d'émission" />
@@ -912,7 +974,7 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
               </select>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Référence client</label>
               <input type="text" value={customerReference} onChange={(e) => setCustomerReference(e.target.value)} placeholder="N° devis, contrat, marché..." className={INPUT} disabled={isValidated} />
@@ -935,7 +997,8 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
             )}
           </div>
 
-          <div>
+          {/* Desktop : tableau des lignes */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
@@ -1018,6 +1081,82 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
                 })}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile : cartes des lignes */}
+          <div className="md:hidden space-y-3">
+            {lines.map((line, i) => {
+              const lineHT = calcLineHT(line)
+              return (
+                <div key={line.key} className="border border-gray-200 rounded-xl p-3 space-y-2.5">
+                  {/* Désignation (pleine largeur) */}
+                  <ProductAutocomplete
+                    value={line.description}
+                    onChange={(text) => { updateLine(i, 'description', text); if (line.product_id) updateLine(i, 'product_id', null) }}
+                    onSelect={(p) => selectProduct(i, p)}
+                    clientId={clientId || null}
+                    className={INPUT}
+                    placeholder="Désignation"
+                    disabled={isValidated}
+                  />
+
+                  {/* Grille 2 colonnes pour les champs numériques */}
+                  <div className="grid grid-cols-2 gap-2">
+                    {docColumns.reference && (
+                      <div>
+                        <label className="text-[10px] text-gray-400 mb-0.5 block">Réf.</label>
+                        <input type="text" value={line.reference} onChange={(e) => updateLine(i, 'reference', e.target.value)} placeholder="Réf" className={INPUT} disabled={isValidated} />
+                      </div>
+                    )}
+                    <div>
+                      <label className="text-[10px] text-gray-400 mb-0.5 block">Qté</label>
+                      <input type="number" step="0.01" min="0.01" value={line.quantity} onChange={(e) => updateLine(i, 'quantity', e.target.value)} className={`${INPUT} text-right`} disabled={isValidated} />
+                    </div>
+                    {docColumns.unit && (
+                      <div>
+                        <label className="text-[10px] text-gray-400 mb-0.5 block">Unité</label>
+                        <UnitCombobox value={line.unit} onChange={(v) => updateLine(i, 'unit', v)} className={INPUT} disabled={isValidated} />
+                      </div>
+                    )}
+                    <div>
+                      <label className="text-[10px] text-gray-400 mb-0.5 block">PU HT</label>
+                      <input type="number" step="0.01" value={line.unit_price} onChange={(e) => updateLine(i, 'unit_price', e.target.value)} className={`${INPUT} text-right`} disabled={isValidated} />
+                    </div>
+                    {docColumns.vat_rate && (
+                      <div>
+                        <label className="text-[10px] text-gray-400 mb-0.5 block">TVA %</label>
+                        <select value={line.vat_rate} onChange={(e) => updateLine(i, 'vat_rate', e.target.value)} className={SELECT} disabled={isValidated}>
+                          {vatRates.map((vr) => <option key={vr.rate} value={vr.rate}>{vr.rate}%</option>)}
+                        </select>
+                      </div>
+                    )}
+                    {docColumns.discount_percent && (
+                      <div>
+                        <label className="text-[10px] text-gray-400 mb-0.5 block">Rem. %</label>
+                        <input type="number" step="0.1" min="0" max="100" value={line.discount_percent} onChange={(e) => updateLine(i, 'discount_percent', e.target.value)} className={`${INPUT} text-right`} disabled={isValidated} />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Total + actions */}
+                  <div className="flex items-center justify-between pt-1 border-t border-gray-100">
+                    <span className="text-sm font-semibold text-gray-900">{fmtCurrency(lineHT)}</span>
+                    {!isValidated && (
+                      <div className="flex items-center gap-1 ml-auto">
+                        {line.product_id && (
+                          <button onClick={() => refreshLine(i)} className="p-1.5 rounded hover:bg-blue-50 transition">
+                            <RefreshCw className="w-4 h-4 text-gray-400" />
+                          </button>
+                        )}
+                        <button onClick={() => removeLine(i)} className="p-1.5 rounded hover:bg-red-50 transition">
+                          <Trash2 className="w-4 h-4 text-gray-400" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
           </div>
 
           {!isValidated && (
@@ -1159,7 +1298,7 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
         onClick={onClose}
       >
         <div
-          className="bg-white rounded-2xl shadow-xl w-full mx-6 max-w-5xl mt-8 mb-8 px-6 py-6"
+          className="bg-white rounded-2xl shadow-xl w-full mx-2 md:mx-6 max-w-5xl mt-2 md:mt-8 mb-2 md:mb-8 px-3 md:px-6 py-4 md:py-6"
           onClick={(e) => e.stopPropagation()}
         >
           {formContent}

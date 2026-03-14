@@ -3,9 +3,10 @@
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, Loader2, BarChart3, Info } from 'lucide-react'
+import { Plus, Loader2, BarChart3, Info, Filter } from 'lucide-react'
 import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
 import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
+import MobileFilterPanel from '@/components/app/MobileFilterPanel'
 
 interface Contract {
   id: string
@@ -109,6 +110,7 @@ function ContractsList() {
   const [filters, setFilters] = useState<FilterValues>({})
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [showMobileFilters, setShowMobileFilters] = useState(false)
 
   const updateFilter = useCallback((column: string, value: string | string[]) => {
     setFilters((prev) => ({ ...prev, [column]: value }))
@@ -155,11 +157,11 @@ function ContractsList() {
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="max-w-5xl mx-auto px-6 py-8">
+      <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 md:py-8">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-semibold text-gray-900">Contrats & Commandes</h1>
-            <div className="relative group">
+            <div className="relative group hidden md:block">
               <Info className="w-4 h-4 text-gray-300 hover:text-gray-500 transition cursor-help" />
               <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 px-3 py-2 bg-gray-800 text-white text-[11px] rounded-lg shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition z-50">
                 Cliquez sur les en-têtes de colonnes pour filtrer
@@ -171,9 +173,19 @@ function ContractsList() {
               </span>
             )}
           </div>
+          <button
+            onClick={() => setShowMobileFilters(true)}
+            className="md:hidden flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition"
+          >
+            <Filter className="w-4 h-4" />
+            Filtres
+            {activeFilterCount > 0 && (
+              <span className="text-[10px] bg-orange-500 text-white px-1.5 py-0.5 rounded-full font-medium leading-none">{activeFilterCount}</span>
+            )}
+          </button>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+        <div className="hidden md:block bg-white border border-gray-200 rounded-2xl overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 text-left">
@@ -209,6 +221,32 @@ function ContractsList() {
           </table>
         </div>
 
+        {/* Mobile cards */}
+        <div className="md:hidden space-y-2">
+          {loading ? (
+            <div className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin text-orange-500 mx-auto" /></div>
+          ) : contracts.length === 0 ? (
+            <div className="py-12 text-center text-gray-400 text-sm">Aucun contrat trouvé</div>
+          ) : (
+            contracts.map((c) => {
+              const st = STATUS_LABELS[c.status] || { label: c.status, cls: 'bg-gray-100 text-gray-600' }
+              return (
+                <div key={c.id} onClick={() => setSelectedId(c.id)} className="bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:bg-orange-50/50 transition">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="font-mono text-xs text-gray-700">{c.reference}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${st.cls}`}>{st.label}</span>
+                  </div>
+                  <p className="text-sm font-medium text-gray-900 mb-1">{c.client_name || '—'}</p>
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <span>{TYPE_LABELS[c.contract_type] || c.contract_type}</span>
+                    <span className="font-medium text-gray-700">{fmtCurrency(c.total_budget)}</span>
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
+
         {total > 25 && (
           <div className="flex justify-center gap-2 mt-4">
             <button disabled={page <= 1} onClick={() => setPage(page - 1)} className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-50 hover:bg-gray-50">Précédent</button>
@@ -222,6 +260,16 @@ function ContractsList() {
           <ContractDetailPanel
             contractId={selectedId}
             onClose={() => { setSelectedId(null); void load() }}
+          />
+        )}
+
+        {/* Mobile filter panel */}
+        {showMobileFilters && (
+          <MobileFilterPanel
+            filters={CONTRACT_FILTERS}
+            values={filters}
+            onChange={updateFilter}
+            onClose={() => setShowMobileFilters(false)}
           />
         )}
       </div>
@@ -275,7 +323,7 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string; onCl
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-xl w-full mx-6 max-w-5xl mt-8 mb-8 px-6 py-6"
+        className="bg-white rounded-2xl shadow-xl w-full mx-2 md:mx-6 max-w-5xl mt-4 md:mt-8 mb-4 md:mb-8 px-4 md:px-6 py-4 md:py-6"
         onClick={(e) => e.stopPropagation()}
       >
         {loading ? (
@@ -306,7 +354,7 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string; onCl
             <BarChart3 className="w-4 h-4 text-orange-500" />
             <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Budget</h2>
           </div>
-          <div className="grid grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <div>
               <p className="text-xs text-gray-400">Total budget</p>
               <p className="text-lg font-bold text-gray-900">{fmtCurrency(contract.total_budget)}</p>
@@ -342,7 +390,7 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string; onCl
         {/* Tab: informations */}
         {tab === 'budget' && (
           <section className="bg-white border border-gray-200 rounded-2xl p-5 space-y-3">
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <p><span className="text-gray-400">Début :</span> {contract.start_date || '—'}</p>
               <p><span className="text-gray-400">Fin :</span> {contract.end_date || '—'}</p>
               <p><span className="text-gray-400">Renouvellement :</span> {contract.auto_renew ? `Auto (${contract.renewal_notice_days}j préavis)` : 'Non'}</p>
@@ -538,7 +586,7 @@ function SituationEditorPanel({ contractId: _contractId, situationId, onClose }:
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-xl w-full mx-6 max-w-5xl mt-8 mb-8 px-6 py-6"
+        className="bg-white rounded-2xl shadow-xl w-full mx-2 md:mx-6 max-w-5xl mt-4 md:mt-8 mb-4 md:mb-8 px-4 md:px-6 py-4 md:py-6"
         onClick={(e) => e.stopPropagation()}
       >
         {loading ? (
@@ -568,7 +616,7 @@ function SituationEditorPanel({ contractId: _contractId, situationId, onClose }:
         </div>
 
         {/* Totaux */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <div className="bg-white border border-gray-200 rounded-xl p-4">
             <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Cumulé</p>
             <p className="text-xl font-bold text-gray-900">{fmtCurrency(situation.cumulative_total)}</p>
@@ -584,8 +632,8 @@ function SituationEditorPanel({ contractId: _contractId, situationId, onClose }:
         </div>
 
         {/* Lignes */}
-        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden overflow-x-auto">
+          <table className="w-full text-sm min-w-[700px]">
             <thead>
               <tr className="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
                 <th className="px-4 py-3">Description</th>

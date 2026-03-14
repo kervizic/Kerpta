@@ -13,6 +13,7 @@ import ProductAutocomplete, { type AutocompleteProduct } from '@/components/app/
 import ClientCombobox, { type ClientItem } from '@/components/app/ClientCombobox'
 import DatePicker from '@/components/app/DatePicker'
 import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
+import MobileFilterPanel from '@/components/app/MobileFilterPanel'
 import ClientPanel from '@/components/app/ClientPanel'
 import { INPUT, SELECT, LINE_INPUT, LINE_SELECT } from '@/lib/formStyles'
 
@@ -155,6 +156,7 @@ function QuotesList() {
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editId, setEditId] = useState<string | null>(null)
+  const [showMobileFilters, setShowMobileFilters] = useState(false)
   const [docTypeLabels, setDocTypeLabels] = useState<Record<string, string>>(DOC_LABELS)
 
   // Charger les types de documents pour les labels
@@ -216,7 +218,7 @@ function QuotesList() {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-semibold text-gray-900">Devis</h1>
-            <div className="relative group">
+            <div className="relative group hidden md:block">
               <Info className="w-4 h-4 text-gray-300 hover:text-gray-500 transition cursor-help" />
               <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 px-3 py-2 bg-gray-800 text-white text-[11px] rounded-lg shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition z-50">
                 Cliquez sur les en-têtes de colonnes pour filtrer
@@ -228,12 +230,30 @@ function QuotesList() {
               </span>
             )}
           </div>
-          <button
-            onClick={() => navigate('/app/devis/new')}
-            className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white text-sm font-semibold rounded-lg transition"
-          >
-            <Plus className="w-4 h-4" /> Nouveau devis
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Bouton filtres mobile */}
+            <button
+              onClick={() => setShowMobileFilters(true)}
+              className={`md:hidden relative p-2 rounded-lg border transition ${
+                activeFilterCount > 0 ? 'border-orange-300 bg-orange-50 text-orange-600' : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              {activeFilterCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => navigate('/app/devis/new')}
+              className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white text-sm font-semibold rounded-lg transition"
+            >
+              <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Nouveau devis</span>
+            </button>
+          </div>
         </div>
 
         {/* Desktop : tableau */}
@@ -329,6 +349,16 @@ function QuotesList() {
             onClose={() => { setEditId(null); void load() }}
           />
         )}
+
+        {/* Panneau filtres mobile */}
+        {showMobileFilters && (
+          <MobileFilterPanel
+            filters={QUOTE_FILTERS}
+            values={filters}
+            onChange={updateFilter}
+            onClose={() => setShowMobileFilters(false)}
+          />
+        )}
       </div>
     </div>
   )
@@ -367,7 +397,7 @@ function QuoteDetailPanel({ quoteId, onClose }: { quoteId: string; onClose: () =
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-xl w-full mx-6 max-w-4xl mt-8 mb-8"
+        className="bg-white rounded-2xl shadow-xl w-full mx-2 md:mx-6 max-w-4xl mt-2 md:mt-8 mb-2 md:mb-8"
         onClick={(e) => e.stopPropagation()}
       >
         {loading ? (
@@ -743,7 +773,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
   if (loading) {
     if (onClose) return (
       <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 overflow-y-auto" onClick={onClose}>
-        <div className="bg-white rounded-2xl shadow-xl w-full mx-6 max-w-5xl mt-8 mb-8 flex justify-center py-16" onClick={(e) => e.stopPropagation()}>
+        <div className="bg-white rounded-2xl shadow-xl w-full mx-2 md:mx-6 max-w-5xl mt-2 md:mt-8 mb-2 md:mb-8 flex justify-center py-16" onClick={(e) => e.stopPropagation()}>
           <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
         </div>
       </div>
@@ -1116,7 +1146,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
         onClick={onClose}
       >
         <div
-          className="bg-white rounded-2xl shadow-xl w-full mx-6 max-w-5xl mt-8 mb-8 px-6 py-6"
+          className="bg-white rounded-2xl shadow-xl w-full mx-2 md:mx-6 max-w-5xl mt-2 md:mt-8 mb-2 md:mb-8 px-3 md:px-6 py-4 md:py-6"
           onClick={(e) => e.stopPropagation()}
         >
           {formContent}
