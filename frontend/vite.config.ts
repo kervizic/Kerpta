@@ -9,22 +9,6 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          // Regrouper React
-          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
-            return 'vendor-react'
-          }
-          // Regrouper les autres libs tierces (sans lucide pour garder le tree-shaking)
-          if (id.includes('node_modules/axios/') || id.includes('node_modules/zustand/')) {
-            return 'vendor-misc'
-          }
-        },
-      },
-    },
-  },
   server: {
     port: 5173,
     proxy: {
