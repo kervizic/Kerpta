@@ -229,7 +229,6 @@ function UnitsSection() {
   const [items, setItems] = useState<Unit[]>([])
   const [edits, setEdits] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
-  const [newLabel, setNewLabel] = useState('')
   const [saving, setSaving] = useState(false)
 
   const load = useCallback(async () => {
@@ -245,7 +244,6 @@ function UnitsSection() {
   useEffect(() => { void load() }, [load])
 
   function addRow() {
-    setNewLabel('')
     setItems((prev) => [...prev, { id: '__new__', label: '', position: prev.length }])
     setEdits((prev) => ({ ...prev, __new__: '' }))
   }
