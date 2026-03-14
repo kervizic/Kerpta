@@ -177,6 +177,7 @@ function InvoicesList() {
   const [filters, setFilters] = useState<FilterValues>({})
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [editId, setEditId] = useState<string | null>(null)
 
   const updateFilter = useCallback((column: string, value: string | string[]) => {
     setFilters((prev) => ({ ...prev, [column]: value }))
@@ -286,7 +287,7 @@ function InvoicesList() {
                   const st = STATUS_LABELS[inv.status] || { label: inv.status, cls: 'bg-gray-100 text-gray-600' }
                   const isEditable = ['draft', 'validated'].includes(inv.status)
                   return (
-                    <tr key={inv.id} onClick={() => isEditable ? navigate(`/app/factures/${inv.id}/modifier`) : setSelectedId(inv.id)} className="border-b border-gray-50 hover:bg-orange-50/50 cursor-pointer transition">
+                    <tr key={inv.id} onClick={() => isEditable ? setEditId(inv.id) : setSelectedId(inv.id)} className="border-b border-gray-50 hover:bg-orange-50/50 cursor-pointer transition">
                       <td className="px-4 py-3 font-mono text-xs text-gray-700">
                         {inv.number || inv.proforma_number || '—'}
                       </td>
@@ -315,11 +316,19 @@ function InvoicesList() {
           </div>
         )}
 
-        {/* Panneau détail facture */}
+        {/* Panneau détail facture (lecture seule) */}
         {selectedId && (
           <InvoiceDetailPanel
             invoiceId={selectedId}
             onClose={() => { setSelectedId(null); void load() }}
+          />
+        )}
+
+        {/* Formulaire édition en overlay */}
+        {editId && (
+          <InvoiceFormPage
+            invoiceId={editId}
+            onClose={() => { setEditId(null); void load() }}
           />
         )}
       </div>
@@ -506,7 +515,7 @@ function InvoiceDetailPanel({ invoiceId, onClose }: { invoiceId: string; onClose
 
 // ── Formulaire création/édition ──────────────────────────────────────────────
 
-function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
+function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?: () => void }) {
   const isEdit = !!invoiceId
 
   // Données du formulaire
@@ -762,7 +771,8 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
         await orgPost(`/invoices/${resultId}/send`)
       }
 
-      navigate('/app/factures')
+      if (onClose) onClose()
+      else navigate('/app/factures')
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const d = err.response?.data as { detail?: unknown }
@@ -804,19 +814,28 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
   }
 
   if (loading) {
+    if (onClose) return (
+      <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 overflow-y-auto" onClick={onClose}>
+        <div className="bg-white rounded-2xl shadow-xl w-full mx-6 max-w-5xl mt-8 mb-8 flex justify-center py-16" onClick={(e) => e.stopPropagation()}>
+          <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
+        </div>
+      </div>
+    )
     return <div className="flex-1 flex justify-center items-center"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
   }
 
-  return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="max-w-5xl mx-auto px-6 py-8">
-        <button onClick={() => navigate('/app/factures')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-4 transition">
-          <ArrowLeft className="w-4 h-4" /> Retour
-        </button>
-
-        <h1 className="text-xl font-semibold text-gray-900 mb-6">
-          {isEdit ? 'Modifier la facture' : 'Nouvelle facture'}
-        </h1>
+  const formContent = (
+    <>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-xl font-semibold text-gray-900">
+            {isEdit ? 'Modifier la facture' : 'Nouvelle facture'}
+          </h1>
+          {onClose && (
+            <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 transition">
+              <X className="w-5 h-5 text-gray-400" />
+            </button>
+          )}
+        </div>
 
         {error && (
           <div className="p-3 mb-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>
@@ -1128,6 +1147,34 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
             onClose={() => setClientPanelId(null)}
           />
         )}
+    </>
+  )
+
+  // Mode overlay (édition depuis la liste)
+  if (onClose) {
+    return (
+      <div
+        className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 overflow-y-auto"
+        onClick={onClose}
+      >
+        <div
+          className="bg-white rounded-2xl shadow-xl w-full mx-6 max-w-5xl mt-8 mb-8 px-6 py-6"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {formContent}
+        </div>
+      </div>
+    )
+  }
+
+  // Mode pleine page (création)
+  return (
+    <div className="flex-1 overflow-y-auto">
+      <div className="max-w-5xl mx-auto px-6 py-8">
+        <button onClick={() => navigate('/app/factures')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-4 transition">
+          <ArrowLeft className="w-4 h-4" /> Retour
+        </button>
+        {formContent}
       </div>
     </div>
   )
@@ -1137,7 +1184,5 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
 
 export default function InvoicesPage({ path }: { path: string }) {
   if (path === '/app/factures/nouveau') return <InvoiceFormPage />
-  const editMatch = path.match(/^\/app\/factures\/(.+)\/modifier$/)
-  if (editMatch) return <InvoiceFormPage invoiceId={editMatch[1]} />
   return <InvoicesList />
 }
