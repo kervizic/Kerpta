@@ -108,15 +108,15 @@ function formatSiret(s: string): string {
   return s.replace(/(\d{3})(\d{3})(\d{3})(\d{5})/, '$1 $2 $3 $4')
 }
 
-// ── Liste des clients (master-detail) ─────────────────────────────────────────
+// ── Liste des clients ─────────────────────────────────────────────────────────
 
-function ClientsList({ initialClientId }: { initialClientId?: string }) {
+function ClientsList() {
   const [clients, setClients] = useState<Client[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
-  const [selectedId, setSelectedId] = useState<string | null>(initialClientId ?? null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -130,22 +130,9 @@ function ClientsList({ initialClientId }: { initialClientId?: string }) {
 
   useEffect(() => { void load() }, [load])
 
-  // Sync URL without full navigation
-  useEffect(() => {
-    if (selectedId) {
-      window.history.replaceState(null, '', `/app/clients/${selectedId}`)
-    } else {
-      window.history.replaceState(null, '', '/app/clients')
-    }
-  }, [selectedId])
-
-  function handleSelect(id: string) {
-    setSelectedId((prev) => prev === id ? null : id)
-  }
-
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className={`mx-auto px-6 py-8 ${selectedId ? 'max-w-7xl' : 'max-w-5xl'} transition-all`}>
+      <div className="max-w-5xl mx-auto px-6 py-8">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-xl font-semibold text-gray-900">Clients</h1>
           <button
@@ -156,102 +143,87 @@ function ClientsList({ initialClientId }: { initialClientId?: string }) {
           </button>
         </div>
 
-        <div className={`flex gap-6 ${selectedId ? '' : ''}`}>
-          {/* ── Liste ──────────────────────────────────────────────── */}
-          <div className={`${selectedId ? 'w-1/2 min-w-0' : 'w-full'} transition-all`}>
-            {/* Barre de recherche */}
-            <div className="relative mb-4">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-                placeholder="Rechercher un client..."
-                className="w-full pl-10 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
-              />
-            </div>
+        {/* Barre de recherche */}
+        <div className="relative mb-4">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+            placeholder="Rechercher un client..."
+            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+          />
+        </div>
 
-            {/* Table */}
-            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-              {loading ? (
-                <div className="flex justify-center py-12">
-                  <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
-                </div>
-              ) : clients.length === 0 ? (
-                <div className="py-12 text-center text-gray-400 text-sm">Aucun client trouvé</div>
-              ) : (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
-                      <th className="px-4 py-3">Nom</th>
-                      {!selectedId && <th className="px-4 py-3">Type</th>}
-                      <th className="px-4 py-3">SIRET</th>
-                      <th className="px-4 py-3">Email</th>
-                      {!selectedId && <th className="px-4 py-3">Tél</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {clients.map((c) => (
-                      <tr
-                        key={c.id}
-                        onClick={() => handleSelect(c.id)}
-                        className={`border-b border-gray-50 cursor-pointer transition ${
-                          c.id === selectedId
-                            ? 'bg-orange-50 border-l-2 border-l-orange-500'
-                            : 'hover:bg-orange-50/50'
-                        }`}
-                      >
-                        <td className="px-4 py-3 font-medium text-gray-900">{c.name}</td>
-                        {!selectedId && (
-                          <td className="px-4 py-3 text-gray-500">{c.type === 'company' ? 'Entreprise' : 'Particulier'}</td>
-                        )}
-                        <td className="px-4 py-3 text-gray-500 font-mono text-xs">{c.siret || '—'}</td>
-                        <td className="px-4 py-3 text-gray-500">{c.email || '—'}</td>
-                        {!selectedId && (
-                          <td className="px-4 py-3 text-gray-500">{c.phone || '—'}</td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+        {/* Table */}
+        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
             </div>
-
-            {/* Pagination */}
-            {total > 25 && (
-              <div className="flex justify-center gap-2 mt-4">
-                <button
-                  disabled={page <= 1}
-                  onClick={() => setPage(page - 1)}
-                  className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-50 hover:bg-gray-50"
-                >
-                  Précédent
-                </button>
-                <span className="px-3 py-1.5 text-sm text-gray-500">
-                  Page {page} / {Math.ceil(total / 25)}
-                </span>
-                <button
-                  disabled={page * 25 >= total}
-                  onClick={() => setPage(page + 1)}
-                  className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-50 hover:bg-gray-50"
-                >
-                  Suivant
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* ── Panneau détail (inline) ────────────────────────────── */}
-          {selectedId && (
-            <div className="w-1/2 min-w-0 sticky top-0">
-              <ClientPanel
-                clientId={selectedId}
-                onClose={() => setSelectedId(null)}
-              />
-            </div>
+          ) : clients.length === 0 ? (
+            <div className="py-12 text-center text-gray-400 text-sm">Aucun client trouvé</div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
+                  <th className="px-4 py-3">Nom</th>
+                  <th className="px-4 py-3">Type</th>
+                  <th className="px-4 py-3">SIRET</th>
+                  <th className="px-4 py-3">Email</th>
+                  <th className="px-4 py-3">Tél</th>
+                </tr>
+              </thead>
+              <tbody>
+                {clients.map((c) => (
+                  <tr
+                    key={c.id}
+                    onClick={() => setSelectedId(c.id)}
+                    className="border-b border-gray-50 hover:bg-orange-50/50 cursor-pointer transition"
+                  >
+                    <td className="px-4 py-3 font-medium text-gray-900">{c.name}</td>
+                    <td className="px-4 py-3 text-gray-500">{c.type === 'company' ? 'Entreprise' : 'Particulier'}</td>
+                    <td className="px-4 py-3 text-gray-500 font-mono text-xs">{c.siret || '—'}</td>
+                    <td className="px-4 py-3 text-gray-500">{c.email || '—'}</td>
+                    <td className="px-4 py-3 text-gray-500">{c.phone || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
+
+        {/* Pagination */}
+        {total > 25 && (
+          <div className="flex justify-center gap-2 mt-4">
+            <button
+              disabled={page <= 1}
+              onClick={() => setPage(page - 1)}
+              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-50 hover:bg-gray-50"
+            >
+              Précédent
+            </button>
+            <span className="px-3 py-1.5 text-sm text-gray-500">
+              Page {page} / {Math.ceil(total / 25)}
+            </span>
+            <button
+              disabled={page * 25 >= total}
+              onClick={() => setPage(page + 1)}
+              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-50 hover:bg-gray-50"
+            >
+              Suivant
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* ── Modal fiche client ────────────────────────────────────── */}
+      {selectedId && (
+        <ClientPanel
+          clientId={selectedId}
+          onClose={() => { setSelectedId(null); void load() }}
+        />
+      )}
     </div>
   )
 }
@@ -753,15 +725,11 @@ function CreateClientForm() {
   )
 }
 
-// ── Modal édition client ──────────────────────────────────────────────────────
-
 // ── Page principale ───────────────────────────────────────────────────────────
 
 export default function ClientsPage({ path }: { path: string }) {
   if (path === '/app/clients/new') {
     return <CreateClientForm />
   }
-  // /app/clients/{id} → ouvre la liste avec le panneau client inline
-  const match = path.match(/^\/app\/clients\/([^/]+)$/)
-  return <ClientsList initialClientId={match?.[1]} />
+  return <ClientsList />
 }

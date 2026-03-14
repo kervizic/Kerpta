@@ -1,14 +1,15 @@
-// Kerpta — Panneau client réutilisable (édition inline, auto-save)
+// Kerpta — Modale fiche client (édition inline, auto-save)
 // Copyright (C) 2026 Emmanuel Kervizic
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import {
-  Loader2, UserRound, Building2, Star,
-  Plus, Trash2, ChevronDown, ChevronUp, Check, AlertTriangle,
+  Loader2, UserRound, Building2, Star, X,
+  Plus, Trash2, Check, AlertTriangle,
 } from 'lucide-react'
 import { orgGet, orgPost, orgPatch, orgDelete } from '@/lib/orgApi'
 import { apiClient } from '@/lib/api'
+import CompanyInfoCard from '@/components/app/CompanyInfoCard'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -81,13 +82,19 @@ function formatEtabAddress(a: EtablissementOut['adresse']): string {
   return [a.voie, [a.code_postal, a.commune].filter(Boolean).join(' ')].filter(Boolean).join(', ') || '—'
 }
 
-// ── Composant principal ──────────────────────────────────────────────────────
+function formatAddress(a: Record<string, string | null> | null | undefined): string {
+  if (!a) return '—'
+  const parts = [a.voie, a.complement, [a.code_postal, a.commune].filter(Boolean).join(' '), a.pays].filter(Boolean)
+  return parts.join(', ') || '—'
+}
+
+// ── Composant principal (modale) ─────────────────────────────────────────────
 
 interface ClientPanelProps {
   clientId: string
   /** Mode compact (pas de stats, pas de notes) — pour les formulaires devis/factures */
   compact?: boolean
-  onClose?: () => void
+  onClose: () => void
 }
 
 export default function ClientPanel({ clientId, compact = false, onClose }: ClientPanelProps) {
@@ -97,8 +104,6 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
   const [etabs, setEtabs] = useState<EtablissementOut[]>([])
   const [loading, setLoading] = useState(true)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
-  const [showContacts, setShowContacts] = useState(false)
-  const [showAddress, setShowAddress] = useState(false)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   // ── Chargement ────────────────────────────────────────────────────────
@@ -174,155 +179,196 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
 
   // ── Rendu ─────────────────────────────────────────────────────────────
 
-  if (loading) {
-    return (
-      <div className="bg-white border border-gray-200 rounded-2xl p-6 flex justify-center">
-        <Loader2 className="w-5 h-5 animate-spin text-orange-500" />
-      </div>
-    )
-  }
-
-  if (!client) {
-    return (
-      <div className="bg-white border border-gray-200 rounded-2xl p-6 text-sm text-gray-400 text-center">
-        Client introuvable
-      </div>
-    )
-  }
-
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-      {/* ── En-tête ─────────────────────────────────────────────────── */}
-      <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-orange-50 border border-orange-200 flex items-center justify-center">
-            {client.type === 'company' ? <Building2 className="w-4 h-4 text-orange-600" /> : <UserRound className="w-4 h-4 text-orange-600" />}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+      <div
+        className="bg-white rounded-2xl shadow-xl w-full mx-4 max-w-3xl max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* ── En-tête ──────────────────────────────────────────────── */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10 rounded-t-2xl">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-center">
+              {loading ? (
+                <Loader2 className="w-5 h-5 animate-spin text-orange-500" />
+              ) : client?.type === 'company' ? (
+                <Building2 className="w-5 h-5 text-orange-600" />
+              ) : (
+                <UserRound className="w-5 h-5 text-orange-600" />
+              )}
+            </div>
+            {client && (
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">{client.name}</h2>
+                <p className="text-xs text-gray-400">
+                  {client.type === 'company' ? 'Entreprise' : 'Particulier'}
+                  {client.siret && <span className="ml-2 font-mono">{formatSiret(client.siret)}</span>}
+                </p>
+              </div>
+            )}
           </div>
-          <div>
-            <span className="text-sm font-semibold text-gray-900">{client.name}</span>
-            <span className="text-[11px] text-gray-400 ml-2">{client.type === 'company' ? 'Entreprise' : 'Particulier'}</span>
+          <div className="flex items-center gap-3">
+            <SaveIndicator status={saveStatus} />
+            <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 transition">
+              <X className="w-5 h-5 text-gray-400" />
+            </button>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <SaveIndicator status={saveStatus} />
-          {onClose && (
-            <button onClick={onClose} className="text-xs text-gray-400 hover:text-gray-600 transition">✕</button>
-          )}
-        </div>
-      </div>
 
-      <div className="px-5 py-4 space-y-4">
-        {/* ── Infos principales ──────────────────────────────────────── */}
-        <div className="grid grid-cols-2 gap-3">
-          <AutoSaveField label={client.type === 'company' ? 'Raison sociale' : 'Nom'} value={client.name} onSave={(v) => saveField({ name: v })} required />
-          <AutoSaveField label="Email" value={client.email || ''} onSave={(v) => saveField({ email: v || null })} type="email" />
-          <AutoSaveField label="Téléphone" value={client.phone || ''} onSave={(v) => saveField({ phone: v || null })} type="tel" />
-          {client.type === 'company' && (
-            <AutoSaveField label="TVA intracom." value={client.vat_number || ''} onSave={(v) => saveField({ vat_number: v || null })} />
-          )}
-        </div>
-
-        {/* ── Profil de facturation ──────────────────────────────────── */}
-        <div>
-          <label className={LABEL}>Profil de facturation</label>
-          <select
-            value={client.billing_profile_id ?? ''}
-            onChange={(e) => saveField({ billing_profile_id: e.target.value || null })}
-            className={`${INPUT} bg-white`}
-          >
-            <option value="">Aucun profil</option>
-            {profiles.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name} — {p.payment_terms}j {p.payment_term_type === 'net' ? 'net' : 'fin de mois'}
-                {p.is_default ? ' ★' : ''}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* ── Établissement à facturer ──────────────────────────────── */}
-        {client.type === 'company' && etabs.length > 0 && (
-          <div>
-            <label className={LABEL}>Établissement à facturer</label>
-            <select
-              value={client.siret || ''}
-              onChange={(e) => saveField({ siret: e.target.value || null })}
-              className={`${INPUT} bg-white`}
-            >
-              <option value="">— Sélectionner —</option>
-              {etabs.map((e) => (
-                <option key={e.siret} value={e.siret}>
-                  {formatSiret(e.siret)} {e.siege ? '(Siège)' : ''} — {formatEtabAddress(e.adresse)}
-                </option>
-              ))}
-            </select>
+        {loading ? (
+          <div className="flex justify-center py-16">
+            <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
           </div>
-        )}
+        ) : !client ? (
+          <div className="py-16 text-center text-gray-400 text-sm">Client introuvable</div>
+        ) : (
+          <div className="px-6 py-5 space-y-6">
+            {/* ── Statistiques ──────────────────────────────────────── */}
+            {!compact && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                  <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Devis</p>
+                  <p className="text-2xl font-bold text-gray-900">{client.quote_count}</p>
+                </div>
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                  <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Facturé</p>
+                  <p className="text-2xl font-bold text-gray-900">{Number(client.total_invoiced).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</p>
+                </div>
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                  <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Solde</p>
+                  <p className={`text-2xl font-bold ${Number(client.balance) > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    {Number(client.balance).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                  </p>
+                </div>
+              </div>
+            )}
 
-        {/* ── Adresse de facturation ─────────────────────────────────── */}
-        <div>
-          <button
-            onClick={() => setShowAddress(!showAddress)}
-            className="flex items-center gap-1 text-[11px] font-semibold text-gray-400 uppercase tracking-wider hover:text-gray-600 transition"
-          >
-            Adresse de facturation
-            {showAddress ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-          </button>
-          {showAddress && (
-            <div className="mt-2 space-y-2">
-              <AutoSaveField label="" value={client.billing_address?.voie || ''} placeholder="Adresse" onSave={(v) => saveField({ billing_address: { ...client.billing_address, voie: v || null } })} />
-              <AutoSaveField label="" value={client.billing_address?.complement || ''} placeholder="Complément" onSave={(v) => saveField({ billing_address: { ...client.billing_address, complement: v || null } })} />
-              <div className="grid grid-cols-2 gap-2">
-                <AutoSaveField label="" value={client.billing_address?.code_postal || ''} placeholder="Code postal" onSave={(v) => saveField({ billing_address: { ...client.billing_address, code_postal: v || null } })} />
-                <AutoSaveField label="" value={client.billing_address?.commune || ''} placeholder="Ville" onSave={(v) => saveField({ billing_address: { ...client.billing_address, commune: v || null } })} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* ── Colonne gauche : Infos éditables ────────────────── */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Informations</h3>
+
+                <div className="space-y-3">
+                  <AutoSaveField label={client.type === 'company' ? 'Raison sociale' : 'Nom'} value={client.name} onSave={(v) => saveField({ name: v })} required />
+                  <AutoSaveField label="Email" value={client.email || ''} onSave={(v) => saveField({ email: v || null })} type="email" />
+                  <AutoSaveField label="Téléphone" value={client.phone || ''} onSave={(v) => saveField({ phone: v || null })} type="tel" />
+                  {client.type === 'company' && (
+                    <AutoSaveField label="TVA intracommunautaire" value={client.vat_number || ''} onSave={(v) => saveField({ vat_number: v || null })} />
+                  )}
+                </div>
+
+                {/* Profil de facturation */}
+                <div>
+                  <label className={LABEL}>Profil de facturation</label>
+                  <select
+                    value={client.billing_profile_id ?? ''}
+                    onChange={(e) => saveField({ billing_profile_id: e.target.value || null })}
+                    className={`${INPUT} bg-white`}
+                  >
+                    <option value="">Aucun profil</option>
+                    {profiles.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} — {p.payment_terms}j {p.payment_term_type === 'net' ? 'net' : 'fin de mois'}
+                        {p.is_default ? ' ★' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Établissement à facturer */}
+                {client.type === 'company' && etabs.length > 0 && (
+                  <div>
+                    <label className={LABEL}>Établissement à facturer</label>
+                    <select
+                      value={client.siret || ''}
+                      onChange={(e) => saveField({ siret: e.target.value || null })}
+                      className={`${INPUT} bg-white`}
+                    >
+                      <option value="">— Sélectionner —</option>
+                      {etabs.map((e) => (
+                        <option key={e.siret} value={e.siret}>
+                          {formatSiret(e.siret)} {e.siege ? '(Siège)' : ''} — {formatEtabAddress(e.adresse)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Adresse de facturation */}
+                <div>
+                  <label className={LABEL}>Adresse de facturation</label>
+                  <div className="space-y-2">
+                    <AutoSaveField label="" value={client.billing_address?.voie || ''} placeholder="Adresse" onSave={(v) => saveField({ billing_address: { ...client.billing_address, voie: v || null } })} />
+                    <AutoSaveField label="" value={client.billing_address?.complement || ''} placeholder="Complément" onSave={(v) => saveField({ billing_address: { ...client.billing_address, complement: v || null } })} />
+                    <div className="grid grid-cols-2 gap-2">
+                      <AutoSaveField label="" value={client.billing_address?.code_postal || ''} placeholder="Code postal" onSave={(v) => saveField({ billing_address: { ...client.billing_address, code_postal: v || null } })} />
+                      <AutoSaveField label="" value={client.billing_address?.commune || ''} placeholder="Ville" onSave={(v) => saveField({ billing_address: { ...client.billing_address, commune: v || null } })} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Notes */}
+                {!compact && (
+                  <div>
+                    <label className={LABEL}>Notes internes</label>
+                    <AutoSaveTextarea value={client.notes || ''} onSave={(v) => saveField({ notes: v || null })} placeholder="Notes..." />
+                  </div>
+                )}
+              </div>
+
+              {/* ── Colonne droite : Contacts ──────────────────────── */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Contacts</h3>
+                  <button
+                    onClick={addContact}
+                    className="flex items-center gap-1 text-xs text-orange-500 hover:text-orange-600 transition"
+                  >
+                    <Plus className="w-3 h-3" /> Ajouter
+                  </button>
+                </div>
+
+                {contacts.length === 0 ? (
+                  <div className="text-sm text-gray-400">
+                    <p>Aucun contact</p>
+                    <p className="mt-2">
+                      <span className="text-gray-400">Email :</span> {client.email || '—'}
+                    </p>
+                    <p>
+                      <span className="text-gray-400">Tél :</span> {client.phone || '—'}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {contacts.map((ct) => (
+                      <ContactRow
+                        key={ct.id}
+                        contact={ct}
+                        onSave={(patch) => saveContact(ct.id, patch)}
+                        onDelete={() => deleteContact(ct.id)}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* Infos supplémentaires */}
+                {!compact && (
+                  <div className="pt-3 border-t border-gray-100 space-y-2 text-sm">
+                    <p><span className="text-gray-400">Adresse :</span> <span className="text-gray-700">{formatAddress(client.billing_address)}</span></p>
+                    <p><span className="text-gray-400">Factures :</span> <span className="text-gray-700">{client.invoice_count}</span></p>
+                    <p><span className="text-gray-400">Contrats :</span> <span className="text-gray-700">{client.contract_count}</span></p>
+                    <p><span className="text-gray-400">Payé :</span> <span className="text-gray-700">{Number(client.total_paid).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</span></p>
+                  </div>
+                )}
               </div>
             </div>
-          )}
-        </div>
 
-        {/* ── Contacts ──────────────────────────────────────────────── */}
-        <div>
-          <button
-            onClick={() => setShowContacts(!showContacts)}
-            className="flex items-center gap-1 text-[11px] font-semibold text-gray-400 uppercase tracking-wider hover:text-gray-600 transition"
-          >
-            Contacts ({contacts.length})
-            {showContacts ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-          </button>
-          {showContacts && (
-            <div className="mt-2 space-y-3">
-              {contacts.map((ct) => (
-                <ContactRow
-                  key={ct.id}
-                  contact={ct}
-                  onSave={(patch) => saveContact(ct.id, patch)}
-                  onDelete={() => deleteContact(ct.id)}
-                />
-              ))}
-              <button
-                onClick={addContact}
-                className="flex items-center gap-1 text-xs text-orange-500 hover:text-orange-600 transition"
-              >
-                <Plus className="w-3 h-3" /> Ajouter un contact
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* ── Notes ──────────────────────────────────────────────────── */}
-        {!compact && (
-          <div>
-            <label className={LABEL}>Notes internes</label>
-            <AutoSaveTextarea value={client.notes || ''} onSave={(v) => saveField({ notes: v || null })} placeholder="Notes..." />
-          </div>
-        )}
-
-        {/* ── Statistiques ──────────────────────────────────────────── */}
-        {!compact && (
-          <div className="grid grid-cols-3 gap-2 pt-2 border-t border-gray-100">
-            <StatBadge label="Devis" value={String(client.quote_count)} />
-            <StatBadge label="Facturé" value={Number(client.total_invoiced).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} />
-            <StatBadge label="Solde" value={Number(client.balance).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} color={Number(client.balance) > 0 ? 'red' : 'green'} />
+            {/* ── Données entreprise (INSEE) ──────────────────────── */}
+            {client.company_siren && (
+              <div>
+                <CompanyInfoCard siren={client.company_siren} />
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -334,9 +380,9 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
 
 function SaveIndicator({ status }: { status: 'idle' | 'saving' | 'saved' | 'error' }) {
   if (status === 'idle') return null
-  if (status === 'saving') return <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-400" />
-  if (status === 'saved') return <Check className="w-3.5 h-3.5 text-green-500" />
-  return <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
+  if (status === 'saving') return <span className="flex items-center gap-1 text-xs text-orange-400"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Sauvegarde...</span>
+  if (status === 'saved') return <span className="flex items-center gap-1 text-xs text-green-500"><Check className="w-3.5 h-3.5" /> Sauvegardé</span>
+  return <span className="flex items-center gap-1 text-xs text-red-400"><AlertTriangle className="w-3.5 h-3.5" /> Erreur</span>
 }
 
 function AutoSaveField({ label, value, onSave, type = 'text', placeholder, required }: {
@@ -398,7 +444,7 @@ function AutoSaveTextarea({ value, onSave, placeholder }: {
       value={val}
       onChange={(e) => setVal(e.target.value)}
       onBlur={handleBlur}
-      rows={2}
+      rows={3}
       placeholder={placeholder}
       className={INPUT}
     />
@@ -433,15 +479,6 @@ function ContactRow({ contact, onSave, onDelete }: {
           <Star className="w-3 h-3" /> Contact principal
         </span>
       )}
-    </div>
-  )
-}
-
-function StatBadge({ label, value, color }: { label: string; value: string; color?: 'red' | 'green' }) {
-  return (
-    <div className="text-center px-2 py-1.5">
-      <p className="text-[10px] text-gray-400 uppercase font-semibold">{label}</p>
-      <p className={`text-sm font-bold ${color === 'red' ? 'text-red-600' : color === 'green' ? 'text-green-600' : 'text-gray-900'}`}>{value}</p>
     </div>
   )
 }
