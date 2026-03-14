@@ -285,8 +285,9 @@ function InvoicesList({ initialSelectedId }: { initialSelectedId?: string } = {}
               <tbody>
                 {invoices.map((inv) => {
                   const st = STATUS_LABELS[inv.status] || { label: inv.status, cls: 'bg-gray-100 text-gray-600' }
+                  const isEditable = ['draft', 'validated'].includes(inv.status)
                   return (
-                    <tr key={inv.id} onClick={() => setSelectedId(inv.id)} className="border-b border-gray-50 hover:bg-orange-50/50 cursor-pointer transition">
+                    <tr key={inv.id} onClick={() => isEditable ? navigate(`/app/factures/${inv.id}/modifier`) : setSelectedId(inv.id)} className="border-b border-gray-50 hover:bg-orange-50/50 cursor-pointer transition">
                       <td className="px-4 py-3 font-mono text-xs text-gray-700">
                         {inv.number || inv.proforma_number || '—'}
                       </td>
@@ -389,9 +390,6 @@ function InvoiceDetailModal({ invoiceId, onClose }: { invoiceId: string; onClose
         <div className="flex flex-wrap gap-2 mb-5">
           {invoice.status === 'draft' && (
             <>
-              <button onClick={() => navigate(`/app/factures/${invoiceId}/modifier`)} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold rounded-lg transition">
-                <Pencil className="w-4 h-4" /> Modifier
-              </button>
               <button onClick={() => doAction('validate')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
                 {actionLoading === 'validate' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />} Valider
               </button>
@@ -405,9 +403,6 @@ function InvoiceDetailModal({ invoiceId, onClose }: { invoiceId: string; onClose
           )}
           {invoice.status === 'validated' && (
             <>
-              <button onClick={() => navigate(`/app/factures/${invoiceId}/modifier`)} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold rounded-lg transition">
-                <Pencil className="w-4 h-4" /> Modifier
-              </button>
               <button onClick={() => window.open(`/api/v1/invoices/${invoiceId}/pdf`, '_blank')} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition">
                 <Printer className="w-4 h-4" /> Imprimer facture
               </button>

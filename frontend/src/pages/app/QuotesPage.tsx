@@ -237,8 +237,9 @@ function QuotesList() {
                 {quotes.map((q) => {
                   const st = STATUS_LABELS[q.status] || { label: q.status, cls: 'bg-gray-100 text-gray-600' }
                   const typeLabel = q.is_avenant ? `Avenant n°${q.avenant_number}` : (DOC_LABELS[q.document_type] || q.document_type)
+                  const isEditable = q.status === 'draft'
                   return (
-                    <tr key={q.id} onClick={() => navigate(`/app/devis/${q.id}`)} className="border-b border-gray-50 hover:bg-orange-50/50 cursor-pointer transition">
+                    <tr key={q.id} onClick={() => navigate(isEditable ? `/app/devis/${q.id}/edit` : `/app/devis/${q.id}`)} className="border-b border-gray-50 hover:bg-orange-50/50 cursor-pointer transition">
                       <td className="px-4 py-3 font-mono text-xs text-gray-700">{q.number}</td>
                       <td className="px-4 py-3 text-gray-500">{typeLabel}</td>
                       <td className="px-4 py-3 font-medium text-gray-900">{q.client_name || '—'}</td>
@@ -315,9 +316,6 @@ function QuoteDetailView({ quoteId }: { quoteId: string }) {
         {/* Actions */}
         {quote.status === 'draft' && (
           <div className="flex gap-2 mb-6">
-            <button onClick={() => navigate(`/app/devis/${quoteId}/edit`)} className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white text-sm font-semibold rounded-lg transition">
-              Modifier
-            </button>
             <button onClick={() => doAction('send')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
               {actionLoading === 'send' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Envoyer
             </button>
