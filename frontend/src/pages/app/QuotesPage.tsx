@@ -376,9 +376,9 @@ function QuoteFormPage({ quoteId }: { quoteId?: string }) {
     unit_price: true, vat_rate: true, discount_percent: true, total_ht: true,
   })
   const [vatRates, setVatRates] = useState<{ rate: string; label: string }[]>([
-    { rate: '20', label: 'Normal (20%)' }, { rate: '10', label: 'Intermédiaire (10%)' },
-    { rate: '5.5', label: 'Réduit (5,5%)' }, { rate: '2.1', label: 'Super réduit (2,1%)' },
-    { rate: '0', label: 'Exonéré (0%)' },
+    { rate: '20', label: 'TVA 20%' }, { rate: '10', label: 'TVA 10%' },
+    { rate: '5.5', label: 'TVA 5,5%' }, { rate: '2.1', label: 'TVA 2,1%' },
+    { rate: '0', label: 'TVA 0%' },
   ])
   const [loading, setLoading] = useState(isEdit)
   const [saving, setSaving] = useState(false)
@@ -697,7 +697,7 @@ function QuoteFormPage({ quoteId }: { quoteId?: string }) {
                       {docColumns.vat_rate && (
                         <td className="px-1 py-1.5">
                           <select value={line.vat_rate} onChange={(e) => updateLine(i, 'vat_rate', e.target.value)} className="w-full px-1 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 bg-white">
-                            {vatRates.map((vr) => <option key={vr.rate} value={vr.rate}>{vr.rate}</option>)}
+                            {vatRates.map((vr) => <option key={vr.rate} value={vr.rate}>{vr.label || `${vr.rate}%`}</option>)}
                           </select>
                         </td>
                       )}
@@ -727,6 +727,18 @@ function QuoteFormPage({ quoteId }: { quoteId?: string }) {
               </tbody>
             </table>
           </div>
+
+          {/* Alerte TVA 0% */}
+          {lines.some((l) => parseFloat(l.vat_rate) === 0 && l.description.trim()) && (
+            <div className="mt-3 flex items-start gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
+              <span className="font-bold text-amber-500 mt-px">⚠</span>
+              <span>
+                Une ou plusieurs lignes utilisent un taux de TVA à 0 %. Assurez-vous que la mention légale correspondante
+                (ex : « TVA non applicable, art. 293 B du CGI ») est bien configurée dans votre profil de facturation
+                (Paramètres de vente).
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Pied de devis */}

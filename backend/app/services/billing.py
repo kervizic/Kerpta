@@ -88,11 +88,11 @@ async def update_document_columns(
 # ── Taux de TVA ────────────────────────────────────────────────────────────
 
 DEFAULT_VAT_RATES = [
-    {"rate": "20", "label": "Normal (20%)"},
-    {"rate": "10", "label": "Intermédiaire (10%)"},
-    {"rate": "5.5", "label": "Réduit (5,5%)"},
-    {"rate": "2.1", "label": "Super réduit (2,1%)"},
-    {"rate": "0", "label": "Exonéré (0%)"},
+    {"rate": "20", "label": "TVA 20%"},
+    {"rate": "10", "label": "TVA 10%"},
+    {"rate": "5.5", "label": "TVA 5,5%"},
+    {"rate": "2.1", "label": "TVA 2,1%"},
+    {"rate": "0", "label": "TVA 0%"},
 ]
 
 
