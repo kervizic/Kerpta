@@ -146,6 +146,63 @@ async def update_vat_rates(
     return cleaned
 
 
+# ── Arrondis ──────────────────────────────────────────────────────────────────
+
+DEFAULT_ROUNDING = {
+    "quantity_display": 2,       # Décimales affichées pour la quantité
+    "quantity_calc": 4,          # Décimales de calcul pour la quantité
+    "unit_price_display": 2,     # Décimales affichées pour le prix unitaire
+    "unit_price_calc": 4,        # Décimales de calcul pour le prix unitaire
+}
+
+
+async def get_rounding(org_id: uuid.UUID, db: AsyncSession) -> dict:
+    """Retourne la config des arrondis depuis module_config.rounding."""
+    result = await db.execute(
+        text("SELECT module_config FROM organizations WHERE id = :org_id"),
+        {"org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    if not row or not row[0]:
+        return DEFAULT_ROUNDING.copy()
+    config = row[0] if isinstance(row[0], dict) else {}
+    stored = config.get("rounding", {})
+    # Fusionner avec les défauts
+    merged = DEFAULT_ROUNDING.copy()
+    for key in merged:
+        if key in stored:
+            merged[key] = max(0, min(6, int(stored[key])))
+    return merged
+
+
+async def update_rounding(
+    org_id: uuid.UUID, rounding: dict, db: AsyncSession
+) -> dict:
+    """Met à jour la config des arrondis dans module_config.rounding."""
+    result = await db.execute(
+        text("SELECT module_config FROM organizations WHERE id = :org_id"),
+        {"org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    config = (row[0] if row and row[0] and isinstance(row[0], dict) else {})
+
+    merged = DEFAULT_ROUNDING.copy()
+    for key in merged:
+        if key in rounding:
+            merged[key] = max(0, min(6, int(rounding[key])))
+    config["rounding"] = merged
+
+    await db.execute(
+        text("""
+            UPDATE organizations SET module_config = CAST(:config AS jsonb)
+            WHERE id = :org_id
+        """),
+        {"org_id": str(org_id), "config": json.dumps(config)},
+    )
+    await db.commit()
+    return merged
+
+
 # ── Comptes bancaires ────────────────────────────────────────────────────────
 
 

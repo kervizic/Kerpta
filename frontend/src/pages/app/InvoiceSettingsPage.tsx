@@ -623,6 +623,88 @@ function DocumentColumnsSection() {
   )
 }
 
+// ── Section Arrondis ─────────────────────────────────────────────────────
+
+interface RoundingConfig {
+  quantity_display: number
+  quantity_calc: number
+  unit_price_display: number
+  unit_price_calc: number
+}
+
+const ROUNDING_FIELDS: { key: keyof RoundingConfig; label: string; group: string }[] = [
+  { key: 'quantity_display', label: 'Quantité — affichage', group: 'Quantité' },
+  { key: 'quantity_calc', label: 'Quantité — calcul', group: 'Quantité' },
+  { key: 'unit_price_display', label: 'Prix unitaire — affichage', group: 'Prix unitaire' },
+  { key: 'unit_price_calc', label: 'Prix unitaire — calcul', group: 'Prix unitaire' },
+]
+
+const DECIMAL_OPTIONS = [
+  { value: 0, label: '1 (0 décimale)' },
+  { value: 1, label: '0,1 (1 décimale)' },
+  { value: 2, label: '0,01 (2 décimales)' },
+  { value: 3, label: '0,001 (3 décimales)' },
+  { value: 4, label: '0,0001 (4 décimales)' },
+  { value: 5, label: '0,00001 (5 décimales)' },
+  { value: 6, label: '0,000001 (6 décimales)' },
+]
+
+function RoundingSection() {
+  const [config, setConfig] = useState<RoundingConfig | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    orgGet<RoundingConfig>('/billing/rounding')
+      .then(setConfig)
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  async function handleChange(key: keyof RoundingConfig, value: number) {
+    if (!config) return
+    const updated = { ...config, [key]: value }
+    setConfig(updated)
+    setSaving(true)
+    try {
+      await orgPatch('/billing/rounding', updated)
+    } catch { /* */ }
+    setSaving(false)
+  }
+
+  return (
+    <section className="bg-white border border-gray-200 rounded-2xl p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Arrondis</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Précision des quantités et prix sur les documents et dans les calculs</p>
+        </div>
+        {saving && <Loader2 className="w-4 h-4 animate-spin text-orange-500" />}
+      </div>
+      {loading ? (
+        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-orange-500" /></div>
+      ) : config ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {ROUNDING_FIELDS.map((field) => (
+            <div key={field.key} className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border border-gray-200">
+              <span className="text-sm text-gray-700">{field.label}</span>
+              <select
+                value={config[field.key]}
+                onChange={(e) => handleChange(field.key, parseInt(e.target.value))}
+                className="px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
+              >
+                {DECIMAL_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
 // ── Page principale ──────────────────────────────────────────────────────
 
 export default function InvoiceSettingsPage() {
@@ -631,6 +713,7 @@ export default function InvoiceSettingsPage() {
       <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
         <h1 className="text-xl font-semibold text-gray-900">Paramètres de vente</h1>
         <DocumentColumnsSection />
+        <RoundingSection />
         <BankAccountsSection />
         <BillingProfilesSection />
         <PaymentMethodsSection />

@@ -64,6 +64,26 @@ async def update_vat_rates(
     return await svc.update_vat_rates(ctx.org_id, data, db)
 
 
+# ── Arrondis ──────────────────────────────────────────────────────────────────
+
+
+@router.get("/rounding")
+async def get_rounding(
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await svc.get_rounding(ctx.org_id, db)
+
+
+@router.patch("/rounding")
+async def update_rounding(
+    data: dict,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await svc.update_rounding(ctx.org_id, data, db)
+
+
 # ── Comptes bancaires ────────────────────────────────────────────────────────
 
 
