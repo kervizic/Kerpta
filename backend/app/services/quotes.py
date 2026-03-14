@@ -38,6 +38,10 @@ async def list_quotes(
     document_type: str | None = None,
     contract_id: str | None = None,
     client_id: str | None = None,
+    search: str | None = None,
+    client_search: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
     page: int = 1,
     page_size: int = 25,
 ) -> dict:
@@ -57,6 +61,18 @@ async def list_quotes(
     if client_id:
         conditions.append("q.client_id = :client_id")
         params["client_id"] = client_id
+    if search:
+        conditions.append("q.number ILIKE :search")
+        params["search"] = f"%{search}%"
+    if client_search:
+        conditions.append("c.name ILIKE :client_search")
+        params["client_search"] = f"%{client_search}%"
+    if date_from:
+        conditions.append("q.issue_date >= :date_from")
+        params["date_from"] = date_from
+    if date_to:
+        conditions.append("q.issue_date <= :date_to")
+        params["date_to"] = date_to
 
     where = " AND ".join(conditions)
 

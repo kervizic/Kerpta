@@ -21,6 +21,10 @@ async def list_quotes(
     document_type: str | None = None,
     contract_id: str | None = None,
     client_id: str | None = None,
+    search: str | None = None,
+    client_search: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=100),
     ctx: OrgContext = Depends(get_org_context),
@@ -30,6 +34,8 @@ async def list_quotes(
         ctx.org_id, db,
         status=status, document_type=document_type,
         contract_id=contract_id, client_id=client_id,
+        search=search, client_search=client_search,
+        date_from=date_from, date_to=date_to,
         page=page, page_size=page_size,
     )
 

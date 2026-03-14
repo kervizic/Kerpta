@@ -1,0 +1,221 @@
+// Kerpta — Composant filtre inline par colonne
+// Copyright (C) 2026 Emmanuel Kervizic
+// Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
+
+import { useState, useRef, useEffect } from 'react'
+import { Filter } from 'lucide-react'
+
+// ── Types ──────────────────────────────────────────────────────────────────────
+
+interface FilterOptionBase {
+  /** Nom interne de la colonne (ex: "number", "status") */
+  column: string
+  /** Libellé affiché dans le header */
+  label: string
+}
+
+interface TextFilter extends FilterOptionBase {
+  type: 'text'
+  placeholder?: string
+}
+
+interface SelectFilter extends FilterOptionBase {
+  type: 'select'
+  options: { value: string; label: string }[]
+}
+
+interface MultiSelectFilter extends FilterOptionBase {
+  type: 'multi-select'
+  options: { value: string; label: string }[]
+}
+
+interface DateRangeFilter extends FilterOptionBase {
+  type: 'date-range'
+}
+
+export type FilterOption = TextFilter | SelectFilter | MultiSelectFilter | DateRangeFilter
+
+export type FilterValues = Record<string, string | string[]>
+
+// ── Composant FilterPopover ────────────────────────────────────────────────────
+
+function FilterPopover({
+  filter,
+  value,
+  onChange,
+  onClose,
+}: {
+  filter: FilterOption
+  value: string | string[]
+  onChange: (val: string | string[]) => void
+  onClose: () => void
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose()
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [onClose])
+
+  const inputCls = 'w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400'
+
+  return (
+    <div
+      ref={ref}
+      className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50 min-w-[180px]"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {filter.type === 'text' && (
+        <input
+          type="text"
+          autoFocus
+          value={(value as string) || ''}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={filter.placeholder || `Filtrer par ${filter.label.toLowerCase()}...`}
+          className={inputCls}
+        />
+      )}
+
+      {filter.type === 'select' && (
+        <div className="flex flex-col gap-1">
+          <button
+            onClick={() => onChange('')}
+            className={`text-left px-2.5 py-1.5 text-xs rounded-lg transition ${
+              !value ? 'bg-orange-50 text-orange-700 font-medium' : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            Tous
+          </button>
+          {filter.options.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => onChange(opt.value)}
+              className={`text-left px-2.5 py-1.5 text-xs rounded-lg transition ${
+                value === opt.value ? 'bg-orange-50 text-orange-700 font-medium' : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {filter.type === 'multi-select' && (
+        <div className="flex flex-col gap-1">
+          {filter.options.map((opt) => {
+            const selected = Array.isArray(value) && value.includes(opt.value)
+            return (
+              <label
+                key={opt.value}
+                className={`flex items-center gap-2 px-2.5 py-1.5 text-xs rounded-lg cursor-pointer transition ${
+                  selected ? 'bg-orange-50 text-orange-700' : 'text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={selected}
+                  onChange={() => {
+                    const arr = Array.isArray(value) ? [...value] : []
+                    if (selected) {
+                      onChange(arr.filter((v) => v !== opt.value))
+                    } else {
+                      onChange([...arr, opt.value])
+                    }
+                  }}
+                  className="rounded border-gray-300 text-orange-500 focus:ring-orange-400 w-3.5 h-3.5"
+                />
+                {opt.label}
+              </label>
+            )
+          })}
+        </div>
+      )}
+
+      {filter.type === 'date-range' && (
+        <div className="flex flex-col gap-2">
+          <div>
+            <label className="text-[10px] text-gray-400 uppercase font-semibold mb-0.5 block">Du</label>
+            <input
+              type="date"
+              value={Array.isArray(value) ? value[0] || '' : ''}
+              onChange={(e) => {
+                const arr = Array.isArray(value) ? [...value] : ['', '']
+                arr[0] = e.target.value
+                onChange(arr)
+              }}
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className="text-[10px] text-gray-400 uppercase font-semibold mb-0.5 block">Au</label>
+            <input
+              type="date"
+              value={Array.isArray(value) ? value[1] || '' : ''}
+              onChange={(e) => {
+                const arr = Array.isArray(value) ? [...value] : ['', '']
+                arr[1] = e.target.value
+                onChange(arr)
+              }}
+              className={inputCls}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Bouton effacer */}
+      {((typeof value === 'string' && value) || (Array.isArray(value) && value.some(Boolean))) && (
+        <button
+          onClick={() => onChange(filter.type === 'multi-select' || filter.type === 'date-range' ? [] : '')}
+          className="mt-2 w-full text-center text-[10px] text-gray-400 hover:text-red-500 transition py-1"
+        >
+          Effacer le filtre
+        </button>
+      )}
+    </div>
+  )
+}
+
+// ── Composant ColumnFilterHeader ───────────────────────────────────────────────
+
+export default function ColumnFilterHeader({
+  filter,
+  value,
+  onChange,
+  align,
+}: {
+  filter: FilterOption
+  value: string | string[]
+  onChange: (val: string | string[]) => void
+  align?: 'left' | 'right'
+}) {
+  const [open, setOpen] = useState(false)
+
+  const isActive =
+    (typeof value === 'string' && value !== '') ||
+    (Array.isArray(value) && value.some(Boolean))
+
+  return (
+    <th className={`px-4 py-3 relative ${align === 'right' ? 'text-right' : ''}`}>
+      <button
+        onClick={(e) => { e.stopPropagation(); setOpen(!open) }}
+        className={`inline-flex items-center gap-1 text-xs font-semibold uppercase transition ${
+          isActive ? 'text-orange-600' : 'text-gray-400 hover:text-gray-600'
+        }`}
+      >
+        {filter.label}
+        <Filter className={`w-3 h-3 ${isActive ? 'fill-orange-200' : ''}`} />
+      </button>
+      {open && (
+        <FilterPopover
+          filter={filter}
+          value={value}
+          onChange={(val) => { onChange(val); if (filter.type === 'select') setOpen(false) }}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </th>
+  )
+}

@@ -38,6 +38,10 @@ async def list_invoices(
     client_id: str | None = None,
     contract_id: str | None = None,
     is_credit_note: bool | None = None,
+    search: str | None = None,
+    client_search: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
     page: int = 1,
     page_size: int = 25,
 ) -> dict:
@@ -57,6 +61,22 @@ async def list_invoices(
     if is_credit_note is not None:
         conditions.append("i.is_credit_note = :is_cn")
         params["is_cn"] = is_credit_note
+    if search:
+        conditions.append(
+            "(i.number ILIKE :search OR i.proforma_number ILIKE :search)"
+        )
+        params["search"] = f"%{search}%"
+    if client_search:
+        conditions.append(
+            "(COALESCE(i.client_name, c.name) ILIKE :client_search)"
+        )
+        params["client_search"] = f"%{client_search}%"
+    if date_from:
+        conditions.append("i.issue_date >= :date_from")
+        params["date_from"] = date_from
+    if date_to:
+        conditions.append("i.issue_date <= :date_to")
+        params["date_to"] = date_to
 
     where = " AND ".join(conditions)
 

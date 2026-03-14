@@ -5,7 +5,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import {
   Loader2, Send, Check, FileText, Plus, Trash2, Pencil, RefreshCw,
-  ShieldCheck, Printer, Lock, X,
+  ShieldCheck, Printer, Lock, X, Info,
 } from 'lucide-react'
 import { navigate } from '@/hooks/useRoute'
 import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
@@ -16,6 +16,7 @@ import BillingProfileModal, { type BillingProfileData } from '@/components/app/B
 import ClientPanel from '@/components/app/ClientPanel'
 import DatePicker from '@/components/app/DatePicker'
 import ModalOverlay from '@/components/app/ModalOverlay'
+import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
 import axios from 'axios'
 
 const INPUT = 'w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 transition'
@@ -146,58 +147,105 @@ function addDays(dateStr: string, days: number): string {
 
 // ── Liste ─────────────────────────────────────────────────────────────────────
 
+const INVOICE_FILTERS: FilterOption[] = [
+  { column: 'number', label: 'N°', type: 'text', placeholder: 'Rechercher un numéro...' },
+  { column: 'type', label: 'Type', type: 'select', options: [
+    { value: 'false', label: 'Facture' },
+    { value: 'true', label: 'Avoir' },
+  ] },
+  { column: 'client', label: 'Client', type: 'text', placeholder: 'Rechercher un client...' },
+  { column: 'date', label: 'Date', type: 'date-range' },
+  { column: 'status', label: 'Statut', type: 'multi-select', options: [
+    { value: 'draft', label: 'Brouillon' },
+    { value: 'validated', label: 'Validée' },
+    { value: 'sent', label: 'Envoyée' },
+    { value: 'partial', label: 'Partiel' },
+    { value: 'paid', label: 'Payée' },
+    { value: 'overdue', label: 'En retard' },
+    { value: 'cancelled', label: 'Annulée' },
+  ] },
+]
+
 function InvoicesList({ initialSelectedId }: { initialSelectedId?: string } = {}) {
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
-  const [filterStatus, setFilterStatus] = useState('')
-  const [filterCN, setFilterCN] = useState<string>('')
+  const [filters, setFilters] = useState<FilterValues>({})
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId ?? null)
+
+  const updateFilter = useCallback((column: string, value: string | string[]) => {
+    setFilters((prev) => ({ ...prev, [column]: value }))
+    setPage(1)
+  }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await orgGet<{ items: Invoice[]; total: number }>('/invoices', {
-        page,
-        status: filterStatus || undefined,
-        is_credit_note: filterCN === '' ? undefined : filterCN === 'true',
-      })
-      setInvoices(data.items)
+      const params: Record<string, string | boolean | number | undefined> = { page }
+
+      // Numéro
+      if (filters.number) params.search = filters.number as string
+      // Type (facture/avoir)
+      if (filters.type) params.is_credit_note = filters.type === 'true'
+      // Client
+      if (filters.client) params.client_search = filters.client as string
+      // Date
+      const dateArr = filters.date as string[] | undefined
+      if (dateArr?.[0]) params.date_from = dateArr[0]
+      if (dateArr?.[1]) params.date_to = dateArr[1]
+      // Statut (multi-select → on envoie le premier pour l'instant, filtrage client pour multi)
+      const statusArr = filters.status as string[] | undefined
+      if (statusArr?.length === 1) params.status = statusArr[0]
+
+      const data = await orgGet<{ items: Invoice[]; total: number }>('/invoices', params)
+      let items = data.items
+
+      // Filtrage côté client pour multi-status (le backend ne supporte qu'un seul)
+      if (statusArr && statusArr.length > 1) {
+        items = items.filter((inv) => statusArr.includes(inv.status))
+      }
+
+      setInvoices(items)
       setTotal(data.total)
     } catch { /* ignore */ }
     setLoading(false)
-  }, [page, filterStatus, filterCN])
+  }, [page, filters])
 
-  useEffect(() => { void load() }, [load])
+  // Debounce pour les filtres texte
+  useEffect(() => {
+    const timer = setTimeout(() => { void load() }, 300)
+    return () => clearTimeout(timer)
+  }, [load])
+
+  const activeFilterCount = Object.values(filters).filter((v) =>
+    (typeof v === 'string' && v) || (Array.isArray(v) && v.some(Boolean))
+  ).length
 
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="max-w-5xl mx-auto px-6 py-8">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-semibold text-gray-900">Factures</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-semibold text-gray-900">Factures</h1>
+            <div className="relative group">
+              <Info className="w-4 h-4 text-gray-300 hover:text-gray-500 transition cursor-help" />
+              <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 px-3 py-2 bg-gray-800 text-white text-[11px] rounded-lg shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition z-50">
+                Cliquez sur les en-têtes de colonnes pour filtrer
+              </div>
+            </div>
+            {activeFilterCount > 0 && (
+              <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">
+                {activeFilterCount} filtre{activeFilterCount > 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
           <button
             onClick={() => navigate('/app/factures/nouveau')}
             className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white text-sm font-semibold rounded-lg transition"
           >
             <Plus className="w-4 h-4" /> Nouvelle facture
           </button>
-        </div>
-
-        <div className="flex gap-3 mb-4">
-          <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setPage(1) }} className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white">
-            <option value="">Tous statuts</option>
-            <option value="draft">Brouillon</option>
-            <option value="sent">Envoyée</option>
-            <option value="paid">Payée</option>
-            <option value="overdue">En retard</option>
-            <option value="cancelled">Annulée</option>
-          </select>
-          <select value={filterCN} onChange={(e) => { setFilterCN(e.target.value); setPage(1) }} className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white">
-            <option value="">Tous</option>
-            <option value="false">Factures</option>
-            <option value="true">Avoirs</option>
-          </select>
         </div>
 
         <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
@@ -208,14 +256,15 @@ function InvoicesList({ initialSelectedId }: { initialSelectedId?: string } = {}
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
-                  <th className="px-4 py-3">N°</th>
-                  <th className="px-4 py-3">Client</th>
-                  <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3">Échéance</th>
-                  <th className="px-4 py-3 text-right">Total TTC</th>
-                  <th className="px-4 py-3 text-right">Payé</th>
-                  <th className="px-4 py-3">Statut</th>
+                <tr className="border-b border-gray-100 text-left">
+                  <ColumnFilterHeader filter={INVOICE_FILTERS[0]} value={filters.number || ''} onChange={(v) => updateFilter('number', v)} />
+                  <ColumnFilterHeader filter={INVOICE_FILTERS[1]} value={filters.type || ''} onChange={(v) => updateFilter('type', v)} />
+                  <ColumnFilterHeader filter={INVOICE_FILTERS[2]} value={filters.client || ''} onChange={(v) => updateFilter('client', v)} />
+                  <ColumnFilterHeader filter={INVOICE_FILTERS[3]} value={filters.date || []} onChange={(v) => updateFilter('date', v)} />
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase">Échéance</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase">Total TTC</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase">Payé</th>
+                  <ColumnFilterHeader filter={INVOICE_FILTERS[4]} value={filters.status || []} onChange={(v) => updateFilter('status', v)} />
                 </tr>
               </thead>
               <tbody>
@@ -226,9 +275,12 @@ function InvoicesList({ initialSelectedId }: { initialSelectedId?: string } = {}
                       <td className="px-4 py-3 font-mono text-xs text-gray-700">
                         {inv.number || inv.proforma_number || '—'}
                       </td>
+                      <td className="px-4 py-3 text-gray-500 text-xs">
+                        {inv.is_credit_note ? 'Avoir' : 'Facture'}
+                      </td>
                       <td className="px-4 py-3 font-medium text-gray-900">{inv.client_name || '—'}</td>
                       <td className="px-4 py-3 text-gray-500">{inv.issue_date}</td>
-                      <td className="px-4 py-3 text-gray-500">{inv.due_date || '—'}</td>
+                      <td className="px-4 py-3 text-right text-gray-500">{inv.due_date || '—'}</td>
                       <td className="px-4 py-3 text-right text-gray-700">{fmtCurrency(inv.total_ttc)}</td>
                       <td className="px-4 py-3 text-right text-gray-500">{fmtCurrency(inv.amount_paid)}</td>
                       <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${st.cls}`}>{st.label}</span></td>
