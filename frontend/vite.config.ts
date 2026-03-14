@@ -9,6 +9,20 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Regrouper React + react-dom
+          'vendor-react': ['react', 'react-dom'],
+          // Toutes les icônes Lucide dans un seul chunk
+          'vendor-lucide': ['lucide-react'],
+          // Autres libs tierces
+          'vendor-misc': ['axios', 'zustand'],
+        },
+      },
+    },
+  },
   server: {
     port: 5173,
     proxy: {
