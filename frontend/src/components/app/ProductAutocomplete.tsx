@@ -22,6 +22,7 @@ interface ProductAutocompleteProps {
   clientId?: string | null
   className?: string
   placeholder?: string
+  disabled?: boolean
 }
 
 export default function ProductAutocomplete({
@@ -31,6 +32,7 @@ export default function ProductAutocomplete({
   clientId,
   className = '',
   placeholder = 'Désignation',
+  disabled,
 }: ProductAutocompleteProps) {
   const [results, setResults] = useState<AutocompleteProduct[]>([])
   const [open, setOpen] = useState(false)
@@ -123,6 +125,7 @@ export default function ProductAutocomplete({
         className={`${className} resize-none`}
         autoComplete="off"
         rows={2}
+        disabled={disabled}
       />
       {open && results.length > 0 && (
         <ul className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-y-auto">

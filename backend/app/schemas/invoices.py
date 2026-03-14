@@ -111,6 +111,7 @@ class InvoiceOut(BaseModel):
     client_snapshot: dict | None = None
     seller_snapshot: dict | None = None
     pdf_url: str | None = None
+    validated_at: datetime | None = None
     sent_at: datetime | None = None
     paid_at: datetime | None = None
     created_at: datetime | None = None

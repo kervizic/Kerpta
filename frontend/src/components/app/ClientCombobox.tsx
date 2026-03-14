@@ -18,9 +18,10 @@ interface ClientComboboxProps {
   onNewClient?: () => void
   className?: string
   placeholder?: string
+  disabled?: boolean
 }
 
-export default function ClientCombobox({ value, onChange, onNewClient, className = '', placeholder = 'Rechercher un client...' }: ClientComboboxProps) {
+export default function ClientCombobox({ value, onChange, onNewClient, className = '', placeholder = 'Rechercher un client...', disabled }: ClientComboboxProps) {
   const [clients, setClients] = useState<ClientItem[]>([])
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -124,6 +125,7 @@ export default function ClientCombobox({ value, onChange, onNewClient, className
           placeholder={placeholder}
           className={`${className} pl-8`}
           autoComplete="off"
+          disabled={disabled}
         />
       </div>
       {open && (

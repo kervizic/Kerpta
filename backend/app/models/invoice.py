@@ -93,6 +93,9 @@ class Invoice(Base, UUIDPrimaryKeyMixin, TimestampUpdateMixin):
         DateTime(timezone=True), nullable=True
     )
 
+    validated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     sent_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

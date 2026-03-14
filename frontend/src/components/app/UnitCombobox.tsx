@@ -15,9 +15,10 @@ interface UnitComboboxProps {
   onChange: (v: string) => void
   className?: string
   placeholder?: string
+  disabled?: boolean
 }
 
-export default function UnitCombobox({ value, onChange, className = '', placeholder = 'Unité' }: UnitComboboxProps) {
+export default function UnitCombobox({ value, onChange, className = '', placeholder = 'Unité', disabled }: UnitComboboxProps) {
   const [units, setUnits] = useState<UnitOption[]>([])
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -56,6 +57,7 @@ export default function UnitCombobox({ value, onChange, className = '', placehol
         placeholder={placeholder}
         className={className}
         autoComplete="off"
+        disabled={disabled}
       />
       {open && filtered.length > 0 && (
         <ul className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">

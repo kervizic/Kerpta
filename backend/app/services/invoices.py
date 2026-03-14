@@ -295,10 +295,22 @@ async def update_invoice(
     row = status_result.fetchone()
     if row is None:
         raise HTTPException(404, "Facture introuvable")
-    if row[0] != "draft":
-        raise HTTPException(409, "Seules les factures en brouillon peuvent être modifiées")
+    current_status = row[0]
+    if current_status not in ("draft", "validated"):
+        raise HTTPException(409, "Seules les factures en brouillon ou validées peuvent être modifiées")
 
+    # En statut validé, seuls certains champs sont modifiables (loi française)
+    VALIDATED_EDITABLE = {"notes", "payment_method", "bank_details"}
     updates = data.model_dump(exclude_unset=True, exclude={"lines", "bank_details"})
+    if current_status == "validated":
+        forbidden = set(updates.keys()) - VALIDATED_EDITABLE
+        if forbidden:
+            raise HTTPException(
+                409,
+                f"Champs non modifiables après validation : {', '.join(sorted(forbidden))}",
+            )
+        if data.lines is not None:
+            raise HTTPException(409, "Les lignes ne peuvent pas être modifiées après validation")
     if data.bank_details is not None:
         updates["bank_details"] = None  # handled separately
 
@@ -441,11 +453,10 @@ async def _build_snapshots(
     return client_snap, seller_snap, legal_mentions
 
 
-async def send_invoice(
+async def validate_invoice(
     org_id: uuid.UUID, invoice_id: str, db: AsyncSession
 ) -> dict:
-    """Marque une facture comme envoyée et fige les snapshots."""
-    # Vérifier le statut
+    """Valide une facture : fige les snapshots, verrouille les champs légaux."""
     status_check = await db.execute(
         text("SELECT status FROM invoices WHERE id = :iid AND organization_id = :org_id"),
         {"iid": invoice_id, "org_id": str(org_id)},
@@ -454,16 +465,16 @@ async def send_invoice(
     if row is None:
         raise HTTPException(404, "Facture introuvable")
     if row[0] != "draft":
-        raise HTTPException(409, "La facture ne peut pas être envoyée (statut invalide)")
+        raise HTTPException(409, "Seules les factures en brouillon peuvent être validées")
 
-    # Figer les snapshots au moment de l'envoi
+    # Figer les snapshots au moment de la validation
     client_snap, seller_snap, legal_mentions = await _build_snapshots(org_id, invoice_id, db)
 
     await db.execute(
         text("""
             UPDATE invoices SET
-                status = 'sent',
-                sent_at = now(),
+                status = 'validated',
+                validated_at = now(),
                 updated_at = now(),
                 client_snapshot = CAST(:client_snap AS jsonb),
                 seller_snapshot = CAST(:seller_snap AS jsonb),
@@ -477,6 +488,48 @@ async def send_invoice(
             "seller_snap": seller_snap,
             "legal_mentions": legal_mentions,
         },
+    )
+    await db.commit()
+    return {"status": "validated"}
+
+
+async def send_invoice(
+    org_id: uuid.UUID, invoice_id: str, db: AsyncSession
+) -> dict:
+    """Marque une facture comme envoyée. Accepte draft ou validated."""
+    status_check = await db.execute(
+        text("SELECT status FROM invoices WHERE id = :iid AND organization_id = :org_id"),
+        {"iid": invoice_id, "org_id": str(org_id)},
+    )
+    row = status_check.fetchone()
+    if row is None:
+        raise HTTPException(404, "Facture introuvable")
+    if row[0] not in ("draft", "validated"):
+        raise HTTPException(409, "La facture ne peut pas être envoyée (statut invalide)")
+
+    # Si on envoie depuis draft, figer les snapshots maintenant
+    if row[0] == "draft":
+        client_snap, seller_snap, legal_mentions = await _build_snapshots(org_id, invoice_id, db)
+    else:
+        # Déjà figés lors de la validation
+        client_snap, seller_snap, legal_mentions = None, None, None
+
+    set_parts = ["status = 'sent'", "sent_at = now()", "updated_at = now()"]
+    params: dict = {"iid": invoice_id, "org_id": str(org_id)}
+
+    if client_snap is not None:
+        set_parts.append("client_snapshot = CAST(:client_snap AS jsonb)")
+        params["client_snap"] = client_snap
+    if seller_snap is not None:
+        set_parts.append("seller_snapshot = CAST(:seller_snap AS jsonb)")
+        params["seller_snap"] = seller_snap
+    if legal_mentions is not None:
+        set_parts.append("legal_mentions = COALESCE(:legal_mentions, legal_mentions)")
+        params["legal_mentions"] = legal_mentions
+
+    await db.execute(
+        text(f"UPDATE invoices SET {', '.join(set_parts)} WHERE id = :iid AND organization_id = :org_id"),
+        params,
     )
     await db.commit()
     return {"status": "sent"}

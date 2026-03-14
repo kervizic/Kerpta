@@ -5,6 +5,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import {
   Loader2, ArrowLeft, Send, Check, FileText, Plus, Trash2, Pencil, RefreshCw,
+  ShieldCheck, Printer, Lock,
 } from 'lucide-react'
 import { navigate } from '@/hooks/useRoute'
 import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
@@ -106,6 +107,7 @@ function emptyLine(): FormLine {
 
 const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
   draft: { label: 'Brouillon', cls: 'bg-gray-100 text-gray-600' },
+  validated: { label: 'Validée', cls: 'bg-purple-100 text-purple-700' },
   sent: { label: 'Envoyée', cls: 'bg-blue-100 text-blue-700' },
   partial: { label: 'Partiel', cls: 'bg-yellow-100 text-yellow-700' },
   paid: { label: 'Payée', cls: 'bg-green-100 text-green-700' },
@@ -295,23 +297,47 @@ function InvoiceDetailView({ invoiceId }: { invoiceId: string }) {
         </div>
 
         {/* Actions */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex flex-wrap gap-2 mb-6">
           {invoice.status === 'draft' && (
             <>
               <button onClick={() => navigate(`/app/factures/${invoiceId}/modifier`)} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold rounded-lg transition">
                 <Pencil className="w-4 h-4" /> Modifier
               </button>
+              <button onClick={() => doAction('validate')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
+                {actionLoading === 'validate' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />} Valider
+              </button>
+              <button onClick={() => window.open(`/api/v1/invoices/${invoiceId}/pdf?proforma=true`, '_blank')} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition">
+                <Printer className="w-4 h-4" /> Imprimer proforma
+              </button>
+              <button onClick={() => doAction('send')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 text-sm font-medium rounded-lg transition disabled:opacity-50">
+                {actionLoading === 'send' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Envoyer proforma
+              </button>
+            </>
+          )}
+          {invoice.status === 'validated' && (
+            <>
+              <button onClick={() => navigate(`/app/factures/${invoiceId}/modifier`)} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold rounded-lg transition">
+                <Pencil className="w-4 h-4" /> Modifier
+              </button>
+              <button onClick={() => window.open(`/api/v1/invoices/${invoiceId}/pdf`, '_blank')} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition">
+                <Printer className="w-4 h-4" /> Imprimer facture
+              </button>
               <button onClick={() => doAction('send')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
-                {actionLoading === 'send' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Envoyer
+                {actionLoading === 'send' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Envoyer facture
               </button>
             </>
           )}
           {['sent', 'partial', 'overdue'].includes(invoice.status) && (
-            <button onClick={() => doAction('mark-paid')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
-              {actionLoading === 'mark-paid' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Marquer payée
-            </button>
+            <>
+              <button onClick={() => window.open(`/api/v1/invoices/${invoiceId}/pdf`, '_blank')} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition">
+                <Printer className="w-4 h-4" /> Imprimer facture
+              </button>
+              <button onClick={() => doAction('mark-paid')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
+                {actionLoading === 'mark-paid' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Marquer payée
+              </button>
+            </>
           )}
-          {!invoice.is_credit_note && !['draft', 'cancelled'].includes(invoice.status) && (
+          {!invoice.is_credit_note && !['draft', 'validated', 'cancelled'].includes(invoice.status) && (
             <button onClick={() => doAction('credit-note')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 text-sm font-medium rounded-lg transition disabled:opacity-50">
               {actionLoading === 'credit-note' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} Créer un avoir
             </button>
@@ -421,8 +447,11 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
     { rate: '5.5', label: 'TVA 5,5%' }, { rate: '2.1', label: 'TVA 2,1%' },
     { rate: '0', label: 'TVA 0%' },
   ])
+  const [invoiceStatus, setInvoiceStatus] = useState('draft')
   const [loading, setLoading] = useState(isEdit)
   const [saving, setSaving] = useState(false)
+
+  const isValidated = invoiceStatus === 'validated'
 
   // Charger les données de référence
   useEffect(() => {
@@ -467,6 +496,7 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
     setLoading(true)
     orgGet<InvoiceDetail>(`/invoices/${invoiceId}`)
       .then((inv) => {
+        setInvoiceStatus(inv.status)
         setClientId(inv.client_id)
         setIssueDate(inv.issue_date)
         setDueDate(inv.due_date || '')
@@ -569,7 +599,7 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
   }
 
   // Sauvegarde
-  async function handleSave(andSend = false) {
+  async function handleSave(andSend = false, andValidate = false) {
     if (!clientId) return
     setSaving(true)
 
@@ -631,7 +661,9 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
         resultId = result.id
       }
 
-      if (andSend && resultId) {
+      if (andValidate && resultId) {
+        await orgPost(`/invoices/${resultId}/validate`)
+      } else if (andSend && resultId) {
         await orgPost(`/invoices/${resultId}/send`)
       }
 
@@ -683,6 +715,18 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
           {isEdit ? 'Modifier la facture' : 'Nouvelle facture'}
         </h1>
 
+        {isValidated && (
+          <div className="flex items-start gap-3 px-5 py-4 bg-purple-50 border border-purple-200 rounded-2xl mb-4">
+            <Lock className="w-5 h-5 text-purple-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-purple-800">Facture validée</p>
+              <p className="text-xs text-purple-600 mt-0.5">
+                Seuls les notes internes et le mode de règlement sont modifiables après validation (obligation légale française).
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* En-tête */}
         <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-4 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">En-tête</h2>
@@ -695,6 +739,7 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
                   onChange={handleClientChange}
                   onNewClient={() => navigate('/app/clients?action=nouveau')}
                   className={INPUT}
+                  disabled={isValidated}
                 />
                 {clientId && (
                   <button onClick={() => setClientPanelId(clientId)} className="shrink-0 p-1.5 rounded-lg hover:bg-gray-100 transition" title="Voir le client">
@@ -709,7 +754,7 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
                 <select value={billingProfileId} onChange={(e) => {
                   if (e.target.value === '__new__') { setProfileModal('new'); return }
                   handleProfileChange(e.target.value)
-                }} className={`${INPUT} bg-white`}>
+                }} className={`${INPUT} bg-white`} disabled={isValidated}>
                   <option value="">— Aucun —</option>
                   {profiles.map((p) => <option key={p.id} value={p.id}>{p.name}{p.is_default ? ' (défaut)' : ''}</option>)}
                   <option value="__new__">+ Nouveau profil</option>
@@ -728,11 +773,11 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Date d'émission</label>
-              <input type="date" value={issueDate} onChange={(e) => handleIssueDateChange(e.target.value)} className={INPUT} />
+              <input type="date" value={issueDate} onChange={(e) => handleIssueDateChange(e.target.value)} className={INPUT} disabled={isValidated} />
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Date d'échéance</label>
-              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={INPUT} />
+              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={INPUT} disabled={isValidated} />
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Mode de règlement</label>
@@ -745,11 +790,11 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Référence client</label>
-              <input type="text" value={customerReference} onChange={(e) => setCustomerReference(e.target.value)} placeholder="N° devis, contrat, marché..." className={INPUT} />
+              <input type="text" value={customerReference} onChange={(e) => setCustomerReference(e.target.value)} placeholder="N° devis, contrat, marché..." className={INPUT} disabled={isValidated} />
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">N° commande</label>
-              <input type="text" value={purchaseOrderNumber} onChange={(e) => setPurchaseOrderNumber(e.target.value)} placeholder="N° bon de commande" className={INPUT} />
+              <input type="text" value={purchaseOrderNumber} onChange={(e) => setPurchaseOrderNumber(e.target.value)} placeholder="N° bon de commande" className={INPUT} disabled={isValidated} />
             </div>
           </div>
         </div>
@@ -765,12 +810,14 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
                 </span>
               )}
             </div>
-            <button
-              onClick={() => setLines((prev) => [...prev, emptyLine()])}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-400 text-white text-xs font-semibold rounded-lg transition"
-            >
-              <Plus className="w-3.5 h-3.5" /> Ajouter une ligne
-            </button>
+            {!isValidated && (
+              <button
+                onClick={() => setLines((prev) => [...prev, emptyLine()])}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-400 text-white text-xs font-semibold rounded-lg transition"
+              >
+                <Plus className="w-3.5 h-3.5" /> Ajouter une ligne
+              </button>
+            )}
           </div>
 
           <div>
@@ -795,7 +842,7 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
                     <tr key={line.key} className="border-b border-gray-50 align-top">
                       {docColumns.reference && (
                         <td className="px-1 py-1.5">
-                          <input type="text" value={line.reference} onChange={(e) => updateLine(i, 'reference', e.target.value)} placeholder="Réf" className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400" />
+                          <input type="text" value={line.reference} onChange={(e) => updateLine(i, 'reference', e.target.value)} placeholder="Réf" className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400" disabled={isValidated} />
                         </td>
                       )}
                       <td className="px-1 py-1.5">
@@ -806,46 +853,49 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
                           clientId={clientId || null}
                           className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400"
                           placeholder="Désignation"
+                          disabled={isValidated}
                         />
                       </td>
                       <td className="px-1 py-1.5">
-                        <input type="number" step="0.01" min="0.01" value={line.quantity} onChange={(e) => updateLine(i, 'quantity', e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 text-right" />
+                        <input type="number" step="0.01" min="0.01" value={line.quantity} onChange={(e) => updateLine(i, 'quantity', e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 text-right" disabled={isValidated} />
                       </td>
                       {docColumns.unit && (
                         <td className="px-1 py-1.5">
-                          <UnitCombobox value={line.unit} onChange={(v) => updateLine(i, 'unit', v)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400" />
+                          <UnitCombobox value={line.unit} onChange={(v) => updateLine(i, 'unit', v)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400" disabled={isValidated} />
                         </td>
                       )}
                       <td className="px-1 py-1.5">
-                        <input type="number" step="0.01" value={line.unit_price} onChange={(e) => updateLine(i, 'unit_price', e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 text-right" />
+                        <input type="number" step="0.01" value={line.unit_price} onChange={(e) => updateLine(i, 'unit_price', e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 text-right" disabled={isValidated} />
                       </td>
                       {docColumns.vat_rate && (
                         <td className="px-1 py-1.5">
-                          <select value={line.vat_rate} onChange={(e) => updateLine(i, 'vat_rate', e.target.value)} className="w-full px-1 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 bg-white">
+                          <select value={line.vat_rate} onChange={(e) => updateLine(i, 'vat_rate', e.target.value)} className="w-full px-1 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 bg-white" disabled={isValidated}>
                             {vatRates.map((vr) => <option key={vr.rate} value={vr.rate}>{vr.label || `${vr.rate}%`}</option>)}
                           </select>
                         </td>
                       )}
                       {docColumns.discount_percent && (
                         <td className="px-1 py-1.5">
-                          <input type="number" step="0.1" min="0" max="100" value={line.discount_percent} onChange={(e) => updateLine(i, 'discount_percent', e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 text-right" />
+                          <input type="number" step="0.1" min="0" max="100" value={line.discount_percent} onChange={(e) => updateLine(i, 'discount_percent', e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 text-right" disabled={isValidated} />
                         </td>
                       )}
                       <td className="px-2 py-1.5 text-right text-xs font-medium text-gray-900 whitespace-nowrap">
                         {fmtCurrency(lineHT)}
                       </td>
-                      <td className="px-1 py-1.5">
-                        <div className="flex gap-0.5">
-                          {line.product_id && (
-                            <button onClick={() => refreshLine(i)} className="p-1 rounded hover:bg-blue-50 transition" title="Actualiser depuis le catalogue">
-                              <RefreshCw className="w-3.5 h-3.5 text-gray-400 hover:text-blue-500" />
+                      {!isValidated && (
+                        <td className="px-1 py-1.5">
+                          <div className="flex gap-0.5">
+                            {line.product_id && (
+                              <button onClick={() => refreshLine(i)} className="p-1 rounded hover:bg-blue-50 transition" title="Actualiser depuis le catalogue">
+                                <RefreshCw className="w-3.5 h-3.5 text-gray-400 hover:text-blue-500" />
+                              </button>
+                            )}
+                            <button onClick={() => removeLine(i)} className="p-1 rounded hover:bg-red-50 transition" title="Supprimer">
+                              <Trash2 className="w-3.5 h-3.5 text-gray-400 hover:text-red-500" />
                             </button>
-                          )}
-                          <button onClick={() => removeLine(i)} className="p-1 rounded hover:bg-red-50 transition" title="Supprimer">
-                            <Trash2 className="w-3.5 h-3.5 text-gray-400 hover:text-red-500" />
-                          </button>
-                        </div>
-                      </td>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   )
                 })}
@@ -876,14 +926,14 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Remise globale</label>
               <div className="flex gap-2">
-                <select value={discountType} onChange={(e) => setDiscountType(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white">
+                <select value={discountType} onChange={(e) => setDiscountType(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white" disabled={isValidated}>
                   <option value="none">Aucune</option>
                   <option value="percent">Pourcentage</option>
                   <option value="fixed">Montant fixe</option>
                 </select>
                 {discountType !== 'none' && (
                   <input type="number" step="0.01" value={discountValue} onChange={(e) => setDiscountValue(e.target.value)}
-                    placeholder={discountType === 'percent' ? '%' : '€'} className={`w-24 ${INPUT}`} />
+                    placeholder={discountType === 'percent' ? '%' : '€'} className={`w-24 ${INPUT}`} disabled={isValidated} />
                 )}
               </div>
             </div>
@@ -935,16 +985,18 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
             className="flex items-center gap-1.5 px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold rounded-lg transition disabled:opacity-50"
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-            {isEdit ? 'Enregistrer' : 'Enregistrer (brouillon)'}
+            Enregistrer
           </button>
-          <button
-            onClick={() => handleSave(true)}
-            disabled={saving || !clientId}
-            className="flex items-center gap-1.5 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50"
-          >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            Enregistrer et envoyer
-          </button>
+          {!isValidated && (
+            <button
+              onClick={() => handleSave(false, true)}
+              disabled={saving || !clientId}
+              className="flex items-center gap-1.5 px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50"
+            >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+              Valider
+            </button>
+          )}
         </div>
 
         {/* Modale profil de facturation */}

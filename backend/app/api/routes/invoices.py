@@ -67,6 +67,15 @@ async def update_invoice(
     return await svc.update_invoice(ctx.org_id, invoice_id, data, db)
 
 
+@router.post("/{invoice_id}/validate")
+async def validate_invoice(
+    invoice_id: str,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await svc.validate_invoice(ctx.org_id, invoice_id, db)
+
+
 @router.post("/{invoice_id}/send")
 async def send_invoice(
     invoice_id: str,
