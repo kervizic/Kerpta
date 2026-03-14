@@ -170,13 +170,13 @@ const INVOICE_FILTERS: FilterOption[] = [
   ] },
 ]
 
-function InvoicesList({ initialSelectedId }: { initialSelectedId?: string } = {}) {
+function InvoicesList() {
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [filters, setFilters] = useState<FilterValues>({})
   const [loading, setLoading] = useState(true)
-  const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId ?? null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const updateFilter = useCallback((column: string, value: string | string[]) => {
     setFilters((prev) => ({ ...prev, [column]: value }))
@@ -762,7 +762,7 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
         await orgPost(`/invoices/${resultId}/send`)
       }
 
-      navigate(resultId ? `/app/factures/${resultId}` : '/app/factures')
+      navigate('/app/factures')
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const d = err.response?.data as { detail?: unknown }
@@ -810,7 +810,7 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="max-w-5xl mx-auto px-6 py-8">
-        <button onClick={() => navigate(invoiceId ? `/app/factures/${invoiceId}` : '/app/factures')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-4 transition">
+        <button onClick={() => navigate('/app/factures')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-4 transition">
           <ArrowLeft className="w-4 h-4" /> Retour
         </button>
 
@@ -1139,7 +1139,5 @@ export default function InvoicesPage({ path }: { path: string }) {
   if (path === '/app/factures/nouveau') return <InvoiceFormPage />
   const editMatch = path.match(/^\/app\/factures\/(.+)\/modifier$/)
   if (editMatch) return <InvoiceFormPage invoiceId={editMatch[1]} />
-  const detailMatch = path.match(/^\/app\/factures\/(.+)$/)
-  if (detailMatch) return <InvoicesList initialSelectedId={detailMatch[1]} />
   return <InvoicesList />
 }
