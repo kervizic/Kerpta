@@ -658,10 +658,10 @@ function QuoteFormPage({ quoteId }: { quoteId?: string }) {
                   <th className="px-2 py-2 w-16">Qté</th>
                   {docColumns.unit && <th className="px-2 py-2 w-20">Unité</th>}
                   <th className="px-2 py-2 w-24">PU HT</th>
-                  {docColumns.vat_rate && <th className="px-2 py-2 w-16">TVA %</th>}
+                  {docColumns.vat_rate && <th className="px-2 py-2 w-20">TVA %</th>}
                   {docColumns.discount_percent && <th className="px-2 py-2 w-16">Rem. %</th>}
-                  <th className="px-2 py-2 w-24 text-right">Total HT</th>
-                  <th className="px-2 py-2 w-8"></th>
+                  <th className="px-2 py-2 w-28 text-right">Total HT</th>
+                  <th className="px-2 py-2 w-16"></th>
                 </tr>
               </thead>
               <tbody>
