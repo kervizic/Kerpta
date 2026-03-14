@@ -85,6 +85,94 @@ async def update_document_columns(
     return merged
 
 
+# ── Types de documents (devis) ──────────────────────────────────────────────
+
+DEFAULT_QUOTE_DOCUMENT_TYPES = [
+    {
+        "key": "devis",
+        "title": "Devis",
+        "columns": {
+            "reference": True, "description": True, "quantity": True,
+            "unit": True, "unit_price": True, "vat_rate": True,
+            "discount_percent": True, "total_ht": True,
+        },
+    },
+    {
+        "key": "bpu",
+        "title": "Bordereau de prix",
+        "columns": {
+            "reference": True, "description": True, "quantity": False,
+            "unit": True, "unit_price": True, "vat_rate": True,
+            "discount_percent": False, "total_ht": False,
+        },
+    },
+    {
+        "key": "attachement",
+        "title": "Attachement",
+        "columns": {
+            "reference": True, "description": True, "quantity": True,
+            "unit": True, "unit_price": True, "vat_rate": True,
+            "discount_percent": True, "total_ht": True,
+        },
+    },
+]
+
+
+async def get_quote_document_types(org_id: uuid.UUID, db: AsyncSession) -> list[dict]:
+    """Retourne les types de documents devis depuis module_config."""
+    result = await db.execute(
+        text("SELECT module_config FROM organizations WHERE id = :org_id"),
+        {"org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    if not row or not row[0]:
+        return [t.copy() for t in DEFAULT_QUOTE_DOCUMENT_TYPES]
+    config = row[0] if isinstance(row[0], dict) else {}
+    return config.get("quote_document_types", [t.copy() for t in DEFAULT_QUOTE_DOCUMENT_TYPES])
+
+
+async def update_quote_document_types(
+    org_id: uuid.UUID, types: list[dict], db: AsyncSession
+) -> list[dict]:
+    """Met à jour les types de documents devis dans module_config."""
+    result = await db.execute(
+        text("SELECT module_config FROM organizations WHERE id = :org_id"),
+        {"org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    config = (row[0] if row and row[0] and isinstance(row[0], dict) else {})
+
+    # Valider chaque type
+    validated = []
+    for t in types:
+        if not t.get("key") or not t.get("title"):
+            continue
+        columns = t.get("columns", {})
+        validated.append({
+            "key": str(t["key"]).strip().lower().replace(" ", "_"),
+            "title": str(t["title"]).strip(),
+            "columns": {
+                k: bool(columns.get(k, True))
+                for k in DEFAULT_DOCUMENT_COLUMNS
+            },
+        })
+
+    if not validated:
+        raise HTTPException(422, "Au moins un type de document est requis")
+
+    config["quote_document_types"] = validated
+
+    await db.execute(
+        text("""
+            UPDATE organizations SET module_config = CAST(:config AS jsonb)
+            WHERE id = :org_id
+        """),
+        {"org_id": str(org_id), "config": json.dumps(config)},
+    )
+    await db.commit()
+    return validated
+
+
 # ── Taux de TVA ────────────────────────────────────────────────────────────
 
 DEFAULT_VAT_RATES = [

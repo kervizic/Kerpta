@@ -84,6 +84,26 @@ async def update_rounding(
     return await svc.update_rounding(ctx.org_id, data, db)
 
 
+# ── Types de documents (devis) ──────────────────────────────────────────────
+
+
+@router.get("/quote-document-types")
+async def get_quote_document_types(
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await svc.get_quote_document_types(ctx.org_id, db)
+
+
+@router.patch("/quote-document-types")
+async def update_quote_document_types(
+    data: list[dict],
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await svc.update_quote_document_types(ctx.org_id, data, db)
+
+
 # ── Comptes bancaires ────────────────────────────────────────────────────────
 
 

@@ -4,7 +4,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import {
-  Loader2, ArrowLeft, Send, Check, X, Copy, Plus, Trash2, RefreshCw, Info,
+  Loader2, ArrowLeft, Send, Check, X, Copy, Plus, Trash2, RefreshCw, Info, Pencil,
 } from 'lucide-react'
 import { navigate } from '@/hooks/useRoute'
 import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
@@ -13,6 +13,7 @@ import ProductAutocomplete, { type AutocompleteProduct } from '@/components/app/
 import ClientCombobox, { type ClientItem } from '@/components/app/ClientCombobox'
 import DatePicker from '@/components/app/DatePicker'
 import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
+import ClientPanel from '@/components/app/ClientPanel'
 import { INPUT, SELECT, LINE_INPUT, LINE_SELECT } from '@/lib/formStyles'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -101,6 +102,12 @@ const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
   expired: { label: 'Expiré', cls: 'bg-yellow-100 text-yellow-700' },
 }
 
+interface DocTypeConfig {
+  key: string
+  title: string
+  columns: Record<string, boolean>
+}
+
 const DOC_LABELS: Record<string, string> = { devis: 'Devis', bpu: 'BPU', attachement: 'Attachement' }
 
 function fmtCurrency(v: number) {
@@ -148,6 +155,18 @@ function QuotesList() {
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editId, setEditId] = useState<string | null>(null)
+  const [docTypeLabels, setDocTypeLabels] = useState<Record<string, string>>(DOC_LABELS)
+
+  // Charger les types de documents pour les labels
+  useEffect(() => {
+    orgGet<DocTypeConfig[]>('/billing/quote-document-types')
+      .then((types) => {
+        const labels: Record<string, string> = {}
+        types.forEach((t) => { labels[t.key] = t.title })
+        setDocTypeLabels(labels)
+      })
+      .catch(() => {})
+  }, [])
 
   const updateFilter = useCallback((column: string, value: string | string[]) => {
     setFilters((prev) => ({ ...prev, [column]: value }))
@@ -237,7 +256,7 @@ function QuotesList() {
               ) : (
                 quotes.map((q) => {
                   const st = STATUS_LABELS[q.status] || { label: q.status, cls: 'bg-gray-100 text-gray-600' }
-                  const typeLabel = q.is_avenant ? `Avenant n°${q.avenant_number}` : (DOC_LABELS[q.document_type] || q.document_type)
+                  const typeLabel = q.is_avenant ? `Avenant n°${q.avenant_number}` : (docTypeLabels[q.document_type] || q.document_type)
                   const isEditable = q.status === 'draft'
                   return (
                     <tr key={q.id} onClick={() => isEditable ? setEditId(q.id) : setSelectedId(q.id)} className="border-b border-gray-50 hover:bg-orange-50/50 cursor-pointer transition">
@@ -446,6 +465,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
 
   // Données de référence
   const [profiles, setProfiles] = useState<BillingProfile[]>([])
+  const [docTypes, setDocTypes] = useState<DocTypeConfig[]>([])
   const [docColumns, setDocColumns] = useState({
     reference: true, description: true, quantity: true, unit: true,
     unit_price: true, vat_rate: true, discount_percent: true, total_ht: true,
@@ -457,11 +477,25 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
   ])
   const [loading, setLoading] = useState(isEdit)
   const [saving, setSaving] = useState(false)
+  const [clientPanelId, setClientPanelId] = useState<string | null>(null)
 
-  // Charger la config colonnes et taux TVA
+  // Colonnes effectives = colonnes globales ∩ colonnes du type de document sélectionné
+  const activeColumns = useMemo(() => {
+    const typeConfig = docTypes.find((t) => t.key === documentType)
+    if (!typeConfig) return docColumns
+    // Une colonne est visible si elle est activée globalement ET activée pour ce type
+    const merged: Record<string, boolean> = {}
+    for (const key of Object.keys(docColumns)) {
+      merged[key] = docColumns[key as keyof typeof docColumns] && (typeConfig.columns[key] !== false)
+    }
+    return merged as typeof docColumns
+  }, [docColumns, docTypes, documentType])
+
+  // Charger la config colonnes, taux TVA et types de documents
   useEffect(() => {
     orgGet<Record<string, boolean>>('/billing/document-columns').then((cols) => setDocColumns((prev) => ({ ...prev, ...cols }))).catch(() => {})
     orgGet<{ rate: string; label: string }[]>('/billing/vat-rates').then(setVatRates).catch(() => {})
+    orgGet<DocTypeConfig[]>('/billing/quote-document-types').then(setDocTypes).catch(() => {})
   }, [])
 
   // Charger les données de référence
@@ -703,20 +737,33 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Client *</label>
-              <ClientCombobox
-                value={clientId}
-                onChange={setClientId}
-                onSelect={handleClientSelect}
-                onNewClient={() => navigate('/app/clients?action=nouveau')}
-                className={INPUT}
-              />
+              <div className="flex items-center gap-1.5">
+                <ClientCombobox
+                  value={clientId}
+                  onChange={setClientId}
+                  onSelect={handleClientSelect}
+                  onNewClient={() => navigate('/app/clients?action=nouveau')}
+                  className={INPUT}
+                />
+                {clientId && (
+                  <button onClick={() => setClientPanelId(clientId)} className="shrink-0 p-1.5 rounded-lg hover:bg-gray-100 transition" title="Voir le client">
+                    <Pencil className="w-3.5 h-3.5 text-gray-400" />
+                  </button>
+                )}
+              </div>
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Type de document</label>
               <select value={documentType} onChange={(e) => setDocumentType(e.target.value)} className={SELECT}>
-                <option value="devis">Devis</option>
-                <option value="bpu">BPU</option>
-                <option value="attachement">Attachement</option>
+                {docTypes.length > 0 ? (
+                  docTypes.map((t) => <option key={t.key} value={t.key}>{t.title}</option>)
+                ) : (
+                  <>
+                    <option value="devis">Devis</option>
+                    <option value="bpu">BPU</option>
+                    <option value="attachement">Attachement</option>
+                  </>
+                )}
               </select>
             </div>
           </div>
@@ -754,14 +801,14 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
-                  {docColumns.reference && <th className="px-2 py-2 w-20">Réf.</th>}
+                  {activeColumns.reference && <th className="px-2 py-2 w-20">Réf.</th>}
                   <th className="px-2 py-2">Désignation</th>
-                  <th className="px-2 py-2 w-16">Qté</th>
-                  {docColumns.unit && <th className="px-2 py-2 w-20">Unité</th>}
+                  {activeColumns.quantity && <th className="px-2 py-2 w-16">Qté</th>}
+                  {activeColumns.unit && <th className="px-2 py-2 w-20">Unité</th>}
                   <th className="px-2 py-2 w-24">PU HT</th>
-                  {docColumns.vat_rate && <th className="px-2 py-2 w-20">TVA %</th>}
-                  {docColumns.discount_percent && <th className="px-2 py-2 w-16">Rem. %</th>}
-                  <th className="px-2 py-2 w-28 text-right">Total HT</th>
+                  {activeColumns.vat_rate && <th className="px-2 py-2 w-20">TVA %</th>}
+                  {activeColumns.discount_percent && <th className="px-2 py-2 w-16">Rem. %</th>}
+                  {activeColumns.total_ht && <th className="px-2 py-2 w-28 text-right">Total HT</th>}
                   <th className="px-2 py-2 w-16"></th>
                 </tr>
               </thead>
@@ -770,7 +817,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
                   const lineHT = calcLineHT(line)
                   return (
                     <tr key={line.key} className="border-b border-gray-50 align-middle">
-                      {docColumns.reference && (
+                      {activeColumns.reference && (
                         <td className="px-1 py-1.5">
                           <input type="text" value={line.reference} onChange={(e) => updateLine(i, 'reference', e.target.value)} placeholder="Réf" className={LINE_INPUT} />
                         </td>
@@ -785,10 +832,12 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
                           placeholder="Désignation"
                         />
                       </td>
-                      <td className="px-1 py-1.5">
-                        <input type="number" step="0.01" min="0.01" value={line.quantity} onChange={(e) => updateLine(i, 'quantity', e.target.value)} className={`${LINE_INPUT} text-right`} />
-                      </td>
-                      {docColumns.unit && (
+                      {activeColumns.quantity && (
+                        <td className="px-1 py-1.5">
+                          <input type="number" step="0.01" min="0.01" value={line.quantity} onChange={(e) => updateLine(i, 'quantity', e.target.value)} className={`${LINE_INPUT} text-right`} />
+                        </td>
+                      )}
+                      {activeColumns.unit && (
                         <td className="px-1 py-1.5">
                           <UnitCombobox value={line.unit} onChange={(v) => updateLine(i, 'unit', v)} className={LINE_INPUT} />
                         </td>
@@ -796,23 +845,25 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
                       <td className="px-1 py-1.5">
                         <input type="number" step="0.01" value={line.unit_price} onChange={(e) => updateLine(i, 'unit_price', e.target.value)} className={`${LINE_INPUT} text-right`} />
                       </td>
-                      {docColumns.vat_rate && (
+                      {activeColumns.vat_rate && (
                         <td className="px-1 py-1.5">
                           <select value={line.vat_rate} onChange={(e) => updateLine(i, 'vat_rate', e.target.value)} className={LINE_SELECT}>
                             {vatRates.map((vr) => <option key={vr.rate} value={vr.rate}>{vr.rate}%</option>)}
                           </select>
                         </td>
                       )}
-                      {docColumns.discount_percent && (
+                      {activeColumns.discount_percent && (
                         <td className="px-1 py-1.5">
                           <input type="number" step="0.1" min="0" max="100" value={line.discount_percent} onChange={(e) => updateLine(i, 'discount_percent', e.target.value)} className={`${LINE_INPUT} text-right`} />
                         </td>
                       )}
+                      {activeColumns.total_ht && (
                       <td className="px-2 text-right text-xs font-medium text-gray-900 whitespace-nowrap">
                         <div className="h-[30px] flex items-center justify-end">
                           {fmtCurrency(lineHT)}
                         </div>
                       </td>
+                      )}
                       <td className="px-1">
                         <div className="h-[30px] flex items-center gap-0.5">
                           {line.product_id && (
@@ -934,6 +985,15 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Send className="w-4 h-4" /> Enregistrer et envoyer</>}
           </button>
         </div>
+
+        {/* Modale fiche client */}
+        {clientPanelId && (
+          <ClientPanel
+            clientId={clientPanelId}
+            compact
+            onClose={() => setClientPanelId(null)}
+          />
+        )}
     </>
   )
 
