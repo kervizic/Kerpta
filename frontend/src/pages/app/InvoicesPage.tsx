@@ -1185,7 +1185,7 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
         </div>
 
         {/* Pied de facture */}
-        <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-3">
             <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Options</h2>
             <div>
@@ -1310,7 +1310,7 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
   // Mode pleine page (création)
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="max-w-5xl mx-auto px-6 py-8">
+      <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 md:py-8">
         <button onClick={() => navigate('/app/factures')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-4 transition">
           <ArrowLeft className="w-4 h-4" /> Retour
         </button>
