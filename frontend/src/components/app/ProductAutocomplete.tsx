@@ -116,16 +116,17 @@ export default function ProductAutocomplete({
 
   return (
     <div ref={ref} className="relative">
-      <textarea
-        value={value}
+      <input
+        type="text"
+        value={value.split('\n')[0]}
         onChange={(e) => handleChange(e.target.value)}
         onKeyDown={handleKeyDown}
         onFocus={() => { if (results.length > 0) setOpen(true) }}
         placeholder={placeholder}
-        className={`${className} resize-none`}
+        className={className}
         autoComplete="off"
-        rows={2}
         disabled={disabled}
+        title={value.includes('\n') ? value : undefined}
       />
       {open && results.length > 0 && (
         <ul className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-y-auto">
