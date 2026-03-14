@@ -3,8 +3,7 @@
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, Loader2, ArrowLeft, BarChart3, Info } from 'lucide-react'
-import { navigate } from '@/hooks/useRoute'
+import { Plus, Loader2, BarChart3, Info } from 'lucide-react'
 import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
 import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
 
@@ -109,6 +108,7 @@ function ContractsList() {
   const [page, setPage] = useState(1)
   const [filters, setFilters] = useState<FilterValues>({})
   const [loading, setLoading] = useState(true)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const updateFilter = useCallback((column: string, value: string | string[]) => {
     setFilters((prev) => ({ ...prev, [column]: value }))
@@ -194,7 +194,7 @@ function ContractsList() {
                 contracts.map((c) => {
                   const st = STATUS_LABELS[c.status] || { label: c.status, cls: 'bg-gray-100 text-gray-600' }
                   return (
-                    <tr key={c.id} onClick={() => navigate(`/app/contrats/${c.id}`)} className="border-b border-gray-50 hover:bg-orange-50/50 cursor-pointer transition">
+                    <tr key={c.id} onClick={() => setSelectedId(c.id)} className="border-b border-gray-50 hover:bg-orange-50/50 cursor-pointer transition">
                       <td className="px-4 py-3 font-mono text-xs text-gray-700">{c.reference}</td>
                       <td className="px-4 py-3 font-medium text-gray-900">{c.client_name || '—'}</td>
                       <td className="px-4 py-3 text-gray-500">{TYPE_LABELS[c.contract_type] || c.contract_type}</td>
@@ -216,14 +216,22 @@ function ContractsList() {
             <button disabled={page * 25 >= total} onClick={() => setPage(page + 1)} className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-50 hover:bg-gray-50">Suivant</button>
           </div>
         )}
+
+        {/* Overlay détail contrat */}
+        {selectedId && (
+          <ContractDetailPanel
+            contractId={selectedId}
+            onClose={() => { setSelectedId(null); void load() }}
+          />
+        )}
       </div>
     </div>
   )
 }
 
-// ── Détail ─────────────────────────────────────────────────────────────────────
+// ── Détail (overlay) ──────────────────────────────────────────────────────────
 
-function ContractDetailView({ contractId }: { contractId: string }) {
+function ContractDetailPanel({ contractId, onClose }: { contractId: string; onClose: () => void }) {
   const [contract, setContract] = useState<ContractDetail | null>(null)
   const [situations, setSituations] = useState<Situation[]>([])
   const [quotes, setQuotes] = useState<QuoteRef[]>([])
@@ -231,6 +239,7 @@ function ContractDetailView({ contractId }: { contractId: string }) {
   const [tab, setTab] = useState<'budget' | 'situations' | 'quotes'>('budget')
   const [creatingSlice, setCreatingSlice] = useState(false)
   const [sliceLabel, setSliceLabel] = useState('')
+  const [situationId, setSituationId] = useState<string | null>(null)
 
   useEffect(() => {
     setLoading(true)
@@ -257,18 +266,23 @@ function ContractDetailView({ contractId }: { contractId: string }) {
     setCreatingSlice(false)
   }
 
-  if (loading) return <div className="flex-1 flex justify-center items-center"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
-  if (!contract) return <div className="flex-1 flex justify-center items-center text-gray-400">Contrat introuvable</div>
-
-  const st = STATUS_LABELS[contract.status] || { label: contract.status, cls: 'bg-gray-100 text-gray-600' }
-  const progressWidth = Math.min(Number(contract.progress_percent), 100)
+  const st = contract ? (STATUS_LABELS[contract.status] || { label: contract.status, cls: 'bg-gray-100 text-gray-600' }) : null
+  const progressWidth = contract ? Math.min(Number(contract.progress_percent), 100) : 0
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="max-w-4xl mx-auto px-6 py-8">
-        <button onClick={() => navigate('/app/contrats')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-4 transition">
-          <ArrowLeft className="w-4 h-4" /> Retour
-        </button>
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 overflow-y-auto"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-xl w-full mx-6 max-w-5xl mt-8 mb-8 px-6 py-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {loading ? (
+          <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
+        ) : !contract || !st ? (
+          <div className="py-16 text-center text-gray-400 text-sm">Contrat introuvable</div>
+        ) : (<>
 
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -277,7 +291,13 @@ function ContractDetailView({ contractId }: { contractId: string }) {
               {TYPE_LABELS[contract.contract_type] || contract.contract_type} — {contract.client_name || 'Sans client'}
             </p>
           </div>
-          <span className={`px-3 py-1 rounded-full text-sm font-medium ${st.cls}`}>{st.label}</span>
+          <div className="flex items-center gap-2">
+            <span className={`px-3 py-1 rounded-full text-sm font-medium ${st.cls}`}>{st.label}</span>
+            <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 transition">
+              <span className="sr-only">Fermer</span>
+              ✕
+            </button>
+          </div>
         </div>
 
         {/* Budget card */}
@@ -376,7 +396,7 @@ function ContractDetailView({ contractId }: { contractId: string }) {
                         : s.status === 'invoiced' ? { label: 'Facturée', cls: 'bg-blue-100 text-blue-700' }
                         : { label: 'Payée', cls: 'bg-green-100 text-green-700' }
                       return (
-                        <tr key={s.id} onClick={() => navigate(`/app/contrats/${contractId}/situations/${s.id}`)} className="border-b border-gray-50 hover:bg-orange-50/50 cursor-pointer transition">
+                        <tr key={s.id} onClick={() => setSituationId(s.id)} className="border-b border-gray-50 hover:bg-orange-50/50 cursor-pointer transition">
                           <td className="px-4 py-3 font-mono text-gray-700">#{s.situation_number}</td>
                           <td className="px-4 py-3 text-gray-900">{s.period_label}</td>
                           <td className="px-4 py-3 text-right text-gray-500">{fmtCurrency(s.previously_invoiced)}</td>
@@ -410,7 +430,7 @@ function ContractDetailView({ contractId }: { contractId: string }) {
                 </thead>
                 <tbody>
                   {quotes.map((q) => (
-                    <tr key={q.id} onClick={() => navigate(`/app/devis/${q.id}`)} className="border-b border-gray-50 hover:bg-orange-50/50 cursor-pointer transition">
+                    <tr key={q.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition">
                       <td className="px-4 py-3 font-mono text-xs text-gray-700">{q.number}</td>
                       <td className="px-4 py-3 text-gray-500">{q.is_avenant ? `Avenant n°${q.avenant_number}` : q.document_type}</td>
                       <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${(STATUS_LABELS[q.status] || { cls: 'bg-gray-100' }).cls}`}>{(STATUS_LABELS[q.status] || { label: q.status }).label}</span></td>
@@ -423,14 +443,29 @@ function ContractDetailView({ contractId }: { contractId: string }) {
             )}
           </div>
         )}
+
+        {/* Overlay situation */}
+        {situationId && (
+          <SituationEditorPanel
+            contractId={contractId}
+            situationId={situationId}
+            onClose={() => {
+              setSituationId(null)
+              // Rafraîchir les situations
+              orgGet<Situation[]>(`/contracts/${contractId}/situations`).then(setSituations).catch(() => {})
+            }}
+          />
+        )}
+
+        </>)}
       </div>
     </div>
   )
 }
 
-// ── Situation detail (SituationEditor) ────────────────────────────────────────
+// ── Situation detail (overlay) ────────────────────────────────────────────────
 
-function SituationEditor({ contractId, situationId }: { contractId: string; situationId: string }) {
+function SituationEditorPanel({ contractId, situationId, onClose }: { contractId: string; situationId: string; onClose: () => void }) {
   const [situation, setSituation] = useState<{
     id: string; situation_number: number; period_label: string; status: string
     cumulative_total: number; previously_invoiced: number; invoice_amount: number
@@ -495,33 +530,41 @@ function SituationEditor({ contractId, situationId }: { contractId: string; situ
     setValidating(false)
   }
 
-  if (loading) return <div className="flex-1 flex justify-center items-center"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
-  if (!situation) return <div className="flex-1 flex justify-center items-center text-gray-400">Situation introuvable</div>
-
-  const isDraft = situation.status === 'draft'
+  const isDraft = situation?.status === 'draft'
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="max-w-5xl mx-auto px-6 py-8">
-        <button onClick={() => navigate(`/app/contrats/${contractId}`)} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-4 transition">
-          <ArrowLeft className="w-4 h-4" /> Retour au contrat
-        </button>
+    <div
+      className="fixed inset-0 z-[60] flex items-start justify-center bg-black/30 overflow-y-auto"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-xl w-full mx-6 max-w-5xl mt-8 mb-8 px-6 py-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {loading ? (
+          <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
+        ) : !situation ? (
+          <div className="py-16 text-center text-gray-400 text-sm">Situation introuvable</div>
+        ) : (<>
 
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-xl font-semibold text-gray-900">Situation n°{situation.situation_number}</h1>
             <p className="text-sm text-gray-400">{situation.period_label}</p>
           </div>
-          {isDraft && (
-            <div className="flex gap-2">
-              <button onClick={save} disabled={saving} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition disabled:opacity-50">
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
-              </button>
-              <button onClick={validate} disabled={validating} className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
-                {validating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Valider & Facturer'}
-              </button>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {isDraft && (
+              <>
+                <button onClick={save} disabled={saving} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition disabled:opacity-50">
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
+                </button>
+                <button onClick={validate} disabled={validating} className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
+                  {validating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Valider & Facturer'}
+                </button>
+              </>
+            )}
+            <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 transition ml-1">✕</button>
+          </div>
         </div>
 
         {/* Totaux */}
@@ -586,6 +629,8 @@ function SituationEditor({ contractId, situationId }: { contractId: string; situ
             </tbody>
           </table>
         </div>
+
+        </>)}
       </div>
     </div>
   )
@@ -593,14 +638,6 @@ function SituationEditor({ contractId, situationId }: { contractId: string; situ
 
 // ── Page ───────────────────────────────────────────────────────────────────────
 
-export default function ContractsPage({ path }: { path: string }) {
-  // /app/contrats/:id/situations/:sitId
-  const sitMatch = path.match(/^\/app\/contrats\/([^/]+)\/situations\/(.+)$/)
-  if (sitMatch) return <SituationEditor contractId={sitMatch[1]} situationId={sitMatch[2]} />
-
-  // /app/contrats/:id
-  const detailMatch = path.match(/^\/app\/contrats\/(.+)$/)
-  if (detailMatch) return <ContractDetailView contractId={detailMatch[1]} />
-
+export default function ContractsPage({ path: _path }: { path?: string }) {
   return <ContractsList />
 }

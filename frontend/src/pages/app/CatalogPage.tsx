@@ -74,18 +74,6 @@ interface PurchaseLink {
   is_default: boolean
 }
 
-interface Component {
-  id: string
-  parent_product_id: string
-  component_product_id: string
-  component_name: string | null
-  component_reference: string | null
-  component_unit_price: number | null
-  quantity: number
-  unit: string | null
-  position: number
-}
-
 interface QuantityDiscount {
   id: string
   product_id: string
@@ -207,7 +195,6 @@ function ProductsList({ initialSelectedId }: { initialSelectedId?: string } = {}
                     <td className="px-4 py-3 font-medium text-gray-900">
                       <span className={p.archived_at ? 'text-gray-400' : ''}>{p.name}</span>
                       {p.archived_at && <span className="ml-2 text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">Archivé</span>}
-                      {p.is_composite && <span className="ml-2 text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">Compos&eacute;</span>}
                     </td>
                     <td className="px-4 py-3 text-gray-500">{p.unit || '\u2014'}</td>
                     <td className="px-4 py-3 text-right text-gray-700">{fmtPrice(p.unit_price)}</td>
@@ -339,7 +326,7 @@ function NewProductModal({ onClose, onCreated }: { onClose: () => void; onCreate
 function ProductDetailModal({ productId, onClose }: { productId: string; onClose: () => void }) {
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<'variants' | 'purchases' | 'components' | 'discounts'>('variants')
+  const [tab, setTab] = useState<'variants' | 'purchases' | 'discounts'>('variants')
   const [archiving, setArchiving] = useState(false)
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false)
   const [unarchiving, setUnarchiving] = useState(false)
@@ -397,7 +384,6 @@ function ProductDetailModal({ productId, onClose }: { productId: string; onClose
   const tabs = [
     { key: 'variants' as const, label: 'Variantes', icon: Users },
     { key: 'purchases' as const, label: 'Achats', icon: ShoppingCart },
-    { key: 'components' as const, label: 'Composition', icon: Layers },
     { key: 'discounts' as const, label: 'Paliers', icon: BarChart3 },
   ]
 
@@ -447,8 +433,7 @@ function ProductDetailModal({ productId, onClose }: { productId: string; onClose
                     </button>
                   )}
                   {product.archived_at && <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">Archivé</span>}
-                  {product.is_composite && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">Composé</span>}
-                  {product.sale_price_mode === 'coefficient' && (
+                                    {product.sale_price_mode === 'coefficient' && (
                     <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full">
                       {product.coefficient_name} ×{Number(product.coefficient_value)}
                     </span>
@@ -568,7 +553,6 @@ function ProductDetailModal({ productId, onClose }: { productId: string; onClose
             {/* Contenu onglet */}
             {tab === 'variants' && <VariantsTab productId={productId} />}
             {tab === 'purchases' && <PurchaseLinksTab productId={productId} />}
-            {tab === 'components' && <ComponentsTab productId={productId} />}
             {tab === 'discounts' && <QuantityDiscountsTab productId={productId} />}
           </div>
         )}
@@ -959,152 +943,6 @@ function PurchaseLinkFormModal({ productId, onClose, onSaved }: {
   )
 }
 
-// ── Onglet Composition ──────────────────────────────────────────────────────
-
-function ComponentsTab({ productId }: { productId: string }) {
-  const [components, setComponents] = useState<Component[]>([])
-  const [loading, setLoading] = useState(true)
-  const [showForm, setShowForm] = useState(false)
-  const [catalogProducts, setCatalogProducts] = useState<Product[]>([])
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const data = await orgGet<Component[]>(`/catalog/products/${productId}/components`)
-      setComponents(data)
-    } catch { /* ignore */ }
-    setLoading(false)
-  }, [productId])
-
-  useEffect(() => { void load() }, [load])
-
-  useEffect(() => {
-    orgGet<{ items: Product[] }>('/catalog/products', { page_size: 100 }).then(d => setCatalogProducts(d.items.filter(p => p.id !== productId))).catch(() => {})
-  }, [productId])
-
-  async function handleDelete(componentId: string) {
-    try {
-      await orgDelete(`/catalog/products/${productId}/components/${componentId}`)
-      void load()
-    } catch { /* ignore */ }
-  }
-
-  const totalValue = components.reduce((sum, c) => sum + (Number(c.component_unit_price || 0) * Number(c.quantity)), 0)
-
-  return (
-    <div>
-      <div className="flex justify-between items-center mb-3">
-        <p className="text-sm text-gray-500">{components.length} composant(s)</p>
-        <button onClick={() => setShowForm(true)} className={`flex items-center gap-1 text-sm ${BTN_PRIMARY}`}>
-          <Plus className="w-3.5 h-3.5" /> Ajouter
-        </button>
-      </div>
-
-      {loading ? (
-        <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-orange-500" /></div>
-      ) : components.length === 0 ? (
-        <div className="py-8 text-center text-gray-400 text-sm">Aucun composant</div>
-      ) : (
-        <>
-          <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
-                  <th className="px-4 py-3">Composant</th>
-                  <th className="px-4 py-3">R&eacute;f.</th>
-                  <th className="px-4 py-3 text-right">Qt&eacute;</th>
-                  <th className="px-4 py-3">Unit&eacute;</th>
-                  <th className="px-4 py-3 text-right">PU HT</th>
-                  <th className="px-4 py-3 text-right">Sous-total</th>
-                  <th className="px-4 py-3"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {components.map(c => (
-                  <tr key={c.id} className="border-b border-gray-50 hover:bg-gray-50 transition">
-                    <td className="px-4 py-3 font-medium text-gray-900">{c.component_name}</td>
-                    <td className="px-4 py-3 text-gray-500 font-mono text-xs">{c.component_reference || '\u2014'}</td>
-                    <td className="px-4 py-3 text-right text-gray-700">{Number(c.quantity)}</td>
-                    <td className="px-4 py-3 text-gray-500">{c.unit || '\u2014'}</td>
-                    <td className="px-4 py-3 text-right text-gray-700">{fmtPrice(c.component_unit_price)}</td>
-                    <td className="px-4 py-3 text-right font-medium text-gray-900">
-                      {fmtPrice(Number(c.component_unit_price || 0) * Number(c.quantity))}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <button onClick={() => handleDelete(c.id)} className="text-gray-400 hover:text-red-500 transition">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t border-gray-200 bg-gray-50">
-                  <td colSpan={5} className="px-4 py-3 text-right text-sm font-semibold text-gray-500">Total valorisation</td>
-                  <td className="px-4 py-3 text-right font-bold text-gray-900">{fmtPrice(totalValue)}</td>
-                  <td></td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </>
-      )}
-
-      {showForm && (
-        <ComponentFormModal productId={productId} products={catalogProducts}
-          onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); void load() }} />
-      )}
-    </div>
-  )
-}
-
-function ComponentFormModal({ productId, products, onClose, onSaved }: {
-  productId: string; products: Product[]; onClose: () => void; onSaved: () => void
-}) {
-  const [componentProductId, setComponentProductId] = useState('')
-  const [quantity, setQuantity] = useState('1')
-  const [unit, setUnit] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setSaving(true)
-    setError('')
-    try {
-      await orgPost(`/catalog/products/${productId}/components`, {
-        component_product_id: componentProductId,
-        quantity: Number(quantity),
-        unit: unit || undefined,
-      })
-      onSaved()
-    } catch (err) { setError(httpError(err, 'Erreur')) }
-    setSaving(false)
-  }
-
-  return (
-    <ModalOverlay onClose={onClose} size="md" title="Ajouter un composant">
-        {error && <div className="p-3 mb-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>}
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <select value={componentProductId} onChange={e => setComponentProductId(e.target.value)} required className={SELECT}>
-            <option value="">Article composant *</option>
-            {products.map(p => <option key={p.id} value={p.id}>{p.name} {p.reference ? `(${p.reference})` : ''}</option>)}
-          </select>
-          <div className="grid grid-cols-2 gap-3">
-            <input type="number" step="0.01" min="0.01" value={quantity} onChange={e => setQuantity(e.target.value)}
-              placeholder="Quantité *" required className={INPUT} />
-            <UnitCombobox value={unit} onChange={setUnit} className={INPUT} placeholder="Unité" />
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose} className={BTN_SECONDARY}>Annuler</button>
-            <button type="submit" disabled={saving || !componentProductId} className={BTN_PRIMARY}>
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Ajouter'}
-            </button>
-          </div>
-        </form>
-    </ModalOverlay>
-  )
-}
 
 // ── Onglet Paliers quantit&eacute; ─────────────────────────────────────────────────
 
