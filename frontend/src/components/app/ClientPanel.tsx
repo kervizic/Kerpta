@@ -150,8 +150,10 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
     if (!client) return
     setSaveStatus('saving')
     try {
-      const updated = await orgPatch<ClientDetail>(`/clients/${client.id}`, patch)
-      setClient(updated)
+      await orgPatch(`/clients/${client.id}`, patch)
+      // Recharger le client complet (le PATCH ne retourne que {status: "updated"})
+      const refreshed = await orgGet<ClientDetail>(`/clients/${client.id}`)
+      setClient(refreshed)
       setSaveStatus('saved')
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
       saveTimerRef.current = setTimeout(() => setSaveStatus('idle'), 1500)
@@ -473,19 +475,19 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
                   </div>
                   <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-center">
                     <p className="text-[10px] text-gray-400 uppercase font-semibold">Facturé</p>
-                    <p className="text-xl font-bold text-gray-900">{Number(client.total_invoiced).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</p>
+                    <p className="text-xl font-bold text-gray-900">{(Number(client.total_invoiced) || 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</p>
                   </div>
                   <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-center">
                     <p className="text-[10px] text-gray-400 uppercase font-semibold">Solde</p>
-                    <p className={`text-xl font-bold ${Number(client.balance) > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                      {Number(client.balance).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                    <p className={`text-xl font-bold ${(Number(client.balance) || 0) > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      {(Number(client.balance) || 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
                     </p>
                   </div>
                 </div>
                 <div className="mt-2 grid grid-cols-3 gap-3 text-sm text-gray-500">
-                  <p>Factures : {client.invoice_count}</p>
-                  <p>Contrats : {client.contract_count}</p>
-                  <p>Payé : {Number(client.total_paid).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</p>
+                  <p>Factures : {client.invoice_count ?? 0}</p>
+                  <p>Contrats : {client.contract_count ?? 0}</p>
+                  <p>Payé : {(Number(client.total_paid) || 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</p>
                 </div>
               </section>
             )}
