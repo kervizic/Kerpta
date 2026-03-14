@@ -140,7 +140,7 @@ function ProductsList({ initialSelectedId }: { initialSelectedId?: string } = {}
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="max-w-5xl mx-auto px-6 py-8">
+      <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 md:py-8">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-xl font-semibold text-gray-900">Catalogue</h1>
           <div className="flex items-center gap-2">
@@ -176,7 +176,8 @@ function ProductsList({ initialSelectedId }: { initialSelectedId?: string } = {}
           ) : products.length === 0 ? (
             <div className="py-12 text-center text-gray-400 text-sm">Aucun article trouv&eacute;</div>
           ) : (
-            <table className="w-full text-sm">
+            {/* Desktop table */}
+            <table className="w-full text-sm hidden md:table">
               <thead>
                 <tr className="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
                   <th className="px-4 py-3">R&eacute;f.</th>
@@ -212,6 +213,22 @@ function ProductsList({ initialSelectedId }: { initialSelectedId?: string } = {}
                 ))}
               </tbody>
             </table>
+            {/* Mobile cards */}
+            <div className="md:hidden space-y-2 p-3">
+              {products.map((p) => (
+                <div key={p.id} onClick={() => setSelectedId(p.id)}
+                  className="border border-gray-100 rounded-xl p-3 hover:bg-orange-50/50 cursor-pointer transition">
+                  <div className="flex items-center justify-between">
+                    <span className={`font-medium text-sm ${p.archived_at ? 'text-gray-400' : 'text-gray-900'}`}>{p.name}</span>
+                    {p.archived_at && <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">Archivé</span>}
+                  </div>
+                  <div className="flex items-center justify-between mt-1.5">
+                    <span className="text-xs text-gray-500 font-mono">{p.reference || '—'}</span>
+                    <span className="text-sm font-semibold text-gray-700">{fmtPrice(p.unit_price)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
 
@@ -284,7 +301,7 @@ function NewProductModal({ onClose, onCreated }: { onClose: () => void; onCreate
           <label className="text-xs text-gray-500 mb-1 block">Désignation *</label>
           <input type="text" value={name} onChange={(e) => setName(e.target.value)} required className={INPUT} placeholder="Nom de l'article" />
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="text-xs text-gray-500 mb-1 block">Référence</label>
             <input type="text" value={reference} onChange={(e) => setReference(e.target.value)} className={INPUT} placeholder="Réf." />
@@ -294,7 +311,7 @@ function NewProductModal({ onClose, onCreated }: { onClose: () => void; onCreate
             <UnitCombobox value={unit} onChange={setUnit} className={INPUT} placeholder="Unité" />
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="text-xs text-gray-500 mb-1 block">Prix unitaire HT</label>
             <input type="number" step="0.01" value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} className={INPUT} placeholder="0,00" />
@@ -390,7 +407,7 @@ function ProductDetailModal({ productId, onClose }: { productId: string; onClose
   return (
     <ModalOverlay onClose={onClose} size="full">
         {/* En-tête */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10 rounded-t-2xl">
+        <div className="flex items-center justify-between px-4 md:px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10 rounded-t-2xl">
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-center shrink-0">
               {loading ? <Loader2 className="w-5 h-5 animate-spin text-orange-500" /> : <Layers className="w-5 h-5 text-orange-600" />}
@@ -472,9 +489,9 @@ function ProductDetailModal({ productId, onClose }: { productId: string; onClose
         ) : !product ? (
           <div className="py-16 text-center text-gray-400 text-sm">Article introuvable</div>
         ) : (
-          <div className="px-6 py-5">
+          <div className="px-4 md:px-6 py-5">
             {/* Infos résumées — éditables au clic */}
-            <div className="grid grid-cols-4 gap-3 mb-5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
               <EditableInfoCard
                 label="Prix HT"
                 value={fmtPrice(product.unit_price)}
@@ -665,7 +682,7 @@ function VariantsTab({ productId }: { productId: string }) {
       ) : variants.length === 0 ? (
         <div className="py-8 text-center text-gray-400 text-sm">Aucune variante client</div>
       ) : (
-        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
@@ -813,7 +830,7 @@ function PurchaseLinksTab({ productId }: { productId: string }) {
       ) : links.length === 0 ? (
         <div className="py-8 text-center text-gray-400 text-sm">Aucun lien achat fournisseur</div>
       ) : (
-        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
@@ -983,7 +1000,7 @@ function QuantityDiscountsTab({ productId }: { productId: string }) {
       ) : discounts.length === 0 ? (
         <div className="py-8 text-center text-gray-400 text-sm">Aucun palier de remise quantit&eacute;</div>
       ) : (
-        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
