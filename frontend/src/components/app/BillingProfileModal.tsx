@@ -359,13 +359,13 @@ export default function BillingProfileModal({ profile, onClose, onSaved }: Props
               {/* Note de règlement */}
               <div>
                 <label className="text-xs text-gray-500 mb-1 block">Note de règlement (ex: affacturage, coordonnées factor...)</label>
-                <textarea value={paymentNote} onChange={(e) => setPaymentNote(e.target.value)} rows={2} className={INPUT} placeholder="Pour être libératoire, votre règlement doit être effectué à l'ordre de..." />
+                <textarea value={paymentNote} onChange={(e) => setPaymentNote(e.target.value)} rows={4} className={INPUT} placeholder="Pour être libératoire, votre règlement doit être effectué à l'ordre de..." />
               </div>
 
               {/* Pied de page */}
               <div>
                 <label className="text-xs text-gray-500 mb-1 block">Pied de page personnalisé</label>
-                <textarea value={footer} onChange={(e) => setFooter(e.target.value)} rows={2} className={INPUT} placeholder="Texte libre en bas du document" />
+                <textarea value={footer} onChange={(e) => setFooter(e.target.value)} rows={4} className={INPUT} placeholder="Texte libre en bas du document" />
               </div>
 
               {/* Options */}
