@@ -380,7 +380,7 @@ function QuoteFormPage({ quoteId }: { quoteId?: string }) {
 
   // Charger la config colonnes
   useEffect(() => {
-    orgGet<Record<string, boolean>>('/billing/document-columns').then(setDocColumns).catch(() => {})
+    orgGet<Record<string, boolean>>('/billing/document-columns').then((cols) => setDocColumns((prev) => ({ ...prev, ...cols }))).catch(() => {})
   }, [])
 
   // Charger les données de référence

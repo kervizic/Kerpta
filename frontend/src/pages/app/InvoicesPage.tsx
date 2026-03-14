@@ -416,7 +416,7 @@ function InvoiceFormPage({ invoiceId }: { invoiceId?: string }) {
 
   // Charger les données de référence
   useEffect(() => {
-    orgGet<Record<string, boolean>>('/billing/document-columns').then(setDocColumns).catch(() => {})
+    orgGet<Record<string, boolean>>('/billing/document-columns').then((cols) => setDocColumns((prev) => ({ ...prev, ...cols }))).catch(() => {})
   }, [])
 
   useEffect(() => {
