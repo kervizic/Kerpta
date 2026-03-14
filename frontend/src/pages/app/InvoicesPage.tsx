@@ -5,7 +5,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import {
   Loader2, Send, Check, FileText, Plus, Trash2, Pencil, RefreshCw,
-  ShieldCheck, Printer, Lock, Info, ArrowLeft,
+  ShieldCheck, Printer, Lock, X, Info, ArrowLeft,
 } from 'lucide-react'
 import { navigate } from '@/hooks/useRoute'
 import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
@@ -170,12 +170,13 @@ const INVOICE_FILTERS: FilterOption[] = [
   ] },
 ]
 
-function InvoicesList() {
+function InvoicesList({ initialSelectedId }: { initialSelectedId?: string } = {}) {
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [filters, setFilters] = useState<FilterValues>({})
   const [loading, setLoading] = useState(true)
+  const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId ?? null)
 
   const updateFilter = useCallback((column: string, value: string | string[]) => {
     setFilters((prev) => ({ ...prev, [column]: value }))
@@ -285,7 +286,7 @@ function InvoicesList() {
                   const st = STATUS_LABELS[inv.status] || { label: inv.status, cls: 'bg-gray-100 text-gray-600' }
                   const isEditable = ['draft', 'validated'].includes(inv.status)
                   return (
-                    <tr key={inv.id} onClick={() => navigate(isEditable ? `/app/factures/${inv.id}/modifier` : `/app/factures/${inv.id}`)} className="border-b border-gray-50 hover:bg-orange-50/50 cursor-pointer transition">
+                    <tr key={inv.id} onClick={() => isEditable ? navigate(`/app/factures/${inv.id}/modifier`) : setSelectedId(inv.id)} className="border-b border-gray-50 hover:bg-orange-50/50 cursor-pointer transition">
                       <td className="px-4 py-3 font-mono text-xs text-gray-700">
                         {inv.number || inv.proforma_number || '—'}
                       </td>
@@ -314,14 +315,21 @@ function InvoicesList() {
           </div>
         )}
 
+        {/* Panneau détail facture */}
+        {selectedId && (
+          <InvoiceDetailPanel
+            invoiceId={selectedId}
+            onClose={() => { setSelectedId(null); void load() }}
+          />
+        )}
       </div>
     </div>
   )
 }
 
-// ── Détail (vue page) ────────────────────────────────────────────────────────
+// ── Détail (panneau overlay aligné en haut) ──────────────────────────────────
 
-function InvoiceDetailView({ invoiceId }: { invoiceId: string }) {
+function InvoiceDetailPanel({ invoiceId, onClose }: { invoiceId: string; onClose: () => void }) {
   const [invoice, setInvoice] = useState<InvoiceDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState('')
@@ -347,12 +355,14 @@ function InvoiceDetailView({ invoiceId }: { invoiceId: string }) {
   const st = invoice ? (STATUS_LABELS[invoice.status] || { label: invoice.status, cls: 'bg-gray-100 text-gray-600' }) : null
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="max-w-4xl mx-auto px-6 py-8">
-        <button onClick={() => navigate('/app/factures')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-4 transition">
-          <ArrowLeft className="w-4 h-4" /> Retour
-        </button>
-
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 overflow-y-auto"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-xl w-full mx-6 max-w-4xl mt-8 mb-8"
+        onClick={(e) => e.stopPropagation()}
+      >
         {loading ? (
           <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
         ) : !invoice ? (
@@ -360,26 +370,30 @@ function InvoiceDetailView({ invoiceId }: { invoiceId: string }) {
         ) : (
           <>
         {/* En-tête */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10 rounded-t-2xl">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-center shrink-0">
               <FileText className="w-5 h-5 text-orange-600" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-xl font-semibold text-gray-900 truncate">
+              <h2 className="text-lg font-semibold text-gray-900 truncate">
                 {invoice.is_credit_note ? 'Avoir' : invoice.number ? 'Facture' : 'Proforma'} {invoice.number || invoice.proforma_number}
                 {invoice.is_situation && <span className="text-gray-400 ml-2 text-sm">(Situation n°{invoice.situation_number})</span>}
-              </h1>
+              </h2>
               <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-sm text-gray-400">{invoice.client_name} — {invoice.issue_date}</span>
-                {st && <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${st.cls}`}>{st.label}</span>}
+                <span className="text-xs text-gray-500">{invoice.client_name} — {invoice.issue_date}</span>
+                {st && <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${st.cls}`}>{st.label}</span>}
               </div>
             </div>
           </div>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 transition ml-3">
+            <X className="w-5 h-5 text-gray-400" />
+          </button>
         </div>
 
+        <div className="px-6 py-5">
         {/* Actions */}
-        <div className="flex flex-wrap gap-2 mb-6">
+        <div className="flex flex-wrap gap-2 mb-5">
           {invoice.status === 'draft' && (
             <>
               <button onClick={() => doAction('validate')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
@@ -482,6 +496,7 @@ function InvoiceDetailView({ invoiceId }: { invoiceId: string }) {
             )}
           </section>
         )}
+        </div>
           </>
         )}
       </div>
@@ -1125,6 +1140,6 @@ export default function InvoicesPage({ path }: { path: string }) {
   const editMatch = path.match(/^\/app\/factures\/(.+)\/modifier$/)
   if (editMatch) return <InvoiceFormPage invoiceId={editMatch[1]} />
   const detailMatch = path.match(/^\/app\/factures\/(.+)$/)
-  if (detailMatch) return <InvoiceDetailView invoiceId={detailMatch[1]} />
+  if (detailMatch) return <InvoicesList initialSelectedId={detailMatch[1]} />
   return <InvoicesList />
 }
