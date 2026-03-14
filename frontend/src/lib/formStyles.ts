@@ -1,0 +1,20 @@
+// Kerpta — Application comptable web française
+// Copyright (C) 2026 Emmanuel Kervizic
+// Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
+
+/**
+ * Styles partagés pour les champs de formulaire.
+ * Utiliser ces constantes partout pour garantir une hauteur uniforme.
+ */
+
+/** Champ de formulaire standard (header / sections) */
+export const INPUT = 'w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 transition'
+
+/** Select de formulaire standard — même hauteur que INPUT */
+export const SELECT = `${INPUT} bg-white`
+
+/** Champ de ligne de document (table inline : devis, factures) */
+export const LINE_INPUT = 'w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400'
+
+/** Select de ligne de document — même hauteur que LINE_INPUT */
+export const LINE_SELECT = `${LINE_INPUT} bg-white`

@@ -106,7 +106,7 @@ function httpError(err: unknown, fallback: string): string {
   return fallback
 }
 
-const INPUT = 'w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent'
+import { INPUT, SELECT } from '@/lib/formStyles'
 const BTN_PRIMARY = 'px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50'
 const BTN_SECONDARY = 'px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition'
 
@@ -366,7 +366,7 @@ function ProductFormPage({ productId }: { productId?: string }) {
                 <UnitCombobox value={unit} onChange={setUnit} className={INPUT} placeholder="Unité" />
               </div>
               <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description" rows={2} className={INPUT} />
-              <select value={vatRate} onChange={(e) => setVatRate(e.target.value)} className={`${INPUT} bg-white`}>
+              <select value={vatRate} onChange={(e) => setVatRate(e.target.value)} className={SELECT}>
                 <option value="20">TVA 20%</option>
                 <option value="10">TVA 10%</option>
                 <option value="5.5">TVA 5,5%</option>
@@ -404,7 +404,7 @@ function ProductFormPage({ productId }: { productId?: string }) {
                   placeholder="Prix unitaire HT" className={INPUT} />
               ) : (
                 <div className="space-y-2">
-                  <select value={coefficientId} onChange={(e) => setCoefficientId(e.target.value)} className={`${INPUT} bg-white`}>
+                  <select value={coefficientId} onChange={(e) => setCoefficientId(e.target.value)} className={SELECT}>
                     <option value="">S&eacute;lectionner un coefficient</option>
                     {coefficients.map(c => (
                       <option key={c.id} value={c.id}>{c.name} (&times;{Number(c.value)}){c.client_name ? ` \u2014 ${c.client_name}` : ''}</option>
@@ -722,7 +722,7 @@ function VariantFormModal({ productId, clients, onClose, onSaved }: {
     <ModalOverlay onClose={onClose} size="md" title="Nouvelle variante client">
         {error && <div className="p-3 mb-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>}
         <form onSubmit={handleSubmit} className="space-y-3">
-          <select value={clientId} onChange={e => setClientId(e.target.value)} required className={`${INPUT} bg-white`}>
+          <select value={clientId} onChange={e => setClientId(e.target.value)} required className={SELECT}>
             <option value="">Client *</option>
             {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
@@ -897,7 +897,7 @@ function PurchaseLinkFormModal({ productId, onClose, onSaved }: {
             </label>
           </div>
           {salePriceMode === 'coefficient' ? (
-            <select value={coefficientId} onChange={e => setCoefficientId(e.target.value)} className={`${INPUT} bg-white`}>
+            <select value={coefficientId} onChange={e => setCoefficientId(e.target.value)} className={SELECT}>
               <option value="">Coefficient</option>
               {coefficients.map(c => <option key={c.id} value={c.id}>{c.name} (×{Number(c.value)})</option>)}
             </select>
@@ -1048,7 +1048,7 @@ function ComponentFormModal({ productId, products, onClose, onSaved }: {
     <ModalOverlay onClose={onClose} size="md" title="Ajouter un composant">
         {error && <div className="p-3 mb-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>}
         <form onSubmit={handleSubmit} className="space-y-3">
-          <select value={componentProductId} onChange={e => setComponentProductId(e.target.value)} required className={`${INPUT} bg-white`}>
+          <select value={componentProductId} onChange={e => setComponentProductId(e.target.value)} required className={SELECT}>
             <option value="">Article composant *</option>
             {products.map(p => <option key={p.id} value={p.id}>{p.name} {p.reference ? `(${p.reference})` : ''}</option>)}
           </select>
@@ -1180,7 +1180,7 @@ function DiscountFormModal({ productId, onClose, onSaved }: {
             placeholder="Quantité minimum *" required className={INPUT} />
           <input type="number" step="0.01" min="0.01" max="100" value={discountPercent} onChange={e => setDiscountPercent(e.target.value)}
             placeholder="Remise en % *" required className={INPUT} />
-          <select value={clientId} onChange={e => setClientId(e.target.value)} className={`${INPUT} bg-white`}>
+          <select value={clientId} onChange={e => setClientId(e.target.value)} className={SELECT}>
             <option value="">Tous les clients</option>
             {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>

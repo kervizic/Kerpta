@@ -96,7 +96,7 @@ function httpError(err: unknown, fallback: string): string {
   return fallback
 }
 
-const INPUT = 'w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent'
+import { INPUT, SELECT } from '@/lib/formStyles'
 
 function formatAddress(a: Record<string, string | null> | null | undefined): string {
   if (!a) return '—'
@@ -456,7 +456,7 @@ function CreateClientForm() {
             <select
               value={type}
               onChange={(e) => setType(e.target.value as 'company' | 'individual')}
-              className={`${INPUT} bg-white`}
+              className={SELECT}
             >
               <option value="company">Entreprise</option>
               <option value="individual">Particulier</option>
@@ -689,7 +689,7 @@ function CreateClientForm() {
               <select
                 value={billingProfileId ?? ''}
                 onChange={(e) => setBillingProfileId(e.target.value || null)}
-                className={`${INPUT} bg-white`}
+                className={SELECT}
               >
                 <option value="">Aucun profil</option>
                 {billingProfiles.map((p) => (

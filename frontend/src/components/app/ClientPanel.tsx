@@ -75,7 +75,7 @@ interface CompanyDetailsOut {
   etablissements_actifs?: EtablissementOut[]
 }
 
-const INPUT = 'w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent bg-white transition'
+import { INPUT, SELECT } from '@/lib/formStyles'
 const LABEL = 'block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5'
 
 function formatSiret(s: string): string {
@@ -297,7 +297,7 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
               <select
                 value={client.billing_profile_id ?? ''}
                 onChange={(e) => saveField({ billing_profile_id: e.target.value || null })}
-                className={`${INPUT} bg-white`}
+                className={SELECT}
               >
                 <option value="">Aucun profil</option>
                 {profiles.map((p) => (

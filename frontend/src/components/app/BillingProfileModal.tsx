@@ -9,7 +9,7 @@ import ModalOverlay from '@/components/app/ModalOverlay'
 import { apiClient } from '@/lib/api'
 import { useAuthStore } from '@/stores/authStore'
 
-const INPUT = 'w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 transition'
+import { INPUT, SELECT } from '@/lib/formStyles'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -221,7 +221,7 @@ export default function BillingProfileModal({ profile, onClose, onSaved }: Props
             <form onSubmit={handleSave} className="space-y-4">
               {/* Identité */}
               <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nom du profil *" required className={INPUT} />
-              <select value={bankAccountId} onChange={(e) => setBankAccountId(e.target.value)} className={`${INPUT} bg-white`}>
+              <select value={bankAccountId} onChange={(e) => setBankAccountId(e.target.value)} className={SELECT}>
                 <option value="">— Compte bancaire —</option>
                 {bankAccounts.map((a) => <option key={a.id} value={a.id}>{a.label} ({a.iban.slice(-4)})</option>)}
               </select>
@@ -236,7 +236,7 @@ export default function BillingProfileModal({ profile, onClose, onSaved }: Props
                   </div>
                   <div>
                     <label className="text-xs text-gray-500 mb-1 block">Type de délai</label>
-                    <select value={paymentTermType} onChange={(e) => setPaymentTermType(e.target.value)} className={`${INPUT} bg-white`}>
+                    <select value={paymentTermType} onChange={(e) => setPaymentTermType(e.target.value)} className={SELECT}>
                       <option value="net">Net (date de facture + jours)</option>
                       <option value="end_of_month">Fin de mois</option>
                       <option value="end_of_month_the">Fin de mois le...</option>
@@ -251,7 +251,7 @@ export default function BillingProfileModal({ profile, onClose, onSaved }: Props
                 )}
                 <div>
                   <label className="text-xs text-gray-500 mb-1 block">Mode de règlement</label>
-                  <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className={`${INPUT} bg-white`}>
+                  <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className={SELECT}>
                     <option value="">—</option>
                     {paymentMethods.map((m) => <option key={m.id} value={m.label}>{m.label}</option>)}
                   </select>

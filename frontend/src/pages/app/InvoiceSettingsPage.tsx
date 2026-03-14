@@ -8,7 +8,7 @@ import { orgGet, orgPost, orgPatch, orgDelete } from '@/lib/orgApi'
 import BillingProfileModal, { type BillingProfileData } from '@/components/app/BillingProfileModal'
 import ModalOverlay from '@/components/app/ModalOverlay'
 
-const INPUT = 'w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 transition'
+import { INPUT, SELECT } from '@/lib/formStyles'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

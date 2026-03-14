@@ -13,8 +13,7 @@ import ProductAutocomplete, { type AutocompleteProduct } from '@/components/app/
 import ClientCombobox from '@/components/app/ClientCombobox'
 import DatePicker from '@/components/app/DatePicker'
 import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
-
-const INPUT = 'w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 transition'
+import { INPUT, SELECT, LINE_INPUT, LINE_SELECT } from '@/lib/formStyles'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -689,7 +688,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Type de document</label>
-              <select value={documentType} onChange={(e) => setDocumentType(e.target.value)} className={`${INPUT} bg-white`}>
+              <select value={documentType} onChange={(e) => setDocumentType(e.target.value)} className={SELECT}>
                 <option value="devis">Devis</option>
                 <option value="bpu">BPU</option>
                 <option value="attachement">Attachement</option>
@@ -707,7 +706,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Profil de facturation</label>
-              <select value={billingProfileId} onChange={(e) => setBillingProfileId(e.target.value)} className={`${INPUT} bg-white`}>
+              <select value={billingProfileId} onChange={(e) => setBillingProfileId(e.target.value)} className={SELECT}>
                 <option value="">— Aucun —</option>
                 {profiles.map((p) => <option key={p.id} value={p.id}>{p.name}{p.is_default ? ' (défaut)' : ''}</option>)}
               </select>
@@ -745,10 +744,10 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
                 {lines.map((line, i) => {
                   const lineHT = calcLineHT(line)
                   return (
-                    <tr key={line.key} className="border-b border-gray-50 align-top">
+                    <tr key={line.key} className="border-b border-gray-50 align-middle">
                       {docColumns.reference && (
                         <td className="px-1 py-1.5">
-                          <input type="text" value={line.reference} onChange={(e) => updateLine(i, 'reference', e.target.value)} placeholder="Réf" className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400" />
+                          <input type="text" value={line.reference} onChange={(e) => updateLine(i, 'reference', e.target.value)} placeholder="Réf" className={LINE_INPUT} />
                         </td>
                       )}
                       <td className="px-1 py-1.5">
@@ -757,34 +756,34 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
                           onChange={(text) => { updateLine(i, 'description', text); if (line.product_id) updateLine(i, 'product_id', null) }}
                           onSelect={(p) => selectProduct(i, p)}
                           clientId={clientId || null}
-                          className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400"
+                          className={LINE_INPUT}
                           placeholder="Désignation"
                         />
                       </td>
                       <td className="px-1 py-1.5">
-                        <input type="number" step="0.01" min="0.01" value={line.quantity} onChange={(e) => updateLine(i, 'quantity', e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 text-right" />
+                        <input type="number" step="0.01" min="0.01" value={line.quantity} onChange={(e) => updateLine(i, 'quantity', e.target.value)} className={`${LINE_INPUT} text-right`} />
                       </td>
                       {docColumns.unit && (
                         <td className="px-1 py-1.5">
-                          <UnitCombobox value={line.unit} onChange={(v) => updateLine(i, 'unit', v)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400" />
+                          <UnitCombobox value={line.unit} onChange={(v) => updateLine(i, 'unit', v)} className={LINE_INPUT} />
                         </td>
                       )}
                       <td className="px-1 py-1.5">
-                        <input type="number" step="0.01" value={line.unit_price} onChange={(e) => updateLine(i, 'unit_price', e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 text-right" />
+                        <input type="number" step="0.01" value={line.unit_price} onChange={(e) => updateLine(i, 'unit_price', e.target.value)} className={`${LINE_INPUT} text-right`} />
                       </td>
                       {docColumns.vat_rate && (
                         <td className="px-1 py-1.5">
-                          <select value={line.vat_rate} onChange={(e) => updateLine(i, 'vat_rate', e.target.value)} className="w-full px-2 py-0 h-[30px] text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 bg-white">
+                          <select value={line.vat_rate} onChange={(e) => updateLine(i, 'vat_rate', e.target.value)} className={LINE_SELECT}>
                             {vatRates.map((vr) => <option key={vr.rate} value={vr.rate}>{vr.rate}%</option>)}
                           </select>
                         </td>
                       )}
                       {docColumns.discount_percent && (
                         <td className="px-1 py-1.5">
-                          <input type="number" step="0.1" min="0" max="100" value={line.discount_percent} onChange={(e) => updateLine(i, 'discount_percent', e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 text-right" />
+                          <input type="number" step="0.1" min="0" max="100" value={line.discount_percent} onChange={(e) => updateLine(i, 'discount_percent', e.target.value)} className={`${LINE_INPUT} text-right`} />
                         </td>
                       )}
-                      <td className="px-2 py-1.5 text-right text-xs font-medium text-gray-900 whitespace-nowrap">
+                      <td className="px-2 py-1.5 text-right text-xs font-medium text-gray-900 whitespace-nowrap align-middle">
                         {fmtCurrency(lineHT)}
                       </td>
                       <td className="px-1 py-1.5">
@@ -833,7 +832,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Remise globale</label>
               <div className="flex gap-2">
-                <select value={discountType} onChange={(e) => setDiscountType(e.target.value)} className="px-3 py-2 h-[38px] text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white">
+                <select value={discountType} onChange={(e) => setDiscountType(e.target.value)} className={SELECT}>
                   <option value="none">Aucune</option>
                   <option value="percent">Pourcentage</option>
                   <option value="fixed">Montant fixe</option>
