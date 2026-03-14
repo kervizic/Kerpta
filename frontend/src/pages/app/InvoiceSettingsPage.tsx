@@ -948,14 +948,14 @@ export default function InvoiceSettingsPage() {
     <div className="flex-1 overflow-y-auto">
       <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
         <h1 className="text-xl font-semibold text-gray-900">Paramètres de vente</h1>
-        <QuoteDocumentTypesSection />
-        <DocumentColumnsSection />
-        <RoundingSection />
         <BankAccountsSection />
         <BillingProfilesSection />
         <PaymentMethodsSection />
         <VatRatesSection />
         <UnitsSection />
+        <QuoteDocumentTypesSection />
+        <DocumentColumnsSection />
+        <RoundingSection />
       </div>
     </div>
   )
