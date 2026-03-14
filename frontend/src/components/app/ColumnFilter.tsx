@@ -2,7 +2,8 @@
 // Copyright (C) 2026 Emmanuel Kervizic
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { Filter } from 'lucide-react'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -44,11 +45,13 @@ function FilterPopover({
   value,
   onChange,
   onClose,
+  anchorRect,
 }: {
   filter: FilterOption
   value: string | string[]
   onChange: (val: string | string[]) => void
   onClose: () => void
+  anchorRect: DOMRect
 }) {
   const ref = useRef<HTMLDivElement>(null)
 
@@ -60,12 +63,23 @@ function FilterPopover({
     return () => document.removeEventListener('mousedown', handleClick)
   }, [onClose])
 
+  // Calculer la position : en dessous du bouton, aligné à gauche
+  // Si le popover dépasse à droite de l'écran, l'aligner à droite
+  const top = anchorRect.bottom + 4
+  let left = anchorRect.left
+
+  // Vérifier que le popover ne dépasse pas à droite (estimation 200px de largeur)
+  if (left + 200 > window.innerWidth) {
+    left = window.innerWidth - 210
+  }
+
   const inputCls = 'w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400'
 
-  return (
+  return createPortal(
     <div
       ref={ref}
-      className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-50 min-w-[180px]"
+      style={{ position: 'fixed', top, left, zIndex: 9999 }}
+      className="bg-white border border-gray-200 rounded-xl shadow-lg p-3 min-w-[180px]"
       onClick={(e) => e.stopPropagation()}
     >
       {filter.type === 'text' && (
@@ -174,7 +188,8 @@ function FilterPopover({
           Effacer le filtre
         </button>
       )}
-    </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -192,15 +207,30 @@ export default function ColumnFilterHeader({
   align?: 'left' | 'right'
 }) {
   const [open, setOpen] = useState(false)
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null)
+
+  const handleOpen = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (open) {
+      setOpen(false)
+      return
+    }
+    if (btnRef.current) {
+      setAnchorRect(btnRef.current.getBoundingClientRect())
+    }
+    setOpen(true)
+  }, [open])
 
   const isActive =
     (typeof value === 'string' && value !== '') ||
     (Array.isArray(value) && value.some(Boolean))
 
   return (
-    <th className={`px-4 py-3 relative ${align === 'right' ? 'text-right' : ''}`}>
+    <th className={`px-4 py-3 ${align === 'right' ? 'text-right' : ''}`}>
       <button
-        onClick={(e) => { e.stopPropagation(); setOpen(!open) }}
+        ref={btnRef}
+        onClick={handleOpen}
         className={`inline-flex items-center gap-1 text-xs font-semibold uppercase transition ${
           isActive ? 'text-orange-600' : 'text-gray-400 hover:text-gray-600'
         }`}
@@ -208,12 +238,13 @@ export default function ColumnFilterHeader({
         {filter.label}
         <Filter className={`w-3 h-3 ${isActive ? 'fill-orange-200' : ''}`} />
       </button>
-      {open && (
+      {open && anchorRect && (
         <FilterPopover
           filter={filter}
           value={value}
           onChange={(val) => { onChange(val); if (filter.type === 'select') setOpen(false) }}
           onClose={() => setOpen(false)}
+          anchorRect={anchorRect}
         />
       )}
     </th>
