@@ -71,23 +71,23 @@ export default function MobileFilterPanel({
 
       {/* Panneau */}
       <div
-        className={`absolute right-0 top-0 bottom-0 w-[85vw] max-w-sm bg-white shadow-2xl flex flex-col transition-transform duration-200 ${
+        className={`absolute right-0 top-0 bottom-0 w-[85vw] max-w-sm bg-white dark:bg-gray-800 shadow-2xl dark:shadow-black/50 flex flex-col transition-transform duration-200 ${
           visible ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-orange-500" />
-            <h2 className="text-base font-semibold text-gray-900">Filtres</h2>
+            <h2 className="text-base font-semibold text-gray-900 dark:text-white">Filtres</h2>
             {activeCount > 0 && (
-              <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">
+              <span className="text-[10px] bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-400 px-2 py-0.5 rounded-full font-medium">
                 {activeCount}
               </span>
             )}
           </div>
-          <button onClick={handleClose} className="p-1 rounded-lg hover:bg-gray-100 transition">
-            <X className="w-5 h-5 text-gray-500" />
+          <button onClick={handleClose} className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+            <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
           </button>
         </div>
 
@@ -95,7 +95,7 @@ export default function MobileFilterPanel({
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
           {filters.map((f) => (
             <div key={f.column}>
-              <label className="text-xs font-medium text-gray-500 mb-1.5 block uppercase tracking-wide">
+              <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5 block uppercase tracking-wide">
                 {f.label}
               </label>
 
@@ -139,8 +139,8 @@ export default function MobileFilterPanel({
                         }}
                         className={`px-3 py-1.5 text-xs rounded-full border transition ${
                           selected
-                            ? 'bg-orange-50 border-orange-300 text-orange-700 font-medium'
-                            : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+                            ? 'bg-orange-50 dark:bg-orange-900/30 border-orange-300 dark:border-orange-600 text-orange-700 dark:text-orange-400 font-medium'
+                            : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
                         }`}
                       >
                         {o.label}
@@ -155,7 +155,7 @@ export default function MobileFilterPanel({
                 return (
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <span className="text-[10px] text-gray-400 mb-0.5 block">Du</span>
+                      <span className="text-[10px] text-gray-400 dark:text-gray-500 mb-0.5 block">Du</span>
                       <input
                         type="date"
                         value={dates[0] || ''}
@@ -164,7 +164,7 @@ export default function MobileFilterPanel({
                       />
                     </div>
                     <div>
-                      <span className="text-[10px] text-gray-400 mb-0.5 block">Au</span>
+                      <span className="text-[10px] text-gray-400 dark:text-gray-500 mb-0.5 block">Au</span>
                       <input
                         type="date"
                         value={dates[1] || ''}
@@ -180,7 +180,7 @@ export default function MobileFilterPanel({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-gray-200 px-5 py-4 space-y-2">
+        <div className="border-t border-gray-200 dark:border-gray-700 px-5 py-4 space-y-2">
           <button
             onClick={apply}
             className="w-full py-2.5 bg-orange-500 hover:bg-orange-400 text-white text-sm font-semibold rounded-lg transition"
@@ -190,7 +190,7 @@ export default function MobileFilterPanel({
           {activeCount > 0 && (
             <button
               onClick={clear}
-              className="w-full py-2 text-sm text-gray-500 hover:text-gray-700 transition"
+              className="w-full py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition"
             >
               Effacer tous les filtres
             </button>

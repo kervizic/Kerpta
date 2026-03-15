@@ -31,14 +31,14 @@ export default function ModalOverlay({ onClose, size = 'full', title, children, 
       onClick={onClose}
     >
       <div
-        className={`bg-white rounded-2xl shadow-xl w-full mx-6 ${SIZE_MAP[size]} mt-8 mb-8`}
+        className={`bg-white dark:bg-gray-800 rounded-2xl shadow-xl dark:shadow-black/50 w-full mx-6 ${SIZE_MAP[size]} mt-8 mb-8`}
         onClick={(e) => e.stopPropagation()}
       >
         {title && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10 rounded-t-2xl">
-            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-            <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 transition">
-              <X className="w-5 h-5 text-gray-400" />
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10 rounded-t-2xl">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
+            <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <X className="w-5 h-5 text-gray-400 dark:text-gray-500" />
             </button>
           </div>
         )}

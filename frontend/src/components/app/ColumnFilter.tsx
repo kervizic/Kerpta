@@ -84,13 +84,13 @@ function FilterPopover({
     left = window.innerWidth - 210
   }
 
-  const inputCls = 'w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400'
+  const inputCls = 'w-full px-2.5 py-1.5 text-xs border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400'
 
   return createPortal(
     <div
       ref={ref}
       style={{ position: 'fixed', top, left, zIndex: 9999 }}
-      className="bg-white border border-gray-200 rounded-xl shadow-lg p-3 min-w-[180px]"
+      className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg dark:shadow-black/50 p-3 min-w-[180px]"
       onClick={(e) => e.stopPropagation()}
     >
       {filter.type === 'text' && (
@@ -110,7 +110,7 @@ function FilterPopover({
           <button
             onClick={() => onChange('')}
             className={`text-left px-2.5 py-1.5 text-xs rounded-lg transition ${
-              !value ? 'bg-orange-50 text-orange-700 font-medium' : 'text-gray-600 hover:bg-gray-50'
+              !value ? 'bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 font-medium' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
             }`}
           >
             Tous
@@ -120,7 +120,7 @@ function FilterPopover({
               key={opt.value}
               onClick={() => onChange(opt.value)}
               className={`text-left px-2.5 py-1.5 text-xs rounded-lg transition ${
-                value === opt.value ? 'bg-orange-50 text-orange-700 font-medium' : 'text-gray-600 hover:bg-gray-50'
+                value === opt.value ? 'bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 font-medium' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
               }`}
             >
               {opt.label}
@@ -137,7 +137,7 @@ function FilterPopover({
               <label
                 key={opt.value}
                 className={`flex items-center gap-2 px-2.5 py-1.5 text-xs rounded-lg cursor-pointer transition ${
-                  selected ? 'bg-orange-50 text-orange-700' : 'text-gray-600 hover:bg-gray-50'
+                  selected ? 'bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}
               >
                 <input
@@ -163,7 +163,7 @@ function FilterPopover({
       {filter.type === 'date-range' && (
         <div className="flex flex-col gap-2">
           <div>
-            <label className="text-[10px] text-gray-400 uppercase font-semibold mb-0.5 block">Du</label>
+            <label className="text-[10px] text-gray-400 dark:text-gray-500 uppercase font-semibold mb-0.5 block">Du</label>
             <input
               type="date"
               value={Array.isArray(value) ? value[0] || '' : ''}
@@ -176,7 +176,7 @@ function FilterPopover({
             />
           </div>
           <div>
-            <label className="text-[10px] text-gray-400 uppercase font-semibold mb-0.5 block">Au</label>
+            <label className="text-[10px] text-gray-400 dark:text-gray-500 uppercase font-semibold mb-0.5 block">Au</label>
             <input
               type="date"
               value={Array.isArray(value) ? value[1] || '' : ''}
@@ -198,7 +198,7 @@ function FilterPopover({
             if (filter.type === 'text') setLocalText('')
             onChange(filter.type === 'multi-select' || filter.type === 'date-range' ? [] : '')
           }}
-          className="mt-2 w-full text-center text-[10px] text-gray-400 hover:text-red-500 transition py-1"
+          className="mt-2 w-full text-center text-[10px] text-gray-400 dark:text-gray-500 hover:text-red-500 transition py-1"
         >
           Effacer le filtre
         </button>
@@ -247,7 +247,7 @@ export default function ColumnFilterHeader({
         ref={btnRef}
         onClick={handleOpen}
         className={`inline-flex items-center gap-1 text-xs font-semibold uppercase transition ${
-          isActive ? 'text-orange-600' : 'text-gray-400 hover:text-gray-600'
+          isActive ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
         }`}
       >
         {filter.label}

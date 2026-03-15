@@ -96,11 +96,11 @@ function emptyLine(): FormLine {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
-  draft: { label: 'Brouillon', cls: 'bg-gray-100 text-gray-600' },
-  sent: { label: 'Envoyé', cls: 'bg-blue-100 text-blue-700' },
-  accepted: { label: 'Accepté', cls: 'bg-green-100 text-green-700' },
-  refused: { label: 'Refusé', cls: 'bg-red-100 text-red-700' },
-  expired: { label: 'Expiré', cls: 'bg-yellow-100 text-yellow-700' },
+  draft: { label: 'Brouillon', cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' },
+  sent: { label: 'Envoyé', cls: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400' },
+  accepted: { label: 'Accepté', cls: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' },
+  refused: { label: 'Refusé', cls: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400' },
+  expired: { label: 'Expiré', cls: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400' },
 }
 
 interface DocTypeConfig {
@@ -217,15 +217,15 @@ function QuotesList() {
       <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 md:py-8">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <h1 className="text-xl font-semibold text-gray-900">Devis</h1>
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Devis</h1>
             <div className="relative group hidden md:block">
-              <Info className="w-4 h-4 text-gray-300 hover:text-gray-500 transition cursor-help" />
+              <Info className="w-4 h-4 text-gray-300 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400 transition cursor-help" />
               <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 px-3 py-2 bg-gray-800 text-white text-[11px] rounded-lg shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition z-50">
                 Cliquez sur les en-têtes de colonnes pour filtrer
               </div>
             </div>
             {activeFilterCount > 0 && (
-              <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">
+              <span className="text-[10px] bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 px-2 py-0.5 rounded-full font-medium">
                 {activeFilterCount} filtre{activeFilterCount > 1 ? 's' : ''}
               </span>
             )}
@@ -235,7 +235,7 @@ function QuotesList() {
             <button
               onClick={() => setShowMobileFilters(true)}
               className={`md:hidden relative p-2 rounded-lg border transition ${
-                activeFilterCount > 0 ? 'border-orange-300 bg-orange-50 text-orange-600' : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+                activeFilterCount > 0 ? 'border-orange-300 bg-orange-50 text-orange-600 dark:border-orange-600 dark:bg-orange-900/30 dark:text-orange-400' : 'border-gray-200 text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700'
               }`}
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -257,15 +257,15 @@ function QuotesList() {
         </div>
 
         {/* Desktop : tableau */}
-        <div className="hidden md:block bg-white border border-gray-200 rounded-2xl overflow-hidden">
+        <div className="hidden md:block bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 text-left">
+              <tr className="border-b border-gray-100 dark:border-gray-700 text-left">
                 <ColumnFilterHeader filter={QUOTE_FILTERS[0]} value={filters.number || ''} onChange={(v) => updateFilter('number', v)} />
                 <ColumnFilterHeader filter={QUOTE_FILTERS[1]} value={filters.type || ''} onChange={(v) => updateFilter('type', v)} />
                 <ColumnFilterHeader filter={QUOTE_FILTERS[2]} value={filters.client || ''} onChange={(v) => updateFilter('client', v)} />
                 <ColumnFilterHeader filter={QUOTE_FILTERS[3]} value={filters.date || []} onChange={(v) => updateFilter('date', v)} />
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase">Total HT</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase">Total HT</th>
                 <ColumnFilterHeader filter={QUOTE_FILTERS[4]} value={filters.status || []} onChange={(v) => updateFilter('status', v)} />
               </tr>
             </thead>
@@ -273,19 +273,19 @@ function QuotesList() {
               {loading ? (
                 <tr><td colSpan={6} className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin text-orange-500 mx-auto" /></td></tr>
               ) : quotes.length === 0 ? (
-                <tr><td colSpan={6} className="py-12 text-center text-gray-400 text-sm">Aucun devis trouvé</td></tr>
+                <tr><td colSpan={6} className="py-12 text-center text-gray-400 dark:text-gray-500 text-sm">Aucun devis trouvé</td></tr>
               ) : (
                 quotes.map((q) => {
-                  const st = STATUS_LABELS[q.status] || { label: q.status, cls: 'bg-gray-100 text-gray-600' }
+                  const st = STATUS_LABELS[q.status] || { label: q.status, cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' }
                   const typeLabel = q.is_avenant ? `Avenant n°${q.avenant_number}` : (docTypeLabels[q.document_type] || q.document_type)
                   const isEditable = q.status === 'draft'
                   return (
-                    <tr key={q.id} onClick={() => isEditable ? setEditId(q.id) : setSelectedId(q.id)} className="border-b border-gray-50 hover:bg-orange-50/50 cursor-pointer transition">
-                      <td className="px-4 py-3 font-mono text-xs text-gray-700">{q.number}</td>
-                      <td className="px-4 py-3 text-gray-500">{typeLabel}</td>
-                      <td className="px-4 py-3 font-medium text-gray-900">{q.client_name || '—'}</td>
-                      <td className="px-4 py-3 text-gray-500">{q.issue_date}</td>
-                      <td className="px-4 py-3 text-right text-gray-700">{fmtCurrency(q.subtotal_ht)}</td>
+                    <tr key={q.id} onClick={() => isEditable ? setEditId(q.id) : setSelectedId(q.id)} className="border-b border-gray-50 dark:border-gray-700 hover:bg-orange-50/50 dark:hover:bg-orange-900/30 cursor-pointer transition">
+                      <td className="px-4 py-3 font-mono text-xs text-gray-700 dark:text-gray-200">{q.number}</td>
+                      <td className="px-4 py-3 text-gray-500 dark:text-gray-400">{typeLabel}</td>
+                      <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{q.client_name || '—'}</td>
+                      <td className="px-4 py-3 text-gray-500 dark:text-gray-400">{q.issue_date}</td>
+                      <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">{fmtCurrency(q.subtotal_ht)}</td>
                       <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${st.cls}`}>{st.label}</span></td>
                     </tr>
                   )
@@ -300,26 +300,26 @@ function QuotesList() {
           {loading ? (
             <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
           ) : quotes.length === 0 ? (
-            <div className="py-12 text-center text-gray-400 text-sm">Aucun devis trouvé</div>
+            <div className="py-12 text-center text-gray-400 dark:text-gray-500 text-sm">Aucun devis trouvé</div>
           ) : (
             quotes.map((q) => {
-              const st = STATUS_LABELS[q.status] || { label: q.status, cls: 'bg-gray-100 text-gray-600' }
+              const st = STATUS_LABELS[q.status] || { label: q.status, cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' }
               const typeLabel = q.is_avenant ? `Avenant n°${q.avenant_number}` : (docTypeLabels[q.document_type] || q.document_type)
               const isEditable = q.status === 'draft'
               return (
                 <div
                   key={q.id}
                   onClick={() => isEditable ? setEditId(q.id) : setSelectedId(q.id)}
-                  className="bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:border-orange-200 transition active:bg-orange-50/50"
+                  className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 cursor-pointer hover:border-orange-200 dark:hover:border-orange-700 transition active:bg-orange-50/50 dark:active:bg-orange-900/30"
                 >
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="font-mono text-xs text-gray-500">{q.number}</span>
+                    <span className="font-mono text-xs text-gray-500 dark:text-gray-400">{q.number}</span>
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${st.cls}`}>{st.label}</span>
                   </div>
-                  <p className="text-sm font-medium text-gray-900 truncate">{q.client_name || '—'}</p>
-                  <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{q.client_name || '—'}</p>
+                  <div className="flex items-center justify-between mt-2 text-xs text-gray-500 dark:text-gray-400">
                     <span>{typeLabel} — {q.issue_date}</span>
-                    <span className="font-semibold text-gray-900">{fmtCurrency(q.subtotal_ht)}</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">{fmtCurrency(q.subtotal_ht)}</span>
                   </div>
                 </div>
               )
@@ -329,9 +329,9 @@ function QuotesList() {
 
         {total > 25 && (
           <div className="flex justify-center gap-2 mt-4">
-            <button disabled={page <= 1} onClick={() => setPage(page - 1)} className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-50 hover:bg-gray-50">Précédent</button>
-            <span className="px-3 py-1.5 text-sm text-gray-500">Page {page} / {Math.ceil(total / 25)}</span>
-            <button disabled={page * 25 >= total} onClick={() => setPage(page + 1)} className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-50 hover:bg-gray-50">Suivant</button>
+            <button disabled={page <= 1} onClick={() => setPage(page - 1)} className="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-200">Précédent</button>
+            <span className="px-3 py-1.5 text-sm text-gray-500 dark:text-gray-400">Page {page} / {Math.ceil(total / 25)}</span>
+            <button disabled={page * 25 >= total} onClick={() => setPage(page + 1)} className="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-200">Suivant</button>
           </div>
         )}
         {/* Panneau détail devis (lecture seule) */}
@@ -389,36 +389,36 @@ function QuoteDetailPanel({ quoteId, onClose }: { quoteId: string; onClose: () =
     setActionLoading('')
   }
 
-  const st = quote ? (STATUS_LABELS[quote.status] || { label: quote.status, cls: 'bg-gray-100 text-gray-600' }) : null
+  const st = quote ? (STATUS_LABELS[quote.status] || { label: quote.status, cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' }) : null
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 overflow-y-auto overscroll-contain"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-xl w-full mx-2 md:mx-6 max-w-4xl mt-2 md:mt-8 mb-2 md:mb-8"
+        className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl dark:shadow-black/50 w-full mx-2 md:mx-6 max-w-4xl mt-2 md:mt-8 mb-2 md:mb-8"
         onClick={(e) => e.stopPropagation()}
       >
         {loading ? (
           <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
         ) : !quote ? (
-          <div className="py-16 text-center text-gray-400 text-sm">Devis introuvable</div>
+          <div className="py-16 text-center text-gray-400 dark:text-gray-500 text-sm">Devis introuvable</div>
         ) : (
           <>
         {/* En-tête */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10 rounded-t-2xl">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10 rounded-t-2xl">
           <div className="min-w-0">
-            <h2 className="text-lg font-semibold text-gray-900 truncate">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white truncate">
               {quote.is_avenant ? `Avenant n°${quote.avenant_number}` : (DOC_LABELS[quote.document_type] || 'Devis')} {quote.number}
             </h2>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-xs text-gray-500">{quote.client_name} — {quote.issue_date}</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">{quote.client_name} — {quote.issue_date}</span>
               {st && <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${st.cls}`}>{st.label}</span>}
             </div>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 transition ml-3">
-            <X className="w-5 h-5 text-gray-400" />
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition ml-3">
+            <X className="w-5 h-5 text-gray-400 dark:text-gray-500" />
           </button>
         </div>
 
@@ -430,7 +430,7 @@ function QuoteDetailPanel({ quoteId, onClose }: { quoteId: string; onClose: () =
               <button onClick={() => doAction('send')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
                 {actionLoading === 'send' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Envoyer
               </button>
-              <button onClick={() => doAction('duplicate')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition disabled:opacity-50">
+              <button onClick={() => doAction('duplicate')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-lg transition disabled:opacity-50">
                 <Copy className="w-4 h-4" /> Dupliquer
               </button>
             </>
@@ -440,10 +440,10 @@ function QuoteDetailPanel({ quoteId, onClose }: { quoteId: string; onClose: () =
               <button onClick={() => doAction('accept')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
                 {actionLoading === 'accept' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Accepter
               </button>
-              <button onClick={() => doAction('refuse')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 text-sm font-medium rounded-lg transition disabled:opacity-50">
+              <button onClick={() => doAction('refuse')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-red-100 dark:bg-red-900/40 hover:bg-red-200 dark:hover:bg-red-900/60 text-red-700 dark:text-red-400 text-sm font-medium rounded-lg transition disabled:opacity-50">
                 <X className="w-4 h-4" /> Refuser
               </button>
-              <button onClick={() => doAction('duplicate')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition disabled:opacity-50">
+              <button onClick={() => doAction('duplicate')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-lg transition disabled:opacity-50">
                 <Copy className="w-4 h-4" /> Dupliquer
               </button>
             </>
@@ -452,25 +452,25 @@ function QuoteDetailPanel({ quoteId, onClose }: { quoteId: string; onClose: () =
 
         {/* Totaux */}
         <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className="bg-white border border-gray-200 rounded-xl p-4">
-            <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Total HT</p>
-            <p className="text-xl font-bold text-gray-900">{fmtCurrency(quote.subtotal_ht)}</p>
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+            <p className="text-xs text-gray-400 dark:text-gray-500 uppercase font-semibold mb-1">Total HT</p>
+            <p className="text-xl font-bold text-gray-900 dark:text-white">{fmtCurrency(quote.subtotal_ht)}</p>
           </div>
-          <div className="bg-white border border-gray-200 rounded-xl p-4">
-            <p className="text-xs text-gray-400 uppercase font-semibold mb-1">TVA</p>
-            <p className="text-xl font-bold text-gray-900">{fmtCurrency(quote.total_vat)}</p>
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+            <p className="text-xs text-gray-400 dark:text-gray-500 uppercase font-semibold mb-1">TVA</p>
+            <p className="text-xl font-bold text-gray-900 dark:text-white">{fmtCurrency(quote.total_vat)}</p>
           </div>
-          <div className="bg-white border border-gray-200 rounded-xl p-4">
-            <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Total TTC</p>
-            <p className="text-xl font-bold text-orange-600">{fmtCurrency(quote.total_ttc)}</p>
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+            <p className="text-xs text-gray-400 dark:text-gray-500 uppercase font-semibold mb-1">Total TTC</p>
+            <p className="text-xl font-bold text-orange-600 dark:text-orange-400">{fmtCurrency(quote.total_ttc)}</p>
           </div>
         </div>
 
         {/* Lignes */}
-        <section className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+        <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
+              <tr className="border-b border-gray-100 dark:border-gray-700 text-left text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase">
                 <th className="px-4 py-3">Réf.</th>
                 <th className="px-4 py-3">Description</th>
                 <th className="px-4 py-3 text-right">Qté</th>
@@ -481,13 +481,13 @@ function QuoteDetailPanel({ quoteId, onClose }: { quoteId: string; onClose: () =
             </thead>
             <tbody>
               {quote.lines.map((l) => (
-                <tr key={l.id} className="border-b border-gray-50">
-                  <td className="px-4 py-3 font-mono text-xs text-gray-500">{l.reference || '—'}</td>
-                  <td className="px-4 py-3 text-gray-900">{l.description || '—'}</td>
-                  <td className="px-4 py-3 text-right text-gray-700">{Number(l.quantity)} {l.unit || ''}</td>
-                  <td className="px-4 py-3 text-right text-gray-700">{fmtCurrency(l.unit_price)}</td>
-                  <td className="px-4 py-3 text-right text-gray-500">{Number(l.vat_rate)}%</td>
-                  <td className="px-4 py-3 text-right font-medium text-gray-900">{fmtCurrency(l.total_ht)}</td>
+                <tr key={l.id} className="border-b border-gray-50 dark:border-gray-700">
+                  <td className="px-4 py-3 font-mono text-xs text-gray-500 dark:text-gray-400">{l.reference || '—'}</td>
+                  <td className="px-4 py-3 text-gray-900 dark:text-white">{l.description || '—'}</td>
+                  <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">{Number(l.quantity)} {l.unit || ''}</td>
+                  <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">{fmtCurrency(l.unit_price)}</td>
+                  <td className="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{Number(l.vat_rate)}%</td>
+                  <td className="px-4 py-3 text-right font-medium text-gray-900 dark:text-white">{fmtCurrency(l.total_ht)}</td>
                 </tr>
               ))}
             </tbody>
@@ -496,9 +496,9 @@ function QuoteDetailPanel({ quoteId, onClose }: { quoteId: string; onClose: () =
 
         {/* Notes */}
         {quote.notes && (
-          <div className="mt-4 bg-white border border-gray-200 rounded-xl p-4">
-            <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Notes</p>
-            <p className="text-sm text-gray-700 whitespace-pre-wrap">{quote.notes}</p>
+          <div className="mt-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+            <p className="text-xs text-gray-400 dark:text-gray-500 uppercase font-semibold mb-1">Notes</p>
+            <p className="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">{quote.notes}</p>
           </div>
         )}
         </div>
@@ -772,8 +772,8 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
 
   if (loading) {
     if (onClose) return (
-      <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 overflow-y-auto" onClick={onClose}>
-        <div className="bg-white rounded-2xl shadow-xl w-full mx-2 md:mx-6 max-w-5xl mt-2 md:mt-8 mb-2 md:mb-8 flex justify-center py-16" onClick={(e) => e.stopPropagation()}>
+      <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 overflow-y-auto overscroll-contain" onClick={onClose}>
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl dark:shadow-black/50 w-full mx-2 md:mx-6 max-w-5xl mt-2 md:mt-8 mb-2 md:mb-8 flex justify-center py-16" onClick={(e) => e.stopPropagation()}>
           <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
         </div>
       </div>
@@ -784,22 +784,22 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
   const formContent = (
     <>
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-semibold text-gray-900">
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
             {isEdit ? 'Modifier le devis' : 'Nouveau devis'}
           </h1>
           {onClose && (
-            <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 transition">
-              <X className="w-5 h-5 text-gray-400" />
+            <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <X className="w-5 h-5 text-gray-400 dark:text-gray-500" />
             </button>
           )}
         </div>
 
         {/* En-tête */}
-        <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-4 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">En-tête</h2>
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5 mb-4 space-y-4">
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">En-tête</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Client *</label>
+              <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Client *</label>
               <div className="flex items-center gap-1.5">
                 <ClientCombobox
                   value={clientId}
@@ -809,14 +809,14 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
                   className={INPUT}
                 />
                 {clientId && (
-                  <button onClick={() => setClientPanelId(clientId)} className="shrink-0 p-1.5 rounded-lg hover:bg-gray-100 transition" title="Voir le client">
-                    <Pencil className="w-3.5 h-3.5 text-gray-400" />
+                  <button onClick={() => setClientPanelId(clientId)} className="shrink-0 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition" title="Voir le client">
+                    <Pencil className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
                   </button>
                 )}
               </div>
             </div>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Type de document</label>
+              <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Type de document</label>
               <select value={documentType} onChange={(e) => setDocumentType(e.target.value)} className={SELECT}>
                 {docTypes.length > 0 ? (
                   docTypes.map((t) => <option key={t.key} value={t.key}>{t.title}</option>)
@@ -832,15 +832,15 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Date d'émission</label>
+              <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Date d'émission</label>
               <DatePicker value={issueDate} onChange={setIssueDate} className={INPUT} placeholder="Date d'émission" />
             </div>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Date d'expiration</label>
+              <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Date d'expiration</label>
               <DatePicker value={expiryDate} onChange={setExpiryDate} className={INPUT} placeholder="Date d'expiration" clearable />
             </div>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Profil de facturation</label>
+              <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Profil de facturation</label>
               <select value={billingProfileId} onChange={(e) => handleProfileChange(e.target.value)} className={SELECT}>
                 <option value="">— Aucun —</option>
                 {profiles.map((p) => <option key={p.id} value={p.id}>{p.name}{p.is_default ? ' (défaut)' : ''}</option>)}
@@ -850,11 +850,11 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
         </div>
 
         {/* Lignes */}
-        <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-4">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5 mb-4">
           <div className="flex items-center gap-3 mb-4">
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Lignes</h2>
+            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Lignes</h2>
             {lines.some((l) => !l.product_id && l.description.trim()) && (
-              <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">
+              <span className="text-[10px] bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 px-2 py-0.5 rounded-full font-medium">
                 {lines.filter((l) => !l.product_id && l.description.trim()).length} nouvel article{lines.filter((l) => !l.product_id && l.description.trim()).length > 1 ? 's' : ''} sera créé{lines.filter((l) => !l.product_id && l.description.trim()).length > 1 ? 's' : ''}
               </span>
             )}
@@ -864,7 +864,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
+                <tr className="border-b border-gray-100 dark:border-gray-700 text-left text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase">
                   {activeColumns.reference && <th className="px-2 py-2 w-20">Réf.</th>}
                   <th className="px-2 py-2">Désignation</th>
                   {activeColumns.quantity && <th className="px-2 py-2 w-16">Qté</th>}
@@ -880,7 +880,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
                 {lines.map((line, i) => {
                   const lineHT = calcLineHT(line)
                   return (
-                    <tr key={line.key} className="border-b border-gray-50 align-middle">
+                    <tr key={line.key} className="border-b border-gray-50 dark:border-gray-700 align-middle">
                       {activeColumns.reference && (
                         <td className="px-1 py-1.5">
                           <input type="text" value={line.reference} onChange={(e) => updateLine(i, 'reference', e.target.value)} placeholder="Réf" className={LINE_INPUT} />
@@ -922,7 +922,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
                         </td>
                       )}
                       {activeColumns.total_ht && (
-                      <td className="px-2 text-right text-xs font-medium text-gray-900 whitespace-nowrap">
+                      <td className="px-2 text-right text-xs font-medium text-gray-900 dark:text-white whitespace-nowrap">
                         <div className="h-[30px] flex items-center justify-end">
                           {fmtCurrency(lineHT)}
                         </div>
@@ -931,12 +931,12 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
                       <td className="px-1">
                         <div className="h-[30px] flex items-center gap-0.5">
                           {line.product_id && (
-                            <button onClick={() => refreshLine(i)} className="p-1 rounded hover:bg-blue-50 transition" title="Actualiser depuis le catalogue">
-                              <RefreshCw className="w-3.5 h-3.5 text-gray-400 hover:text-blue-500" />
+                            <button onClick={() => refreshLine(i)} className="p-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30 transition" title="Actualiser depuis le catalogue">
+                              <RefreshCw className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 hover:text-blue-500" />
                             </button>
                           )}
-                          <button onClick={() => removeLine(i)} className="p-1 rounded hover:bg-red-50 transition" title="Supprimer">
-                            <Trash2 className="w-3.5 h-3.5 text-gray-400 hover:text-red-500" />
+                          <button onClick={() => removeLine(i)} className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/30 transition" title="Supprimer">
+                            <Trash2 className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 hover:text-red-500" />
                           </button>
                         </div>
                       </td>
@@ -952,7 +952,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
             {lines.map((line, i) => {
               const lineHT = calcLineHT(line)
               return (
-                <div key={line.key} className="border border-gray-200 rounded-xl p-3 space-y-2.5">
+                <div key={line.key} className="border border-gray-200 dark:border-gray-700 rounded-xl p-3 space-y-2.5">
                   {/* Désignation (pleine largeur) */}
                   <ProductAutocomplete
                     value={line.description}
@@ -967,29 +967,29 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
                   <div className="grid grid-cols-2 gap-2">
                     {activeColumns.reference && (
                       <div>
-                        <label className="text-[10px] text-gray-400 mb-0.5 block">Réf.</label>
+                        <label className="text-[10px] text-gray-400 dark:text-gray-500 mb-0.5 block">Réf.</label>
                         <input type="text" value={line.reference} onChange={(e) => updateLine(i, 'reference', e.target.value)} placeholder="Réf" className={INPUT} />
                       </div>
                     )}
                     {activeColumns.quantity && (
                       <div>
-                        <label className="text-[10px] text-gray-400 mb-0.5 block">Qté</label>
+                        <label className="text-[10px] text-gray-400 dark:text-gray-500 mb-0.5 block">Qté</label>
                         <input type="number" step="0.01" min="0.01" value={line.quantity} onChange={(e) => updateLine(i, 'quantity', e.target.value)} className={`${INPUT} text-right`} />
                       </div>
                     )}
                     {activeColumns.unit && (
                       <div>
-                        <label className="text-[10px] text-gray-400 mb-0.5 block">Unité</label>
+                        <label className="text-[10px] text-gray-400 dark:text-gray-500 mb-0.5 block">Unité</label>
                         <UnitCombobox value={line.unit} onChange={(v) => updateLine(i, 'unit', v)} className={INPUT} />
                       </div>
                     )}
                     <div>
-                      <label className="text-[10px] text-gray-400 mb-0.5 block">PU HT</label>
+                      <label className="text-[10px] text-gray-400 dark:text-gray-500 mb-0.5 block">PU HT</label>
                       <input type="number" step="0.01" value={line.unit_price} onChange={(e) => updateLine(i, 'unit_price', e.target.value)} className={`${INPUT} text-right`} />
                     </div>
                     {activeColumns.vat_rate && (
                       <div>
-                        <label className="text-[10px] text-gray-400 mb-0.5 block">TVA %</label>
+                        <label className="text-[10px] text-gray-400 dark:text-gray-500 mb-0.5 block">TVA %</label>
                         <select value={line.vat_rate} onChange={(e) => updateLine(i, 'vat_rate', e.target.value)} className={SELECT}>
                           {vatRates.map((vr) => <option key={vr.rate} value={vr.rate}>{vr.rate}%</option>)}
                         </select>
@@ -997,25 +997,25 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
                     )}
                     {activeColumns.discount_percent && (
                       <div>
-                        <label className="text-[10px] text-gray-400 mb-0.5 block">Rem. %</label>
+                        <label className="text-[10px] text-gray-400 dark:text-gray-500 mb-0.5 block">Rem. %</label>
                         <input type="number" step="0.1" min="0" max="100" value={line.discount_percent} onChange={(e) => updateLine(i, 'discount_percent', e.target.value)} className={`${INPUT} text-right`} />
                       </div>
                     )}
                   </div>
 
                   {/* Total + actions */}
-                  <div className="flex items-center justify-between pt-1 border-t border-gray-100">
+                  <div className="flex items-center justify-between pt-1 border-t border-gray-100 dark:border-gray-700">
                     {activeColumns.total_ht && (
-                      <span className="text-sm font-semibold text-gray-900">{fmtCurrency(lineHT)}</span>
+                      <span className="text-sm font-semibold text-gray-900 dark:text-white">{fmtCurrency(lineHT)}</span>
                     )}
                     <div className="flex items-center gap-1 ml-auto">
                       {line.product_id && (
-                        <button onClick={() => refreshLine(i)} className="p-1.5 rounded hover:bg-blue-50 transition">
-                          <RefreshCw className="w-4 h-4 text-gray-400" />
+                        <button onClick={() => refreshLine(i)} className="p-1.5 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30 transition">
+                          <RefreshCw className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                         </button>
                       )}
-                      <button onClick={() => removeLine(i)} className="p-1.5 rounded hover:bg-red-50 transition">
-                        <Trash2 className="w-4 h-4 text-gray-400" />
+                      <button onClick={() => removeLine(i)} className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/30 transition">
+                        <Trash2 className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                       </button>
                     </div>
                   </div>
@@ -1026,14 +1026,14 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
 
           <button
             onClick={() => setLines((prev) => [...prev, emptyLine()])}
-            className="mt-2 flex items-center gap-1.5 text-xs text-orange-600 hover:text-orange-700 font-medium transition px-2 py-1"
+            className="mt-2 flex items-center gap-1.5 text-xs text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 font-medium transition px-2 py-1"
           >
             <Plus className="w-3.5 h-3.5" /> Ajouter un élément
           </button>
 
           {/* Alerte TVA 0% */}
           {lines.some((l) => parseFloat(l.vat_rate) === 0 && l.description.trim()) && (
-            <div className="mt-3 flex items-start gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
+            <div className="mt-3 flex items-start gap-2 px-4 py-3 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-xl text-xs text-amber-700 dark:text-amber-400">
               <span className="font-bold text-amber-500 mt-px">⚠</span>
               <span>
                 Une ou plusieurs lignes utilisent un taux de TVA à 0 %. Assurez-vous que la mention légale correspondante
@@ -1046,10 +1046,10 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
 
         {/* Pied de devis */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-3">
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Options</h2>
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5 space-y-3">
+            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Options</h2>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Remise globale</label>
+              <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Remise globale</label>
               <div className="flex gap-2">
                 <select value={discountType} onChange={(e) => setDiscountType(e.target.value)} className={SELECT}>
                   <option value="none">Aucune</option>
@@ -1063,26 +1063,26 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
               </div>
             </div>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Notes internes</label>
+              <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Notes internes</label>
               <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className={INPUT} placeholder="Visibles uniquement par vous" />
             </div>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Pied de page</label>
+              <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Pied de page</label>
               <textarea value={footer} onChange={(e) => setFooter(e.target.value)} rows={2} className={INPUT} placeholder="Texte en bas du document" />
             </div>
           </div>
 
           {/* Récapitulatif */}
-          <div className="bg-white border border-gray-200 rounded-2xl p-5">
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">Récapitulatif</h2>
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
+            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide mb-4">Récapitulatif</h2>
             <div className="space-y-3">
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Sous-total HT</span>
-                <span className="font-medium text-gray-900">{fmtCurrency(totals.subtotalHT)}</span>
+                <span className="text-gray-500 dark:text-gray-400">Sous-total HT</span>
+                <span className="font-medium text-gray-900 dark:text-white">{fmtCurrency(totals.subtotalHT)}</span>
               </div>
               {discountType !== 'none' && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Remise {discountType === 'percent' ? `(${discountValue}%)` : ''}</span>
+                  <span className="text-gray-500 dark:text-gray-400">Remise {discountType === 'percent' ? `(${discountValue}%)` : ''}</span>
                   <span className="text-red-500">
                     {discountType === 'percent'
                       ? `- ${fmtCurrency(lines.reduce((s, l) => s + calcLineHT(l), 0) * (parseFloat(discountValue) || 0) / 100)}`
@@ -1092,12 +1092,12 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
                 </div>
               )}
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">TVA</span>
-                <span className="font-medium text-gray-900">{fmtCurrency(totals.totalVAT)}</span>
+                <span className="text-gray-500 dark:text-gray-400">TVA</span>
+                <span className="font-medium text-gray-900 dark:text-white">{fmtCurrency(totals.totalVAT)}</span>
               </div>
-              <div className="border-t border-gray-200 pt-3 flex justify-between">
-                <span className="text-base font-semibold text-gray-900">Total TTC</span>
-                <span className="text-xl font-bold text-gray-900">{fmtCurrency(totals.totalTTC)}</span>
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-3 flex justify-between">
+                <span className="text-base font-semibold text-gray-900 dark:text-white">Total TTC</span>
+                <span className="text-xl font-bold text-gray-900 dark:text-white">{fmtCurrency(totals.totalTTC)}</span>
               </div>
             </div>
           </div>
@@ -1107,14 +1107,14 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
         <div className="flex justify-end gap-3 pb-8">
           <button
             onClick={() => onClose ? onClose() : navigate('/app/devis')}
-            className="px-4 py-2.5 text-sm text-gray-500 hover:bg-gray-100 rounded-lg transition"
+            className="px-4 py-2.5 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
           >
             Annuler
           </button>
           <button
             onClick={() => handleSave(false)}
             disabled={saving || !clientId}
-            className="px-5 py-2.5 text-sm bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold rounded-lg transition disabled:opacity-50"
+            className="px-5 py-2.5 text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold rounded-lg transition disabled:opacity-50"
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer (brouillon)'}
           </button>
@@ -1142,11 +1142,11 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
   if (onClose) {
     return (
       <div
-        className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 overflow-y-auto"
+        className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 overflow-y-auto overscroll-contain"
         onClick={onClose}
       >
         <div
-          className="bg-white rounded-2xl shadow-xl w-full mx-2 md:mx-6 max-w-5xl mt-2 md:mt-8 mb-2 md:mb-8 px-3 md:px-6 py-4 md:py-6"
+          className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl dark:shadow-black/50 w-full mx-2 md:mx-6 max-w-5xl mt-2 md:mt-8 mb-2 md:mb-8 px-3 md:px-6 py-4 md:py-6"
           onClick={(e) => e.stopPropagation()}
         >
           {formContent}
@@ -1159,7 +1159,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 md:py-8">
-        <button onClick={() => navigate('/app/devis')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-4 transition">
+        <button onClick={() => navigate('/app/devis')} className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 mb-4 transition">
           <ArrowLeft className="w-4 h-4" /> Retour
         </button>
         {formContent}

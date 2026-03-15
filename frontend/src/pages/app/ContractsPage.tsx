@@ -70,11 +70,11 @@ const TYPE_LABELS: Record<string, string> = {
 }
 
 const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
-  draft: { label: 'Brouillon', cls: 'bg-gray-100 text-gray-600' },
-  active: { label: 'Actif', cls: 'bg-green-100 text-green-700' },
-  completed: { label: 'Terminé', cls: 'bg-blue-100 text-blue-700' },
-  terminated: { label: 'Résilié', cls: 'bg-red-100 text-red-700' },
-  cancelled: { label: 'Annulé', cls: 'bg-yellow-100 text-yellow-700' },
+  draft: { label: 'Brouillon', cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' },
+  active: { label: 'Actif', cls: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' },
+  completed: { label: 'Terminé', cls: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400' },
+  terminated: { label: 'Résilié', cls: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400' },
+  cancelled: { label: 'Annulé', cls: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400' },
 }
 
 function fmtCurrency(v: number) {
@@ -160,7 +160,7 @@ function ContractsList() {
       <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 md:py-8">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <h1 className="text-xl font-semibold text-gray-900">Contrats & Commandes</h1>
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Contrats & Commandes</h1>
             <div className="relative group hidden md:block">
               <Info className="w-4 h-4 text-gray-300 hover:text-gray-500 transition cursor-help" />
               <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 px-3 py-2 bg-gray-800 text-white text-[11px] rounded-lg shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition z-50">
@@ -168,14 +168,14 @@ function ContractsList() {
               </div>
             </div>
             {activeFilterCount > 0 && (
-              <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">
+              <span className="text-[10px] bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 px-2 py-0.5 rounded-full font-medium">
                 {activeFilterCount} filtre{activeFilterCount > 1 ? 's' : ''}
               </span>
             )}
           </div>
           <button
             onClick={() => setShowMobileFilters(true)}
-            className="md:hidden flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition"
+            className="md:hidden flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 text-sm font-medium rounded-lg transition"
           >
             <Filter className="w-4 h-4" />
             Filtres
@@ -185,15 +185,15 @@ function ContractsList() {
           </button>
         </div>
 
-        <div className="hidden md:block bg-white border border-gray-200 rounded-2xl overflow-hidden">
+        <div className="hidden md:block bg-white border border-gray-200 dark:bg-gray-800 dark:border-gray-700 rounded-2xl overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 text-left">
+              <tr className="border-b border-gray-100 dark:border-gray-700 text-left">
                 <ColumnFilterHeader filter={CONTRACT_FILTERS[0]} value={filters.reference || ''} onChange={(v) => updateFilter('reference', v)} />
                 <ColumnFilterHeader filter={CONTRACT_FILTERS[1]} value={filters.client || ''} onChange={(v) => updateFilter('client', v)} />
                 <ColumnFilterHeader filter={CONTRACT_FILTERS[2]} value={filters.type || ''} onChange={(v) => updateFilter('type', v)} />
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase">Budget</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase">Facturé</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase">Budget</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase">Facturé</th>
                 <ColumnFilterHeader filter={CONTRACT_FILTERS[3]} value={filters.status || []} onChange={(v) => updateFilter('status', v)} />
               </tr>
             </thead>
@@ -201,17 +201,17 @@ function ContractsList() {
               {loading ? (
                 <tr><td colSpan={6} className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin text-orange-500 mx-auto" /></td></tr>
               ) : contracts.length === 0 ? (
-                <tr><td colSpan={6} className="py-12 text-center text-gray-400 text-sm">Aucun contrat trouvé</td></tr>
+                <tr><td colSpan={6} className="py-12 text-center text-gray-400 dark:text-gray-500 text-sm">Aucun contrat trouvé</td></tr>
               ) : (
                 contracts.map((c) => {
-                  const st = STATUS_LABELS[c.status] || { label: c.status, cls: 'bg-gray-100 text-gray-600' }
+                  const st = STATUS_LABELS[c.status] || { label: c.status, cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' }
                   return (
-                    <tr key={c.id} onClick={() => setSelectedId(c.id)} className="border-b border-gray-50 hover:bg-orange-50/50 cursor-pointer transition">
-                      <td className="px-4 py-3 font-mono text-xs text-gray-700">{c.reference}</td>
-                      <td className="px-4 py-3 font-medium text-gray-900">{c.client_name || '—'}</td>
-                      <td className="px-4 py-3 text-gray-500">{TYPE_LABELS[c.contract_type] || c.contract_type}</td>
-                      <td className="px-4 py-3 text-right text-gray-700">{fmtCurrency(c.total_budget)}</td>
-                      <td className="px-4 py-3 text-right text-gray-700">{fmtCurrency(c.total_invoiced)}</td>
+                    <tr key={c.id} onClick={() => setSelectedId(c.id)} className="border-b border-gray-50 dark:border-gray-700 hover:bg-orange-50/50 dark:hover:bg-orange-900/30 cursor-pointer transition">
+                      <td className="px-4 py-3 font-mono text-xs text-gray-700 dark:text-gray-200">{c.reference}</td>
+                      <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{c.client_name || '—'}</td>
+                      <td className="px-4 py-3 text-gray-500 dark:text-gray-400">{TYPE_LABELS[c.contract_type] || c.contract_type}</td>
+                      <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">{fmtCurrency(c.total_budget)}</td>
+                      <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">{fmtCurrency(c.total_invoiced)}</td>
                       <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${st.cls}`}>{st.label}</span></td>
                     </tr>
                   )
@@ -226,20 +226,20 @@ function ContractsList() {
           {loading ? (
             <div className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin text-orange-500 mx-auto" /></div>
           ) : contracts.length === 0 ? (
-            <div className="py-12 text-center text-gray-400 text-sm">Aucun contrat trouvé</div>
+            <div className="py-12 text-center text-gray-400 dark:text-gray-500 text-sm">Aucun contrat trouvé</div>
           ) : (
             contracts.map((c) => {
-              const st = STATUS_LABELS[c.status] || { label: c.status, cls: 'bg-gray-100 text-gray-600' }
+              const st = STATUS_LABELS[c.status] || { label: c.status, cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' }
               return (
-                <div key={c.id} onClick={() => setSelectedId(c.id)} className="bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:bg-orange-50/50 transition">
+                <div key={c.id} onClick={() => setSelectedId(c.id)} className="bg-white border border-gray-200 dark:bg-gray-800 dark:border-gray-700 rounded-xl p-4 cursor-pointer hover:bg-orange-50/50 dark:hover:bg-orange-900/30 transition">
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="font-mono text-xs text-gray-700">{c.reference}</span>
+                    <span className="font-mono text-xs text-gray-700 dark:text-gray-200">{c.reference}</span>
                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${st.cls}`}>{st.label}</span>
                   </div>
-                  <p className="text-sm font-medium text-gray-900 mb-1">{c.client_name || '—'}</p>
-                  <div className="flex items-center justify-between text-xs text-gray-500">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">{c.client_name || '—'}</p>
+                  <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                     <span>{TYPE_LABELS[c.contract_type] || c.contract_type}</span>
-                    <span className="font-medium text-gray-700">{fmtCurrency(c.total_budget)}</span>
+                    <span className="font-medium text-gray-700 dark:text-gray-200">{fmtCurrency(c.total_budget)}</span>
                   </div>
                 </div>
               )
@@ -249,9 +249,9 @@ function ContractsList() {
 
         {total > 25 && (
           <div className="flex justify-center gap-2 mt-4">
-            <button disabled={page <= 1} onClick={() => setPage(page - 1)} className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-50 hover:bg-gray-50">Précédent</button>
-            <span className="px-3 py-1.5 text-sm text-gray-500">Page {page} / {Math.ceil(total / 25)}</span>
-            <button disabled={page * 25 >= total} onClick={() => setPage(page + 1)} className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-50 hover:bg-gray-50">Suivant</button>
+            <button disabled={page <= 1} onClick={() => setPage(page - 1)} className="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-700">Précédent</button>
+            <span className="px-3 py-1.5 text-sm text-gray-500 dark:text-gray-400">Page {page} / {Math.ceil(total / 25)}</span>
+            <button disabled={page * 25 >= total} onClick={() => setPage(page + 1)} className="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-700">Suivant</button>
           </div>
         )}
 
@@ -314,7 +314,7 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string; onCl
     setCreatingSlice(false)
   }
 
-  const st = contract ? (STATUS_LABELS[contract.status] || { label: contract.status, cls: 'bg-gray-100 text-gray-600' }) : null
+  const st = contract ? (STATUS_LABELS[contract.status] || { label: contract.status, cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' }) : null
   const progressWidth = contract ? Math.min(Number(contract.progress_percent), 100) : 0
 
   return (
@@ -323,25 +323,25 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string; onCl
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-xl w-full mx-2 md:mx-6 max-w-5xl mt-4 md:mt-8 mb-4 md:mb-8 px-4 md:px-6 py-4 md:py-6"
+        className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl dark:shadow-black/50 w-full mx-2 md:mx-6 max-w-5xl mt-4 md:mt-8 mb-4 md:mb-8 px-4 md:px-6 py-4 md:py-6"
         onClick={(e) => e.stopPropagation()}
       >
         {loading ? (
           <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
         ) : !contract || !st ? (
-          <div className="py-16 text-center text-gray-400 text-sm">Contrat introuvable</div>
+          <div className="py-16 text-center text-gray-400 dark:text-gray-500 text-sm">Contrat introuvable</div>
         ) : (<>
 
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-xl font-semibold text-gray-900">{contract.reference} {contract.title && `— ${contract.title}`}</h1>
-            <p className="text-sm text-gray-400">
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">{contract.reference} {contract.title && `— ${contract.title}`}</h1>
+            <p className="text-sm text-gray-400 dark:text-gray-500">
               {TYPE_LABELS[contract.contract_type] || contract.contract_type} — {contract.client_name || 'Sans client'}
             </p>
           </div>
           <div className="flex items-center gap-2">
             <span className={`px-3 py-1 rounded-full text-sm font-medium ${st.cls}`}>{st.label}</span>
-            <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 transition">
+            <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
               <span className="sr-only">Fermer</span>
               ✕
             </button>
@@ -349,38 +349,38 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string; onCl
         </div>
 
         {/* Budget card */}
-        <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-6">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5 mb-6">
           <div className="flex items-center gap-2 mb-3">
             <BarChart3 className="w-4 h-4 text-orange-500" />
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Budget</h2>
+            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Budget</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <div>
-              <p className="text-xs text-gray-400">Total budget</p>
-              <p className="text-lg font-bold text-gray-900">{fmtCurrency(contract.total_budget)}</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500">Total budget</p>
+              <p className="text-lg font-bold text-gray-900 dark:text-white">{fmtCurrency(contract.total_budget)}</p>
             </div>
             <div>
-              <p className="text-xs text-gray-400">Facturé</p>
-              <p className="text-lg font-bold text-gray-900">{fmtCurrency(contract.total_invoiced)}</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500">Facturé</p>
+              <p className="text-lg font-bold text-gray-900 dark:text-white">{fmtCurrency(contract.total_invoiced)}</p>
             </div>
             <div>
-              <p className="text-xs text-gray-400">Restant</p>
-              <p className="text-lg font-bold text-orange-600">{fmtCurrency(contract.remaining)}</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500">Restant</p>
+              <p className="text-lg font-bold text-orange-600 dark:text-orange-400">{fmtCurrency(contract.remaining)}</p>
             </div>
           </div>
-          <div className="w-full bg-gray-100 rounded-full h-2.5">
+          <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2.5">
             <div className="bg-orange-500 h-2.5 rounded-full transition-all" style={{ width: `${progressWidth}%` }} />
           </div>
-          <p className="text-xs text-gray-400 mt-1 text-right">{Number(contract.progress_percent).toFixed(1)} %</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 text-right">{Number(contract.progress_percent).toFixed(1)} %</p>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mb-4 border-b border-gray-200">
+        <div className="flex gap-1 mb-4 border-b border-gray-200 dark:border-gray-700">
           {(['budget', 'situations', 'quotes'] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`px-4 py-2.5 text-sm font-medium transition ${tab === t ? 'text-orange-600 border-b-2 border-orange-500' : 'text-gray-400 hover:text-gray-700'}`}
+              className={`px-4 py-2.5 text-sm font-medium transition ${tab === t ? 'text-orange-600 dark:text-orange-400 border-b-2 border-orange-500' : 'text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200'}`}
             >
               {t === 'budget' ? 'Informations' : t === 'situations' ? `Situations (${situations.length})` : `Devis (${quotes.length})`}
             </button>
@@ -389,16 +389,16 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string; onCl
 
         {/* Tab: informations */}
         {tab === 'budget' && (
-          <section className="bg-white border border-gray-200 rounded-2xl p-5 space-y-3">
+          <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5 space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-              <p><span className="text-gray-400">Début :</span> {contract.start_date || '—'}</p>
-              <p><span className="text-gray-400">Fin :</span> {contract.end_date || '—'}</p>
-              <p><span className="text-gray-400">Renouvellement :</span> {contract.auto_renew ? `Auto (${contract.renewal_notice_days}j préavis)` : 'Non'}</p>
-              <p><span className="text-gray-400">Devis :</span> {contract.quote_count}</p>
-              <p><span className="text-gray-400">Situations :</span> {contract.situation_count}</p>
-              <p><span className="text-gray-400">Factures :</span> {contract.invoice_count}</p>
+              <p><span className="text-gray-400 dark:text-gray-500">Début :</span> {contract.start_date || '—'}</p>
+              <p><span className="text-gray-400 dark:text-gray-500">Fin :</span> {contract.end_date || '—'}</p>
+              <p><span className="text-gray-400 dark:text-gray-500">Renouvellement :</span> {contract.auto_renew ? `Auto (${contract.renewal_notice_days}j préavis)` : 'Non'}</p>
+              <p><span className="text-gray-400 dark:text-gray-500">Devis :</span> {contract.quote_count}</p>
+              <p><span className="text-gray-400 dark:text-gray-500">Situations :</span> {contract.situation_count}</p>
+              <p><span className="text-gray-400 dark:text-gray-500">Factures :</span> {contract.invoice_count}</p>
             </div>
-            {contract.notes && <p className="text-sm text-gray-500 pt-2 border-t border-gray-100">{contract.notes}</p>}
+            {contract.notes && <p className="text-sm text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-100 dark:border-gray-700">{contract.notes}</p>}
           </section>
         )}
 
@@ -412,7 +412,7 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string; onCl
                   value={sliceLabel}
                   onChange={(e) => setSliceLabel(e.target.value)}
                   placeholder="Libellé période (ex: Mars 2026)"
-                  className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  className="flex-1 px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
                 />
                 <button
                   onClick={createSituation}
@@ -425,12 +425,12 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string; onCl
             )}
 
             {situations.length === 0 ? (
-              <div className="py-8 text-center text-gray-400 text-sm">Aucune situation</div>
+              <div className="py-8 text-center text-gray-400 dark:text-gray-500 text-sm">Aucune situation</div>
             ) : (
-              <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
+                    <tr className="border-b border-gray-100 dark:border-gray-700 text-left text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase">
                       <th className="px-4 py-3">N°</th>
                       <th className="px-4 py-3">Période</th>
                       <th className="px-4 py-3 text-right">Déjà facturé</th>
@@ -440,15 +440,15 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string; onCl
                   </thead>
                   <tbody>
                     {situations.map((s) => {
-                      const sSt = s.status === 'draft' ? { label: 'Brouillon', cls: 'bg-gray-100 text-gray-600' }
-                        : s.status === 'invoiced' ? { label: 'Facturée', cls: 'bg-blue-100 text-blue-700' }
-                        : { label: 'Payée', cls: 'bg-green-100 text-green-700' }
+                      const sSt = s.status === 'draft' ? { label: 'Brouillon', cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' }
+                        : s.status === 'invoiced' ? { label: 'Facturée', cls: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400' }
+                        : { label: 'Payée', cls: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' }
                       return (
-                        <tr key={s.id} onClick={() => setSituationId(s.id)} className="border-b border-gray-50 hover:bg-orange-50/50 cursor-pointer transition">
-                          <td className="px-4 py-3 font-mono text-gray-700">#{s.situation_number}</td>
-                          <td className="px-4 py-3 text-gray-900">{s.period_label}</td>
-                          <td className="px-4 py-3 text-right text-gray-500">{fmtCurrency(s.previously_invoiced)}</td>
-                          <td className="px-4 py-3 text-right font-medium text-gray-900">{fmtCurrency(s.invoice_amount)}</td>
+                        <tr key={s.id} onClick={() => setSituationId(s.id)} className="border-b border-gray-50 dark:border-gray-700 hover:bg-orange-50/50 dark:hover:bg-orange-900/30 cursor-pointer transition">
+                          <td className="px-4 py-3 font-mono text-gray-700 dark:text-gray-200">#{s.situation_number}</td>
+                          <td className="px-4 py-3 text-gray-900 dark:text-white">{s.period_label}</td>
+                          <td className="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{fmtCurrency(s.previously_invoiced)}</td>
+                          <td className="px-4 py-3 text-right font-medium text-gray-900 dark:text-white">{fmtCurrency(s.invoice_amount)}</td>
                           <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${sSt.cls}`}>{sSt.label}</span></td>
                         </tr>
                       )
@@ -462,13 +462,13 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string; onCl
 
         {/* Tab: devis */}
         {tab === 'quotes' && (
-          <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden">
             {quotes.length === 0 ? (
-              <div className="py-8 text-center text-gray-400 text-sm">Aucun devis lié</div>
+              <div className="py-8 text-center text-gray-400 dark:text-gray-500 text-sm">Aucun devis lié</div>
             ) : (
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
+                  <tr className="border-b border-gray-100 dark:border-gray-700 text-left text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase">
                     <th className="px-4 py-3">N°</th>
                     <th className="px-4 py-3">Type</th>
                     <th className="px-4 py-3">Statut</th>
@@ -478,12 +478,12 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string; onCl
                 </thead>
                 <tbody>
                   {quotes.map((q) => (
-                    <tr key={q.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition">
-                      <td className="px-4 py-3 font-mono text-xs text-gray-700">{q.number}</td>
-                      <td className="px-4 py-3 text-gray-500">{q.is_avenant ? `Avenant n°${q.avenant_number}` : q.document_type}</td>
+                    <tr key={q.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50/50 dark:hover:bg-gray-700 transition">
+                      <td className="px-4 py-3 font-mono text-xs text-gray-700 dark:text-gray-200">{q.number}</td>
+                      <td className="px-4 py-3 text-gray-500 dark:text-gray-400">{q.is_avenant ? `Avenant n°${q.avenant_number}` : q.document_type}</td>
                       <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${(STATUS_LABELS[q.status] || { cls: 'bg-gray-100' }).cls}`}>{(STATUS_LABELS[q.status] || { label: q.status }).label}</span></td>
-                      <td className="px-4 py-3 text-right text-gray-700">{fmtCurrency(q.subtotal_ht)}</td>
-                      <td className="px-4 py-3 text-gray-500">{q.issue_date}</td>
+                      <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">{fmtCurrency(q.subtotal_ht)}</td>
+                      <td className="px-4 py-3 text-gray-500 dark:text-gray-400">{q.issue_date}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -586,24 +586,24 @@ function SituationEditorPanel({ contractId: _contractId, situationId, onClose }:
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-xl w-full mx-2 md:mx-6 max-w-5xl mt-4 md:mt-8 mb-4 md:mb-8 px-4 md:px-6 py-4 md:py-6"
+        className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl dark:shadow-black/50 w-full mx-2 md:mx-6 max-w-5xl mt-4 md:mt-8 mb-4 md:mb-8 px-4 md:px-6 py-4 md:py-6"
         onClick={(e) => e.stopPropagation()}
       >
         {loading ? (
           <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
         ) : !situation ? (
-          <div className="py-16 text-center text-gray-400 text-sm">Situation introuvable</div>
+          <div className="py-16 text-center text-gray-400 dark:text-gray-500 text-sm">Situation introuvable</div>
         ) : (<>
 
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-xl font-semibold text-gray-900">Situation n°{situation.situation_number}</h1>
-            <p className="text-sm text-gray-400">{situation.period_label}</p>
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Situation n°{situation.situation_number}</h1>
+            <p className="text-sm text-gray-400 dark:text-gray-500">{situation.period_label}</p>
           </div>
           <div className="flex items-center gap-2">
             {isDraft && (
               <>
-                <button onClick={save} disabled={saving} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition disabled:opacity-50">
+                <button onClick={save} disabled={saving} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 text-sm font-medium rounded-lg transition disabled:opacity-50">
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
                 </button>
                 <button onClick={validate} disabled={validating} className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
@@ -611,31 +611,31 @@ function SituationEditorPanel({ contractId: _contractId, situationId, onClose }:
                 </button>
               </>
             )}
-            <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 transition ml-1">✕</button>
+            <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition ml-1">✕</button>
           </div>
         </div>
 
         {/* Totaux */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          <div className="bg-white border border-gray-200 rounded-xl p-4">
-            <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Cumulé</p>
-            <p className="text-xl font-bold text-gray-900">{fmtCurrency(situation.cumulative_total)}</p>
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+            <p className="text-xs text-gray-400 dark:text-gray-500 uppercase font-semibold mb-1">Cumulé</p>
+            <p className="text-xl font-bold text-gray-900 dark:text-white">{fmtCurrency(situation.cumulative_total)}</p>
           </div>
-          <div className="bg-white border border-gray-200 rounded-xl p-4">
-            <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Déjà facturé</p>
-            <p className="text-xl font-bold text-gray-500">{fmtCurrency(situation.previously_invoiced)}</p>
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+            <p className="text-xs text-gray-400 dark:text-gray-500 uppercase font-semibold mb-1">Déjà facturé</p>
+            <p className="text-xl font-bold text-gray-500 dark:text-gray-400">{fmtCurrency(situation.previously_invoiced)}</p>
           </div>
-          <div className="bg-white border border-gray-200 rounded-xl p-4">
-            <p className="text-xs text-gray-400 uppercase font-semibold mb-1">A facturer</p>
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+            <p className="text-xs text-gray-400 dark:text-gray-500 uppercase font-semibold mb-1">A facturer</p>
             <p className="text-xl font-bold text-orange-600">{fmtCurrency(situation.invoice_amount)}</p>
           </div>
         </div>
 
         {/* Lignes */}
-        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden overflow-x-auto">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden overflow-x-auto">
           <table className="w-full text-sm min-w-[700px]">
             <thead>
-              <tr className="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
+              <tr className="border-b border-gray-100 dark:border-gray-700 text-left text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase">
                 <th className="px-4 py-3">Description</th>
                 <th className="px-4 py-3 text-right">Total contrat</th>
                 <th className="px-4 py-3 text-right">% précédent</th>
@@ -650,9 +650,9 @@ function SituationEditorPanel({ contractId: _contractId, situationId, onClose }:
                 const isComplete = Number(l.previous_completion_percent) >= 100
                 return (
                   <tr key={l.id} className={`border-b border-gray-50 ${isComplete ? 'opacity-50' : ''}`}>
-                    <td className="px-4 py-3 text-gray-900">{l.description || l.reference || '—'}</td>
-                    <td className="px-4 py-3 text-right text-gray-700">{fmtCurrency(l.total_contract)}</td>
-                    <td className="px-4 py-3 text-right text-gray-400">{Number(l.previous_completion_percent).toFixed(1)}%</td>
+                    <td className="px-4 py-3 text-gray-900 dark:text-white">{l.description || l.reference || '—'}</td>
+                    <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">{fmtCurrency(l.total_contract)}</td>
+                    <td className="px-4 py-3 text-right text-gray-400 dark:text-gray-500">{Number(l.previous_completion_percent).toFixed(1)}%</td>
                     <td className="px-4 py-3 text-right">
                       {isDraft && !isComplete ? (
                         <input
@@ -662,15 +662,15 @@ function SituationEditorPanel({ contractId: _contractId, situationId, onClose }:
                           step="0.01"
                           value={l.completion_percent}
                           onChange={(e) => updateLinePercent(i, e.target.value)}
-                          className="w-20 px-2 py-1 text-sm text-right border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-orange-400"
+                          className="w-20 px-2 py-1 text-sm text-right border border-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-orange-400"
                         />
                       ) : (
-                        <span className="text-gray-700">{Number(l.completion_percent).toFixed(1)}%</span>
+                        <span className="text-gray-700 dark:text-gray-200">{Number(l.completion_percent).toFixed(1)}%</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right text-gray-700">{fmtCurrency(l.cumulative_amount)}</td>
-                    <td className="px-4 py-3 text-right text-gray-400">{fmtCurrency(l.previously_invoiced)}</td>
-                    <td className="px-4 py-3 text-right font-medium text-gray-900">{fmtCurrency(l.line_invoice_amount)}</td>
+                    <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">{fmtCurrency(l.cumulative_amount)}</td>
+                    <td className="px-4 py-3 text-right text-gray-400 dark:text-gray-500">{fmtCurrency(l.previously_invoiced)}</td>
+                    <td className="px-4 py-3 text-right font-medium text-gray-900 dark:text-white">{fmtCurrency(l.line_invoice_amount)}</td>
                   </tr>
                 )
               })}

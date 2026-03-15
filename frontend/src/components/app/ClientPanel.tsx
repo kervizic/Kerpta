@@ -76,7 +76,7 @@ interface CompanyDetailsOut {
 }
 
 import { INPUT, SELECT } from '@/lib/formStyles'
-const LABEL = 'block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5'
+const LABEL = 'block text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-0.5'
 
 function formatSiret(s: string): string {
   if (s.length === 14) return `${s.slice(0, 3)} ${s.slice(3, 6)} ${s.slice(6, 9)} ${s.slice(9)}`
@@ -219,9 +219,9 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
   return (
     <ModalOverlay onClose={onClose} size="xl">
         {/* ── En-tête ──────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10 rounded-t-2xl">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10 rounded-t-2xl">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-700 flex items-center justify-center">
               {loading ? (
                 <Loader2 className="w-5 h-5 animate-spin text-orange-500" />
               ) : client?.type === 'company' ? (
@@ -232,8 +232,8 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
             </div>
             {client && (
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">{client.name}</h2>
-                <p className="text-xs text-gray-400">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{client.name}</h2>
+                <p className="text-xs text-gray-400 dark:text-gray-500">
                   {client.type === 'company' ? 'Entreprise' : 'Particulier'}
                   {client.siret && <span className="ml-2 font-mono">{formatSiret(client.siret)}</span>}
                 </p>
@@ -242,8 +242,8 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
           </div>
           <div className="flex items-center gap-3">
             <SaveIndicator status={saveStatus} />
-            <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 transition">
-              <X className="w-5 h-5 text-gray-400" />
+            <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              <X className="w-5 h-5 text-gray-400 dark:text-gray-500" />
             </button>
           </div>
         </div>
@@ -253,14 +253,14 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
             <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
           </div>
         ) : !client ? (
-          <div className="py-16 text-center text-gray-400 text-sm">Client introuvable</div>
+          <div className="py-16 text-center text-gray-400 dark:text-gray-500 text-sm">Client introuvable</div>
         ) : (
           <div className="px-6 py-5 space-y-6">
 
             {/* ── 1. Contacts ──────────────────────────────────────── */}
             <section>
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Contacts</h3>
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Contacts</h3>
                 <button
                   onClick={addContact}
                   className="flex items-center gap-1 text-xs text-orange-500 hover:text-orange-600 transition"
@@ -270,7 +270,7 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
               </div>
 
               {contacts.length === 0 ? (
-                <div className="space-y-2 text-sm text-gray-500">
+                <div className="space-y-2 text-sm text-gray-500 dark:text-gray-400">
                   <p>Aucun contact enregistré</p>
                   <div className="space-y-2">
                     <AutoSaveField label="Email" value={client.email || ''} onSave={(v) => saveField({ email: v || null })} type="email" />
@@ -293,7 +293,7 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
 
             {/* ── 2. Profil de facturation ──────────────────────────── */}
             <section>
-              <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-2">Profil de facturation</h3>
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider mb-2">Profil de facturation</h3>
               <select
                 value={client.billing_profile_id ?? ''}
                 onChange={(e) => saveField({ billing_profile_id: e.target.value || null })}
@@ -311,7 +311,7 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
 
             {/* ── 3. Informations société ───────────────────────────── */}
             <section>
-              <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-3">Informations</h3>
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider mb-3">Informations</h3>
               <div className="space-y-3">
                 <AutoSaveField label={client.type === 'company' ? 'Raison sociale' : 'Nom'} value={client.name} onSave={(v) => saveField({ name: v })} required />
                 {contacts.length > 0 && (
@@ -324,7 +324,7 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
                   client.company_siren && client.vat_number ? (
                     <div>
                       <label className={LABEL}>TVA intracommunautaire</label>
-                      <p className="px-2.5 py-1.5 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg font-mono">{client.vat_number}</p>
+                      <p className="px-2.5 py-1.5 text-sm text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg font-mono">{client.vat_number}</p>
                     </div>
                   ) : (
                     <AutoSaveField label="TVA intracommunautaire" value={client.vat_number || ''} onSave={(v) => saveField({ vat_number: v || null })} />
@@ -337,7 +337,7 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
             {client.type === 'company' && (
               <section>
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Établissement à facturer</h3>
+                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Établissement à facturer</h3>
                   <button
                     onClick={() => setShowEtabSelector(!showEtabSelector)}
                     className="flex items-center gap-1 text-xs text-orange-500 hover:text-orange-600 transition"
@@ -364,15 +364,15 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
                 ) : client.siret ? (
                   <button
                     onClick={() => setShowEtabSelector(!showEtabSelector)}
-                    className="w-full text-left p-3 bg-gray-50 rounded-xl text-sm space-y-1 hover:bg-gray-100 transition cursor-pointer"
+                    className="w-full text-left p-3 bg-gray-50 dark:bg-gray-900 rounded-xl text-sm space-y-1 hover:bg-gray-100 dark:hover:bg-gray-700 transition cursor-pointer"
                   >
-                    <p className="font-mono font-medium text-gray-900">{formatSiret(client.siret)}</p>
-                    <p className="text-gray-600">{formatAddress(client.billing_address)}</p>
+                    <p className="font-mono font-medium text-gray-900 dark:text-white">{formatSiret(client.siret)}</p>
+                    <p className="text-gray-600 dark:text-gray-300">{formatAddress(client.billing_address)}</p>
                   </button>
                 ) : (
                   <button
                     onClick={() => setShowEtabSelector(!showEtabSelector)}
-                    className="w-full text-left text-sm text-gray-400 hover:text-gray-500 transition cursor-pointer"
+                    className="w-full text-left text-sm text-gray-400 dark:text-gray-500 hover:text-gray-500 dark:hover:text-gray-400 transition cursor-pointer"
                   >
                     Aucun établissement sélectionné — cliquez pour choisir
                   </button>
@@ -380,7 +380,7 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
 
                 {/* Chargement des établissements */}
                 {loadingEtabs && (
-                  <div className="flex items-center gap-2 mt-2 text-xs text-gray-400">
+                  <div className="flex items-center gap-2 mt-2 text-xs text-gray-400 dark:text-gray-500">
                     <Loader2 className="w-3 h-3 animate-spin" /> Chargement des établissements...
                   </div>
                 )}
@@ -388,7 +388,7 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
                 {/* Sélecteur d'établissements */}
                 {showEtabSelector && (
                   <div className="mt-3 space-y-2">
-                    <p className="text-xs text-gray-400">Sélectionnez un établissement :</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500">Sélectionnez un établissement :</p>
                     {etabs.map((etab) => {
                       const isSelected = !freeAddressMode && client.siret === etab.siret
                       const isClosed = etab.etat !== 'A'
@@ -398,20 +398,20 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
                           onClick={() => handleSelectEtab(etab)}
                           className={`w-full text-left p-3 rounded-xl border transition ${
                             isSelected
-                              ? 'border-orange-400 bg-orange-50 ring-2 ring-orange-200'
-                              : 'border-gray-200 bg-white hover:border-gray-300'
+                              ? 'border-orange-400 bg-orange-50 dark:bg-orange-900/30 ring-2 ring-orange-200'
+                              : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600'
                           }`}
                         >
                           <div className="flex items-center gap-2">
-                            <Building2 className="w-4 h-4 text-gray-400 shrink-0" />
-                            <span className="text-sm font-mono font-medium text-gray-900">{formatSiret(etab.siret)}</span>
-                            {etab.siege && <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-[10px] font-semibold rounded uppercase">Siège</span>}
+                            <Building2 className="w-4 h-4 text-gray-400 dark:text-gray-500 shrink-0" />
+                            <span className="text-sm font-mono font-medium text-gray-900 dark:text-white">{formatSiret(etab.siret)}</span>
+                            {etab.siege && <span className="px-1.5 py-0.5 bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-400 text-[10px] font-semibold rounded uppercase">Siège</span>}
                             {isClosed && <span className="px-1.5 py-0.5 bg-red-100 text-red-700 text-[10px] font-semibold rounded uppercase">Fermé</span>}
                             {isSelected && <Check className="w-4 h-4 text-orange-600 ml-auto shrink-0" />}
                           </div>
-                          <p className="text-xs text-gray-500 mt-1 ml-6">{formatEtabAddress(etab.adresse)}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 ml-6">{formatEtabAddress(etab.adresse)}</p>
                           {etab.activite_principale && (
-                            <p className="text-xs text-gray-400 ml-6">APE : {etab.activite_principale}</p>
+                            <p className="text-xs text-gray-400 dark:text-gray-500 ml-6">APE : {etab.activite_principale}</p>
                           )}
                         </button>
                       )
@@ -422,16 +422,16 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
                       onClick={handleFreeAddress}
                       className={`w-full text-left p-3 rounded-xl border transition ${
                         freeAddressMode
-                          ? 'border-amber-400 bg-amber-50 ring-2 ring-amber-200'
-                          : 'border-dashed border-gray-300 bg-white hover:border-gray-400'
+                          ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/30 ring-2 ring-amber-200'
+                          : 'border-dashed border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:border-gray-400 dark:hover:border-gray-500'
                       }`}
                     >
                       <div className="flex items-center gap-2">
-                        <Pencil className="w-4 h-4 text-gray-400 shrink-0" />
-                        <span className="text-sm font-medium text-gray-700">Saisie libre</span>
+                        <Pencil className="w-4 h-4 text-gray-400 dark:text-gray-500 shrink-0" />
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Saisie libre</span>
                         {freeAddressMode && <Check className="w-4 h-4 text-amber-600 ml-auto shrink-0" />}
                       </div>
-                      <p className="text-xs text-gray-400 mt-1 ml-6">Saisir manuellement l'adresse de facturation</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 ml-6">Saisir manuellement l'adresse de facturation</p>
                     </button>
                   </div>
                 )}
@@ -441,7 +441,7 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
             {/* Adresse pour les particuliers (éditable directement) */}
             {client.type === 'individual' && (
               <section>
-                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-2">Adresse de facturation</h3>
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider mb-2">Adresse de facturation</h3>
                 <div className="space-y-2">
                   <AutoSaveField label="" value={client.billing_address?.voie || ''} placeholder="Adresse" onSave={(v) => saveField({ billing_address: { ...client.billing_address, voie: v || null } })} />
                   <AutoSaveField label="" value={client.billing_address?.complement || ''} placeholder="Complément" onSave={(v) => saveField({ billing_address: { ...client.billing_address, complement: v || null } })} />
@@ -456,7 +456,7 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
             {/* ── 5. Notes ─────────────────────────────────────────── */}
             {!compact && (
               <section>
-                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-2">Notes internes</h3>
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider mb-2">Notes internes</h3>
                 <AutoSaveTextarea value={client.notes || ''} onSave={(v) => saveField({ notes: v || null })} placeholder="Notes..." />
               </section>
             )}
@@ -464,24 +464,24 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
             {/* ── 6. Statistiques ──────────────────────────────────── */}
             {!compact && (
               <section>
-                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-3">Statistiques</h3>
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider mb-3">Statistiques</h3>
                 <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-center">
-                    <p className="text-[10px] text-gray-400 uppercase font-semibold">Devis</p>
-                    <p className="text-xl font-bold text-gray-900">{client.quote_count}</p>
+                  <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-center">
+                    <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase font-semibold">Devis</p>
+                    <p className="text-xl font-bold text-gray-900 dark:text-white">{client.quote_count}</p>
                   </div>
-                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-center">
-                    <p className="text-[10px] text-gray-400 uppercase font-semibold">Facturé</p>
-                    <p className="text-xl font-bold text-gray-900">{(Number(client.total_invoiced) || 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</p>
+                  <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-center">
+                    <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase font-semibold">Facturé</p>
+                    <p className="text-xl font-bold text-gray-900 dark:text-white">{(Number(client.total_invoiced) || 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</p>
                   </div>
-                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-center">
-                    <p className="text-[10px] text-gray-400 uppercase font-semibold">Solde</p>
+                  <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-center">
+                    <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase font-semibold">Solde</p>
                     <p className={`text-xl font-bold ${(Number(client.balance) || 0) > 0 ? 'text-red-600' : 'text-green-600'}`}>
                       {(Number(client.balance) || 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
                     </p>
                   </div>
                 </div>
-                <div className="mt-2 grid grid-cols-3 gap-3 text-sm text-gray-500">
+                <div className="mt-2 grid grid-cols-3 gap-3 text-sm text-gray-500 dark:text-gray-400">
                   <p>Factures : {client.invoice_count ?? 0}</p>
                   <p>Contrats : {client.contract_count ?? 0}</p>
                   <p>Payé : {(Number(client.total_paid) || 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</p>
@@ -582,7 +582,7 @@ function ContactRow({ contact, onSave, onDelete }: {
   onDelete: () => void
 }) {
   return (
-    <div className="p-3 bg-gray-50 rounded-xl space-y-2 relative group">
+    <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-xl space-y-2 relative group">
       <button
         onClick={onDelete}
         className="absolute top-2 right-2 p-1 rounded hover:bg-red-50 opacity-0 group-hover:opacity-100 transition"
