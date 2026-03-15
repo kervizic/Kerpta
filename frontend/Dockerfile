@@ -6,18 +6,19 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
+# Python + fonttools pour générer les icônes depuis Sarpanch-Black.ttf
+RUN apk add --no-cache python3 py3-pip && \
+    pip3 install --break-system-packages fonttools
+
 COPY package*.json ./
 RUN npm install
 
 COPY . .
 RUN npm run build
 
-# Générer le PNG 180x180 pour apple-touch-icon iOS
-RUN npm install --no-save sharp && node -e " \
-  const sharp = require('sharp'); \
-  sharp('public/icon-512.svg').resize(180,180).png().toFile('dist/apple-touch-icon.png') \
-    .then(() => console.log('apple-touch-icon.png OK')); \
-"
+# Générer favicon.svg + icon-512.svg (vrai tracé Sarpanch) + apple-touch-icon.png
+RUN npm install --no-save sharp && \
+    python3 scripts/generate-icons.py
 
 # Image de production — nginx pour servir les fichiers statiques
 FROM nginx:alpine
