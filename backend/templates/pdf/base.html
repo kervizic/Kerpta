@@ -7,7 +7,7 @@
 /* ── Reset + base ────────────────────────────────────────────────── */
 @page {
   size: A4;
-  margin: 18mm 18mm 18mm 18mm;
+  margin: 18mm 18mm 12mm 18mm;
   @bottom-center {
     content: "Page " counter(page) " / " counter(pages);
     font-size: 7.5pt;
@@ -42,10 +42,11 @@ table { border-collapse: collapse; width: 100%; }
     {% endif %}
     <div class="seller-address">
       {% if seller.address %}
-        {% if seller.address.street %}{{ seller.address.street }}<br>{% endif %}
-        {% if seller.address.zip %}{{ seller.address.zip }}{% endif %}
-        {% if seller.address.city %} {{ seller.address.city }}{% endif %}
-        {% if seller.address.country and seller.address.country != 'France' %}<br>{{ seller.address.country }}{% endif %}
+        {% if seller.address.voie %}{{ seller.address.voie }}<br>{% endif %}
+        {% if seller.address.complement %}{{ seller.address.complement }}<br>{% endif %}
+        {% if seller.address.code_postal %}{{ seller.address.code_postal }}{% endif %}
+        {% if seller.address.commune %} {{ seller.address.commune }}{% endif %}
+        {% if seller.address.pays and seller.address.pays != 'France' %}<br>{{ seller.address.pays }}{% endif %}
       {% endif %}
     </div>
   </div>
@@ -53,10 +54,11 @@ table { border-collapse: collapse; width: 100%; }
     <div class="client-name">{{ client.name }}</div>
     {% if client.address %}
     <div class="client-detail">
-      {% if client.address.street %}{{ client.address.street }}<br>{% endif %}
-      {% if client.address.zip %}{{ client.address.zip }}{% endif %}
-      {% if client.address.city %} {{ client.address.city }}{% endif %}
-      {% if client.address.country %}<br>{{ client.address.country }}{% endif %}
+      {% if client.address.voie %}{{ client.address.voie }}<br>{% endif %}
+      {% if client.address.complement %}{{ client.address.complement }}<br>{% endif %}
+      {% if client.address.code_postal %}{{ client.address.code_postal }}{% endif %}
+      {% if client.address.commune %} {{ client.address.commune }}{% endif %}
+      {% if client.address.pays %}<br>{{ client.address.pays }}{% endif %}
     </div>
     {% endif %}
     {% if client.siret %}<div class="client-detail">SIRET : {{ client.siret }}</div>{% endif %}

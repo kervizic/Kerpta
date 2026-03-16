@@ -187,22 +187,35 @@ function DocumentHeaderSection() {
 
 function DocumentFooterSection() {
   const [footer, setFooter] = useState('')
+  const [isCustom, setIsCustom] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
 
   useEffect(() => {
-    orgGet<{ footer: string }>('/billing/document-footer')
-      .then((data) => setFooter(data.footer || ''))
-      .catch(() => {})
-      .finally(() => setLoading(false))
+    (async () => {
+      try {
+        const data = await orgGet<{ footer: string }>('/billing/document-footer')
+        const stored = data.footer || ''
+        if (stored) {
+          setFooter(stored)
+          setIsCustom(true)
+        } else {
+          const auto = await orgGet<{ footer: string }>('/billing/auto-footer')
+          setFooter(auto.footer || '')
+          setIsCustom(false)
+        }
+      } catch { /* */ }
+      setLoading(false)
+    })()
   }, [])
 
   async function handleSave() {
     setSaving(true)
     try {
       await orgPatch('/billing/document-footer', { footer })
+      setIsCustom(true)
       setDirty(false)
     } catch { /* */ }
     setSaving(false)
@@ -211,9 +224,12 @@ function DocumentFooterSection() {
   async function handleRefresh() {
     setRefreshing(true)
     try {
-      const data = await orgGet<{ footer: string }>('/billing/auto-footer')
-      setFooter(data.footer || '')
-      setDirty(true)
+      // Vider le footer personnalisé pour repasser en mode auto
+      await orgPatch('/billing/document-footer', { footer: '' })
+      const auto = await orgGet<{ footer: string }>('/billing/auto-footer')
+      setFooter(auto.footer || '')
+      setIsCustom(false)
+      setDirty(false)
     } catch { /* */ }
     setRefreshing(false)
   }
@@ -222,15 +238,18 @@ function DocumentFooterSection() {
     <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Mentions légales par défaut</h2>
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Pied de page par defaut</h2>
           <button
             onClick={handleRefresh}
             disabled={refreshing}
             className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-            title="Régénérer depuis le profil de facturation par défaut"
+            title="Revenir au pied de page automatique (genere depuis vos informations)"
           >
             <RefreshCw className={`w-3.5 h-3.5 text-gray-400 dark:text-gray-500 ${refreshing ? 'animate-spin' : ''}`} />
           </button>
+          {!isCustom && (
+            <span className="text-[10px] text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">auto</span>
+          )}
         </div>
         {saving && <Loader2 className="w-4 h-4 animate-spin text-kerpta" />}
       </div>
@@ -238,6 +257,11 @@ function DocumentFooterSection() {
         <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-kerpta" /></div>
       ) : (
         <div className="space-y-3">
+          <p className="text-xs text-gray-400 dark:text-gray-500">
+            {isCustom
+              ? 'Pied de page personnalise. Cliquez sur le bouton actualiser pour revenir au mode automatique.'
+              : 'Genere automatiquement depuis vos informations. Se met a jour si vous changez vos coordonnees.'}
+          </p>
           <textarea
             value={footer}
             onChange={(e) => { setFooter(e.target.value); setDirty(true) }}

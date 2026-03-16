@@ -80,6 +80,9 @@ _jinja_env.filters["fmt_currency_num"] = _fmt_currency_num
 async def _get_print_config(org_id: uuid.UUID, db: AsyncSession) -> tuple[str, str]:
     """Récupère le style d'impression et le pied de page de l'organisation.
 
+    Si aucun pied de page personnalisé n'est enregistré, le génère
+    automatiquement depuis le profil de facturation par défaut.
+
     Returns:
         (style, document_footer)
     """
@@ -89,11 +92,15 @@ async def _get_print_config(org_id: uuid.UUID, db: AsyncSession) -> tuple[str, s
     )
     row = result.fetchone()
     if not row or not row[0]:
-        return DEFAULT_STYLE, ""
+        auto = await billing_svc.generate_auto_footer(org_id, db)
+        return DEFAULT_STYLE, auto.get("footer", "")
     config = row[0] if isinstance(row[0], dict) else {}
     style = config.get("print_style", DEFAULT_STYLE)
     style = style if style in VALID_STYLES else DEFAULT_STYLE
     footer = config.get("document_footer", "")
+    if not footer:
+        auto = await billing_svc.generate_auto_footer(org_id, db)
+        footer = auto.get("footer", "")
     return style, footer
 
 
