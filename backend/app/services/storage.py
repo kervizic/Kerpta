@@ -359,8 +359,9 @@ async def require_active_storage(org_id: uuid.UUID, db: AsyncSession) -> None:
     if not await has_active_storage(org_id, db):
         raise HTTPException(
             400,
-            "Aucun stockage configuré. Configurez un stockage S3 dans "
-            "Paramètres → Stockage avant de pouvoir uploader des fichiers.",
+            "Aucun backup configuré pour Kerpta. "
+            "Merci de renseigner votre configuration de stockage : "
+            "https://kerpta.fr/app/config/stockage",
         )
 
 
