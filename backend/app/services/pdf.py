@@ -356,14 +356,24 @@ def _render_pdf(template_name: str, context: dict) -> bytes:
     return pdf_bytes
 
 
-# ── Factur-X EN 16931 ─────────────────────────────────────────────────────────
+# ── XML CII (Cross-Industry Invoice) — Factur-X + documents ──────────────────
 
-# Namespaces CII (Cross-Industry Invoice)
+# Namespaces CII
 _NS = {
     "rsm": "urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100",
     "ram": "urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100",
     "qdt": "urn:un:unece:uncefact:data:standard:QualifiedDataType:100",
     "udt": "urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100",
+}
+
+# Mapping type de document Kerpta -> code UNTDID 1001
+_DOCUMENT_TYPE_CODE = {
+    "facture": "380",       # Facture commerciale
+    "avoir": "381",         # Avoir / note de credit
+    "proforma": "325",      # Facture proforma
+    "devis": "310",         # Devis / offre
+    "bpu": "310",           # Bordereau de prix (= offre)
+    "attachement": "310",   # Attachement (= offre)
 }
 
 # Mapping mode de reglement -> code UNTDID 4461
@@ -392,18 +402,30 @@ def _el(parent: etree._Element, tag: str, text: str | None = None, **attrs) -> e
     return elem
 
 
-def _build_facturx_xml(inv: dict, seller: dict, client: dict, lines: list, vat_breakdown: list) -> bytes:
-    """Construit le XML Factur-X EN 16931 (profil EN16931) pour une facture.
+def _build_document_xml(
+    doc_data: dict,
+    seller: dict,
+    client: dict,
+    lines: list,
+    vat_breakdown: list,
+    *,
+    type_code: str = "380",
+) -> bytes:
+    """Construit le XML CII (structure Factur-X EN 16931) pour tout document.
+
+    Utilise la meme structure XML pour tous les types de documents (factures,
+    avoirs, proformas, devis) afin de permettre un parsing uniforme.
 
     Args:
-        inv: dictionnaire de la facture (issue_date, due_date, number, totaux, etc.)
+        doc_data: dictionnaire du document (issue_date, due_date, number, totaux, etc.)
         seller: infos vendeur
         client: infos client
-        lines: lignes de facture formatées
+        lines: lignes du document formatees
         vat_breakdown: ventilation TVA
+        type_code: code UNTDID 1001 (380=facture, 381=avoir, 325=proforma, 310=devis)
 
     Returns:
-        XML Factur-X en bytes UTF-8
+        XML CII en bytes UTF-8
     """
     root = etree.Element(
         f"{{{_NS['rsm']}}}CrossIndustryInvoice",
@@ -417,15 +439,15 @@ def _build_facturx_xml(inv: dict, seller: dict, client: dict, lines: list, vat_b
 
     # ── ExchangedDocument ──
     doc = _el(root, "rsm:ExchangedDocument")
-    doc_number = inv.get("number") or inv.get("proforma_number") or "-"
+    doc_number = doc_data.get("number") or doc_data.get("proforma_number") or "-"
     _el(doc, "ram:ID", doc_number)
 
-    # TypeCode : 380 = facture, 381 = avoir
-    type_code = "381" if inv.get("is_credit_note") else "380"
     _el(doc, "ram:TypeCode", type_code)
 
-    issue_dt = _el(doc, "ram:IssueDateTime")
-    _el(issue_dt, "udt:DateTimeString", str(inv["issue_date"]).replace("-", ""), format="102")
+    issue_date = doc_data.get("issue_date")
+    if issue_date:
+        issue_dt = _el(doc, "ram:IssueDateTime")
+        _el(issue_dt, "udt:DateTimeString", str(issue_date).replace("-", ""), format="102")
 
     # ── SupplyChainTradeTransaction ──
     txn = _el(root, "rsm:SupplyChainTradeTransaction")
@@ -498,9 +520,9 @@ def _build_facturx_xml(inv: dict, seller: dict, client: dict, lines: list, vat_b
         buyer_tax = _el(buyer_party, "ram:SpecifiedTaxRegistration")
         _el(buyer_tax, "ram:ID", client["vat_number"], schemeID="VA")
 
-    # Référence acheteur
-    if inv.get("customer_reference"):
-        _el(agreement, "ram:BuyerReference", inv["customer_reference"])
+    # Reference acheteur
+    if doc_data.get("customer_reference"):
+        _el(agreement, "ram:BuyerReference", doc_data["customer_reference"])
 
     # --- HeaderTradeDelivery ---
     _el(txn, "ram:ApplicableHeaderTradeDelivery")
@@ -509,31 +531,32 @@ def _build_facturx_xml(inv: dict, seller: dict, client: dict, lines: list, vat_b
     settlement = _el(txn, "ram:ApplicableHeaderTradeSettlement")
     _el(settlement, "ram:InvoiceCurrencyCode", "EUR")
 
-    # Moyen de paiement
-    payment_method = inv.get("payment_method") or ""
-    means = _el(settlement, "ram:SpecifiedTradeSettlementPaymentMeans")
-    means_code = _PAYMENT_MEANS_CODE.get(payment_method.lower().strip(), "30")
-    _el(means, "ram:TypeCode", means_code)
+    # Moyen de paiement (optionnel - absent pour devis)
+    payment_method = doc_data.get("payment_method") or ""
+    if payment_method:
+        means = _el(settlement, "ram:SpecifiedTradeSettlementPaymentMeans")
+        means_code = _PAYMENT_MEANS_CODE.get(payment_method.lower().strip(), "30")
+        _el(means, "ram:TypeCode", means_code)
 
-    # Compte bancaire
-    bank = inv.get("bank_details")
-    if isinstance(bank, str):
-        try:
-            bank = json.loads(bank)
-        except Exception:
-            bank = None
-    if bank and bank.get("iban"):
-        payee_account = _el(means, "ram:PayeePartyCreditorFinancialAccount")
-        _el(payee_account, "ram:IBANID", bank["iban"])
-        if bank.get("bic"):
-            payee_institution = _el(means, "ram:PayeeSpecifiedCreditorFinancialInstitution")
-            _el(payee_institution, "ram:BICID", bank["bic"])
+        # Compte bancaire
+        bank = doc_data.get("bank_details")
+        if isinstance(bank, str):
+            try:
+                bank = json.loads(bank)
+            except Exception:
+                bank = None
+        if bank and bank.get("iban"):
+            payee_account = _el(means, "ram:PayeePartyCreditorFinancialAccount")
+            _el(payee_account, "ram:IBANID", bank["iban"])
+            if bank.get("bic"):
+                payee_institution = _el(means, "ram:PayeeSpecifiedCreditorFinancialInstitution")
+                _el(payee_institution, "ram:BICID", bank["bic"])
 
-    # Conditions de paiement
-    if inv.get("due_date"):
+    # Conditions de paiement (optionnel)
+    if doc_data.get("due_date"):
         terms = _el(settlement, "ram:SpecifiedTradePaymentTerms")
         due_dt = _el(terms, "ram:DueDateDateTime")
-        _el(due_dt, "udt:DateTimeString", str(inv["due_date"]).replace("-", ""), format="102")
+        _el(due_dt, "udt:DateTimeString", str(doc_data["due_date"]).replace("-", ""), format="102")
 
     # Ventilation TVA
     for vat_line in vat_breakdown:
@@ -546,13 +569,13 @@ def _build_facturx_xml(inv: dict, seller: dict, client: dict, lines: list, vat_b
 
     # Totaux
     summation = _el(settlement, "ram:SpecifiedTradeSettlementHeaderMonetarySummation")
-    _el(summation, "ram:LineTotalAmount", str(inv.get("subtotal_ht") or "0.00"))
-    _el(summation, "ram:TaxBasisTotalAmount", str(inv.get("subtotal_ht") or "0.00"))
-    tax_total = _el(summation, "ram:TaxTotalAmount", str(inv.get("total_vat") or "0.00"))
+    _el(summation, "ram:LineTotalAmount", str(doc_data.get("subtotal_ht") or "0.00"))
+    _el(summation, "ram:TaxBasisTotalAmount", str(doc_data.get("subtotal_ht") or "0.00"))
+    tax_total = _el(summation, "ram:TaxTotalAmount", str(doc_data.get("total_vat") or "0.00"))
     tax_total.set("currencyID", "EUR")
-    _el(summation, "ram:GrandTotalAmount", str(inv.get("total_ttc") or "0.00"))
+    _el(summation, "ram:GrandTotalAmount", str(doc_data.get("total_ttc") or "0.00"))
     _el(summation, "ram:DuePayableAmount", str(
-        Decimal(str(inv.get("total_ttc") or 0)) - Decimal(str(inv.get("amount_paid") or 0))
+        Decimal(str(doc_data.get("total_ttc") or 0)) - Decimal(str(doc_data.get("amount_paid") or 0))
     ))
 
     return etree.tostring(root, xml_declaration=True, encoding="UTF-8", pretty_print=True)
@@ -745,13 +768,23 @@ async def generate_invoice_pdf(
 
     pdf_bytes = _render_pdf(template_name, context)
 
-    # Factur-X : embarquer le XML pour les factures/avoirs valides (pas les proformas)
-    if not proforma and inv["status"] != "draft":
-        try:
-            xml_bytes = _build_facturx_xml(inv, seller, client, lines, vat_breakdown)
-            pdf_bytes = _embed_facturx(pdf_bytes, xml_bytes)
-        except Exception:
-            _log.warning("Erreur generation Factur-X, PDF brut retourne", exc_info=True)
+    # XML CII embarque dans tous les PDF (structure uniforme pour parsing Doctext)
+    # - Factures/avoirs valides : Factur-X officiel (PDF/A-3, profil en16931)
+    # - Proformas/brouillons : meme structure XML, TypeCode 325
+    try:
+        if inv["is_credit_note"]:
+            xml_type_code = "381"  # avoir
+        elif proforma or inv["status"] == "draft":
+            xml_type_code = "325"  # proforma
+        else:
+            xml_type_code = "380"  # facture
+        xml_bytes = _build_document_xml(
+            inv, seller, client, lines, vat_breakdown,
+            type_code=xml_type_code,
+        )
+        pdf_bytes = _embed_facturx(pdf_bytes, xml_bytes)
+    except Exception:
+        _log.warning("Erreur generation XML CII, PDF brut retourne", exc_info=True)
 
     filename = _safe_filename(f"{doc_type_label.replace(' ', '_')}_{doc_number.replace('/', '-')}.pdf")
 
@@ -913,6 +946,28 @@ async def generate_quote_pdf(
     }
 
     pdf_bytes = _render_pdf(template_name, context)
+
+    # XML CII embarque (meme structure que Factur-X pour parsing uniforme Doctext)
+    try:
+        xml_type_code = _DOCUMENT_TYPE_CODE.get(doc_type_raw, "310")
+        # Construire un dict compatible avec _build_document_xml
+        quote_as_doc = {
+            "number": quote["number"],
+            "issue_date": quote.get("issue_date"),
+            "due_date": quote.get("expiry_date"),
+            "subtotal_ht": quote["subtotal_ht"],
+            "total_vat": quote["total_vat"],
+            "total_ttc": quote["total_ttc"],
+            "amount_paid": 0,
+        }
+        xml_bytes = _build_document_xml(
+            quote_as_doc, seller, client, lines, vat_breakdown,
+            type_code=xml_type_code,
+        )
+        pdf_bytes = _embed_facturx(pdf_bytes, xml_bytes)
+    except Exception:
+        _log.warning("Erreur generation XML CII devis, PDF brut retourne", exc_info=True)
+
     filename = _safe_filename(f"{doc_type_label.replace(' ', '_')}_{doc_number.replace('/', '-')}.pdf")
 
     # Backup automatique vers le stockage configuré (arborescence Kerpta)
