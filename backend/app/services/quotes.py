@@ -276,7 +276,7 @@ async def get_quote(
 async def update_quote(
     org_id: uuid.UUID, quote_id: str, data: QuoteUpdate, db: AsyncSession
 ) -> dict:
-    """Met à jour un devis (draft uniquement)."""
+    """Met à jour un devis (draft ou envoyé — éditable tant que non validé)."""
     # Vérifier statut
     status_result = await db.execute(
         text("SELECT status FROM quotes WHERE id = :qid AND organization_id = :org_id"),
@@ -285,8 +285,8 @@ async def update_quote(
     row = status_result.fetchone()
     if row is None:
         raise HTTPException(404, "Devis introuvable")
-    if row[0] != "draft":
-        raise HTTPException(409, "Seuls les devis en brouillon peuvent être modifiés")
+    if row[0] not in ("draft", "sent"):
+        raise HTTPException(409, "Les devis validés ou refusés ne peuvent plus être modifiés")
 
     updates = data.model_dump(exclude_unset=True, exclude={"lines"})
     if updates:

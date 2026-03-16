@@ -278,7 +278,7 @@ function QuotesList() {
                 quotes.map((q) => {
                   const st = STATUS_LABELS[q.status] || { label: q.status, cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' }
                   const typeLabel = q.is_avenant ? `Avenant n°${q.avenant_number}` : (docTypeLabels[q.document_type] || q.document_type)
-                  const isEditable = q.status === 'draft'
+                  const isEditable = q.status === 'draft' || q.status === 'sent'
                   return (
                     <tr key={q.id} onClick={() => isEditable ? setEditId(q.id) : setSelectedId(q.id)} className="border-b border-gray-50 dark:border-gray-700 hover:bg-kerpta-50/50 dark:hover:bg-kerpta-900/30 cursor-pointer transition">
                       <td className="px-4 py-3 font-mono text-xs text-gray-700 dark:text-gray-200">{q.number}</td>
@@ -305,7 +305,7 @@ function QuotesList() {
             quotes.map((q) => {
               const st = STATUS_LABELS[q.status] || { label: q.status, cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' }
               const typeLabel = q.is_avenant ? `Avenant n°${q.avenant_number}` : (docTypeLabels[q.document_type] || q.document_type)
-              const isEditable = q.status === 'draft'
+              const isEditable = q.status === 'draft' || q.status === 'sent'
               return (
                 <div
                   key={q.id}
@@ -425,24 +425,16 @@ function QuoteDetailPanel({ quoteId, onClose }: { quoteId: string; onClose: () =
         <div className="px-6 py-5">
         {/* Actions */}
         <div className="flex flex-wrap gap-2 mb-5">
-          {quote.status === 'draft' && (
-            <>
-              <button onClick={() => doAction('send')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
-                {actionLoading === 'send' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Envoyer
-              </button>
-              <button onClick={() => window.open(`/api/v1/quotes/${quoteId}/pdf`, '_blank')} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 text-sm font-medium rounded-lg transition">
-                <Printer className="w-4 h-4" /> Imprimer
-              </button>
-              <button onClick={() => doAction('duplicate')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-lg transition disabled:opacity-50">
-                <Copy className="w-4 h-4" /> Dupliquer
-              </button>
-            </>
-          )}
-          {quote.status === 'sent' && (
+          {(quote.status === 'draft' || quote.status === 'sent') && (
             <>
               <button onClick={() => doAction('accept')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
                 {actionLoading === 'accept' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Accepter
               </button>
+              {quote.status === 'draft' && (
+                <button onClick={() => doAction('send')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
+                  {actionLoading === 'send' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Envoyer
+                </button>
+              )}
               <button onClick={() => doAction('refuse')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-red-100 dark:bg-red-900/40 hover:bg-red-200 dark:hover:bg-red-900/60 text-red-700 dark:text-red-400 text-sm font-medium rounded-lg transition disabled:opacity-50">
                 <X className="w-4 h-4" /> Refuser
               </button>
@@ -704,7 +696,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
   }
 
   // Sauvegarde
-  async function handleSave(andSend = false) {
+  async function handleSave(andSend = false, andPrint = false) {
     if (!clientId) return
     setSaving(true)
 
@@ -768,6 +760,10 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
 
       if (andSend && resultId) {
         await orgPost(`/quotes/${resultId}/send`)
+      }
+
+      if (andPrint && resultId) {
+        window.open(`/api/v1/quotes/${resultId}/pdf`, '_blank')
       }
 
       if (onClose) onClose()
@@ -1122,14 +1118,21 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
             disabled={saving || !clientId}
             className="px-5 py-2.5 text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold rounded-lg transition disabled:opacity-50"
           >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer (brouillon)'}
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
+          </button>
+          <button
+            onClick={() => handleSave(false, true)}
+            disabled={saving || !clientId}
+            className="flex items-center gap-1.5 px-5 py-2.5 text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold rounded-lg transition disabled:opacity-50"
+          >
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Printer className="w-4 h-4" /> Imprimer</>}
           </button>
           <button
             onClick={() => handleSave(true)}
             disabled={saving || !clientId}
             className={`${BTN} px-5 py-2.5`}
           >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Send className="w-4 h-4" /> Enregistrer et envoyer</>}
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Send className="w-4 h-4" /> Envoyer</>}
           </button>
         </div>
 
