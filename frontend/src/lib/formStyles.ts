@@ -62,3 +62,8 @@ export const LABEL = 'block text-xs font-semibold text-gray-600 dark:text-gray-4
 
 /** Badge compteur (notification, filtre actif) */
 export const BADGE_COUNT = 'bg-kerpta text-white text-[9px] font-bold rounded-full flex items-center justify-center'
+
+// ─── Landing page ───────────────────────────────────────────────────────
+
+/** Bouton CTA landing page (outlined kerpta avec shadow) */
+export const BTN_LANDING = 'inline-flex items-center justify-center gap-2 rounded-xl border border-kerpta text-kerpta font-semibold transition-all bg-white hover:bg-kerpta-50 dark:bg-gray-900 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 shadow-lg shadow-kerpta/15 hover:shadow-kerpta/30'

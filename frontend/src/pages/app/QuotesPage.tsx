@@ -15,7 +15,7 @@ import DatePicker from '@/components/app/DatePicker'
 import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
 import MobileFilterPanel from '@/components/app/MobileFilterPanel'
 import ClientPanel from '@/components/app/ClientPanel'
-import { INPUT, SELECT, LINE_INPUT, LINE_SELECT, BTN, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER } from '@/lib/formStyles'
+import { INPUT, SELECT, LINE_INPUT, LINE_SELECT, BTN, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER, BADGE_COUNT, CARD } from '@/lib/formStyles'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -242,7 +242,7 @@ function QuotesList() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
               </svg>
               {activeFilterCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-kerpta text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                <span className={`absolute -top-1 -right-1 w-4 h-4 ${BADGE_COUNT}`}>
                   {activeFilterCount}
                 </span>
               )}
@@ -310,7 +310,7 @@ function QuotesList() {
                 <div
                   key={q.id}
                   onClick={() => isEditable ? setEditId(q.id) : setSelectedId(q.id)}
-                  className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 cursor-pointer hover:border-kerpta-200 dark:hover:border-kerpta-700 transition active:bg-kerpta-50/50 dark:active:bg-kerpta-900/30"
+                  className={`${CARD} p-4 cursor-pointer hover:border-kerpta-200 dark:hover:border-kerpta-700 transition active:bg-kerpta-50/50 dark:active:bg-kerpta-900/30`}
                 >
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="font-mono text-xs text-gray-500 dark:text-gray-400">{q.number}</span>
@@ -452,15 +452,15 @@ function QuoteDetailPanel({ quoteId, onClose }: { quoteId: string; onClose: () =
 
         {/* Totaux */}
         <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+          <div className={`${CARD} p-4`}>
             <p className="text-xs text-gray-400 dark:text-gray-500 uppercase font-semibold mb-1">Total HT</p>
             <p className="text-xl font-bold text-gray-900 dark:text-white">{fmtCurrency(quote.subtotal_ht)}</p>
           </div>
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+          <div className={`${CARD} p-4`}>
             <p className="text-xs text-gray-400 dark:text-gray-500 uppercase font-semibold mb-1">TVA</p>
             <p className="text-xl font-bold text-gray-900 dark:text-white">{fmtCurrency(quote.total_vat)}</p>
           </div>
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+          <div className={`${CARD} p-4`}>
             <p className="text-xs text-gray-400 dark:text-gray-500 uppercase font-semibold mb-1">Total TTC</p>
             <p className="text-xl font-bold text-kerpta-600 dark:text-kerpta-400">{fmtCurrency(quote.total_ttc)}</p>
           </div>
@@ -496,7 +496,7 @@ function QuoteDetailPanel({ quoteId, onClose }: { quoteId: string; onClose: () =
 
         {/* Notes */}
         {quote.notes && (
-          <div className="mt-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+          <div className={`mt-4 ${CARD} p-4`}>
             <p className="text-xs text-gray-400 dark:text-gray-500 uppercase font-semibold mb-1">Notes</p>
             <p className="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">{quote.notes}</p>
           </div>
@@ -1121,7 +1121,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
           <button
             onClick={() => handleSave(true)}
             disabled={saving || !clientId}
-            className="flex items-center gap-1.5 px-5 py-2.5 text-sm border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 font-semibold rounded-lg transition disabled:opacity-50"
+            className={`${BTN} px-5 py-2.5`}
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Send className="w-4 h-4" /> Enregistrer et envoyer</>}
           </button>

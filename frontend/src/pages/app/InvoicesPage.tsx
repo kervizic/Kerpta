@@ -17,7 +17,7 @@ import ClientPanel from '@/components/app/ClientPanel'
 import DatePicker from '@/components/app/DatePicker'
 import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
 import MobileFilterPanel from '@/components/app/MobileFilterPanel'
-import { INPUT, SELECT, LINE_INPUT, LINE_SELECT, BTN, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER } from '@/lib/formStyles'
+import { INPUT, SELECT, LINE_INPUT, LINE_SELECT, BTN, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER, BADGE_COUNT, CARD } from '@/lib/formStyles'
 import axios from 'axios'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -268,7 +268,7 @@ function InvoicesList() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
               </svg>
               {activeFilterCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-kerpta text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                <span className={`absolute -top-1 -right-1 w-4 h-4 ${BADGE_COUNT}`}>
                   {activeFilterCount}
                 </span>
               )}
@@ -342,7 +342,7 @@ function InvoicesList() {
                 <div
                   key={inv.id}
                   onClick={() => isEditable ? setEditId(inv.id) : setSelectedId(inv.id)}
-                  className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 cursor-pointer hover:border-kerpta-200 dark:hover:border-kerpta-700 transition active:bg-kerpta-50/50 dark:active:bg-kerpta-900/30"
+                  className={`${CARD} p-4 cursor-pointer hover:border-kerpta-200 dark:hover:border-kerpta-700 transition active:bg-kerpta-50/50 dark:active:bg-kerpta-900/30`}
                 >
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="font-mono text-xs text-gray-500 dark:text-gray-400">{inv.number || inv.proforma_number || '—'}</span>
@@ -506,19 +506,19 @@ function InvoiceDetailPanel({ invoiceId, onClose }: { invoiceId: string; onClose
 
         {/* Totaux */}
         <div className="grid grid-cols-4 gap-4 mb-6">
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+          <div className={`${CARD} p-4`}>
             <p className="text-xs text-gray-400 dark:text-gray-500 uppercase font-semibold mb-1">Total HT</p>
             <p className="text-lg font-bold text-gray-900 dark:text-white">{fmtCurrency(invoice.subtotal_ht)}</p>
           </div>
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+          <div className={`${CARD} p-4`}>
             <p className="text-xs text-gray-400 dark:text-gray-500 uppercase font-semibold mb-1">TVA</p>
             <p className="text-lg font-bold text-gray-900 dark:text-white">{fmtCurrency(invoice.total_vat)}</p>
           </div>
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+          <div className={`${CARD} p-4`}>
             <p className="text-xs text-gray-400 dark:text-gray-500 uppercase font-semibold mb-1">Total TTC</p>
             <p className="text-lg font-bold text-kerpta-600 dark:text-kerpta-400">{fmtCurrency(invoice.total_ttc)}</p>
           </div>
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+          <div className={`${CARD} p-4`}>
             <p className="text-xs text-gray-400 dark:text-gray-500 uppercase font-semibold mb-1">Payé</p>
             <p className={`text-lg font-bold ${Number(invoice.amount_paid) >= Number(invoice.total_ttc) ? 'text-green-600' : 'text-gray-500'}`}>{fmtCurrency(invoice.amount_paid)}</p>
           </div>
@@ -1256,7 +1256,7 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
             <button
               onClick={() => handleSave(false, true)}
               disabled={saving || !clientId}
-              className="flex items-center gap-1.5 px-5 py-2.5 border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 text-sm font-semibold rounded-lg transition disabled:opacity-50"
+              className={`${BTN} px-5 py-2.5`}
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
               Valider

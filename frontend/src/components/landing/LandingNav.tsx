@@ -4,6 +4,7 @@
 
 import { Github } from 'lucide-react'
 import { navigate } from '@/hooks/useRoute'
+import { BTN_LANDING } from '@/lib/formStyles'
 
 function handleLogin() {
   const token = localStorage.getItem('supabase_access_token')
@@ -48,7 +49,7 @@ export function LandingNav() {
           {/* Bouton Se connecter */}
           <button
             onClick={handleLogin}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-kerpta text-kerpta text-sm font-semibold transition-all bg-white hover:bg-kerpta-50 dark:bg-gray-900 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 shadow-lg shadow-kerpta/15 hover:shadow-kerpta/30"
+            className={`${BTN_LANDING} px-4 py-2 text-sm`}
           >
             Se connecter
           </button>

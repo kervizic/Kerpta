@@ -1,5 +1,6 @@
 // Kerpta — Section Hero de la page vitrine
 import { ArrowRight, Github, Star } from 'lucide-react'
+import { BTN_LANDING } from '@/lib/formStyles'
 
 interface Cta { label: string; href: string }
 interface Stat { value: string; label: string }
@@ -72,7 +73,7 @@ export function LandingHero({ content }: { content: Record<string, unknown> }) {
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <a
             href={ctaPrimary.href}
-            className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl border border-kerpta text-kerpta font-semibold text-base transition-all bg-white hover:bg-kerpta-50 dark:bg-gray-900 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 shadow-lg shadow-kerpta/15 hover:shadow-kerpta/30"
+            className={`${BTN_LANDING} px-8 py-4 text-base`}
           >
             {ctaPrimary.label}
             <ArrowRight className="w-4 h-4" />

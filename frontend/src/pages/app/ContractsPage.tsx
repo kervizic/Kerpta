@@ -7,7 +7,7 @@ import { Plus, Loader2, BarChart3, Info, Filter } from 'lucide-react'
 import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
 import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
 import MobileFilterPanel from '@/components/app/MobileFilterPanel'
-import { BTN, OVERLAY_BACKDROP, OVERLAY_PANEL } from '@/lib/formStyles'
+import { BTN, OVERLAY_BACKDROP, OVERLAY_PANEL, CARD } from '@/lib/formStyles'
 
 interface Contract {
   id: string
@@ -618,15 +618,15 @@ function SituationEditorPanel({ contractId: _contractId, situationId, onClose }:
 
         {/* Totaux */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+          <div className={`${CARD} p-4`}>
             <p className="text-xs text-gray-400 dark:text-gray-500 uppercase font-semibold mb-1">Cumulé</p>
             <p className="text-xl font-bold text-gray-900 dark:text-white">{fmtCurrency(situation.cumulative_total)}</p>
           </div>
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+          <div className={`${CARD} p-4`}>
             <p className="text-xs text-gray-400 dark:text-gray-500 uppercase font-semibold mb-1">Déjà facturé</p>
             <p className="text-xl font-bold text-gray-500 dark:text-gray-400">{fmtCurrency(situation.previously_invoiced)}</p>
           </div>
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+          <div className={`${CARD} p-4`}>
             <p className="text-xs text-gray-400 dark:text-gray-500 uppercase font-semibold mb-1">A facturer</p>
             <p className="text-xl font-bold text-kerpta-600">{fmtCurrency(situation.invoice_amount)}</p>
           </div>
