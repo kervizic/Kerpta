@@ -174,7 +174,22 @@ async def create_invoice(
         total_vat += calc["total_vat"]
     total_ttc = subtotal_ht + total_vat
 
-    bank_json = json.dumps(data.bank_details) if data.bank_details else None
+    # RIB : fourni par le frontend, sinon charge depuis le profil de facturation
+    bank_details = data.bank_details
+    if not bank_details and billing_profile_id:
+        bank_result = await db.execute(
+            text("""
+                SELECT ba.iban, ba.bic, ba.bank_name
+                FROM billing_profiles bp
+                JOIN bank_accounts ba ON ba.id = bp.bank_account_id
+                WHERE bp.id = :bpid
+            """),
+            {"bpid": billing_profile_id},
+        )
+        bank_row = bank_result.fetchone()
+        if bank_row:
+            bank_details = {"iban": bank_row[0], "bic": bank_row[1], "bank_name": bank_row[2]}
+    bank_json = json.dumps(bank_details) if bank_details else None
 
     await db.execute(
         text("""
