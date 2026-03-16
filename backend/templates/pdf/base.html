@@ -139,10 +139,13 @@ table { border-collapse: collapse; width: 100%; }
   </table>
 </div>
 
-<!-- ── Reglement + banque ────────────────────────────────────────── -->
-{% if payment_method or bank_details %}
+<!-- ── Reglement ────────────────────────────────────────────────── -->
+{% if footer or payment_method or bank_details %}
 <div class="payment-block clearfix">
   <div class="section-title">Reglement</div>
+  {% if footer %}
+  <div class="legal-footer">{{ footer }}</div>
+  {% endif %}
   {% if payment_method %}
   <div class="payment-line">Mode de reglement : {{ payment_method }}</div>
   {% endif %}
@@ -155,15 +158,7 @@ table { border-collapse: collapse; width: 100%; }
 </div>
 {% endif %}
 
-<!-- ── Mentions legales ──────────────────────────────────────────── -->
-{% if footer %}
-<div class="legal-block">
-  <div class="section-title">Mentions legales</div>
-  <div class="legal-footer">{{ footer }}</div>
-</div>
-{% endif %}
-
-<!-- ── Notes (note de reglement + notes libres) ──────────────────── -->
+<!-- ── Notes ────────────────────────────────────────────────────── -->
 {% if payment_note or notes %}
 <div class="notes-block">
   <div class="section-title">Notes</div>
