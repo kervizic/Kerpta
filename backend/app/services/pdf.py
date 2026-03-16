@@ -235,17 +235,18 @@ async def _get_document_columns(
 
     config = row[0] if isinstance(row[0], dict) else {}
 
-    # Chercher dans les types de documents si un type est spécifié
+    # Options globales d'en-tête
+    show_logo = config.get("document_show_logo", True)
+    show_company_name = config.get("document_show_company_name", True)
+
+    # Chercher les colonnes dans les types de documents si un type est spécifié
     if document_type:
         doc_types = config.get("quote_document_types", [])
         for dt in doc_types:
             if dt.get("key") == document_type:
-                cols = dt.get("columns", default_cols)
-                show_logo = dt.get("show_logo", True)
-                show_company_name = dt.get("show_company_name", True)
-                return cols, show_logo, show_company_name
+                return dt.get("columns", default_cols), show_logo, show_company_name
 
-    return config.get("document_columns", default_cols), True, True
+    return config.get("document_columns", default_cols), show_logo, show_company_name
 
 
 def _compute_vat_breakdown(lines: list[dict]) -> list[dict]:

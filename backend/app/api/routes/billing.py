@@ -92,6 +92,23 @@ async def get_auto_footer(
     return await svc.generate_auto_footer(ctx.org_id, db)
 
 
+@router.get("/document-header")
+async def get_document_header(
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await svc.get_document_header(ctx.org_id, db)
+
+
+@router.patch("/document-header")
+async def update_document_header(
+    data: dict,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await svc.update_document_header(ctx.org_id, data, db)
+
+
 # ── Taux de TVA ────────────────────────────────────────────────────────────
 
 

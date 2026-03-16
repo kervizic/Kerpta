@@ -13,8 +13,6 @@ interface DocType {
   key: string
   title: string
   columns: Record<string, boolean>
-  show_logo?: boolean
-  show_company_name?: boolean
 }
 
 const ALL_COLUMNS: { key: string; label: string }[] = [
@@ -129,6 +127,62 @@ function PrintStyleSection() {
   )
 }
 
+// ── Section En-tête du document ──────────────────────────────────────────
+
+function DocumentHeaderSection() {
+  const [showLogo, setShowLogo] = useState(true)
+  const [showCompanyName, setShowCompanyName] = useState(true)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    orgGet<{ show_logo: boolean; show_company_name: boolean }>('/billing/document-header')
+      .then((data) => { setShowLogo(data.show_logo !== false); setShowCompanyName(data.show_company_name !== false) })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  async function toggle(key: 'show_logo' | 'show_company_name', value: boolean) {
+    if (key === 'show_logo') setShowLogo(value)
+    else setShowCompanyName(value)
+    setSaving(true)
+    try {
+      await orgPatch('/billing/document-header', { [key]: value })
+    } catch { /* */ }
+    setSaving(false)
+  }
+
+  const toggleStyle = (on: boolean) =>
+    `px-3 py-1.5 text-xs rounded-full border transition cursor-pointer ${
+      on ? 'bg-kerpta-50 dark:bg-kerpta-900/30 border-kerpta-200 dark:border-kerpta-700 text-kerpta-700 dark:text-kerpta-400'
+         : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:border-gray-300'
+    }`
+
+  return (
+    <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">En-tête du document</h2>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Options affichées en haut de tous les documents PDF</p>
+        </div>
+        {saving && <Loader2 className="w-4 h-4 animate-spin text-kerpta" />}
+      </div>
+      {loading ? (
+        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-kerpta" /></div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => toggle('show_logo', !showLogo)} className={toggleStyle(showLogo)}>
+            Afficher le logo
+          </button>
+          <button type="button" onClick={() => toggle('show_company_name', !showCompanyName)} className={toggleStyle(showCompanyName)}>
+            Afficher le nom de la société
+          </button>
+        </div>
+      )}
+    </section>
+  )
+}
+
 // ── Section Pied de page ────────────────────────────────────────────────
 
 function DocumentFooterSection() {
@@ -168,12 +222,12 @@ function DocumentFooterSection() {
     <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Pied de page par défaut</h2>
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Mentions légales par défaut</h2>
           <button
             onClick={handleRefresh}
             disabled={refreshing}
             className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-            title="Générer depuis le profil de facturation par défaut"
+            title="Régénérer depuis le profil de facturation par défaut"
           >
             <RefreshCw className={`w-3.5 h-3.5 text-gray-400 dark:text-gray-500 ${refreshing ? 'animate-spin' : ''}`} />
           </button>
@@ -213,8 +267,6 @@ function DocumentTypesSection() {
   const [editKey, setEditKey] = useState('')
   const [editTitle, setEditTitle] = useState('')
   const [editColumns, setEditColumns] = useState<Record<string, boolean>>({})
-  const [editShowLogo, setEditShowLogo] = useState(true)
-  const [editShowCompanyName, setEditShowCompanyName] = useState(true)
   const [addMode, setAddMode] = useState(false)
 
   useEffect(() => {
@@ -239,8 +291,6 @@ function DocumentTypesSection() {
     setEditKey(t.key)
     setEditTitle(t.title)
     setEditColumns({ ...t.columns })
-    setEditShowLogo(t.show_logo !== false)
-    setEditShowCompanyName(t.show_company_name !== false)
     setAddMode(false)
   }
 
@@ -252,8 +302,6 @@ function DocumentTypesSection() {
       reference: true, description: true, quantity: true, unit: true,
       unit_price: true, vat_rate: true, discount_percent: true, total_ht: true,
     })
-    setEditShowLogo(true)
-    setEditShowCompanyName(true)
     setAddMode(true)
   }
 
@@ -268,8 +316,6 @@ function DocumentTypesSection() {
       key: editKey.trim().toLowerCase().replace(/\s+/g, '_'),
       title: editTitle.trim(),
       columns: editColumns,
-      show_logo: editShowLogo,
-      show_company_name: editShowCompanyName,
     }
     let updated: DocType[]
     if (addMode) {
@@ -344,26 +390,6 @@ function DocumentTypesSection() {
                       })}
                     </div>
                   </div>
-                  <div>
-                    <label className="text-xs text-gray-500 dark:text-gray-400 mb-1.5 block">En-tête du document</label>
-                    <div className="flex flex-wrap gap-2">
-                      {[
-                        { key: 'logo', label: 'Afficher le logo', value: editShowLogo, toggle: () => setEditShowLogo((v) => !v) },
-                        { key: 'company', label: 'Afficher le nom de la société', value: editShowCompanyName, toggle: () => setEditShowCompanyName((v) => !v) },
-                      ].map((opt) => (
-                        <button
-                          key={opt.key}
-                          type="button"
-                          onClick={opt.toggle}
-                          className={`px-2.5 py-1 text-xs rounded-full border transition ${
-                            opt.value ? 'bg-kerpta-50 dark:bg-kerpta-900/30 border-kerpta-200 dark:border-kerpta-700 text-kerpta-700 dark:text-kerpta-400' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:border-gray-300'
-                          }`}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
                   <div className="flex gap-2 pt-1">
                     <button onClick={confirmEdit} disabled={!editKey.trim() || !editTitle.trim()} className={BTN_SM}>
                       Enregistrer
@@ -382,8 +408,6 @@ function DocumentTypesSection() {
                       {ALL_COLUMNS.filter((c) => t.columns[c.key] !== false).map((c) => (
                         <span key={c.key} className="text-[10px] bg-kerpta-50 dark:bg-kerpta-900/30 text-kerpta-600 dark:text-kerpta-400 px-1.5 py-0.5 rounded">{c.label}</span>
                       ))}
-                      {t.show_logo === false && <span className="text-[10px] bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 px-1.5 py-0.5 rounded line-through">Logo</span>}
-                      {t.show_company_name === false && <span className="text-[10px] bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 px-1.5 py-0.5 rounded line-through">Nom société</span>}
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
@@ -460,6 +484,7 @@ export default function DocumentSettingsPage() {
       <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
         <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Documents</h1>
         <PrintStyleSection />
+        <DocumentHeaderSection />
         <DocumentFooterSection />
         <DocumentTypesSection />
       </div>

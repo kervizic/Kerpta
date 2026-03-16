@@ -242,6 +242,53 @@ async def generate_auto_footer(org_id: uuid.UUID, db: AsyncSession) -> dict:
     return {"footer": "\n".join(lines)}
 
 
+# ── En-tête du document (logo, nom société) ────────────────────────────────
+
+
+async def get_document_header(org_id: uuid.UUID, db: AsyncSession) -> dict:
+    """Retourne les options globales d'en-tête (logo, nom société)."""
+    result = await db.execute(
+        text("SELECT module_config FROM organizations WHERE id = :org_id"),
+        {"org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    config = row[0] if row and row[0] and isinstance(row[0], dict) else {}
+    return {
+        "show_logo": config.get("document_show_logo", True),
+        "show_company_name": config.get("document_show_company_name", True),
+    }
+
+
+async def update_document_header(
+    org_id: uuid.UUID, data: dict, db: AsyncSession
+) -> dict:
+    """Met à jour les options globales d'en-tête dans module_config."""
+    result = await db.execute(
+        text("SELECT module_config FROM organizations WHERE id = :org_id"),
+        {"org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    config = row[0] if row and row[0] and isinstance(row[0], dict) else {}
+
+    if "show_logo" in data:
+        config["document_show_logo"] = bool(data["show_logo"])
+    if "show_company_name" in data:
+        config["document_show_company_name"] = bool(data["show_company_name"])
+
+    await db.execute(
+        text("""
+            UPDATE organizations SET module_config = CAST(:config AS jsonb)
+            WHERE id = :org_id
+        """),
+        {"org_id": str(org_id), "config": json.dumps(config)},
+    )
+    await db.commit()
+    return {
+        "show_logo": config.get("document_show_logo", True),
+        "show_company_name": config.get("document_show_company_name", True),
+    }
+
+
 # ── Types de documents (devis) ──────────────────────────────────────────────
 
 DEFAULT_QUOTE_DOCUMENT_TYPES = [
