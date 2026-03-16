@@ -167,6 +167,13 @@ def _compute_vat_breakdown(lines: list[dict]) -> list[dict]:
     ]
 
 
+def _safe_filename(name: str) -> str:
+    """Convertit un nom de fichier en ASCII pur (compatible Content-Disposition latin-1)."""
+    import unicodedata
+    nfkd = unicodedata.normalize("NFKD", name)
+    return nfkd.encode("ascii", "ignore").decode("ascii") or "document"
+
+
 def _render_pdf(template_name: str, context: dict) -> bytes:
     """Rend un template HTML en PDF via WeasyPrint."""
     template = _jinja_env.get_template(template_name)
@@ -228,13 +235,13 @@ async def generate_invoice_pdf(
     # Type de document
     if inv["is_credit_note"]:
         doc_type_label = "Avoir"
-        doc_number = inv["number"] or inv["proforma_number"] or "—"
+        doc_number = inv["number"] or inv["proforma_number"] or "-"
     elif proforma or inv["status"] == "draft":
         doc_type_label = "Proforma"
-        doc_number = inv["proforma_number"] or "—"
+        doc_number = inv["proforma_number"] or "-"
     else:
         doc_type_label = "Facture"
-        doc_number = inv["number"] or inv["proforma_number"] or "—"
+        doc_number = inv["number"] or inv["proforma_number"] or "-"
 
     if inv["is_situation"]:
         doc_type_label += f" de situation n°{inv['situation_number'] or ''}"
@@ -323,7 +330,7 @@ async def generate_invoice_pdf(
     }
 
     pdf_bytes = _render_pdf(template_name, context)
-    filename = f"{doc_type_label.replace(' ', '_')}_{doc_number.replace('/', '-')}.pdf"
+    filename = _safe_filename(f"{doc_type_label.replace(' ', '_')}_{doc_number.replace('/', '-')}.pdf")
 
     # Backup automatique vers le stockage configuré (arborescence Kerpta)
     try:
@@ -400,7 +407,7 @@ async def generate_quote_pdf(
         "attachement": "Attachement",
     }
     doc_type_label = doc_type_map.get(doc_type_raw, doc_type_raw.capitalize() if doc_type_raw else "Devis")
-    doc_number = quote["number"] or "—"
+    doc_number = quote["number"] or "-"
 
     # Vendeur (org live, les devis ne figent pas les snapshots)
     seller = await _get_org_info(org_id, db)
@@ -470,7 +477,7 @@ async def generate_quote_pdf(
     }
 
     pdf_bytes = _render_pdf(template_name, context)
-    filename = f"{doc_type_label.replace(' ', '_')}_{doc_number.replace('/', '-')}.pdf"
+    filename = _safe_filename(f"{doc_type_label.replace(' ', '_')}_{doc_number.replace('/', '-')}.pdf")
 
     # Backup automatique vers le stockage configuré (arborescence Kerpta)
     try:
