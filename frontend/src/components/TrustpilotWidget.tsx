@@ -1,48 +1,22 @@
-// Kerpta — Widget Trustpilot (chargement dynamique du script)
-import { useEffect, useRef } from 'react'
+// Kerpta — Lien Trustpilot stylé (remplace le widget externe)
+// Copyright (C) 2026 Emmanuel Kervizic
+// Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
-declare global {
-  interface Window {
-    Trustpilot?: { loadFromElement: (el: HTMLElement) => void }
-  }
-}
+import { Star } from 'lucide-react'
 
 export function TrustpilotWidget() {
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    function init() {
-      if (ref.current && window.Trustpilot) {
-        window.Trustpilot.loadFromElement(ref.current)
-      }
-    }
-
-    const existing = document.querySelector('script[src*="trustpilot.com/bootstrap"]')
-    if (existing) {
-      init()
-    } else {
-      const script = document.createElement('script')
-      script.src = '//widget.trustpilot.com/bootstrap/v5/tp.widget.bootstrap.min.js'
-      script.async = true
-      script.onload = init
-      document.head.appendChild(script)
-    }
-  }, [])
-
   return (
-    <div
-      ref={ref}
-      className="trustpilot-widget"
-      data-locale="fr-FR"
-      data-template-id="56278e9abfbbba0bdcd568bc"
-      data-businessunit-id="69b274d8022fce23c4520dc8"
-      data-style-height="52px"
-      data-style-width="100%"
-      data-token="489d92a2-f6a6-4f81-97d8-36d40422528b"
+    <a
+      href="https://fr.trustpilot.com/review/kerpta.fr"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-xl border border-kerpta text-sm font-semibold transition-all bg-white hover:bg-kerpta-50 dark:bg-gray-900 dark:hover:bg-kerpta-900/20 shadow-sm"
     >
-      <a href="https://fr.trustpilot.com/review/kerpta.fr" target="_blank" rel="noopener">
-        Trustpilot
-      </a>
-    </div>
+      <span className="text-gray-700 dark:text-gray-200">Évaluez-nous sur</span>
+      <span className="inline-flex items-center gap-1">
+        <Star className="w-4 h-4 fill-kerpta text-kerpta" />
+        <span className="font-bold text-gray-900 dark:text-white">Trustpilot</span>
+      </span>
+    </a>
   )
 }

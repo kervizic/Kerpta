@@ -63,10 +63,16 @@ def generate_svg(path: str, bounds: tuple, size: int, radius: int,
 
 
 def svg_to_png(svg_path: str, png_path: str, size: int):
-    """Convertit un SVG en PNG via sharp (Node.js)."""
+    """Convertit un SVG en PNG via sharp (Node.js).
+
+    flatten() supprime le canal alpha et applique le fond — obligatoire
+    pour iOS qui affiche les zones transparentes en noir.
+    """
     js = (
         f"const s=require('sharp');"
-        f"s('{svg_path}').resize({size},{size}).png()"
+        f"s('{svg_path}').resize({size},{size})"
+        f".flatten({{background:'{BG_COLOR}'}})"
+        f".png({{quality:100}})"
         f".toFile('{png_path}')"
         f".then(()=>console.log('  → {png_path} ({size}x{size})'));"
     )

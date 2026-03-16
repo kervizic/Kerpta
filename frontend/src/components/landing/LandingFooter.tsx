@@ -44,8 +44,8 @@ export function LandingFooter({ content }: { content: Record<string, unknown> })
             <p className="text-sm text-gray-400 dark:text-slate-500 max-w-xs text-center md:text-left">{tagline}</p>
           </div>
 
-          {/* TrustBox widget */}
-          <div className="w-full max-w-xs mx-auto shrink-0 border border-kerpta rounded-xl px-4 py-3 bg-white dark:bg-gray-900 hover:bg-kerpta-50 dark:hover:bg-kerpta-900/20 transition">
+          {/* Trustpilot */}
+          <div className="shrink-0">
             <TrustpilotWidget />
           </div>
 
