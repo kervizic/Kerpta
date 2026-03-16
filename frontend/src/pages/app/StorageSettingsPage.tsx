@@ -3,14 +3,14 @@
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
 import { useState, useEffect, useCallback } from 'react'
-import { HardDrive, Cloud, Server, CheckCircle2, XCircle, Loader2, Trash2, ExternalLink } from 'lucide-react'
+import { HardDrive, Cloud, Server, Database, CheckCircle2, XCircle, Loader2, Trash2, ExternalLink } from 'lucide-react'
 import { orgGet, orgPost, orgDelete } from '@/lib/orgApi'
 import ModalOverlay from '@/components/app/ModalOverlay'
 import { BTN } from '@/lib/formStyles'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-type ProviderKey = 'google_drive' | 'onedrive' | 'dropbox' | 'ftp'
+type ProviderKey = 'google_drive' | 'onedrive' | 'dropbox' | 'ftp' | 's3'
 
 interface StorageConnection {
   id: string
@@ -27,6 +27,15 @@ interface FtpFormData {
   password: string
   path: string
   use_sftp: boolean
+}
+
+interface S3FormData {
+  endpoint: string
+  access_key: string
+  secret_key: string
+  bucket: string
+  region: string
+  base_path: string
 }
 
 interface ProviderInfo {
@@ -68,6 +77,15 @@ const PROVIDERS: ProviderInfo[] = [
     color: 'text-indigo-600',
     bgColor: 'bg-indigo-50',
     borderColor: 'border-indigo-200',
+  },
+  {
+    key: 's3',
+    label: 'S3 Compatible',
+    description: 'OVH Object Storage, AWS S3, Scaleway, Backblaze B2 — tout stockage compatible S3.',
+    icon: <Database className="w-6 h-6" />,
+    color: 'text-kerpta-600',
+    bgColor: 'bg-kerpta-50',
+    borderColor: 'border-kerpta-200',
   },
   {
     key: 'ftp',
@@ -301,6 +319,135 @@ function FtpModal({
   )
 }
 
+// ── Modal S3 ────────────────────────────────────────────────────────────────
+
+function S3Modal({
+  open,
+  onClose,
+  onSubmit,
+  loading,
+}: {
+  open: boolean
+  onClose: () => void
+  onSubmit: (data: S3FormData) => void
+  loading: boolean
+}) {
+  const [form, setForm] = useState<S3FormData>({
+    endpoint: '',
+    access_key: '',
+    secret_key: '',
+    bucket: '',
+    region: '',
+    base_path: 'kerpta/',
+  })
+
+  if (!open) return null
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    onSubmit(form)
+  }
+
+  const inputCls =
+    'block w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm focus:ring-2 focus:ring-kerpta-400 focus:border-kerpta-400 outline-none transition bg-white dark:bg-gray-800 dark:text-gray-200'
+
+  return (
+    <ModalOverlay onClose={onClose} size="md" title="Connexion S3 Compatible">
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Endpoint URL *</label>
+            <input
+              type="url"
+              required
+              value={form.endpoint}
+              onChange={(e) => setForm({ ...form, endpoint: e.target.value })}
+              placeholder="https://s3.gra.io.cloud.ovh.net"
+              className={inputCls}
+            />
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">URL du service S3 (OVH, AWS, Scaleway...)</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Access Key *</label>
+              <input
+                type="text"
+                required
+                value={form.access_key}
+                onChange={(e) => setForm({ ...form, access_key: e.target.value })}
+                placeholder="AKIAIOSFODNN7EXAMPLE"
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Secret Key *</label>
+              <input
+                type="password"
+                required
+                value={form.secret_key}
+                onChange={(e) => setForm({ ...form, secret_key: e.target.value })}
+                placeholder="wJalrXUtnFEMI/K7MDENG..."
+                className={inputCls}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Bucket *</label>
+              <input
+                type="text"
+                required
+                value={form.bucket}
+                onChange={(e) => setForm({ ...form, bucket: e.target.value })}
+                placeholder="kerpta-documents"
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Région</label>
+              <input
+                type="text"
+                value={form.region}
+                onChange={(e) => setForm({ ...form, region: e.target.value })}
+                placeholder="gra (optionnel)"
+                className={inputCls}
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Chemin de base</label>
+            <input
+              type="text"
+              value={form.base_path}
+              onChange={(e) => setForm({ ...form, base_path: e.target.value })}
+              placeholder="kerpta/"
+              className={inputCls}
+            />
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">Préfixe des fichiers dans le bucket (ex: kerpta/)</p>
+          </div>
+
+          {/* Footer */}
+          <div className="flex justify-end gap-2 pt-3 border-t border-gray-100 dark:border-gray-700">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition"
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className={`${BTN} gap-2`}
+            >
+              {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              Tester et connecter
+            </button>
+          </div>
+        </form>
+    </ModalOverlay>
+  )
+}
+
 // ── Page principale ──────────────────────────────────────────────────────────
 
 export default function StorageSettingsPage() {
@@ -308,6 +455,7 @@ export default function StorageSettingsPage() {
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [ftpOpen, setFtpOpen] = useState(false)
+  const [s3Open, setS3Open] = useState(false)
   const [error, setError] = useState('')
 
   const load = useCallback(async () => {
@@ -335,6 +483,10 @@ export default function StorageSettingsPage() {
       setFtpOpen(true)
       return
     }
+    if (provider === 's3') {
+      setS3Open(true)
+      return
+    }
 
     // OAuth providers — demander l'URL d'auth au backend
     setActionLoading(provider)
@@ -345,6 +497,21 @@ export default function StorageSettingsPage() {
       window.location.href = auth_url
     } catch {
       setError(`Impossible de se connecter à ${provider}. L'intégration sera disponible prochainement.`)
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  async function handleS3Submit(data: S3FormData) {
+    setActionLoading('s3')
+    setError('')
+    try {
+      await orgPost('/storage/connect', { provider: 's3', ...data })
+      setS3Open(false)
+      await load()
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setError(msg || 'Impossible de se connecter au stockage S3. Vérifiez les paramètres.')
     } finally {
       setActionLoading(null)
     }
@@ -431,11 +598,11 @@ export default function StorageSettingsPage() {
         )}
 
         {/* Note de sécurité */}
-        <div className="mt-8 p-4 rounded-xl bg-gray-50 border border-gray-200">
-          <p className="text-xs text-gray-500">
-            <strong>Sécurité :</strong> Kerpta ne stocke aucun fichier sur ses serveurs. Vos documents
-            sont envoyés directement vers votre espace de stockage. Les tokens d'accès sont chiffrés
-            et ne sont jamais exposés.
+        <div className="mt-8 p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            <strong>Sécurité :</strong> Vos documents sont envoyés directement vers votre espace de stockage.
+            Les identifiants de connexion sont chiffrés et ne sont jamais exposés.
+            Les PDF de factures et devis sont automatiquement sauvegardés à chaque impression.
           </p>
         </div>
       </div>
@@ -446,6 +613,14 @@ export default function StorageSettingsPage() {
         onClose={() => setFtpOpen(false)}
         onSubmit={handleFtpSubmit}
         loading={actionLoading === 'ftp'}
+      />
+
+      {/* Modal S3 */}
+      <S3Modal
+        open={s3Open}
+        onClose={() => setS3Open(false)}
+        onSubmit={handleS3Submit}
+        loading={actionLoading === 's3'}
       />
     </div>
   )

@@ -12,6 +12,7 @@ Supporte 3 styles configurables par organisation :
 """
 
 import json
+import logging
 import uuid
 from decimal import ROUND_HALF_UP, Decimal
 from io import BytesIO
@@ -21,6 +22,10 @@ from jinja2 import Environment, FileSystemLoader
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from weasyprint import HTML
+
+from app.services import storage as storage_svc
+
+_log = logging.getLogger(__name__)
 
 # ── Configuration ──────────────────────────────────────────────────────────────
 
@@ -319,6 +324,22 @@ async def generate_invoice_pdf(
 
     pdf_bytes = _render_pdf(template_name, context)
     filename = f"{doc_type_label.replace(' ', '_')}_{doc_number.replace('/', '-')}.pdf"
+
+    # Backup automatique vers le stockage configuré
+    try:
+        year = str(inv["issue_date"])[:4] if inv.get("issue_date") else "0000"
+        remote_path = f"factures/{year}/{filename}"
+        pdf_url = await storage_svc.upload_document(org_id, pdf_bytes, remote_path, db)
+        if pdf_url:
+            await db.execute(
+                text("UPDATE invoices SET pdf_url = :url, updated_at = now() WHERE id = :iid"),
+                {"url": pdf_url, "iid": invoice_id},
+            )
+            await db.commit()
+            _log.info("PDF facture sauvegardé : %s", remote_path)
+    except Exception as e:
+        _log.warning("Backup PDF facture échoué (non bloquant) : %s", e)
+
     return pdf_bytes, filename
 
 
@@ -445,4 +466,20 @@ async def generate_quote_pdf(
 
     pdf_bytes = _render_pdf(template_name, context)
     filename = f"{doc_type_label.replace(' ', '_')}_{doc_number.replace('/', '-')}.pdf"
+
+    # Backup automatique vers le stockage configuré
+    try:
+        year = str(quote.get("issue_date", ""))[:4] or "0000"
+        remote_path = f"devis/{year}/{filename}"
+        pdf_url = await storage_svc.upload_document(org_id, pdf_bytes, remote_path, db)
+        if pdf_url:
+            await db.execute(
+                text("UPDATE quotes SET pdf_url = :url, updated_at = now() WHERE id = :qid"),
+                {"url": pdf_url, "qid": quote_id},
+            )
+            await db.commit()
+            _log.info("PDF devis sauvegardé : %s", remote_path)
+    except Exception as e:
+        _log.warning("Backup PDF devis échoué (non bloquant) : %s", e)
+
     return pdf_bytes, filename
