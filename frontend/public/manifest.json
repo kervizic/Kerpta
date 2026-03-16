@@ -4,8 +4,8 @@
   "description": "Logiciel de comptabilité pour TPE et indépendants",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f97316",
-  "theme_color": "#f97316",
+  "background_color": "#ff9900",
+  "theme_color": "#ff9900",
   "orientation": "any",
   "icons": [
     {

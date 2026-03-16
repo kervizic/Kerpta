@@ -12,8 +12,8 @@ from fontTools.pens.boundsPen import BoundsPen
 
 FONT_PATH = "public/fonts/Sarpanch-Black.ttf"
 GLYPH_CHAR = "K"
-BG_COLOR = "#f97316"     # orange Kerpta
-FG_COLOR = "#888888"     # gris KER du logo KERPTA
+BG_COLOR = "#888888"     # gris KER du logo KERPTA
+FG_COLOR = "#ff9900"     # orange Kerpta
 
 
 def get_k_path(font_path: str) -> tuple[str, float, float, float, float]:

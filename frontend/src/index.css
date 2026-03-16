@@ -12,7 +12,7 @@
 
 /* ── DatePicker (react-day-picker) ──────────────────────────────────────── */
 .datepicker-kerpta .rdp-root {
-  --rdp-accent-color: #f97316;
+  --rdp-accent-color: #ff9900;
   --rdp-accent-background-color: #fff7ed;
   --rdp-day_button-height: 32px;
   --rdp-day_button-width: 32px;
@@ -37,7 +37,7 @@
 }
 .datepicker-kerpta .rdp-today:not(.rdp-selected) .rdp-day_button {
   font-weight: 700;
-  color: #f97316;
+  color: #ff9900;
 }
 .datepicker-kerpta .rdp-outside {
   opacity: 0.35;
