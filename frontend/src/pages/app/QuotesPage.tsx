@@ -4,7 +4,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import {
-  Loader2, ArrowLeft, Send, Check, X, Copy, Plus, Trash2, RefreshCw, Info, Pencil, Printer, FileDown,
+  Loader2, ArrowLeft, Send, Check, X, Copy, Plus, Trash2, RefreshCw, Info, Pencil, FileDown, Archive, ArchiveRestore,
 } from 'lucide-react'
 import { navigate } from '@/hooks/useRoute'
 import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
@@ -159,6 +159,11 @@ function QuotesList() {
   const [showMobileFilters, setShowMobileFilters] = useState(false)
   const [docTypeLabels, setDocTypeLabels] = useState<Record<string, string>>(DOC_LABELS)
 
+  // Sélection multiple + archivage
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [showArchived, setShowArchived] = useState(false)
+  const [batchLoading, setBatchLoading] = useState(false)
+
   // Charger les types de documents pour les labels
   useEffect(() => {
     orgGet<DocTypeConfig[]>('/billing/quote-document-types')
@@ -188,6 +193,7 @@ function QuotesList() {
       if (dateArr?.[1]) params.date_to = dateArr[1]
       const statusArr = filters.status as string[] | undefined
       if (statusArr?.length === 1) params.status = statusArr[0]
+      if (showArchived) params.archived = 'true'
 
       const data = await orgGet<{ items: Quote[]; total: number }>('/quotes', params)
       let items = data.items
@@ -199,8 +205,9 @@ function QuotesList() {
       setQuotes(items)
       setTotal(data.total)
     } catch { /* ignore */ }
+    setSelected(new Set())
     setLoading(false)
-  }, [page, filters])
+  }, [page, filters, showArchived])
 
   // Debounce pour les filtres texte
   useEffect(() => {
@@ -211,6 +218,54 @@ function QuotesList() {
   const activeFilterCount = Object.values(filters).filter((v) =>
     (typeof v === 'string' && v) || (Array.isArray(v) && v.some(Boolean))
   ).length
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  function toggleSelectAll() {
+    if (selected.size === quotes.length) {
+      setSelected(new Set())
+    } else {
+      setSelected(new Set(quotes.map((q) => q.id)))
+    }
+  }
+
+  async function batchArchive() {
+    if (selected.size === 0) return
+    setBatchLoading(true)
+    try {
+      await orgPost('/quotes/batch/archive', { ids: [...selected], archive: !showArchived })
+      void load()
+    } catch { /* */ }
+    setBatchLoading(false)
+  }
+
+  async function batchDownloadPdf() {
+    if (selected.size === 0) return
+    setBatchLoading(true)
+    try {
+      const res = await fetch(`/api/v1/quotes/batch/pdf`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(() => { const t = localStorage.getItem('access_token'); return t ? { Authorization: `Bearer ${t}` } : {} })() },
+        body: JSON.stringify({ ids: [...selected] }),
+      })
+      if (!res.ok) throw new Error()
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      const ct = res.headers.get('content-type') || ''
+      a.download = ct.includes('zip') ? 'devis.zip' : 'devis.pdf'
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch { /* */ }
+    setBatchLoading(false)
+  }
 
   return (
     <div className="flex-1 overflow-y-auto">
@@ -231,6 +286,39 @@ function QuotesList() {
             )}
           </div>
           <div className="flex items-center gap-2">
+            {/* Barre d'actions (sélection active) */}
+            {selected.size > 0 && (
+              <div className="flex items-center gap-2 mr-2">
+                <span className="text-xs text-gray-500 dark:text-gray-400">{selected.size} sélectionné{selected.size > 1 ? 's' : ''}</span>
+                <button
+                  onClick={batchDownloadPdf}
+                  disabled={batchLoading}
+                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 rounded-lg transition disabled:opacity-50"
+                >
+                  <FileDown className="w-3.5 h-3.5" /> PDF
+                </button>
+                <button
+                  onClick={batchArchive}
+                  disabled={batchLoading}
+                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 rounded-lg transition disabled:opacity-50"
+                >
+                  {showArchived ? <ArchiveRestore className="w-3.5 h-3.5" /> : <Archive className="w-3.5 h-3.5" />}
+                  {showArchived ? 'Désarchiver' : 'Archiver'}
+                </button>
+              </div>
+            )}
+            {/* Toggle archivés */}
+            <button
+              onClick={() => { setShowArchived((v) => !v); setPage(1) }}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition ${
+                showArchived
+                  ? 'border-kerpta-300 bg-kerpta-50 text-kerpta-700 dark:border-kerpta-600 dark:bg-kerpta-900/30 dark:text-kerpta-400'
+                  : 'border-gray-200 text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700'
+              }`}
+            >
+              <Archive className="w-3.5 h-3.5 inline mr-1" />
+              Archivés
+            </button>
             {/* Bouton filtres mobile */}
             <button
               onClick={() => setShowMobileFilters(true)}
@@ -261,6 +349,14 @@ function QuotesList() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 dark:border-gray-700 text-left">
+                <th className="px-2 py-3 w-10">
+                  <input
+                    type="checkbox"
+                    checked={quotes.length > 0 && selected.size === quotes.length}
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-kerpta focus:ring-kerpta-400"
+                  />
+                </th>
                 <ColumnFilterHeader filter={QUOTE_FILTERS[0]} value={filters.number || ''} onChange={(v) => updateFilter('number', v)} />
                 <ColumnFilterHeader filter={QUOTE_FILTERS[1]} value={filters.type || ''} onChange={(v) => updateFilter('type', v)} />
                 <ColumnFilterHeader filter={QUOTE_FILTERS[2]} value={filters.client || ''} onChange={(v) => updateFilter('client', v)} />
@@ -272,9 +368,9 @@ function QuotesList() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin text-kerpta mx-auto" /></td></tr>
+                <tr><td colSpan={8} className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin text-kerpta mx-auto" /></td></tr>
               ) : quotes.length === 0 ? (
-                <tr><td colSpan={7} className="py-12 text-center text-gray-400 dark:text-gray-500 text-sm">Aucun devis trouvé</td></tr>
+                <tr><td colSpan={8} className="py-12 text-center text-gray-400 dark:text-gray-500 text-sm">Aucun devis trouvé</td></tr>
               ) : (
                 quotes.map((q) => {
                   const st = STATUS_LABELS[q.status] || { label: q.status, cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' }
@@ -282,6 +378,14 @@ function QuotesList() {
                   const isEditable = q.status === 'draft' || q.status === 'sent'
                   return (
                     <tr key={q.id} onClick={() => isEditable ? setEditId(q.id) : setSelectedId(q.id)} className="border-b border-gray-50 dark:border-gray-700 hover:bg-kerpta-50/50 dark:hover:bg-kerpta-900/30 cursor-pointer transition">
+                      <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selected.has(q.id)}
+                          onChange={() => toggleSelect(q.id)}
+                          className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-kerpta focus:ring-kerpta-400"
+                        />
+                      </td>
                       <td className="px-4 py-3 font-mono text-xs text-gray-700 dark:text-gray-200">{q.number}</td>
                       <td className="px-4 py-3 text-gray-500 dark:text-gray-400">{typeLabel}</td>
                       <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{q.client_name || '—'}</td>
@@ -323,7 +427,16 @@ function QuotesList() {
                   className={`${CARD} p-4 cursor-pointer hover:border-kerpta-200 dark:hover:border-kerpta-700 transition active:bg-kerpta-50/50 dark:active:bg-kerpta-900/30`}
                 >
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="font-mono text-xs text-gray-500 dark:text-gray-400">{q.number}</span>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={selected.has(q.id)}
+                        onChange={(e) => { e.stopPropagation(); toggleSelect(q.id) }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-kerpta focus:ring-kerpta-400"
+                      />
+                      <span className="font-mono text-xs text-gray-500 dark:text-gray-400">{q.number}</span>
+                    </div>
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${st.cls}`}>{st.label}</span>
                   </div>
                   <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{q.client_name || '—'}</p>

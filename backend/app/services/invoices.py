@@ -42,12 +42,20 @@ async def list_invoices(
     client_search: str | None = None,
     date_from: str | None = None,
     date_to: str | None = None,
+    archived: bool | None = None,
     page: int = 1,
     page_size: int = 25,
 ) -> dict:
     """Liste paginée des factures."""
     conditions = ["i.organization_id = :org_id"]
     params: dict = {"org_id": str(org_id)}
+
+    # Par défaut : non archivées
+    if archived is not None:
+        conditions.append("i.is_archived = :archived")
+        params["archived"] = archived
+    else:
+        conditions.append("i.is_archived = false")
 
     if status:
         conditions.append("i.status = :status")
@@ -722,3 +730,24 @@ async def create_credit_note(
 
     await db.commit()
     return {"id": str(credit_id), "proforma_number": proforma_number}
+
+
+async def batch_archive(
+    org_id: uuid.UUID, ids: list[str], archive: bool, db: AsyncSession
+) -> dict:
+    """Archive ou désarchive un lot de factures."""
+    if not ids:
+        return {"count": 0}
+    placeholders = ", ".join(f":id_{i}" for i in range(len(ids)))
+    params: dict = {"org_id": str(org_id), "archive": archive}
+    for i, inv_id in enumerate(ids):
+        params[f"id_{i}"] = inv_id
+    result = await db.execute(
+        text(f"""
+            UPDATE invoices SET is_archived = :archive, updated_at = now()
+            WHERE organization_id = :org_id AND id::text IN ({placeholders})
+        """),
+        params,
+    )
+    await db.commit()
+    return {"count": result.rowcount}

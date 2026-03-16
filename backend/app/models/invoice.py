@@ -104,6 +104,8 @@ class Invoice(Base, UUIDPrimaryKeyMixin, TimestampUpdateMixin):
         DateTime(timezone=True), nullable=True
     )
 
+    is_archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
     # Relations
     organization: Mapped["Organization"] = relationship(back_populates="invoices")
     client: Mapped["Client"] = relationship(back_populates="invoices")

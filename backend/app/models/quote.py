@@ -81,6 +81,8 @@ class Quote(Base, UUIDPrimaryKeyMixin, TimestampUpdateMixin):
     )
     signed_pdf_url: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    is_archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
     # Relations
     organization: Mapped["Organization"] = relationship(back_populates="quotes")
     client: Mapped["Client"] = relationship(back_populates="quotes")

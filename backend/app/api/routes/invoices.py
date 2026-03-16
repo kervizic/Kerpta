@@ -4,7 +4,10 @@
 
 """Routes API — Factures et avoirs."""
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+import io
+import zipfile
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,6 +35,7 @@ async def list_invoices(
     client_search: str | None = None,
     date_from: str | None = None,
     date_to: str | None = None,
+    archived: bool | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=100),
     ctx: OrgContext = Depends(get_org_context),
@@ -43,6 +47,7 @@ async def list_invoices(
         contract_id=contract_id, is_credit_note=is_credit_note,
         search=search, client_search=client_search,
         date_from=date_from, date_to=date_to,
+        archived=archived,
         page=page, page_size=page_size,
     )
 
@@ -111,10 +116,59 @@ async def create_credit_note(
     return await svc.create_credit_note(ctx.org_id, ctx.user_id, invoice_id, db)
 
 
+@router.post("/batch/archive")
+async def batch_archive_invoices(
+    ids: list[str] = Body(..., embed=True),
+    archive: bool = Body(True, embed=True),
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    """Archive ou désarchive un lot de factures."""
+    return await svc.batch_archive(ctx.org_id, ids, archive, db)
+
+
+@router.post("/batch/pdf")
+async def batch_download_invoice_pdf(
+    ids: list[str] = Body(..., embed=True),
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    """Télécharge les PDF d'un lot de factures (ZIP si plusieurs)."""
+    if not ids:
+        raise HTTPException(400, "Aucune facture sélectionnée")
+
+    if len(ids) == 1:
+        try:
+            pdf_bytes, filename = await pdf_svc.generate_invoice_pdf(ctx.org_id, ids[0], db)
+        except ValueError as e:
+            raise HTTPException(404, str(e))
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for inv_id in ids:
+            try:
+                pdf_bytes, filename = await pdf_svc.generate_invoice_pdf(ctx.org_id, inv_id, db)
+                zf.writestr(filename, pdf_bytes)
+            except ValueError:
+                continue
+    buf.seek(0)
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": 'attachment; filename="factures.zip"'},
+    )
+
+
 @router.get("/{invoice_id}/pdf")
 async def get_invoice_pdf(
     invoice_id: str,
     proforma: bool = False,
+    download: bool = False,
     ctx: OrgContext = Depends(get_org_context),
     db: AsyncSession = Depends(get_db),
 ):
@@ -125,8 +179,9 @@ async def get_invoice_pdf(
         )
     except ValueError as e:
         raise HTTPException(404, str(e))
+    disposition = "attachment" if download else "inline"
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+        headers={"Content-Disposition": f'{disposition}; filename="{filename}"'},
     )

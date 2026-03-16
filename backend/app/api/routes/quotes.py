@@ -4,7 +4,10 @@
 
 """Routes API — Devis (DEV/BPU/Attachements/Avenants)."""
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+import io
+import zipfile
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,6 +30,7 @@ async def list_quotes(
     client_search: str | None = None,
     date_from: str | None = None,
     date_to: str | None = None,
+    archived: bool | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=100),
     ctx: OrgContext = Depends(get_org_context),
@@ -38,6 +42,7 @@ async def list_quotes(
         contract_id=contract_id, client_id=client_id,
         search=search, client_search=client_search,
         date_from=date_from, date_to=date_to,
+        archived=archived,
         page=page, page_size=page_size,
     )
 
@@ -113,6 +118,56 @@ async def convert_to_contract(
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.convert_to_contract(ctx.org_id, ctx.user_id, quote_id, db)
+
+
+@router.post("/batch/archive")
+async def batch_archive_quotes(
+    ids: list[str] = Body(..., embed=True),
+    archive: bool = Body(True, embed=True),
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    """Archive ou désarchive un lot de devis."""
+    return await svc.batch_archive(ctx.org_id, ids, archive, db)
+
+
+@router.post("/batch/pdf")
+async def batch_download_pdf(
+    ids: list[str] = Body(..., embed=True),
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    """Télécharge les PDF d'un lot de devis (ZIP si plusieurs, PDF direct si un seul)."""
+    if not ids:
+        raise HTTPException(400, "Aucun devis sélectionné")
+
+    if len(ids) == 1:
+        # Un seul → PDF direct
+        try:
+            pdf_bytes, filename = await pdf_svc.generate_quote_pdf(ctx.org_id, ids[0], db)
+        except ValueError as e:
+            raise HTTPException(404, str(e))
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+    # Plusieurs → ZIP
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for qid in ids:
+            try:
+                pdf_bytes, filename = await pdf_svc.generate_quote_pdf(ctx.org_id, qid, db)
+                zf.writestr(filename, pdf_bytes)
+            except ValueError:
+                continue  # Devis introuvable → on skip
+    buf.seek(0)
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": 'attachment; filename="devis.zip"'},
+    )
 
 
 @router.get("/{quote_id}/pdf")

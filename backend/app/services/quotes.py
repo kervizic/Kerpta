@@ -42,12 +42,20 @@ async def list_quotes(
     client_search: str | None = None,
     date_from: str | None = None,
     date_to: str | None = None,
+    archived: bool | None = None,
     page: int = 1,
     page_size: int = 25,
 ) -> dict:
     """Liste paginée des devis."""
     conditions = ["q.organization_id = :org_id"]
     params: dict = {"org_id": str(org_id)}
+
+    # Par défaut : non archivés uniquement
+    if archived is not None:
+        conditions.append("q.is_archived = :archived")
+        params["archived"] = archived
+    else:
+        conditions.append("q.is_archived = false")
 
     if status:
         conditions.append("q.status = :status")
@@ -486,6 +494,27 @@ async def convert_to_contract(
     from app.services.contracts import create_contract_from_quote
 
     return await create_contract_from_quote(org_id, user_id, quote_id, db)
+
+
+async def batch_archive(
+    org_id: uuid.UUID, ids: list[str], archive: bool, db: AsyncSession
+) -> dict:
+    """Archive ou désarchive un lot de devis."""
+    if not ids:
+        return {"count": 0}
+    placeholders = ", ".join(f":id_{i}" for i in range(len(ids)))
+    params: dict = {"org_id": str(org_id), "archive": archive}
+    for i, qid in enumerate(ids):
+        params[f"id_{i}"] = qid
+    result = await db.execute(
+        text(f"""
+            UPDATE quotes SET is_archived = :archive, updated_at = now()
+            WHERE organization_id = :org_id AND id::text IN ({placeholders})
+        """),
+        params,
+    )
+    await db.commit()
+    return {"count": result.rowcount}
 
 
 async def _update_contract_budget(contract_id: str, db: AsyncSession) -> None:
