@@ -21,6 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
     libffi-dev \
     shared-mime-info \
+    fontconfig \
     fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
 
@@ -30,6 +31,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Code applicatif
 COPY . .
+
+# Polices personnalisées (Inter pour le style Moderne)
+RUN mkdir -p /usr/local/share/fonts/inter \
+    && cp fonts/*.ttf /usr/local/share/fonts/inter/ \
+    && fc-cache -f
 
 EXPOSE 8000
 
