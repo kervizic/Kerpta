@@ -72,9 +72,9 @@ def svg_to_png(svg_path: str, png_path: str, size: int):
         f"const s=require('sharp');"
         f"s('{svg_path}').resize({size},{size})"
         f".flatten({{background:'{BG_COLOR}'}})"
-        f".png({{quality:100}})"
+        f".png()"
         f".toFile('{png_path}')"
-        f".then(()=>console.log('  → {png_path} ({size}x{size})'));"
+        f".then(i=>console.log('  → {png_path} ('+{size}+'x'+{size}+', '+i.size+' bytes)'));"
     )
     subprocess.run(["node", "-e", js], check=True)
 
