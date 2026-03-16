@@ -138,8 +138,26 @@ async def _get_org_info(org_id: uuid.UUID, db: AsyncSession) -> dict:
     }
 
 
-async def _get_default_bank_details(org_id: uuid.UUID, db: AsyncSession) -> dict | None:
-    """Récupère le RIB du profil de facturation par défaut."""
+async def _get_bank_details_from_profile(
+    org_id: uuid.UUID, db: AsyncSession, profile_id: str | None = None
+) -> dict | None:
+    """Récupère le RIB du profil de facturation (spécifique puis défaut)."""
+    # D'abord essayer le profil spécifique
+    if profile_id:
+        result = await db.execute(
+            text("""
+                SELECT ba.iban, ba.bic, ba.bank_name
+                FROM billing_profiles bp
+                JOIN bank_accounts ba ON ba.id = bp.bank_account_id
+                WHERE bp.id = :pid AND bp.organization_id = :org_id
+                LIMIT 1
+            """),
+            {"pid": profile_id, "org_id": str(org_id)},
+        )
+        row = result.fetchone()
+        if row:
+            return {"iban": row[0], "bic": row[1], "bank_name": row[2]}
+    # Sinon profil par défaut
     result = await db.execute(
         text("""
             SELECT ba.iban, ba.bic, ba.bank_name
@@ -156,8 +174,22 @@ async def _get_default_bank_details(org_id: uuid.UUID, db: AsyncSession) -> dict
     return {"iban": row[0], "bic": row[1], "bank_name": row[2]}
 
 
-async def _get_default_payment_note(org_id: uuid.UUID, db: AsyncSession) -> str:
-    """Récupère la note de règlement du profil de facturation par défaut."""
+async def _get_payment_note_from_profile(
+    org_id: uuid.UUID, db: AsyncSession, profile_id: str | None = None
+) -> str:
+    """Récupère la note de règlement du profil de facturation (spécifique puis défaut)."""
+    if profile_id:
+        result = await db.execute(
+            text("""
+                SELECT payment_note FROM billing_profiles
+                WHERE id = :pid AND organization_id = :org_id
+                LIMIT 1
+            """),
+            {"pid": profile_id, "org_id": str(org_id)},
+        )
+        row = result.fetchone()
+        if row and row[0]:
+            return row[0]
     result = await db.execute(
         text("""
             SELECT payment_note FROM billing_profiles
@@ -335,7 +367,8 @@ async def generate_invoice_pdf(
                    i.payment_terms, i.payment_method,
                    i.customer_reference, i.purchase_order_number,
                    i.bank_details, i.notes, i.footer,
-                   i.client_snapshot, i.seller_snapshot
+                   i.client_snapshot, i.seller_snapshot,
+                   i.billing_profile_id::text
             FROM invoices i
             WHERE i.id = :iid AND i.organization_id = :org_id
         """),
@@ -416,7 +449,10 @@ async def generate_invoice_pdf(
     paid = Decimal(str(inv["amount_paid"] or 0))
     remaining = (ttc - paid).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
-    # Infos bancaires - depuis la facture, sinon depuis le profil par defaut
+    # Profil de facturation associé
+    profile_id = inv.get("billing_profile_id")
+
+    # Infos bancaires - depuis la facture, sinon depuis le profil
     bank_details = inv.get("bank_details")
     if isinstance(bank_details, str):
         try:
@@ -424,7 +460,7 @@ async def generate_invoice_pdf(
         except Exception:
             bank_details = None
     if not bank_details:
-        bank_details = await _get_default_bank_details(org_id, db)
+        bank_details = await _get_bank_details_from_profile(org_id, db, profile_id)
 
     # Style + mentions legales + options pied de page
     style, org_footer, footer_options = await _get_print_config(org_id, db)
@@ -433,8 +469,8 @@ async def generate_invoice_pdf(
     # Footer : priorité au footer du document, sinon footer org
     footer = inv.get("footer") or org_footer
 
-    # Note de règlement depuis le profil de facturation par défaut
-    payment_note = await _get_default_payment_note(org_id, db)
+    # Note de règlement depuis le profil de facturation
+    payment_note = await _get_payment_note_from_profile(org_id, db, profile_id)
 
     context = {
         "title": f"{doc_type_label} {doc_number}",
@@ -592,8 +628,8 @@ async def generate_quote_pdf(
     # Footer : priorité au footer du document, sinon footer org
     footer = quote.get("footer") or org_footer
 
-    # Note de règlement depuis le profil de facturation par défaut
-    payment_note = await _get_default_payment_note(org_id, db)
+    # Note de règlement depuis le profil de facturation
+    payment_note = await _get_payment_note_from_profile(org_id, db)
 
     context = {
         "title": f"{doc_type_label} {doc_number}",
