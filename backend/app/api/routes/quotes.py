@@ -4,13 +4,15 @@
 
 """Routes API — Devis (DEV/BPU/Attachements/Avenants)."""
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import OrgContext, get_org_context
 from app.schemas.quotes import PaginatedQuotes, QuoteCreate, QuoteDetailOut, QuoteUpdate
 from app.services import quotes as svc
+from app.services import pdf as pdf_svc
 
 router = APIRouter(prefix="/api/v1/quotes", tags=["quotes"])
 
@@ -111,3 +113,23 @@ async def convert_to_contract(
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.convert_to_contract(ctx.org_id, ctx.user_id, quote_id, db)
+
+
+@router.get("/{quote_id}/pdf")
+async def get_quote_pdf(
+    quote_id: str,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    """Génère et retourne le PDF du devis."""
+    try:
+        pdf_bytes, filename = await pdf_svc.generate_quote_pdf(
+            ctx.org_id, quote_id, db,
+        )
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )

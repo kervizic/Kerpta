@@ -39,6 +39,55 @@ DEFAULT_DOCUMENT_COLUMNS = {
 }
 
 
+# ── Style d'impression ─────────────────────────────────────────────────────
+
+VALID_PRINT_STYLES = ("classique", "moderne", "minimaliste")
+DEFAULT_PRINT_STYLE = "classique"
+
+
+async def get_print_style(org_id: uuid.UUID, db: AsyncSession) -> dict:
+    """Retourne le style d'impression depuis module_config.print_style."""
+    result = await db.execute(
+        text("SELECT module_config FROM organizations WHERE id = :org_id"),
+        {"org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    if not row or not row[0]:
+        return {"style": DEFAULT_PRINT_STYLE}
+    config = row[0] if isinstance(row[0], dict) else {}
+    style = config.get("print_style", DEFAULT_PRINT_STYLE)
+    if style not in VALID_PRINT_STYLES:
+        style = DEFAULT_PRINT_STYLE
+    return {"style": style}
+
+
+async def update_print_style(
+    org_id: uuid.UUID, data: dict, db: AsyncSession
+) -> dict:
+    """Met à jour le style d'impression dans module_config.print_style."""
+    style = data.get("style", DEFAULT_PRINT_STYLE)
+    if style not in VALID_PRINT_STYLES:
+        raise HTTPException(422, f"Style invalide : {style}. Valeurs acceptées : {', '.join(VALID_PRINT_STYLES)}")
+
+    result = await db.execute(
+        text("SELECT module_config FROM organizations WHERE id = :org_id"),
+        {"org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    config = (row[0] if row and row[0] and isinstance(row[0], dict) else {})
+    config["print_style"] = style
+
+    await db.execute(
+        text("""
+            UPDATE organizations SET module_config = CAST(:config AS jsonb)
+            WHERE id = :org_id
+        """),
+        {"org_id": str(org_id), "config": json.dumps(config)},
+    )
+    await db.commit()
+    return {"style": style}
+
+
 # ── Colonnes du document ────────────────────────────────────────────────────
 
 

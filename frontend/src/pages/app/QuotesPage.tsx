@@ -4,7 +4,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import {
-  Loader2, ArrowLeft, Send, Check, X, Copy, Plus, Trash2, RefreshCw, Info, Pencil,
+  Loader2, ArrowLeft, Send, Check, X, Copy, Plus, Trash2, RefreshCw, Info, Pencil, Printer,
 } from 'lucide-react'
 import { navigate } from '@/hooks/useRoute'
 import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
@@ -430,6 +430,9 @@ function QuoteDetailPanel({ quoteId, onClose }: { quoteId: string; onClose: () =
               <button onClick={() => doAction('send')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
                 {actionLoading === 'send' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Envoyer
               </button>
+              <button onClick={() => window.open(`/api/v1/quotes/${quoteId}/pdf`, '_blank')} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 text-sm font-medium rounded-lg transition">
+                <Printer className="w-4 h-4" /> Imprimer
+              </button>
               <button onClick={() => doAction('duplicate')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-lg transition disabled:opacity-50">
                 <Copy className="w-4 h-4" /> Dupliquer
               </button>
@@ -442,6 +445,9 @@ function QuoteDetailPanel({ quoteId, onClose }: { quoteId: string; onClose: () =
               </button>
               <button onClick={() => doAction('refuse')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-red-100 dark:bg-red-900/40 hover:bg-red-200 dark:hover:bg-red-900/60 text-red-700 dark:text-red-400 text-sm font-medium rounded-lg transition disabled:opacity-50">
                 <X className="w-4 h-4" /> Refuser
+              </button>
+              <button onClick={() => window.open(`/api/v1/quotes/${quoteId}/pdf`, '_blank')} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 text-sm font-medium rounded-lg transition">
+                <Printer className="w-4 h-4" /> Imprimer
               </button>
               <button onClick={() => doAction('duplicate')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-lg transition disabled:opacity-50">
                 <Copy className="w-4 h-4" /> Dupliquer

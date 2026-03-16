@@ -1,0 +1,448 @@
+# Kerpta — Application comptable web française
+# Copyright (C) 2026 Emmanuel Kervizic
+# Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
+
+"""Service métier — Génération de PDF (WeasyPrint + Jinja2).
+
+Génère les PDF de factures, devis et avoirs.
+Supporte 3 styles configurables par organisation :
+  - classique : professionnel, bordures, en-têtes gris
+  - moderne : accent couleur, lignes épurées
+  - minimaliste : maximum de blanc, typographie soignée
+"""
+
+import json
+import uuid
+from decimal import ROUND_HALF_UP, Decimal
+from io import BytesIO
+from pathlib import Path
+
+from jinja2 import Environment, FileSystemLoader
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+from weasyprint import HTML
+
+# ── Configuration ──────────────────────────────────────────────────────────────
+
+TEMPLATES_DIR = Path(__file__).resolve().parent.parent.parent / "templates"
+VALID_STYLES = ("classique", "moderne", "minimaliste")
+DEFAULT_STYLE = "classique"
+ACCENT_COLOR = "#ff9900"  # Kerpta orange
+
+# Jinja2 environment — chargé une fois au démarrage du module
+_jinja_env = Environment(
+    loader=FileSystemLoader(str(TEMPLATES_DIR)),
+    autoescape=True,
+)
+
+
+def _fmt_currency(value) -> str:
+    """Formate un montant en EUR avec 2 décimales et séparateur de milliers."""
+    try:
+        d = Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        sign = "-" if d < 0 else ""
+        d = abs(d)
+        integer_part = int(d)
+        decimal_part = str(d).split(".")[1] if "." in str(d) else "00"
+        # Séparateur de milliers
+        formatted = f"{integer_part:,}".replace(",", " ")
+        return f"{sign}{formatted},{decimal_part} €"
+    except Exception:
+        return f"{value} €"
+
+
+_jinja_env.filters["fmt_currency"] = _fmt_currency
+
+
+# ── Helpers ────────────────────────────────────────────────────────────────────
+
+
+async def _get_print_style(org_id: uuid.UUID, db: AsyncSession) -> str:
+    """Récupère le style d'impression configuré pour l'organisation."""
+    result = await db.execute(
+        text("SELECT module_config FROM organizations WHERE id = :org_id"),
+        {"org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    if not row or not row[0]:
+        return DEFAULT_STYLE
+    config = row[0] if isinstance(row[0], dict) else {}
+    style = config.get("print_style", DEFAULT_STYLE)
+    return style if style in VALID_STYLES else DEFAULT_STYLE
+
+
+async def _get_org_info(org_id: uuid.UUID, db: AsyncSession) -> dict:
+    """Récupère les informations de l'organisation (vendeur)."""
+    result = await db.execute(
+        text("""
+            SELECT name, siret, siren, vat_number, address, legal_form,
+                   rcs_city, capital, ape_code, email, phone
+            FROM organizations WHERE id = :org_id
+        """),
+        {"org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    if not row:
+        return {}
+    return {
+        "name": row[0],
+        "siret": row[1],
+        "siren": row[2],
+        "vat_number": row[3],
+        "address": row[4] if isinstance(row[4], dict) else None,
+        "legal_form": row[5],
+        "rcs_city": row[6],
+        "capital": str(row[7]) if row[7] else None,
+        "ape_code": row[8],
+        "email": row[9],
+        "phone": row[10],
+    }
+
+
+async def _get_org_logo(org_id: uuid.UUID, db: AsyncSession) -> tuple[str | None, str | None]:
+    """Récupère le logo de l'organisation (base64 + mime type)."""
+    result = await db.execute(
+        text("SELECT logo_b64, mime_type FROM organization_logos WHERE organization_id = :org_id"),
+        {"org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    if not row:
+        return None, None
+    return row[0], row[1] or "image/png"
+
+
+async def _get_client_info(client_id: str, org_id: uuid.UUID, db: AsyncSession) -> dict:
+    """Récupère les informations du client."""
+    result = await db.execute(
+        text("""
+            SELECT name, siret, vat_number, billing_address
+            FROM clients WHERE id = :cid AND organization_id = :org_id
+        """),
+        {"cid": client_id, "org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    if not row:
+        return {"name": "Client inconnu"}
+    return {
+        "name": row[0],
+        "siret": row[1],
+        "vat_number": row[2],
+        "address": row[3] if isinstance(row[3], dict) else None,
+    }
+
+
+async def _get_document_columns(org_id: uuid.UUID, db: AsyncSession) -> dict:
+    """Récupère la config des colonnes du document."""
+    result = await db.execute(
+        text("SELECT module_config FROM organizations WHERE id = :org_id"),
+        {"org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    default = {
+        "reference": True, "description": True, "quantity": True, "unit": True,
+        "unit_price": True, "vat_rate": True, "discount_percent": True, "total_ht": True,
+    }
+    if not row or not row[0]:
+        return default
+    config = row[0] if isinstance(row[0], dict) else {}
+    return config.get("document_columns", default)
+
+
+def _compute_vat_breakdown(lines: list[dict]) -> list[dict]:
+    """Calcule la ventilation TVA par taux."""
+    breakdown: dict[str, Decimal] = {}
+    for line in lines:
+        rate = str(line.get("vat_rate", "0"))
+        amount = Decimal(str(line.get("total_vat", "0")))
+        breakdown[rate] = breakdown.get(rate, Decimal("0")) + amount
+    return [
+        {"rate": rate, "amount": str(amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))}
+        for rate, amount in sorted(breakdown.items(), key=lambda x: -Decimal(x[0]))
+        if amount != 0
+    ]
+
+
+def _render_pdf(template_name: str, context: dict) -> bytes:
+    """Rend un template HTML en PDF via WeasyPrint."""
+    template = _jinja_env.get_template(template_name)
+    html_content = template.render(**context)
+    pdf_bytes = HTML(string=html_content).write_pdf()
+    return pdf_bytes
+
+
+# ── API publique — Factures ────────────────────────────────────────────────────
+
+
+async def generate_invoice_pdf(
+    org_id: uuid.UUID,
+    invoice_id: str,
+    db: AsyncSession,
+    *,
+    proforma: bool = False,
+) -> tuple[bytes, str]:
+    """Génère le PDF d'une facture.
+
+    Returns:
+        (pdf_bytes, filename)
+    """
+    # Récupérer la facture
+    inv_result = await db.execute(
+        text("""
+            SELECT i.id::text, i.number, i.proforma_number,
+                   i.client_id::text, i.client_name,
+                   i.is_credit_note, i.is_situation, i.situation_number,
+                   i.status, i.issue_date, i.due_date,
+                   i.subtotal_ht, i.total_vat, i.total_ttc,
+                   i.amount_paid, i.discount_type, i.discount_value,
+                   i.payment_terms, i.payment_method,
+                   i.customer_reference, i.purchase_order_number,
+                   i.bank_details, i.notes, i.footer,
+                   i.client_snapshot, i.seller_snapshot
+            FROM invoices i
+            WHERE i.id = :iid AND i.organization_id = :org_id
+        """),
+        {"iid": invoice_id, "org_id": str(org_id)},
+    )
+    inv = inv_result.fetchone()
+    if inv is None:
+        raise ValueError("Facture introuvable")
+    inv = dict(inv._mapping)
+
+    # Lignes
+    lines_result = await db.execute(
+        text("""
+            SELECT reference, description, quantity, unit, unit_price,
+                   vat_rate, discount_percent, total_ht, total_vat
+            FROM invoice_lines
+            WHERE invoice_id = :iid ORDER BY position
+        """),
+        {"iid": invoice_id},
+    )
+    lines = [dict(r._mapping) for r in lines_result.fetchall()]
+
+    # Type de document
+    if inv["is_credit_note"]:
+        doc_type_label = "Avoir"
+        doc_number = inv["number"] or inv["proforma_number"] or "—"
+    elif proforma or inv["status"] == "draft":
+        doc_type_label = "Proforma"
+        doc_number = inv["proforma_number"] or "—"
+    else:
+        doc_type_label = "Facture"
+        doc_number = inv["number"] or inv["proforma_number"] or "—"
+
+    if inv["is_situation"]:
+        doc_type_label += f" de situation n°{inv['situation_number'] or ''}"
+
+    # Vendeur — snapshot si disponible, sinon org live
+    if inv.get("seller_snapshot") and isinstance(inv["seller_snapshot"], dict):
+        seller = inv["seller_snapshot"]
+    else:
+        seller = await _get_org_info(org_id, db)
+
+    # Client — snapshot si disponible, sinon client live
+    if inv.get("client_snapshot") and isinstance(inv["client_snapshot"], dict):
+        client = inv["client_snapshot"]
+    else:
+        client = await _get_client_info(inv["client_id"], org_id, db)
+
+    # Logo
+    logo_b64, logo_mime = await _get_org_logo(org_id, db)
+
+    # Colonnes
+    columns = await _get_document_columns(org_id, db)
+
+    # Ventilation TVA
+    vat_breakdown = _compute_vat_breakdown(lines)
+
+    # Remise globale
+    discount_label = None
+    discount_amount = "0"
+    if inv["discount_type"] and inv["discount_type"] != "none" and Decimal(str(inv["discount_value"] or 0)) > 0:
+        if inv["discount_type"] == "percent":
+            discount_label = f'{inv["discount_value"]}%'
+        else:
+            discount_label = "fixe"
+        discount_amount = str(
+            (Decimal(str(inv["subtotal_ht"])) * Decimal(str(inv["discount_value"])) / 100).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            ) if inv["discount_type"] == "percent"
+            else Decimal(str(inv["discount_value"])).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        )
+
+    # Reste à payer
+    ttc = Decimal(str(inv["total_ttc"]))
+    paid = Decimal(str(inv["amount_paid"] or 0))
+    remaining = (ttc - paid).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+    # Infos bancaires
+    bank_details = inv.get("bank_details")
+    if isinstance(bank_details, str):
+        try:
+            bank_details = json.loads(bank_details)
+        except Exception:
+            bank_details = None
+
+    # Style
+    style = await _get_print_style(org_id, db)
+    template_name = f"pdf/{style}.html"
+
+    context = {
+        "title": f"{doc_type_label} {doc_number}",
+        "doc_type_label": doc_type_label,
+        "doc_number": doc_number,
+        "issue_date": str(inv["issue_date"]) if inv["issue_date"] else "",
+        "due_date": str(inv["due_date"]) if inv["due_date"] else None,
+        "customer_reference": inv.get("customer_reference"),
+        "purchase_order_number": inv.get("purchase_order_number"),
+        "seller": seller,
+        "client": client,
+        "client_label": "Destinataire",
+        "logo_b64": logo_b64,
+        "logo_mime": logo_mime,
+        "columns": columns,
+        "lines": lines,
+        "subtotal_ht": str(inv["subtotal_ht"]),
+        "total_vat": str(inv["total_vat"]),
+        "total_ttc": str(inv["total_ttc"]),
+        "amount_paid": str(inv["amount_paid"] or 0),
+        "remaining": str(remaining),
+        "discount_label": discount_label,
+        "discount_amount": discount_amount,
+        "vat_breakdown": vat_breakdown,
+        "payment_method": inv.get("payment_method"),
+        "bank_details": bank_details,
+        "notes": inv.get("notes"),
+        "footer": inv.get("footer"),
+        "accent_color": ACCENT_COLOR,
+    }
+
+    pdf_bytes = _render_pdf(template_name, context)
+    filename = f"{doc_type_label.replace(' ', '_')}_{doc_number.replace('/', '-')}.pdf"
+    return pdf_bytes, filename
+
+
+# ── API publique — Devis ───────────────────────────────────────────────────────
+
+
+async def generate_quote_pdf(
+    org_id: uuid.UUID,
+    quote_id: str,
+    db: AsyncSession,
+) -> tuple[bytes, str]:
+    """Génère le PDF d'un devis.
+
+    Returns:
+        (pdf_bytes, filename)
+    """
+    # Récupérer le devis
+    q_result = await db.execute(
+        text("""
+            SELECT q.id::text, q.number, q.client_id::text,
+                   COALESCE(q.client_name, c.name) AS client_name,
+                   q.document_type, q.status, q.issue_date, q.validity_date,
+                   q.subtotal_ht, q.total_vat, q.total_ttc,
+                   q.discount_type, q.discount_value,
+                   q.payment_terms, q.payment_method,
+                   q.customer_reference,
+                   q.notes, q.footer
+            FROM quotes q
+            LEFT JOIN clients c ON c.id = q.client_id
+            WHERE q.id = :qid AND q.organization_id = :org_id
+        """),
+        {"qid": quote_id, "org_id": str(org_id)},
+    )
+    q_row = q_result.fetchone()
+    if q_row is None:
+        raise ValueError("Devis introuvable")
+    quote = dict(q_row._mapping)
+
+    # Lignes
+    lines_result = await db.execute(
+        text("""
+            SELECT reference, description, quantity, unit, unit_price,
+                   vat_rate, discount_percent, total_ht, total_vat
+            FROM quote_lines
+            WHERE quote_id = :qid ORDER BY position
+        """),
+        {"qid": quote_id},
+    )
+    lines = [dict(r._mapping) for r in lines_result.fetchall()]
+
+    # Type de document
+    doc_type_raw = quote.get("document_type", "devis")
+    doc_type_map = {
+        "devis": "Devis",
+        "bpu": "Bordereau de prix",
+        "attachement": "Attachement",
+    }
+    doc_type_label = doc_type_map.get(doc_type_raw, doc_type_raw.capitalize() if doc_type_raw else "Devis")
+    doc_number = quote["number"] or "—"
+
+    # Vendeur (org live, les devis ne figent pas les snapshots)
+    seller = await _get_org_info(org_id, db)
+
+    # Client
+    client = await _get_client_info(quote["client_id"], org_id, db)
+
+    # Logo
+    logo_b64, logo_mime = await _get_org_logo(org_id, db)
+
+    # Colonnes
+    columns = await _get_document_columns(org_id, db)
+
+    # Ventilation TVA
+    vat_breakdown = _compute_vat_breakdown(lines)
+
+    # Remise globale
+    discount_label = None
+    discount_amount = "0"
+    if quote.get("discount_type") and quote["discount_type"] != "none" and Decimal(str(quote.get("discount_value", 0) or 0)) > 0:
+        if quote["discount_type"] == "percent":
+            discount_label = f'{quote["discount_value"]}%'
+        else:
+            discount_label = "fixe"
+        discount_amount = str(
+            (Decimal(str(quote["subtotal_ht"])) * Decimal(str(quote["discount_value"])) / 100).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            ) if quote["discount_type"] == "percent"
+            else Decimal(str(quote["discount_value"])).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        )
+
+    # Style
+    style = await _get_print_style(org_id, db)
+    template_name = f"pdf/{style}.html"
+
+    context = {
+        "title": f"{doc_type_label} {doc_number}",
+        "doc_type_label": doc_type_label,
+        "doc_number": doc_number,
+        "issue_date": str(quote["issue_date"]) if quote.get("issue_date") else "",
+        "due_date": str(quote["validity_date"]) if quote.get("validity_date") else None,
+        "customer_reference": quote.get("customer_reference"),
+        "purchase_order_number": None,
+        "seller": seller,
+        "client": client,
+        "client_label": "Destinataire",
+        "logo_b64": logo_b64,
+        "logo_mime": logo_mime,
+        "columns": columns,
+        "lines": lines,
+        "subtotal_ht": str(quote["subtotal_ht"]),
+        "total_vat": str(quote["total_vat"]),
+        "total_ttc": str(quote["total_ttc"]),
+        "amount_paid": "0",
+        "remaining": str(quote["total_ttc"]),
+        "discount_label": discount_label,
+        "discount_amount": discount_amount,
+        "vat_breakdown": vat_breakdown,
+        "payment_method": quote.get("payment_method"),
+        "bank_details": None,
+        "notes": quote.get("notes"),
+        "footer": quote.get("footer"),
+        "accent_color": ACCENT_COLOR,
+    }
+
+    pdf_bytes = _render_pdf(template_name, context)
+    filename = f"{doc_type_label.replace(' ', '_')}_{doc_number.replace('/', '-')}.pdf"
+    return pdf_bytes, filename

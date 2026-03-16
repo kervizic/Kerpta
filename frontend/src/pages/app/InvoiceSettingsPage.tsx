@@ -3,7 +3,7 @@
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, Loader2, Pencil, Trash2, Star } from 'lucide-react'
+import { Plus, Loader2, Pencil, Trash2, Star, FileText, Sparkles, Minus } from 'lucide-react'
 import { orgGet, orgPost, orgPatch, orgDelete } from '@/lib/orgApi'
 import BillingProfileModal, { type BillingProfileData } from '@/components/app/BillingProfileModal'
 import ModalOverlay from '@/components/app/ModalOverlay'
@@ -941,6 +941,107 @@ function RoundingSection() {
   )
 }
 
+// ── Section Style d'impression ──────────────────────────────────────────
+
+interface PrintStyleOption {
+  key: string
+  label: string
+  description: string
+  icon: typeof FileText
+}
+
+const PRINT_STYLES: PrintStyleOption[] = [
+  {
+    key: 'classique',
+    label: 'Classique',
+    description: 'Professionnel et formel — bordures, en-têtes gris, mise en page traditionnelle',
+    icon: FileText,
+  },
+  {
+    key: 'moderne',
+    label: 'Moderne',
+    description: 'Design actuel — accent couleur, lignes épurées, totaux en couleur',
+    icon: Sparkles,
+  },
+  {
+    key: 'minimaliste',
+    label: 'Minimaliste',
+    description: 'Ultra-épuré — maximum de blanc, typographie fine, séparateurs subtils',
+    icon: Minus,
+  },
+]
+
+function PrintStyleSection() {
+  const [style, setStyle] = useState('classique')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    orgGet<{ style: string }>('/billing/print-style')
+      .then((data) => setStyle(data.style || 'classique'))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  async function handleSelect(key: string) {
+    if (key === style) return
+    setStyle(key)
+    setSaving(true)
+    try {
+      await orgPatch('/billing/print-style', { style: key })
+    } catch { /* */ }
+    setSaving(false)
+  }
+
+  return (
+    <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Style d'impression</h2>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Apparence des PDF générés (devis, factures, avoirs)</p>
+        </div>
+        {saving && <Loader2 className="w-4 h-4 animate-spin text-kerpta" />}
+      </div>
+      {loading ? (
+        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-kerpta" /></div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {PRINT_STYLES.map((s) => {
+            const selected = style === s.key
+            const Icon = s.icon
+            return (
+              <button
+                key={s.key}
+                type="button"
+                onClick={() => handleSelect(s.key)}
+                className={`flex flex-col items-start gap-2 p-4 rounded-xl border-2 transition-all text-left ${
+                  selected
+                    ? 'border-kerpta bg-kerpta-50 dark:bg-kerpta-900/30 dark:border-kerpta-600'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                    selected ? 'bg-kerpta text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500'
+                  }`}>
+                    <Icon className="w-4 h-4" />
+                  </div>
+                  <span className={`text-sm font-semibold ${selected ? 'text-kerpta-700 dark:text-kerpta-400' : 'text-gray-700 dark:text-gray-200'}`}>
+                    {s.label}
+                  </span>
+                </div>
+                <p className={`text-xs leading-relaxed ${selected ? 'text-kerpta-600 dark:text-kerpta-400/80' : 'text-gray-400 dark:text-gray-500'}`}>
+                  {s.description}
+                </p>
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </section>
+  )
+}
+
 // ── Page principale ──────────────────────────────────────────────────────
 
 export default function InvoiceSettingsPage() {
@@ -956,6 +1057,7 @@ export default function InvoiceSettingsPage() {
         <QuoteDocumentTypesSection />
         <DocumentColumnsSection />
         <RoundingSection />
+        <PrintStyleSection />
       </div>
     </div>
   )

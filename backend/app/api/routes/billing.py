@@ -24,6 +24,26 @@ from app.services import billing as svc
 router = APIRouter(prefix="/api/v1/billing", tags=["billing"])
 
 
+# ── Style d'impression ──────────────────────────────────────────────────────
+
+
+@router.get("/print-style")
+async def get_print_style(
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await svc.get_print_style(ctx.org_id, db)
+
+
+@router.patch("/print-style")
+async def update_print_style(
+    data: dict,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await svc.update_print_style(ctx.org_id, data, db)
+
+
 # ── Colonnes du document ────────────────────────────────────────────────────
 
 

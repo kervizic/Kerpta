@@ -4,7 +4,8 @@
 
 """Routes API — Factures et avoirs."""
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -16,6 +17,7 @@ from app.schemas.invoices import (
     PaginatedInvoices,
 )
 from app.services import invoices as svc
+from app.services import pdf as pdf_svc
 
 router = APIRouter(prefix="/api/v1/invoices", tags=["invoices"])
 
@@ -107,3 +109,24 @@ async def create_credit_note(
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.create_credit_note(ctx.org_id, ctx.user_id, invoice_id, db)
+
+
+@router.get("/{invoice_id}/pdf")
+async def get_invoice_pdf(
+    invoice_id: str,
+    proforma: bool = False,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    """Génère et retourne le PDF de la facture."""
+    try:
+        pdf_bytes, filename = await pdf_svc.generate_invoice_pdf(
+            ctx.org_id, invoice_id, db, proforma=proforma,
+        )
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )

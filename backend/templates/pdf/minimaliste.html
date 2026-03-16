@@ -1,0 +1,78 @@
+{% extends "pdf/base.html" %}
+{% block style %}
+/* ═══════════════════════════════════════════════════════════════════
+   Style MINIMALISTE — Maximum de blanc, typographie soignée
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* En-tête */
+.header { display: flex; justify-content: space-between; margin-bottom: 35px; }
+.header-left { flex: 1; }
+.header-right { text-align: right; }
+.logo { max-height: 40px; max-width: 140px; margin-bottom: 10px; display: block; }
+.seller-name { font-size: 11pt; font-weight: 300; color: #333; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+.seller-address, .seller-siret, .seller-vat, .seller-legal, .seller-rcs {
+  font-size: 7.5pt; color: #999; line-height: 1.6;
+}
+.doc-type { font-size: 24pt; font-weight: 100; color: #222; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 8px; }
+.doc-number { font-size: 9pt; font-weight: 400; color: #888; margin-bottom: 6px; letter-spacing: 1px; }
+.doc-date, .doc-due, .doc-ref, .doc-po { font-size: 8pt; color: #aaa; line-height: 1.8; }
+
+/* Client */
+.client-box {
+  padding: 0 0 0 0; margin: 0 0 30px auto; width: 45%; border: none; background: none;
+}
+.client-label { font-size: 6.5pt; text-transform: uppercase; letter-spacing: 2px; color: #bbb; margin-bottom: 8px; }
+.client-name { font-size: 10pt; font-weight: 600; color: #222; margin-bottom: 4px; }
+.client-address, .client-siret, .client-vat { font-size: 8pt; color: #777; line-height: 1.6; }
+
+/* Lignes */
+.lines-table { margin-bottom: 30px; }
+.lines-table th {
+  border: none; border-bottom: 1px solid #ddd; padding: 10px 8px;
+  font-size: 6.5pt; text-transform: uppercase; letter-spacing: 1.5px;
+  color: #aaa; font-weight: 400; text-align: left; background: none;
+}
+.lines-table td {
+  border: none; border-bottom: 1px solid #f0f0f0; padding: 8px 8px;
+  font-size: 8.5pt; color: #444;
+}
+.col-qty, .col-price, .col-vat, .col-disc, .col-total { text-align: right; }
+.col-ref { width: 55px; }
+.col-qty { width: 40px; }
+.col-unit { width: 40px; }
+.col-price { width: 70px; }
+.col-vat { width: 40px; }
+.col-disc { width: 40px; }
+.col-total { width: 75px; }
+
+/* Totaux */
+.totals-section { display: flex; justify-content: flex-end; margin-bottom: 30px; }
+.totals-spacer { flex: 1; }
+.totals-table { width: 230px; }
+.totals-table td { padding: 4px 0; font-size: 8.5pt; }
+.totals-label { text-align: left; color: #999; font-weight: 300; }
+.totals-value { text-align: right; color: #333; font-weight: 400; }
+.totals-total td {
+  padding-top: 10px; margin-top: 5px; border-top: 1px solid #ddd;
+  font-weight: 600; font-size: 12pt; color: #111;
+}
+.totals-due td { font-weight: 600; color: #c0392b; }
+
+/* Paiement */
+.payment-section {
+  margin-bottom: 20px; padding: 0; font-size: 8pt; color: #888;
+}
+.payment-method { font-weight: 400; margin-bottom: 2px; }
+.bank-info { font-family: 'Courier New', monospace; font-size: 7.5pt; color: #aaa; letter-spacing: 0.5px; }
+
+/* Notes */
+.notes-section { margin-bottom: 20px; }
+.notes-label { font-size: 6.5pt; text-transform: uppercase; color: #bbb; letter-spacing: 1.5px; margin-bottom: 4px; }
+.notes-text { font-size: 8pt; color: #777; white-space: pre-line; }
+
+/* Mentions légales */
+.legal-footer {
+  margin-top: 30px; padding-top: 15px; border-top: 1px solid #eee;
+  font-size: 6.5pt; color: #bbb; line-height: 1.6; white-space: pre-line;
+}
+{% endblock %}
