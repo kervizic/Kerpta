@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { HardDrive, Cloud, Server, CheckCircle2, XCircle, Loader2, Trash2, ExternalLink } from 'lucide-react'
 import { orgGet, orgPost, orgDelete } from '@/lib/orgApi'
 import ModalOverlay from '@/components/app/ModalOverlay'
+import { BTN } from '@/lib/formStyles'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -160,7 +161,7 @@ function ProviderCard({
               <button
                 onClick={() => onConnect(provider.key)}
                 disabled={loading}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 transition disabled:opacity-50"
+                className={BTN}
               >
                 {loading ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -289,7 +290,7 @@ function FtpModal({
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 rounded-lg transition disabled:opacity-50"
+              className={`${BTN} gap-2`}
             >
               {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               Connecter

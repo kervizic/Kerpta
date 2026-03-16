@@ -93,8 +93,7 @@ function httpError(err: unknown, fallback: string): string {
   return fallback
 }
 
-import { INPUT, SELECT } from '@/lib/formStyles'
-const BTN_PRIMARY = 'px-4 py-2 border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 text-sm font-semibold rounded-lg transition disabled:opacity-50'
+import { INPUT, SELECT, BTN } from '@/lib/formStyles'
 const BTN_SECONDARY = 'px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition'
 
 function fmtPrice(v: number | null | undefined): string {
@@ -154,7 +153,7 @@ function ProductsList({ initialSelectedId }: { initialSelectedId?: string } = {}
             >
               <Archive className="w-4 h-4" /> Archives
             </button>
-            <button onClick={() => setShowNewModal(true)} className={`flex items-center gap-1.5 ${BTN_PRIMARY}`}>
+            <button onClick={() => setShowNewModal(true)} className={`flex items-center gap-1.5 ${BTN}`}>
               <Plus className="w-4 h-4" /> Nouvel article
             </button>
           </div>
@@ -329,7 +328,7 @@ function NewProductModal({ onClose, onCreated }: { onClose: () => void; onCreate
         </div>
         <div className="flex justify-end gap-2 pt-2">
           <button type="button" onClick={onClose} className={BTN_SECONDARY}>Annuler</button>
-          <button type="submit" disabled={saving || !name} className={BTN_PRIMARY}>
+          <button type="submit" disabled={saving || !name} className={BTN}>
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Créer'}
           </button>
         </div>
@@ -672,7 +671,7 @@ function VariantsTab({ productId }: { productId: string }) {
     <div>
       <div className="flex justify-between items-center mb-3">
         <p className="text-sm text-gray-500 dark:text-gray-400">{variants.length} variante(s) client</p>
-        <button onClick={() => setShowForm(true)} className={`flex items-center gap-1 text-sm ${BTN_PRIMARY}`}>
+        <button onClick={() => setShowForm(true)} className={`flex items-center gap-1 text-sm ${BTN}`}>
           <Plus className="w-3.5 h-3.5" /> Ajouter
         </button>
       </div>
@@ -782,7 +781,7 @@ function VariantFormModal({ productId, clients, onClose, onSaved }: {
           )}
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className={BTN_SECONDARY}>Annuler</button>
-            <button type="submit" disabled={saving || !clientId} className={BTN_PRIMARY}>
+            <button type="submit" disabled={saving || !clientId} className={BTN}>
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Créer'}
             </button>
           </div>
@@ -820,7 +819,7 @@ function PurchaseLinksTab({ productId }: { productId: string }) {
     <div>
       <div className="flex justify-between items-center mb-3">
         <p className="text-sm text-gray-500 dark:text-gray-400">{links.length} lien(s) achat</p>
-        <button onClick={() => setShowForm(true)} className={`flex items-center gap-1 text-sm ${BTN_PRIMARY}`}>
+        <button onClick={() => setShowForm(true)} className={`flex items-center gap-1 text-sm ${BTN}`}>
           <Plus className="w-3.5 h-3.5" /> Lier un achat
         </button>
       </div>
@@ -951,7 +950,7 @@ function PurchaseLinkFormModal({ productId, onClose, onSaved }: {
           </label>
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className={BTN_SECONDARY}>Annuler</button>
-            <button type="submit" disabled={saving} className={BTN_PRIMARY}>
+            <button type="submit" disabled={saving} className={BTN}>
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Créer'}
             </button>
           </div>
@@ -990,7 +989,7 @@ function QuantityDiscountsTab({ productId }: { productId: string }) {
     <div>
       <div className="flex justify-between items-center mb-3">
         <p className="text-sm text-gray-500 dark:text-gray-400">{discounts.length} palier(s)</p>
-        <button onClick={() => setShowForm(true)} className={`flex items-center gap-1 text-sm ${BTN_PRIMARY}`}>
+        <button onClick={() => setShowForm(true)} className={`flex items-center gap-1 text-sm ${BTN}`}>
           <Plus className="w-3.5 h-3.5" /> Ajouter
         </button>
       </div>
@@ -1079,7 +1078,7 @@ function DiscountFormModal({ productId, onClose, onSaved }: {
           </select>
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className={BTN_SECONDARY}>Annuler</button>
-            <button type="submit" disabled={saving || !minQuantity || !discountPercent} className={BTN_PRIMARY}>
+            <button type="submit" disabled={saving || !minQuantity || !discountPercent} className={BTN}>
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Créer'}
             </button>
           </div>

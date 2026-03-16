@@ -96,7 +96,7 @@ function httpError(err: unknown, fallback: string): string {
   return fallback
 }
 
-import { INPUT, SELECT } from '@/lib/formStyles'
+import { INPUT, SELECT, BTN } from '@/lib/formStyles'
 
 function formatAddress(a: Record<string, string | null> | null | undefined): string {
   if (!a) return '—'
@@ -137,7 +137,7 @@ function ClientsList() {
           <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Clients</h1>
           <button
             onClick={() => navigate('/app/clients/new')}
-            className="flex items-center gap-1.5 px-4 py-2 border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 text-sm font-semibold rounded-lg transition"
+            className={BTN}
           >
             <Plus className="w-4 h-4" /> Nouveau client
           </button>
@@ -715,7 +715,7 @@ function CreateClientForm() {
           {/* ── Boutons ──────────────────────────────────────────────────── */}
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={() => navigate('/app/clients')} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">Annuler</button>
-            <button type="submit" disabled={saving || !name} className="px-4 py-2 border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 text-sm font-semibold rounded-lg transition disabled:opacity-50">
+            <button type="submit" disabled={saving || !name} className={BTN}>
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Créer'}
             </button>
           </div>

@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react'
 import { X, Filter } from 'lucide-react'
 import { type FilterOption, type FilterValues } from '@/components/app/ColumnFilter'
-import { INPUT, SELECT } from '@/lib/formStyles'
+import { INPUT, SELECT, BTN } from '@/lib/formStyles'
 
 /**
  * Panneau de filtres glissant depuis la droite sur mobile.
@@ -183,7 +183,7 @@ export default function MobileFilterPanel({
         <div className="border-t border-gray-200 dark:border-gray-700 px-5 py-4 space-y-2">
           <button
             onClick={apply}
-            className="w-full py-2.5 border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 text-sm font-semibold rounded-lg transition"
+            className={`${BTN} w-full py-2.5`}
           >
             Appliquer les filtres
           </button>

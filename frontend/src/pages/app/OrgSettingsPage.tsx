@@ -28,6 +28,7 @@ import { apiClient } from '@/lib/api'
 import { useAuthStore } from '@/stores/authStore'
 import CompanyInfoCard from '@/components/app/CompanyInfoCard'
 import { InfoHint } from '@/components/ui/InfoHint'
+import { BTN_SM } from '@/lib/formStyles'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -787,7 +788,7 @@ export default function OrgSettingsPage() {
                   <button
                     onClick={handleLogoUpload}
                     disabled={logoUploading}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 rounded-lg transition disabled:opacity-60"
+                    className={BTN_SM}
                   >
                     {logoUploading
                       ? <Loader2 className="w-3.5 h-3.5 animate-spin" />

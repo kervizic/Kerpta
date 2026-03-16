@@ -8,6 +8,7 @@ import { apiClient } from '@/lib/api'
 import { useAuthStore } from '@/stores/authStore'
 import { navigate } from '@/hooks/useRoute'
 import axios from 'axios'
+import { BTN } from '@/lib/formStyles'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -403,7 +404,7 @@ function CreateStep({
           <button
             type="submit"
             disabled={saving}
-            className="w-full flex items-center justify-center gap-2 py-2.5 border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 disabled:opacity-50 text-sm font-semibold rounded-lg transition"
+            className={`${BTN} w-full gap-2 py-2.5`}
           >
             {saving && <Loader2 className="w-4 h-4 animate-spin" />}
             {saving ? 'Création en cours…' : 'Créer ma structure →'}
@@ -575,7 +576,7 @@ function JoinStep({
           <button
             onClick={() => void sendRequest()}
             disabled={sending}
-            className="w-full flex items-center justify-center gap-2 py-2.5 border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 disabled:opacity-50 text-sm font-semibold rounded-lg transition"
+            className={`${BTN} w-full gap-2 py-2.5`}
           >
             {sending && <Loader2 className="w-4 h-4 animate-spin" />}
             {sending ? 'Envoi en cours…' : 'Envoyer ma demande →'}

@@ -11,6 +11,7 @@ import { useEffect, useState } from 'react'
 import { navigate } from '@/hooks/useRoute'
 import { useAuthStore } from '@/stores/authStore'
 import type { AuthUser } from '@/stores/authStore'
+import { BTN } from '@/lib/formStyles'
 
 function decodeJwtPayload(token: string): Record<string, unknown> {
   try {
@@ -76,7 +77,7 @@ export default function CallbackPage() {
           <p className="text-gray-500 text-sm mb-6">{error}</p>
           <button
             onClick={() => navigate('/login')}
-            className="px-4 py-2 rounded-xl border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 text-sm font-semibold transition"
+            className={`${BTN} rounded-xl`}
           >
             Réessayer
           </button>

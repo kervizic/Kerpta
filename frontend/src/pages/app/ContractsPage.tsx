@@ -7,6 +7,7 @@ import { Plus, Loader2, BarChart3, Info, Filter } from 'lucide-react'
 import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
 import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
 import MobileFilterPanel from '@/components/app/MobileFilterPanel'
+import { BTN } from '@/lib/formStyles'
 
 interface Contract {
   id: string
@@ -417,7 +418,7 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string; onCl
                 <button
                   onClick={createSituation}
                   disabled={creatingSlice || !sliceLabel.trim()}
-                  className="flex items-center gap-1.5 px-4 py-2 border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 text-sm font-semibold rounded-lg transition disabled:opacity-50"
+                  className={BTN}
                 >
                   {creatingSlice ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Nouvelle situation
                 </button>
@@ -606,7 +607,7 @@ function SituationEditorPanel({ contractId: _contractId, situationId, onClose }:
                 <button onClick={save} disabled={saving} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 text-sm font-medium rounded-lg transition disabled:opacity-50">
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
                 </button>
-                <button onClick={validate} disabled={validating} className="px-4 py-2 border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 text-sm font-semibold rounded-lg transition disabled:opacity-50">
+                <button onClick={validate} disabled={validating} className={BTN}>
                   {validating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Valider & Facturer'}
                 </button>
               </>

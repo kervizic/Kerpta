@@ -8,7 +8,7 @@ import { orgGet, orgPost, orgPatch, orgDelete } from '@/lib/orgApi'
 import BillingProfileModal, { type BillingProfileData } from '@/components/app/BillingProfileModal'
 import ModalOverlay from '@/components/app/ModalOverlay'
 
-import { INPUT } from '@/lib/formStyles'
+import { INPUT, BTN, BTN_SM } from '@/lib/formStyles'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -94,7 +94,7 @@ function BankAccountsSection() {
     <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Comptes bancaires</h2>
-        <button onClick={() => openModal('new')} className="flex items-center gap-1.5 px-3 py-1.5 border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 text-xs font-semibold rounded-lg transition">
+        <button onClick={() => openModal('new')} className={BTN_SM}>
           <Plus className="w-3.5 h-3.5" /> Ajouter
         </button>
       </div>
@@ -138,7 +138,7 @@ function BankAccountsSection() {
             </label>
             <div className="flex justify-end gap-2 pt-2">
               <button type="button" onClick={() => setModal(null)} className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">Annuler</button>
-              <button type="submit" disabled={saving} className="px-4 py-2 text-sm border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 font-semibold rounded-lg transition disabled:opacity-50">
+              <button type="submit" disabled={saving} className={BTN}>
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
               </button>
             </div>
@@ -173,7 +173,7 @@ function BillingProfilesSection() {
     <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Profils de facturation</h2>
-        <button onClick={() => setModal('new')} className="flex items-center gap-1.5 px-3 py-1.5 border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 text-xs font-semibold rounded-lg transition">
+        <button onClick={() => setModal('new')} className={BTN_SM}>
           <Plus className="w-3.5 h-3.5" /> Ajouter
         </button>
       </div>
@@ -280,7 +280,7 @@ function UnitsSection() {
           <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Unités</h2>
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Unités de mesure disponibles dans les formulaires</p>
         </div>
-        <button onClick={addRow} className="flex items-center gap-1.5 px-3 py-1.5 border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 text-xs font-semibold rounded-lg transition">
+        <button onClick={addRow} className={BTN_SM}>
           <Plus className="w-3.5 h-3.5" /> Ajouter
         </button>
       </div>
@@ -308,7 +308,7 @@ function UnitsSection() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex items-center gap-1.5 px-4 py-2 border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 text-sm font-semibold rounded-lg transition disabled:opacity-50"
+              className={BTN}
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
             </button>
@@ -387,7 +387,7 @@ function PaymentMethodsSection() {
           <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Modes de règlement</h2>
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Méthodes de paiement disponibles dans les profils de facturation</p>
         </div>
-        <button onClick={addRow} className="flex items-center gap-1.5 px-3 py-1.5 border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 text-xs font-semibold rounded-lg transition">
+        <button onClick={addRow} className={BTN_SM}>
           <Plus className="w-3.5 h-3.5" /> Ajouter
         </button>
       </div>
@@ -415,7 +415,7 @@ function PaymentMethodsSection() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex items-center gap-1.5 px-4 py-2 border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 text-sm font-semibold rounded-lg transition disabled:opacity-50"
+              className={BTN}
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
             </button>
@@ -472,7 +472,7 @@ function VatRatesSection() {
           <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Taux de TVA</h2>
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Taux disponibles dans les formulaires de devis et factures</p>
         </div>
-        <button onClick={addRate} className="flex items-center gap-1.5 px-3 py-1.5 border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 text-xs font-semibold rounded-lg transition">
+        <button onClick={addRate} className={BTN_SM}>
           <Plus className="w-3.5 h-3.5" /> Ajouter
         </button>
       </div>
@@ -512,7 +512,7 @@ function VatRatesSection() {
             <button
               onClick={handleSave}
               disabled={saving || rates.filter((r) => r.rate.trim()).length === 0}
-              className="flex items-center gap-1.5 px-4 py-2 border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 text-sm font-semibold rounded-lg transition disabled:opacity-50"
+              className={BTN}
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
             </button>
@@ -676,7 +676,7 @@ function QuoteDocumentTypesSection() {
                     </div>
                   </div>
                   <div className="flex gap-2 pt-1">
-                    <button onClick={confirmEdit} disabled={!editKey.trim() || !editTitle.trim()} className="px-3 py-1.5 text-xs border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 rounded-lg transition disabled:opacity-50">
+                    <button onClick={confirmEdit} disabled={!editKey.trim() || !editTitle.trim()} className={BTN_SM}>
                       Enregistrer
                     </button>
                     <button onClick={cancelEdit} className="px-3 py-1.5 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">
@@ -746,7 +746,7 @@ function QuoteDocumentTypesSection() {
                 </div>
               </div>
               <div className="flex gap-2 pt-1">
-                <button onClick={confirmEdit} disabled={!editKey.trim() || !editTitle.trim()} className="px-3 py-1.5 text-xs border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 rounded-lg transition disabled:opacity-50">
+                <button onClick={confirmEdit} disabled={!editKey.trim() || !editTitle.trim()} className={BTN_SM}>
                   Ajouter
                 </button>
                 <button onClick={cancelEdit} className="px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-100 rounded-lg transition">

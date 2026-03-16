@@ -17,7 +17,7 @@ import ClientPanel from '@/components/app/ClientPanel'
 import DatePicker from '@/components/app/DatePicker'
 import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
 import MobileFilterPanel from '@/components/app/MobileFilterPanel'
-import { INPUT, SELECT, LINE_INPUT, LINE_SELECT } from '@/lib/formStyles'
+import { INPUT, SELECT, LINE_INPUT, LINE_SELECT, BTN } from '@/lib/formStyles'
 import axios from 'axios'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -275,7 +275,7 @@ function InvoicesList() {
             </button>
             <button
               onClick={() => navigate('/app/factures/nouveau')}
-              className="flex items-center gap-1.5 px-4 py-2 border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 text-sm font-semibold rounded-lg transition"
+              className={BTN}
             >
               <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Nouvelle facture</span>
             </button>
@@ -466,7 +466,7 @@ function InvoiceDetailPanel({ invoiceId, onClose }: { invoiceId: string; onClose
         <div className="flex flex-wrap gap-2 mb-5">
           {invoice.status === 'draft' && (
             <>
-              <button onClick={() => doAction('validate')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 text-sm font-semibold rounded-lg transition disabled:opacity-50">
+              <button onClick={() => doAction('validate')} disabled={!!actionLoading} className={BTN}>
                 {actionLoading === 'validate' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />} Valider
               </button>
               <button onClick={() => window.open(`/api/v1/invoices/${invoiceId}/pdf?proforma=true`, '_blank')} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 text-sm font-medium rounded-lg transition">

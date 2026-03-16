@@ -15,7 +15,7 @@ import DatePicker from '@/components/app/DatePicker'
 import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
 import MobileFilterPanel from '@/components/app/MobileFilterPanel'
 import ClientPanel from '@/components/app/ClientPanel'
-import { INPUT, SELECT, LINE_INPUT, LINE_SELECT } from '@/lib/formStyles'
+import { INPUT, SELECT, LINE_INPUT, LINE_SELECT, BTN } from '@/lib/formStyles'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -249,7 +249,7 @@ function QuotesList() {
             </button>
             <button
               onClick={() => navigate('/app/devis/new')}
-              className="flex items-center gap-1.5 px-4 py-2 border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 text-sm font-semibold rounded-lg transition"
+              className={BTN}
             >
               <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Nouveau devis</span>
             </button>
