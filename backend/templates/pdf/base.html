@@ -166,23 +166,14 @@ table { border-collapse: collapse; width: 100%; }
 <div class="notes-text">{{ notes }}</div>
 {% endif %}
 
-<!-- ── Pied de page : coordonnees emetteur ──────────────────────── -->
+<!-- ── Pied de page : mentions legales obligatoires emetteur ─────── -->
 <div class="page-footer">
-  {% if seller.phone or seller.email or seller.website %}
-  <div class="footer-line">
-    {% if seller.phone %}Telephone : {{ seller.phone }}{% endif %}
-    {% if seller.phone and seller.email %} &nbsp;&middot;&nbsp; {% endif %}
-    {% if seller.email %}Courriel : {{ seller.email }}{% endif %}
-    {% if seller.website %} &nbsp;&middot;&nbsp; Web : {{ seller.website }}{% endif %}
-    {% if seller.vat_number %} &nbsp;&middot;&nbsp; TVA : {{ seller.vat_number }}{% endif %}
-  </div>
-  {% endif %}
   <div class="footer-line">
     {% if seller.legal_form %}{{ seller.legal_form }}{% endif %}
     {% if seller.capital %} au capital de {{ seller.capital }} €{% endif %}
     {% if seller.siren %} - SIREN : {{ seller.siren }}{% endif %}
-    {% if seller.rcs_city %} R.C.S {{ seller.rcs_city }}{% endif %}
-    {% if not seller.phone and seller.vat_number %} - TVA : {{ seller.vat_number }}{% endif %}
+    {% if seller.rcs_city %} - R.C.S {{ seller.rcs_city }}{% endif %}
+    {% if seller.vat_number %} - TVA : {{ seller.vat_number }}{% endif %}
   </div>
 </div>
 {% endblock %}
