@@ -242,7 +242,7 @@ async def generate_auto_footer(org_id: uuid.UUID, db: AsyncSession) -> dict:
     else:
         lines.append("Pas d'escompte pour paiement anticipé.")
 
-    return {"footer": "\n".join(lines)}
+    return {"footer": " ".join(lines)}
 
 
 # ── En-tête du document (logo, nom société) ────────────────────────────────

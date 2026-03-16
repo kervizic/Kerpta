@@ -169,7 +169,6 @@ table { border-collapse: collapse; width: 100%; }
 <!-- ── Notes ────────────────────────────────────────────────────── -->
 {% if payment_note or notes %}
 <div class="notes-block">
-  <div class="section-title">Notes</div>
   {% if payment_note %}<div class="notes-text">{{ payment_note }}</div>{% endif %}
   {% if notes %}<div class="notes-text">{{ notes }}</div>{% endif %}
 </div>
