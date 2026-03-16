@@ -453,7 +453,8 @@ async def _build_snapshots(
     seller_result = await db.execute(
         text("""
             SELECT name, siret, siren, vat_number, address,
-                   legal_form, rcs_city, capital, ape_code
+                   legal_form, rcs_city, capital, ape_code,
+                   email, phone, website
             FROM organizations WHERE id = :org_id
         """),
         {"org_id": str(org_id)},
@@ -471,6 +472,9 @@ async def _build_snapshots(
             "rcs_city": s_row[6],
             "capital": str(s_row[7]) if s_row[7] else None,
             "ape_code": s_row[8],
+            "email": s_row[9],
+            "phone": s_row[10],
+            "website": s_row[11],
         })
 
     # Mentions légales depuis le profil de facturation
