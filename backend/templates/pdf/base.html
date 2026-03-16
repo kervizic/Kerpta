@@ -61,7 +61,7 @@ table { border-collapse: collapse; width: 100%; }
       {% if client.address.pays %}<br>{{ client.address.pays }}{% endif %}
     </div>
     {% endif %}
-    {% if client.vat_number %}<div class="client-detail">TVA : {{ client.vat_number }}</div>{% endif %}
+    {% if client.vat_number %}<div class="client-detail" style="margin-top: 4px;">TVA : {{ client.vat_number }}</div>{% endif %}
   </div>
 </div>
 
@@ -121,7 +121,7 @@ table { border-collapse: collapse; width: 100%; }
   </tbody>
 </table>
 
-<!-- ── Totaux + conditions de reglement ──────────────────────────── -->
+<!-- ── Totaux ────────────────────────────────────────────────────── -->
 <div class="totals-wrapper clearfix">
   <table class="totals-table">
     <tr class="totals-row"><td class="totals-label">Sous-total</td><td class="totals-value">{{ subtotal_ht|fmt_currency }}</td></tr>
@@ -137,32 +137,32 @@ table { border-collapse: collapse; width: 100%; }
     <tr class="totals-due"><td class="totals-label">Reste a payer</td><td class="totals-value">{{ remaining|fmt_currency }}</td></tr>
     {% endif %}
   </table>
+</div>
+
+<!-- ── Reglement + banque ────────────────────────────────────────── -->
+<div class="payment-block clearfix">
   {% if payment_method %}
-  <div class="payment-conditions">Condition de reglement : {{ payment_method }}</div>
+  <div class="payment-line">Mode de reglement : {{ payment_method }}</div>
+  {% endif %}
+  {% if bank_details %}
+  <div class="payment-line">
+    {% if bank_details.iban %}IBAN : {{ bank_details.iban }}{% endif %}
+    {% if bank_details.bic %} &nbsp;-&nbsp; BIC : {{ bank_details.bic }}{% endif %}
+  </div>
   {% endif %}
 </div>
 
-<!-- ── Coordonnees bancaires ────────────────────────────────────── -->
-{% if bank_details %}
-<div class="bank-section">
-  {% if bank_details.iban %}IBAN : {{ bank_details.iban }}{% endif %}
-  {% if bank_details.bic %} - BIC : {{ bank_details.bic }}{% endif %}
-</div>
-{% endif %}
-
-<!-- ── Mentions legales (footer du document) ──────────────────────── -->
+<!-- ── Mentions legales ──────────────────────────────────────────── -->
 {% if footer %}
 <div class="legal-footer">{{ footer }}</div>
 {% endif %}
 
-<!-- ── Note de reglement ──────────────────────────────────────────── -->
-{% if payment_note %}
-<div class="notes-text">{{ payment_note }}</div>
-{% endif %}
-
-<!-- ── Notes ──────────────────────────────────────────────────────── -->
-{% if notes %}
-<div class="notes-text">{{ notes }}</div>
+<!-- ── Notes (note de reglement + notes libres) ──────────────────── -->
+{% if payment_note or notes %}
+<div class="notes-block">
+  {% if payment_note %}<div class="notes-text">{{ payment_note }}</div>{% endif %}
+  {% if notes %}<div class="notes-text">{{ notes }}</div>{% endif %}
+</div>
 {% endif %}
 
 <!-- ── Pied de page : mentions legales obligatoires emetteur ─────── -->
