@@ -364,12 +364,10 @@ async def generate_quote_pdf(
     q_result = await db.execute(
         text("""
             SELECT q.id::text, q.number, q.client_id::text,
-                   COALESCE(q.client_name, c.name) AS client_name,
-                   q.document_type, q.status, q.issue_date, q.validity_date,
+                   c.name AS client_name,
+                   q.document_type, q.status, q.issue_date, q.expiry_date,
                    q.subtotal_ht, q.total_vat, q.total_ttc,
                    q.discount_type, q.discount_value,
-                   q.payment_terms, q.payment_method,
-                   q.customer_reference,
                    q.notes, q.footer
             FROM quotes q
             LEFT JOIN clients c ON c.id = q.client_id
@@ -443,8 +441,8 @@ async def generate_quote_pdf(
         "doc_type_label": doc_type_label,
         "doc_number": doc_number,
         "issue_date": str(quote["issue_date"]) if quote.get("issue_date") else "",
-        "due_date": str(quote["validity_date"]) if quote.get("validity_date") else None,
-        "customer_reference": quote.get("customer_reference"),
+        "due_date": str(quote["expiry_date"]) if quote.get("expiry_date") else None,
+        "customer_reference": None,
         "purchase_order_number": None,
         "seller": seller,
         "client": client,
@@ -461,7 +459,7 @@ async def generate_quote_pdf(
         "discount_label": discount_label,
         "discount_amount": discount_amount,
         "vat_breakdown": vat_breakdown,
-        "payment_method": quote.get("payment_method"),
+        "payment_method": None,
         "bank_details": None,
         "notes": quote.get("notes"),
         "footer": quote.get("footer"),

@@ -375,7 +375,7 @@ function InvoicesList() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 dark:border-gray-700 text-left">
-                <th className="pl-3 pr-1 py-3 w-8">
+                <th className="pl-3 pr-1 py-3 w-0">
                   <input
                     type="checkbox"
                     checked={invoices.length > 0 && selected.size === invoices.length}
@@ -391,7 +391,7 @@ function InvoicesList() {
                 <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase">Total TTC</th>
                 <ColumnFilterHeader filter={INVOICE_FILTERS[4]} value={filters.payment || ''} onChange={(v) => updateFilter('payment', v)} align="right" />
                 <ColumnFilterHeader filter={INVOICE_FILTERS[5]} value={filters.status || []} onChange={(v) => updateFilter('status', v)} />
-                <th className="px-1 py-3 w-8"></th>
+                <th className="p-0 w-0"></th>
               </tr>
             </thead>
             <tbody>
@@ -405,7 +405,7 @@ function InvoicesList() {
                   const isEditable = ['draft', 'validated'].includes(inv.status)
                   return (
                     <tr key={inv.id} onClick={() => isEditable ? setEditId(inv.id) : setSelectedId(inv.id)} className="border-b border-gray-50 dark:border-gray-700 hover:bg-kerpta-50/50 dark:hover:bg-kerpta-900/30 cursor-pointer transition">
-                      <td className="pl-3 pr-1 py-3" onClick={(e) => e.stopPropagation()}>
+                      <td className="pl-3 pr-1 py-3 w-0" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           checked={selected.has(inv.id)}
@@ -425,7 +425,7 @@ function InvoicesList() {
                       <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">{fmtCurrency(inv.total_ttc)}</td>
                       <td className="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{fmtCurrency(inv.amount_paid)}</td>
                       <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${st.cls}`}>{st.label}</span></td>
-                      <td className="px-1 py-3">
+                      <td className="pr-2 py-3 w-0">
                         <button
                           onClick={(e) => { e.stopPropagation(); void orgDownload(`/invoices/${inv.id}/pdf?download=1`, `${inv.number || inv.proforma_number || 'facture'}.pdf`) }}
                           title="Télécharger le PDF"

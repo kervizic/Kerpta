@@ -352,7 +352,7 @@ function QuotesList() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 dark:border-gray-700 text-left">
-                <th className="pl-3 pr-1 py-3 w-8">
+                <th className="pl-3 pr-1 py-3 w-0">
                   <input
                     type="checkbox"
                     checked={quotes.length > 0 && selected.size === quotes.length}
@@ -366,7 +366,7 @@ function QuotesList() {
                 <ColumnFilterHeader filter={QUOTE_FILTERS[3]} value={filters.date || []} onChange={(v) => updateFilter('date', v)} />
                 <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase">Total HT</th>
                 <ColumnFilterHeader filter={QUOTE_FILTERS[4]} value={filters.status || []} onChange={(v) => updateFilter('status', v)} />
-                <th className="px-1 py-3 w-8"></th>
+                <th className="p-0 w-0"></th>
               </tr>
             </thead>
             <tbody>
@@ -381,7 +381,7 @@ function QuotesList() {
                   const isEditable = q.status === 'draft' || q.status === 'sent'
                   return (
                     <tr key={q.id} onClick={() => isEditable ? setEditId(q.id) : setSelectedId(q.id)} className="border-b border-gray-50 dark:border-gray-700 hover:bg-kerpta-50/50 dark:hover:bg-kerpta-900/30 cursor-pointer transition">
-                      <td className="pl-3 pr-1 py-3" onClick={(e) => e.stopPropagation()}>
+                      <td className="pl-3 pr-1 py-3 w-0" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           checked={selected.has(q.id)}
@@ -395,7 +395,7 @@ function QuotesList() {
                       <td className="px-4 py-3 text-gray-500 dark:text-gray-400">{q.issue_date}</td>
                       <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">{fmtCurrency(q.subtotal_ht)}</td>
                       <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${st.cls}`}>{st.label}</span></td>
-                      <td className="px-1 py-3">
+                      <td className="pr-2 py-3 w-0">
                         <button
                           onClick={(e) => { e.stopPropagation(); void orgDownload(`/quotes/${q.id}/pdf?download=1`, `${q.number}.pdf`) }}
                           title="Télécharger le PDF"
