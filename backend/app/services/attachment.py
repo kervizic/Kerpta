@@ -58,6 +58,9 @@ async def upload_attachment(
     Returns:
         dict avec id, reference, label, s3_url, size_bytes
     """
+    # Vérifier que le stockage S3 est configuré
+    await storage_svc.require_active_storage(org_id, db)
+
     original_size = len(file_bytes)
 
     # Conversion image → PDF si nécessaire

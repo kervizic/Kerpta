@@ -3,8 +3,9 @@
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, Loader2, Pencil, Trash2, Star, FileText, Sparkles, Minus } from 'lucide-react'
+import { Plus, Loader2, Pencil, Trash2, Star, FileText, Sparkles, Minus, Upload, ExternalLink, X } from 'lucide-react'
 import { orgGet, orgPost, orgPatch, orgDelete } from '@/lib/orgApi'
+import { apiClient } from '@/lib/api'
 import BillingProfileModal, { type BillingProfileData } from '@/components/app/BillingProfileModal'
 import ModalOverlay from '@/components/app/ModalOverlay'
 
@@ -19,6 +20,9 @@ interface BankAccount {
   iban: string
   bic: string | null
   is_default: boolean
+  rib_attachment_id: string | null
+  rib_url: string | null
+  rib_reference: string | null
 }
 
 interface Unit {
@@ -90,6 +94,34 @@ function BankAccountsSection() {
     try { await orgDelete(`/billing/bank-accounts/${id}`); await load() } catch { /* */ }
   }
 
+  async function handleRibUpload(accountId: string) {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.pdf,image/*'
+    input.onchange = async () => {
+      const file = input.files?.[0]
+      if (!file) return
+      const formData = new FormData()
+      formData.append('file', file)
+      const orgId = localStorage.getItem('kerpta_active_org')
+      try {
+        await apiClient.post(`/billing/bank-accounts/${accountId}/rib`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            ...(orgId ? { 'X-Organization-Id': orgId } : {}),
+          },
+        })
+        await load()
+      } catch { /* */ }
+    }
+    input.click()
+  }
+
+  async function handleRibDelete(accountId: string) {
+    if (!confirm('Supprimer le RIB ?')) return
+    try { await orgDelete(`/billing/bank-accounts/${accountId}/rib`); await load() } catch { /* */ }
+  }
+
   return (
     <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
       <div className="flex items-center justify-between mb-4">
@@ -105,7 +137,7 @@ function BankAccountsSection() {
       ) : (
         <table className="w-full text-sm">
           <thead><tr className="border-b border-gray-100 dark:border-gray-700 text-left text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase">
-            <th className="px-3 py-2">Libellé</th><th className="px-3 py-2">Banque</th><th className="px-3 py-2">IBAN</th><th className="px-3 py-2">BIC</th><th className="px-3 py-2 text-center">Défaut</th><th className="px-3 py-2"></th>
+            <th className="px-3 py-2">Libellé</th><th className="px-3 py-2">Banque</th><th className="px-3 py-2">IBAN</th><th className="px-3 py-2">BIC</th><th className="px-3 py-2 text-center">RIB</th><th className="px-3 py-2 text-center">Défaut</th><th className="px-3 py-2"></th>
           </tr></thead>
           <tbody>{items.map((a) => (
             <tr key={a.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50/50 dark:hover:bg-gray-700/50">
@@ -113,6 +145,22 @@ function BankAccountsSection() {
               <td className="px-3 py-2 text-gray-500 dark:text-gray-400">{a.bank_name || '—'}</td>
               <td className="px-3 py-2 font-mono text-xs text-gray-600 dark:text-gray-300">{a.iban}</td>
               <td className="px-3 py-2 font-mono text-xs text-gray-500 dark:text-gray-400">{a.bic || '—'}</td>
+              <td className="px-3 py-2 text-center">
+                {a.rib_url ? (
+                  <div className="flex items-center justify-center gap-1">
+                    <a href={a.rib_url} target="_blank" rel="noopener noreferrer" className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700" title="Voir le RIB">
+                      <ExternalLink className="w-3.5 h-3.5 text-kerpta" />
+                    </a>
+                    <button onClick={() => handleRibDelete(a.id)} className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/30" title="Supprimer le RIB">
+                      <X className="w-3.5 h-3.5 text-red-400" />
+                    </button>
+                  </div>
+                ) : (
+                  <button onClick={() => handleRibUpload(a.id)} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700" title="Joindre un RIB">
+                    <Upload className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
+                  </button>
+                )}
+              </td>
               <td className="px-3 py-2 text-center">{a.is_default && <Star className="w-4 h-4 text-kerpta mx-auto" />}</td>
               <td className="px-3 py-2">
                 <div className="flex gap-1 justify-end">

@@ -26,6 +26,9 @@ class BankAccount(Base, UUIDPrimaryKeyMixin):
     iban: Mapped[str] = mapped_column(String(34), nullable=False)
     bic: Mapped[str | None] = mapped_column(String(11), nullable=True)
     is_default: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    rib_attachment_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("attachments.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

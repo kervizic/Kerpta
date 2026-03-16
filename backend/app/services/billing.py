@@ -346,10 +346,14 @@ async def update_rounding(
 async def list_bank_accounts(org_id: uuid.UUID, db: AsyncSession) -> list[dict]:
     result = await db.execute(
         text("""
-            SELECT id::text, label, bank_name, iban, bic, is_default, created_at
-            FROM bank_accounts
-            WHERE organization_id = :org_id
-            ORDER BY is_default DESC, label
+            SELECT ba.id::text, ba.label, ba.bank_name, ba.iban, ba.bic,
+                   ba.is_default, ba.created_at,
+                   ba.rib_attachment_id::text,
+                   a.s3_url AS rib_url, a.reference AS rib_reference
+            FROM bank_accounts ba
+            LEFT JOIN attachments a ON a.id = ba.rib_attachment_id
+            WHERE ba.organization_id = :org_id
+            ORDER BY ba.is_default DESC, ba.label
         """),
         {"org_id": str(org_id)},
     )
@@ -432,6 +436,141 @@ async def delete_bank_account(
     )
     if result.rowcount == 0:
         raise HTTPException(404, "Compte bancaire introuvable")
+    await db.commit()
+    return {"status": "deleted"}
+
+
+async def upload_rib(
+    org_id: uuid.UUID,
+    account_id: str,
+    file_bytes: bytes,
+    original_filename: str,
+    mime_type: str,
+    db: AsyncSession,
+) -> dict:
+    """Upload un RIB (PDF ou image) et l'attache au compte bancaire.
+
+    Le fichier est stocké dans Kerpta/{SIREN}/config/RIB-{label}.pdf
+    """
+    from app.services import storage as storage_svc
+    from app.services.numbering import generate_number
+    from app.storage.utils import (
+        compress_pdf,
+        image_to_pdf,
+        is_image_mime,
+        sanitize_filename,
+    )
+
+    # Vérifier que le stockage S3 est configuré
+    await storage_svc.require_active_storage(org_id, db)
+
+    # Vérifier que le compte existe
+    result = await db.execute(
+        text("SELECT label FROM bank_accounts WHERE id = :aid AND organization_id = :org_id"),
+        {"aid": account_id, "org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    if not row:
+        raise HTTPException(404, "Compte bancaire introuvable")
+    account_label = row[0]
+
+    original_size = len(file_bytes)
+
+    # Conversion image → PDF si nécessaire
+    if is_image_mime(mime_type):
+        file_bytes = image_to_pdf(file_bytes)
+        mime_type = "application/pdf"
+    elif mime_type == "application/pdf":
+        file_bytes = compress_pdf(file_bytes)
+    else:
+        raise HTTPException(422, "Seuls les PDF et images sont acceptés pour un RIB.")
+
+    final_size = len(file_bytes)
+
+    # Générer le numéro PJ
+    reference = await generate_number("attachment", org_id, db)
+
+    # Nom du fichier S3
+    label = f"RIB-{account_label}"
+    label_clean = sanitize_filename(label)
+    s3_filename = f"{reference}-{label_clean}.pdf"
+
+    # Chemin S3 dans le dossier config de la société
+    remote_path = await storage_svc.build_document_path(
+        org_id, db, doc_type="config", filename=s3_filename,
+    )
+
+    # Upload S3
+    s3_url = await storage_svc.upload_document(
+        org_id, file_bytes, remote_path, db, content_type="application/pdf",
+    )
+
+    # Créer l'enregistrement PJ
+    attachment_id = uuid.uuid4()
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    await db.execute(
+        text("""
+            INSERT INTO attachments
+                (id, organization_id, reference, label, original_filename,
+                 s3_path, s3_url, mime_type, size_bytes, original_size_bytes, created_at)
+            VALUES (:id, :org_id, :ref, :label, :orig_name,
+                    :s3_path, :s3_url, :mime, :size, :orig_size, :now)
+        """),
+        {
+            "id": str(attachment_id),
+            "org_id": str(org_id),
+            "ref": reference,
+            "label": label,
+            "orig_name": original_filename,
+            "s3_path": remote_path,
+            "s3_url": s3_url,
+            "mime": mime_type,
+            "size": final_size,
+            "orig_size": original_size,
+            "now": now,
+        },
+    )
+
+    # Lier au compte bancaire
+    await db.execute(
+        text("UPDATE bank_accounts SET rib_attachment_id = :aid WHERE id = :bid AND organization_id = :org_id"),
+        {"aid": str(attachment_id), "bid": account_id, "org_id": str(org_id)},
+    )
+    await db.commit()
+
+    return {
+        "attachment_id": str(attachment_id),
+        "reference": reference,
+        "s3_url": s3_url,
+        "size_bytes": final_size,
+    }
+
+
+async def delete_rib(
+    org_id: uuid.UUID, account_id: str, db: AsyncSession
+) -> dict:
+    """Supprime le RIB attaché à un compte bancaire."""
+    result = await db.execute(
+        text("SELECT rib_attachment_id::text FROM bank_accounts WHERE id = :aid AND organization_id = :org_id"),
+        {"aid": account_id, "org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    if not row:
+        raise HTTPException(404, "Compte bancaire introuvable")
+    if not row[0]:
+        raise HTTPException(404, "Aucun RIB attaché à ce compte")
+
+    # Détacher du compte
+    await db.execute(
+        text("UPDATE bank_accounts SET rib_attachment_id = NULL WHERE id = :aid AND organization_id = :org_id"),
+        {"aid": account_id, "org_id": str(org_id)},
+    )
+    # Supprimer la PJ
+    await db.execute(
+        text("DELETE FROM attachments WHERE id = :pid AND organization_id = :org_id"),
+        {"pid": row[0], "org_id": str(org_id)},
+    )
     await db.commit()
     return {"status": "deleted"}
 

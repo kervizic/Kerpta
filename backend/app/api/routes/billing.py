@@ -4,7 +4,7 @@
 
 """Routes API — Facturation (comptes bancaires, profils, unités)."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -161,6 +161,31 @@ async def delete_bank_account(
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.delete_bank_account(ctx.org_id, account_id, db)
+
+
+@router.post("/bank-accounts/{account_id}/rib")
+async def upload_rib(
+    account_id: str,
+    file: UploadFile = File(...),
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload un RIB (PDF ou image) pour un compte bancaire."""
+    file_bytes = await file.read()
+    return await svc.upload_rib(
+        ctx.org_id, account_id, file_bytes,
+        file.filename or "rib", file.content_type or "application/octet-stream", db,
+    )
+
+
+@router.delete("/bank-accounts/{account_id}/rib")
+async def delete_rib(
+    account_id: str,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    """Supprime le RIB attaché à un compte bancaire."""
+    return await svc.delete_rib(ctx.org_id, account_id, db)
 
 
 # ── Profils de facturation ───────────────────────────────────────────────────

@@ -299,7 +299,7 @@ async def build_document_path(
     Args:
         org_id: UUID de l'organisation
         db: session BDD
-        doc_type: type de document (facture, devis, bon-commande, bon-livraison, piece-jointe, achat)
+        doc_type: type de document (facture, devis, bon-commande, bon-livraison, piece-jointe, achat, config)
         filename: nom du fichier PDF
         client_id: UUID du client (si doc client)
         supplier_id: UUID du fournisseur (si doc fournisseur)
@@ -308,6 +308,10 @@ async def build_document_path(
         Chemin S3 relatif (ex: "Kerpta/123456789/clients/Dupont_abc123/factures/FA-2026-0001.pdf")
     """
     siren = await get_org_siren(org_id, db)
+
+    # Dossier config à la racine de la société (RIB, etc.)
+    if doc_type == "config":
+        return f"Kerpta/{siren}/config/{filename}"
 
     # Mapping type → sous-dossier
     folder_map = {
@@ -330,6 +334,34 @@ async def build_document_path(
 
     # Fallback : dossier racine org (ne devrait pas arriver)
     return f"Kerpta/{siren}/{sub_folder}/{filename}"
+
+
+# ── Vérification S3 ──────────────────────────────────────────────────────────
+
+
+async def has_active_storage(org_id: uuid.UUID, db: AsyncSession) -> bool:
+    """Vérifie si l'organisation a un stockage actif configuré."""
+    result = await db.execute(
+        text("""
+            SELECT COUNT(*) FROM organization_storage_configs
+            WHERE organization_id = :org_id AND is_active = true
+        """),
+        {"org_id": str(org_id)},
+    )
+    return (result.scalar() or 0) > 0
+
+
+async def require_active_storage(org_id: uuid.UUID, db: AsyncSession) -> None:
+    """Lève une HTTPException si aucun stockage n'est configuré.
+
+    Doit être appelé avant tout upload de fichier (PJ, RIB, etc.).
+    """
+    if not await has_active_storage(org_id, db):
+        raise HTTPException(
+            400,
+            "Aucun stockage configuré. Configurez un stockage S3 dans "
+            "Paramètres → Stockage avant de pouvoir uploader des fichiers.",
+        )
 
 
 # ── Upload de fichiers ─────────────────────────────────────────────────────────
