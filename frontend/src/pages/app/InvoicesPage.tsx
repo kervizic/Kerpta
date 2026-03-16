@@ -1391,6 +1391,14 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
 
         {/* Actions */}
         <div className="flex justify-end gap-3">
+          {isEdit && invoiceId && (
+            <button
+              onClick={() => void orgDownload(`/invoices/${invoiceId}/pdf?proforma=true&download=1`, 'proforma.pdf')}
+              className="flex items-center gap-1.5 px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 text-sm font-semibold rounded-lg transition"
+            >
+              <Printer className="w-4 h-4" /> Imprimer
+            </button>
+          )}
           <button
             onClick={() => handleSave(false)}
             disabled={saving || !clientId}
