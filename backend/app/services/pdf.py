@@ -23,6 +23,8 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from weasyprint import HTML
 
+from lxml import etree
+
 from app.services import storage as storage_svc
 from app.services import billing as billing_svc
 
@@ -312,16 +314,23 @@ async def _get_document_columns(
 
 
 def _compute_vat_breakdown(lines: list[dict]) -> list[dict]:
-    """Calcule la ventilation TVA par taux."""
-    breakdown: dict[str, Decimal] = {}
+    """Calcule la ventilation TVA par taux (montant TVA + base HT)."""
+    vat_amounts: dict[str, Decimal] = {}
+    vat_bases: dict[str, Decimal] = {}
     for line in lines:
         rate = str(line.get("vat_rate", "0"))
         amount = Decimal(str(line.get("total_vat", "0")))
-        breakdown[rate] = breakdown.get(rate, Decimal("0")) + amount
+        base = Decimal(str(line.get("total_ht", "0")))
+        vat_amounts[rate] = vat_amounts.get(rate, Decimal("0")) + amount
+        vat_bases[rate] = vat_bases.get(rate, Decimal("0")) + base
     return [
-        {"rate": rate, "amount": str(amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))}
-        for rate, amount in sorted(breakdown.items(), key=lambda x: -Decimal(x[0]))
-        if amount != 0
+        {
+            "rate": rate,
+            "amount": str(vat_amounts[rate].quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)),
+            "base": str(vat_bases[rate].quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)),
+        }
+        for rate in sorted(vat_amounts.keys(), key=lambda x: -Decimal(x))
+        if vat_amounts[rate] != 0
     ]
 
 
@@ -338,6 +347,225 @@ def _render_pdf(template_name: str, context: dict) -> bytes:
     html_content = template.render(**context)
     pdf_bytes = HTML(string=html_content).write_pdf()
     return pdf_bytes
+
+
+# ── Factur-X EN 16931 ─────────────────────────────────────────────────────────
+
+# Namespaces CII (Cross-Industry Invoice)
+_NS = {
+    "rsm": "urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100",
+    "ram": "urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100",
+    "qdt": "urn:un:unece:uncefact:data:standard:QualifiedDataType:100",
+    "udt": "urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100",
+}
+
+# Mapping mode de reglement -> code UNTDID 4461
+_PAYMENT_MEANS_CODE = {
+    "virement": "30",
+    "cheque": "20",
+    "chèque": "20",
+    "carte": "48",
+    "carte bancaire": "48",
+    "prelevement": "49",
+    "prélèvement": "49",
+    "especes": "10",
+    "espèces": "10",
+}
+
+
+def _el(parent: etree._Element, tag: str, text: str | None = None, **attrs) -> etree._Element:
+    """Crée un sous-élément avec namespace résolu."""
+    prefix, local = tag.split(":", 1)
+    ns = _NS[prefix]
+    elem = etree.SubElement(parent, f"{{{ns}}}{local}")
+    if text is not None:
+        elem.text = str(text)
+    for attr_name, attr_val in attrs.items():
+        elem.set(attr_name, str(attr_val))
+    return elem
+
+
+def _build_facturx_xml(inv: dict, seller: dict, client: dict, lines: list, vat_breakdown: list) -> bytes:
+    """Construit le XML Factur-X EN 16931 (profil EN16931) pour une facture.
+
+    Args:
+        inv: dictionnaire de la facture (issue_date, due_date, number, totaux, etc.)
+        seller: infos vendeur
+        client: infos client
+        lines: lignes de facture formatées
+        vat_breakdown: ventilation TVA
+
+    Returns:
+        XML Factur-X en bytes UTF-8
+    """
+    root = etree.Element(
+        f"{{{_NS['rsm']}}}CrossIndustryInvoice",
+        nsmap=_NS,
+    )
+
+    # ── ExchangedDocumentContext ──
+    ctx = _el(root, "rsm:ExchangedDocumentContext")
+    guide = _el(ctx, "ram:GuidelineSpecifiedDocumentContextParameter")
+    _el(guide, "ram:ID", "urn:cen.eu:en16931:2017")
+
+    # ── ExchangedDocument ──
+    doc = _el(root, "rsm:ExchangedDocument")
+    doc_number = inv.get("number") or inv.get("proforma_number") or "-"
+    _el(doc, "ram:ID", doc_number)
+
+    # TypeCode : 380 = facture, 381 = avoir
+    type_code = "381" if inv.get("is_credit_note") else "380"
+    _el(doc, "ram:TypeCode", type_code)
+
+    issue_dt = _el(doc, "ram:IssueDateTime")
+    _el(issue_dt, "udt:DateTimeString", str(inv["issue_date"]).replace("-", ""), format="102")
+
+    # ── SupplyChainTradeTransaction ──
+    txn = _el(root, "rsm:SupplyChainTradeTransaction")
+
+    # --- Lignes ---
+    for i, line in enumerate(lines, 1):
+        item = _el(txn, "ram:IncludedSupplyChainTradeLineItem")
+
+        line_doc = _el(item, "ram:AssociatedDocumentLineDocument")
+        _el(line_doc, "ram:LineID", str(i))
+
+        product = _el(item, "ram:SpecifiedTradeProduct")
+        if line.get("reference"):
+            _el(product, "ram:SellerAssignedID", line["reference"])
+        _el(product, "ram:Name", line.get("description") or "Article")
+
+        line_agreement = _el(item, "ram:SpecifiedLineTradeAgreement")
+        net_price = _el(line_agreement, "ram:NetPriceProductTradePrice")
+        _el(net_price, "ram:ChargeAmount", line.get("unit_price_fmt") or "0.00")
+
+        line_delivery = _el(item, "ram:SpecifiedLineTradeDelivery")
+        _el(line_delivery, "ram:BilledQuantity", line.get("quantity_fmt") or "1", unitCode=line.get("unit") or "C62")
+
+        line_settlement = _el(item, "ram:SpecifiedLineTradeSettlement")
+        line_tax = _el(line_settlement, "ram:ApplicableTradeTax")
+        _el(line_tax, "ram:TypeCode", "VAT")
+        _el(line_tax, "ram:CategoryCode", "S")
+        _el(line_tax, "ram:RateApplicablePercent", str(line.get("vat_rate") or "0"))
+
+        line_summation = _el(line_settlement, "ram:SpecifiedTradeSettlementLineMonetarySummation")
+        _el(line_summation, "ram:LineTotalAmount", line.get("total_ht_fmt") or "0.00")
+
+    # --- HeaderTradeAgreement (vendeur / acheteur) ---
+    agreement = _el(txn, "ram:ApplicableHeaderTradeAgreement")
+
+    # Vendeur
+    seller_party = _el(agreement, "ram:SellerTradeParty")
+    _el(seller_party, "ram:Name", seller.get("name") or "")
+    if seller.get("siret"):
+        seller_id = _el(seller_party, "ram:SpecifiedLegalOrganization")
+        _el(seller_id, "ram:ID", seller["siret"], schemeID="0002")
+    seller_addr = seller.get("address") or {}
+    if seller_addr:
+        postal = _el(seller_party, "ram:PostalTradeAddress")
+        _el(postal, "ram:PostcodeCode", seller_addr.get("code_postal") or "")
+        _el(postal, "ram:LineOne", seller_addr.get("voie") or "")
+        _el(postal, "ram:CityName", seller_addr.get("commune") or "")
+        _el(postal, "ram:CountryID", "FR")
+    if seller.get("vat_number"):
+        seller_tax = _el(seller_party, "ram:SpecifiedTaxRegistration")
+        _el(seller_tax, "ram:ID", seller["vat_number"], schemeID="VA")
+
+    # Acheteur
+    buyer_party = _el(agreement, "ram:BuyerTradeParty")
+    _el(buyer_party, "ram:Name", client.get("name") or "")
+    if client.get("siret"):
+        buyer_id = _el(buyer_party, "ram:SpecifiedLegalOrganization")
+        _el(buyer_id, "ram:ID", client["siret"], schemeID="0002")
+    client_addr = client.get("address") or {}
+    if client_addr:
+        postal = _el(buyer_party, "ram:PostalTradeAddress")
+        _el(postal, "ram:PostcodeCode", client_addr.get("code_postal") or "")
+        _el(postal, "ram:LineOne", client_addr.get("voie") or "")
+        _el(postal, "ram:CityName", client_addr.get("commune") or "")
+        _el(postal, "ram:CountryID", client_addr.get("pays") or "FR")
+    if client.get("vat_number"):
+        buyer_tax = _el(buyer_party, "ram:SpecifiedTaxRegistration")
+        _el(buyer_tax, "ram:ID", client["vat_number"], schemeID="VA")
+
+    # Référence acheteur
+    if inv.get("customer_reference"):
+        _el(agreement, "ram:BuyerReference", inv["customer_reference"])
+
+    # --- HeaderTradeDelivery ---
+    _el(txn, "ram:ApplicableHeaderTradeDelivery")
+
+    # --- HeaderTradeSettlement ---
+    settlement = _el(txn, "ram:ApplicableHeaderTradeSettlement")
+    _el(settlement, "ram:InvoiceCurrencyCode", "EUR")
+
+    # Moyen de paiement
+    payment_method = inv.get("payment_method") or ""
+    means = _el(settlement, "ram:SpecifiedTradeSettlementPaymentMeans")
+    means_code = _PAYMENT_MEANS_CODE.get(payment_method.lower().strip(), "30")
+    _el(means, "ram:TypeCode", means_code)
+
+    # Compte bancaire
+    bank = inv.get("bank_details")
+    if isinstance(bank, str):
+        try:
+            bank = json.loads(bank)
+        except Exception:
+            bank = None
+    if bank and bank.get("iban"):
+        payee_account = _el(means, "ram:PayeePartyCreditorFinancialAccount")
+        _el(payee_account, "ram:IBANID", bank["iban"])
+        if bank.get("bic"):
+            payee_institution = _el(means, "ram:PayeeSpecifiedCreditorFinancialInstitution")
+            _el(payee_institution, "ram:BICID", bank["bic"])
+
+    # Conditions de paiement
+    if inv.get("due_date"):
+        terms = _el(settlement, "ram:SpecifiedTradePaymentTerms")
+        due_dt = _el(terms, "ram:DueDateDateTime")
+        _el(due_dt, "udt:DateTimeString", str(inv["due_date"]).replace("-", ""), format="102")
+
+    # Ventilation TVA
+    for vat_line in vat_breakdown:
+        tax = _el(settlement, "ram:ApplicableTradeTax")
+        _el(tax, "ram:CalculatedAmount", vat_line["amount"])
+        _el(tax, "ram:TypeCode", "VAT")
+        _el(tax, "ram:BasisAmount", vat_line.get("base") or "0.00")
+        _el(tax, "ram:CategoryCode", "S")
+        _el(tax, "ram:RateApplicablePercent", str(vat_line["rate"]))
+
+    # Totaux
+    summation = _el(settlement, "ram:SpecifiedTradeSettlementHeaderMonetarySummation")
+    _el(summation, "ram:LineTotalAmount", str(inv.get("subtotal_ht") or "0.00"))
+    _el(summation, "ram:TaxBasisTotalAmount", str(inv.get("subtotal_ht") or "0.00"))
+    tax_total = _el(summation, "ram:TaxTotalAmount", str(inv.get("total_vat") or "0.00"))
+    tax_total.set("currencyID", "EUR")
+    _el(summation, "ram:GrandTotalAmount", str(inv.get("total_ttc") or "0.00"))
+    _el(summation, "ram:DuePayableAmount", str(
+        Decimal(str(inv.get("total_ttc") or 0)) - Decimal(str(inv.get("amount_paid") or 0))
+    ))
+
+    return etree.tostring(root, xml_declaration=True, encoding="UTF-8", pretty_print=True)
+
+
+def _embed_facturx(pdf_bytes: bytes, xml_bytes: bytes) -> bytes:
+    """Embarque le XML Factur-X dans le PDF pour produire un PDF/A-3.
+
+    Utilise la lib factur-x (generate_from_binary).
+    """
+    try:
+        from facturx import generate_from_binary
+        facturx_pdf = generate_from_binary(
+            pdf_bytes,
+            xml_bytes,
+            flavor="factur-x",
+            level="en16931",
+        )
+        _log.info("Factur-X XML embarque dans le PDF")
+        return facturx_pdf
+    except Exception:
+        _log.warning("Impossible d'embarquer le XML Factur-X, PDF brut retourne", exc_info=True)
+        return pdf_bytes
 
 
 # ── API publique — Factures ────────────────────────────────────────────────────
@@ -506,6 +734,15 @@ async def generate_invoice_pdf(
     }
 
     pdf_bytes = _render_pdf(template_name, context)
+
+    # Factur-X : embarquer le XML pour les factures/avoirs valides (pas les proformas)
+    if not proforma and inv["status"] != "draft":
+        try:
+            xml_bytes = _build_facturx_xml(inv, seller, client, lines, vat_breakdown)
+            pdf_bytes = _embed_facturx(pdf_bytes, xml_bytes)
+        except Exception:
+            _log.warning("Erreur generation Factur-X, PDF brut retourne", exc_info=True)
+
     filename = _safe_filename(f"{doc_type_label.replace(' ', '_')}_{doc_number.replace('/', '-')}.pdf")
 
     # Backup automatique vers le stockage configuré (arborescence Kerpta)
