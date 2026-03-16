@@ -158,10 +158,8 @@ function DocumentFooterSection() {
     setRefreshing(true)
     try {
       const data = await orgGet<{ footer: string }>('/billing/auto-footer')
-      if (data.footer) {
-        setFooter(data.footer)
-        setDirty(true)
-      }
+      setFooter(data.footer || '')
+      setDirty(true)
     } catch { /* */ }
     setRefreshing(false)
   }

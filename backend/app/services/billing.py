@@ -174,7 +174,15 @@ async def update_document_footer(
 
 
 async def generate_auto_footer(org_id: uuid.UUID, db: AsyncSession) -> dict:
-    """Génère le pied de page automatique depuis le profil de facturation par défaut."""
+    """Génère le pied de page automatique depuis le profil de facturation par défaut + régime TVA org."""
+    # Régime TVA de l'organisation
+    org_result = await db.execute(
+        text("SELECT vat_regime, vat_exigibility FROM organizations WHERE id = :org_id"),
+        {"org_id": str(org_id)},
+    )
+    org_row = org_result.fetchone()
+
+    # Profil de facturation par défaut
     result = await db.execute(
         text("""
             SELECT late_penalty_rate, discount_rate, recovery_fee,
@@ -192,6 +200,16 @@ async def generate_auto_footer(org_id: uuid.UUID, db: AsyncSession) -> dict:
     from decimal import Decimal, ROUND_HALF_UP
 
     lines: list[str] = []
+
+    # Mention TVA selon le régime de l'organisation
+    vat_regime = org_row[0] if org_row else None
+    vat_exigibility = org_row[1] if org_row else "encaissements"
+    if vat_regime == "none":
+        lines.append("TVA non applicable, art. 293 B du CGI.")
+    elif vat_exigibility == "debits":
+        lines.append("TVA acquittée sur les débits.")
+    else:
+        lines.append("TVA acquittée sur les encaissements.")
 
     # Pénalités de retard
     penalty = Decimal(str(row.late_penalty_rate)) if row.late_penalty_rate else None
