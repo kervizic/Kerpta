@@ -15,7 +15,7 @@ import DatePicker from '@/components/app/DatePicker'
 import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
 import MobileFilterPanel from '@/components/app/MobileFilterPanel'
 import ClientPanel from '@/components/app/ClientPanel'
-import { INPUT, SELECT, LINE_INPUT, LINE_SELECT, BTN } from '@/lib/formStyles'
+import { INPUT, SELECT, LINE_INPUT, LINE_SELECT, BTN, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER } from '@/lib/formStyles'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -393,11 +393,11 @@ function QuoteDetailPanel({ quoteId, onClose }: { quoteId: string; onClose: () =
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 overflow-y-auto overscroll-contain"
+      className={OVERLAY_BACKDROP}
       onClick={onClose}
     >
       <div
-        className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl dark:shadow-black/50 w-full mx-2 md:mx-6 max-w-4xl mt-2 md:mt-8 mb-2 md:mb-8"
+        className={OVERLAY_PANEL}
         onClick={(e) => e.stopPropagation()}
       >
         {loading ? (
@@ -407,7 +407,7 @@ function QuoteDetailPanel({ quoteId, onClose }: { quoteId: string; onClose: () =
         ) : (
           <>
         {/* En-tête */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10 rounded-t-2xl">
+        <div className={`${OVERLAY_HEADER} rounded-t-2xl`}>
           <div className="min-w-0">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white truncate">
               {quote.is_avenant ? `Avenant n°${quote.avenant_number}` : (DOC_LABELS[quote.document_type] || 'Devis')} {quote.number}
@@ -772,8 +772,8 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
 
   if (loading) {
     if (onClose) return (
-      <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 overflow-y-auto overscroll-contain" onClick={onClose}>
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl dark:shadow-black/50 w-full mx-2 md:mx-6 max-w-5xl mt-2 md:mt-8 mb-2 md:mb-8 flex justify-center py-16" onClick={(e) => e.stopPropagation()}>
+      <div className={OVERLAY_BACKDROP} onClick={onClose}>
+        <div className={`${OVERLAY_PANEL} flex justify-center py-16`} onClick={(e) => e.stopPropagation()}>
           <Loader2 className="w-6 h-6 animate-spin text-kerpta" />
         </div>
       </div>
@@ -1142,11 +1142,11 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
   if (onClose) {
     return (
       <div
-        className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 overflow-y-auto overscroll-contain"
+        className={OVERLAY_BACKDROP}
         onClick={onClose}
       >
         <div
-          className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl dark:shadow-black/50 w-full mx-2 md:mx-6 max-w-5xl mt-2 md:mt-8 mb-2 md:mb-8 px-3 md:px-6 py-4 md:py-6"
+          className={`${OVERLAY_PANEL} px-3 md:px-6 py-4 md:py-6`}
           onClick={(e) => e.stopPropagation()}
         >
           {formContent}

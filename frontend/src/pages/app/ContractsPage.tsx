@@ -7,7 +7,7 @@ import { Plus, Loader2, BarChart3, Info, Filter } from 'lucide-react'
 import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
 import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
 import MobileFilterPanel from '@/components/app/MobileFilterPanel'
-import { BTN } from '@/lib/formStyles'
+import { BTN, OVERLAY_BACKDROP, OVERLAY_PANEL } from '@/lib/formStyles'
 
 interface Contract {
   id: string
@@ -320,11 +320,11 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string; onCl
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 overflow-y-auto"
+      className={OVERLAY_BACKDROP}
       onClick={onClose}
     >
       <div
-        className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl dark:shadow-black/50 w-full mx-2 md:mx-6 max-w-5xl mt-4 md:mt-8 mb-4 md:mb-8 px-4 md:px-6 py-4 md:py-6"
+        className={`${OVERLAY_PANEL} px-4 md:px-6 py-4 md:py-6`}
         onClick={(e) => e.stopPropagation()}
       >
         {loading ? (
@@ -583,11 +583,11 @@ function SituationEditorPanel({ contractId: _contractId, situationId, onClose }:
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-start justify-center bg-black/30 overflow-y-auto"
+      className={`${OVERLAY_BACKDROP} !z-[60]`}
       onClick={onClose}
     >
       <div
-        className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl dark:shadow-black/50 w-full mx-2 md:mx-6 max-w-5xl mt-4 md:mt-8 mb-4 md:mb-8 px-4 md:px-6 py-4 md:py-6"
+        className={`${OVERLAY_PANEL} px-4 md:px-6 py-4 md:py-6`}
         onClick={(e) => e.stopPropagation()}
       >
         {loading ? (

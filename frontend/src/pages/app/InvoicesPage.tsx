@@ -17,7 +17,7 @@ import ClientPanel from '@/components/app/ClientPanel'
 import DatePicker from '@/components/app/DatePicker'
 import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
 import MobileFilterPanel from '@/components/app/MobileFilterPanel'
-import { INPUT, SELECT, LINE_INPUT, LINE_SELECT, BTN } from '@/lib/formStyles'
+import { INPUT, SELECT, LINE_INPUT, LINE_SELECT, BTN, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER } from '@/lib/formStyles'
 import axios from 'axios'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -426,11 +426,11 @@ function InvoiceDetailPanel({ invoiceId, onClose }: { invoiceId: string; onClose
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 overflow-y-auto"
+      className={OVERLAY_BACKDROP}
       onClick={onClose}
     >
       <div
-        className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl dark:shadow-black/50 w-full mx-2 md:mx-6 max-w-4xl mt-2 md:mt-8 mb-2 md:mb-8"
+        className={OVERLAY_PANEL}
         onClick={(e) => e.stopPropagation()}
       >
         {loading ? (
@@ -440,7 +440,7 @@ function InvoiceDetailPanel({ invoiceId, onClose }: { invoiceId: string; onClose
         ) : (
           <>
         {/* En-tête */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10 rounded-t-2xl">
+        <div className={`${OVERLAY_HEADER} rounded-t-2xl`}>
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-10 h-10 rounded-xl bg-kerpta-50 dark:bg-kerpta-900/30 border border-kerpta-200 dark:border-kerpta-700 flex items-center justify-center shrink-0">
               <FileText className="w-5 h-5 text-kerpta-600 dark:text-kerpta-400" />
@@ -876,8 +876,8 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
 
   if (loading) {
     if (onClose) return (
-      <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 overflow-y-auto" onClick={onClose}>
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl dark:shadow-black/50 w-full mx-2 md:mx-6 max-w-5xl mt-2 md:mt-8 mb-2 md:mb-8 flex justify-center py-16" onClick={(e) => e.stopPropagation()}>
+      <div className={OVERLAY_BACKDROP} onClick={onClose}>
+        <div className={`${OVERLAY_PANEL} flex justify-center py-16`} onClick={(e) => e.stopPropagation()}>
           <Loader2 className="w-6 h-6 animate-spin text-kerpta" />
         </div>
       </div>
@@ -1294,11 +1294,11 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
   if (onClose) {
     return (
       <div
-        className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 overflow-y-auto"
+        className={OVERLAY_BACKDROP}
         onClick={onClose}
       >
         <div
-          className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl dark:shadow-black/50 w-full mx-2 md:mx-6 max-w-5xl mt-2 md:mt-8 mb-2 md:mb-8 px-3 md:px-6 py-4 md:py-6"
+          className={`${OVERLAY_PANEL} px-3 md:px-6 py-4 md:py-6`}
           onClick={(e) => e.stopPropagation()}
         >
           {formContent}
