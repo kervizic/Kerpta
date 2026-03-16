@@ -1,8 +1,8 @@
 {% extends "pdf/base.html" %}
 {% block style %}
 /* ═══════════════════════════════════════════════════════════════════
-   Style MINIMALISTE - Ultra-épuré, inspiré Stripe Invoicing
-   Maximum de blanc, typographie fine, séparateurs subtils
+   Style MINIMALISTE - Ultra-epure, inspire Stripe Invoicing
+   Maximum de blanc, typographie fine, separateurs subtils
    ═══════════════════════════════════════════════════════════════════ */
 
 /* En-tete */
@@ -10,30 +10,30 @@
 .header-left { float: left; width: 80mm; }
 .header-right { position: absolute; left: 97mm; top: 22mm; width: 77mm; text-align: left; }
 .logo { max-height: 45px; max-width: 160px; margin-bottom: 14px; }
-.seller-name { font-size: 10pt; font-weight: 500; color: #333; margin-bottom: 4px; letter-spacing: 0.2px; font-variation-settings: 'opsz' 28; }
-.seller-address { font-size: 7.5pt; color: #aaa; line-height: 1.7; }
+.seller-name { font-size: 10pt; font-weight: 500; color: #222; margin-bottom: 4px; letter-spacing: 0.2px; font-variation-settings: 'opsz' 28; }
+.seller-address { font-size: 7.5pt; color: #666; line-height: 1.7; }
 
-.client-name { font-size: 10pt; font-weight: 600; color: #222; margin-bottom: 3px; font-variation-settings: 'opsz' 28; }
-.client-detail { font-size: 7.5pt; color: #999; line-height: 1.7; }
+.client-name { font-size: 10pt; font-weight: 600; color: #111; margin-bottom: 3px; font-variation-settings: 'opsz' 28; }
+.client-detail { font-size: 7.5pt; color: #555; line-height: 1.7; }
 
 /* Titre */
-.doc-title { font-size: 16pt; font-weight: 400; color: #222; margin: 24px 0 14px 0; letter-spacing: -0.3px; font-variation-settings: 'opsz' 28; }
+.doc-title { font-size: 16pt; font-weight: 400; color: #111; margin: 24px 0 14px 0; letter-spacing: -0.3px; font-variation-settings: 'opsz' 28; }
 
 /* Dates */
 .doc-dates { margin-bottom: 28px; }
 .date-item { float: left; margin-right: 40px; }
-.date-label { font-size: 7pt; font-weight: 500; color: #bbb; text-transform: uppercase; letter-spacing: 0.8px; }
-.date-value { font-size: 9pt; color: #333; margin-top: 2px; }
+.date-label { font-size: 7pt; font-weight: 500; color: #888; text-transform: uppercase; letter-spacing: 0.8px; }
+.date-value { font-size: 9pt; color: #222; margin-top: 2px; }
 
 /* Tableau */
 .lines-table { margin-bottom: 12px; }
 .lines-table th {
-  border-bottom: 1px solid #ddd; padding: 10px 10px 8px;
-  font-size: 7pt; font-weight: 500; text-align: left; color: #bbb;
+  border-bottom: 1px solid #ccc; padding: 10px 10px 8px;
+  font-size: 7pt; font-weight: 500; text-align: left; color: #888;
   text-transform: uppercase; letter-spacing: 0.8px;
 }
 .lines-table td {
-  border-bottom: 1px solid #f2f2f2; padding: 9px 10px; font-size: 8.5pt; color: #555;
+  border-bottom: 1px solid #e8e8e8; padding: 9px 10px; font-size: 8.5pt; color: #333;
 }
 .col-num { text-align: right; }
 .col-last { text-align: right; }
@@ -42,38 +42,38 @@
 .totals-wrapper { margin-bottom: 24px; }
 .totals-table { width: 260px; float: right; }
 .totals-table td { padding: 5px 10px; font-size: 9pt; }
-.totals-label { text-align: left; color: #999; font-weight: 400; }
-.totals-value { text-align: right; color: #333; font-weight: 500; }
+.totals-label { text-align: left; color: #666; font-weight: 400; }
+.totals-value { text-align: right; color: #222; font-weight: 500; }
 .totals-total td {
-  border-top: 1px solid #ddd; font-weight: 600; font-size: 11pt; color: #111;
+  border-top: 1px solid #ccc; font-weight: 600; font-size: 11pt; color: #111;
   padding-top: 10px;
 }
 .totals-due td { font-weight: 600; color: #c0392b; }
 
 /* Titres de section */
 .section-title {
-  font-size: 7pt; font-weight: 500; color: #bbb; margin-bottom: 6px;
+  font-size: 7pt; font-weight: 500; color: #888; margin-bottom: 6px;
   text-transform: uppercase; letter-spacing: 1px;
 }
 
 /* Reglement + banque */
 .payment-block { margin-bottom: 16px; clear: both; }
-.payment-line { font-size: 8pt; color: #777; line-height: 1.7; }
+.payment-line { font-size: 8pt; color: #444; line-height: 1.7; }
 .payment-line + .payment-line { margin-top: 2px; }
 
 /* Mentions legales */
 .legal-block { margin-bottom: 16px; }
-.legal-footer { font-size: 8pt; color: #777; line-height: 1.7; white-space: pre-line; }
+.legal-footer { font-size: 8pt; color: #444; line-height: 1.7; white-space: pre-line; }
 
 /* Notes */
 .notes-block { margin-bottom: 16px; }
-.notes-text { font-size: 8pt; color: #777; line-height: 1.7; margin-bottom: 6px; white-space: pre-line; }
+.notes-text { font-size: 8pt; color: #444; line-height: 1.7; margin-bottom: 6px; white-space: pre-line; }
 
 /* Pied de page emetteur */
 .page-footer {
   position: fixed; bottom: 0; left: 0; right: 0;
-  text-align: center; font-size: 7pt; color: #ccc; line-height: 1.5;
-  border-top: 1px solid #eee; padding-top: 4px;
+  text-align: center; font-size: 7pt; color: #888; line-height: 1.5;
+  border-top: 1px solid #ddd; padding-top: 4px;
 }
 .footer-line { margin-bottom: 1px; }
 {% endblock %}
