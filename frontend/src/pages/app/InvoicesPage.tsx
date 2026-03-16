@@ -272,9 +272,12 @@ function InvoicesList() {
     if (selected.size === 0) return
     setBatchLoading(true)
     try {
+      const hdrs: Record<string, string> = { 'Content-Type': 'application/json' }
+      const token = localStorage.getItem('access_token')
+      if (token) hdrs['Authorization'] = `Bearer ${token}`
       const res = await fetch(`/api/v1/invoices/batch/pdf`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(() => { const t = localStorage.getItem('access_token'); return t ? { Authorization: `Bearer ${t}` } : {} })() },
+        headers: hdrs,
         body: JSON.stringify({ ids: [...selected] }),
       })
       if (!res.ok) throw new Error()
