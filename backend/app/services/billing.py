@@ -428,6 +428,57 @@ async def update_quote_document_types(
     return validated
 
 
+# ── Colonnes des factures ──────────────────────────────────────────────────
+
+DEFAULT_INVOICE_COLUMNS = {
+    "reference": True, "description": True, "quantity": True,
+    "unit": True, "unit_price": True, "vat_rate": True,
+    "discount_percent": True, "total_ht": True,
+}
+
+
+async def get_invoice_columns(org_id: uuid.UUID, db: AsyncSession) -> dict:
+    """Retourne les colonnes factures depuis module_config."""
+    result = await db.execute(
+        text("SELECT module_config FROM organizations WHERE id = :org_id"),
+        {"org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    if not row or not row[0]:
+        return DEFAULT_INVOICE_COLUMNS.copy()
+    config = row[0] if isinstance(row[0], dict) else {}
+    return config.get("invoice_columns", DEFAULT_INVOICE_COLUMNS.copy())
+
+
+async def update_invoice_columns(
+    org_id: uuid.UUID, columns: dict, db: AsyncSession
+) -> dict:
+    """Met à jour les colonnes factures dans module_config."""
+    result = await db.execute(
+        text("SELECT module_config FROM organizations WHERE id = :org_id"),
+        {"org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    config = (row[0] if row and row[0] and isinstance(row[0], dict) else {})
+
+    validated = {
+        k: bool(columns.get(k, True))
+        for k in DEFAULT_DOCUMENT_COLUMNS
+    }
+
+    config["invoice_columns"] = validated
+
+    await db.execute(
+        text("""
+            UPDATE organizations SET module_config = CAST(:config AS jsonb)
+            WHERE id = :org_id
+        """),
+        {"org_id": str(org_id), "config": json.dumps(config)},
+    )
+    await db.commit()
+    return validated
+
+
 # ── Taux de TVA ────────────────────────────────────────────────────────────
 
 DEFAULT_VAT_RATES = [

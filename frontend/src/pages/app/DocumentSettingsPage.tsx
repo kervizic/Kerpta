@@ -300,7 +300,7 @@ function PageFooterSection() {
 
 // ── Section Mise en page et colonnes ────────────────────────────────────
 
-function DocumentTypesSection() {
+function DocumentTypesSection({ endpoint, title, description }: { endpoint: string; title: string; description: string }) {
   const [types, setTypes] = useState<DocType[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -311,16 +311,16 @@ function DocumentTypesSection() {
   const [addMode, setAddMode] = useState(false)
 
   useEffect(() => {
-    orgGet<DocType[]>('/billing/quote-document-types')
+    orgGet<DocType[]>(endpoint)
       .then(setTypes)
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [])
+  }, [endpoint])
 
   async function save(updated: DocType[]) {
     setSaving(true)
     try {
-      const result = await orgPatch('/billing/quote-document-types', updated)
+      const result = await orgPatch(endpoint, updated)
       setTypes(result as unknown as DocType[])
     } catch { /* */ }
     setSaving(false)
@@ -380,8 +380,8 @@ function DocumentTypesSection() {
     <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Mise en page et colonnes</h2>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Modèles de mise en page disponibles lors de la création d'un devis, avec les colonnes affichées</p>
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">{title}</h2>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{description}</p>
         </div>
         <div className="flex items-center gap-2">
           {saving && <Loader2 className="w-4 h-4 animate-spin text-kerpta" />}
@@ -517,6 +517,68 @@ function DocumentTypesSection() {
   )
 }
 
+// ── Section Colonnes des factures ────────────────────────────────────────
+
+function InvoiceColumnsSection() {
+  const [columns, setColumns] = useState<Record<string, boolean>>({})
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    orgGet<Record<string, boolean>>('/billing/invoice-columns')
+      .then(setColumns)
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  async function toggle(key: string) {
+    const updated = { ...columns, [key]: !columns[key] }
+    setColumns(updated)
+    setSaving(true)
+    try {
+      const result = await orgPatch('/billing/invoice-columns', updated)
+      setColumns(result as unknown as Record<string, boolean>)
+    } catch { /* */ }
+    setSaving(false)
+  }
+
+  return (
+    <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Colonnes des factures</h2>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Colonnes affichées sur les factures, proformas et avoirs</p>
+        </div>
+        {saving && <Loader2 className="w-4 h-4 animate-spin text-kerpta" />}
+      </div>
+      {loading ? (
+        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-kerpta" /></div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {ALL_COLUMNS.map((col) => {
+            const on = columns[col.key] !== false
+            const locked = col.key === 'description' || col.key === 'unit_price'
+            return (
+              <button
+                key={col.key}
+                type="button"
+                disabled={locked}
+                onClick={() => toggle(col.key)}
+                className={`px-2.5 py-1 text-xs rounded-full border transition ${
+                  locked ? 'bg-gray-100 dark:bg-gray-700 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 cursor-default' :
+                  on ? 'bg-kerpta-50 dark:bg-kerpta-900/30 border-kerpta-200 dark:border-kerpta-700 text-kerpta-700 dark:text-kerpta-400' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:border-gray-300'
+                }`}
+              >
+                {col.label}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </section>
+  )
+}
+
 // ── Page principale ──────────────────────────────────────────────────────
 
 export default function DocumentSettingsPage() {
@@ -527,7 +589,12 @@ export default function DocumentSettingsPage() {
         <PrintStyleSection />
         <DocumentHeaderSection />
         <PageFooterSection />
-        <DocumentTypesSection />
+        <DocumentTypesSection
+          endpoint="/billing/quote-document-types"
+          title="Colonnes des devis"
+          description="Modèles de mise en page disponibles lors de la création d'un devis, avec les colonnes affichées"
+        />
+        <InvoiceColumnsSection />
       </div>
     </div>
   )

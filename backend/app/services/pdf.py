@@ -305,6 +305,13 @@ async def _get_document_columns(
 
     # Chercher les colonnes dans les types de documents si un type est spécifié
     if document_type:
+        # Factures : colonnes uniques pour facture/avoir/proforma
+        if document_type in ("facture", "avoir"):
+            inv_cols = config.get("invoice_columns")
+            if inv_cols:
+                return inv_cols, show_logo, show_company_name
+
+        # Devis : chercher dans les types de documents configurés
         doc_types = config.get("quote_document_types", [])
         for dt in doc_types:
             if dt.get("key") == document_type:

@@ -186,6 +186,26 @@ async def update_quote_document_types(
     return await svc.update_quote_document_types(ctx.org_id, data, db)
 
 
+# ── Colonnes des factures ─────────────────────────────────────────────────────
+
+
+@router.get("/invoice-columns")
+async def get_invoice_columns(
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await svc.get_invoice_columns(ctx.org_id, db)
+
+
+@router.patch("/invoice-columns")
+async def update_invoice_columns(
+    data: dict,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await svc.update_invoice_columns(ctx.org_id, data, db)
+
+
 # ── Comptes bancaires ────────────────────────────────────────────────────────
 
 
