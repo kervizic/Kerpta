@@ -173,6 +173,57 @@ async def update_document_footer(
     return {"footer": footer.strip()}
 
 
+async def generate_auto_footer(org_id: uuid.UUID, db: AsyncSession) -> dict:
+    """Génère le pied de page automatique depuis le profil de facturation par défaut."""
+    result = await db.execute(
+        text("""
+            SELECT late_penalty_rate, discount_rate, recovery_fee,
+                   early_payment_discount
+            FROM billing_profiles
+            WHERE organization_id = :org_id AND is_default = true
+            LIMIT 1
+        """),
+        {"org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    if not row:
+        return {"footer": ""}
+
+    from decimal import Decimal, ROUND_HALF_UP
+
+    lines: list[str] = []
+
+    # Pénalités de retard
+    penalty = Decimal(str(row.late_penalty_rate)) if row.late_penalty_rate else None
+    if penalty and penalty > 0:
+        lines.append(
+            f"En cas de retard de paiement, une pénalité de {penalty.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)} % annuel sera exigible "
+            "à compter du jour suivant la date d'échéance (art. L.441-10 du Code de Commerce)."
+        )
+    else:
+        lines.append(
+            "En cas de retard de paiement, une pénalité égale à 3 fois le taux d'intérêt légal en vigueur sera exigible "
+            "à compter du jour suivant la date d'échéance (art. L.441-10 du Code de Commerce)."
+        )
+
+    # Indemnité de recouvrement
+    fee = Decimal(str(row.recovery_fee)) if row.recovery_fee else Decimal("0")
+    if fee > 0:
+        lines.append(
+            f"Conformément à l'article D.441-5 du Code de Commerce, tout retard de paiement entraîne de plein droit "
+            f"une indemnité forfaitaire pour frais de recouvrement de {fee.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)} €."
+        )
+
+    # Escompte
+    discount = Decimal(str(row.discount_rate)) if row.discount_rate else Decimal("0")
+    if row.early_payment_discount and discount > 0:
+        lines.append(f"Escompte pour paiement anticipé : {discount.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)} %.")
+    else:
+        lines.append("Pas d'escompte pour paiement anticipé.")
+
+    return {"footer": "\n".join(lines)}
+
+
 # ── Types de documents (devis) ──────────────────────────────────────────────
 
 DEFAULT_QUOTE_DOCUMENT_TYPES = [

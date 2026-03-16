@@ -3,7 +3,7 @@
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
 import { useEffect, useState } from 'react'
-import { Plus, Loader2, Pencil, Trash2, FileText, Sparkles, Minus } from 'lucide-react'
+import { Plus, Loader2, Pencil, Trash2, FileText, Sparkles, Minus, RefreshCw } from 'lucide-react'
 import { orgGet, orgPatch } from '@/lib/orgApi'
 import { INPUT, BTN_SM } from '@/lib/formStyles'
 
@@ -136,6 +136,7 @@ function DocumentFooterSection() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [dirty, setDirty] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
 
   useEffect(() => {
     orgGet<{ footer: string }>('/billing/document-footer')
@@ -153,12 +154,31 @@ function DocumentFooterSection() {
     setSaving(false)
   }
 
+  async function handleRefresh() {
+    setRefreshing(true)
+    try {
+      const data = await orgGet<{ footer: string }>('/billing/auto-footer')
+      if (data.footer) {
+        setFooter(data.footer)
+        setDirty(true)
+      }
+    } catch { /* */ }
+    setRefreshing(false)
+  }
+
   return (
     <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
       <div className="flex items-center justify-between mb-4">
-        <div>
+        <div className="flex items-center gap-2">
           <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Pied de page par défaut</h2>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Mentions légales affichées en bas de chaque document PDF (sauf si surchargé par le profil de facturation)</p>
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+            title="Générer depuis le profil de facturation par défaut"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-gray-400 dark:text-gray-500 ${refreshing ? 'animate-spin' : ''}`} />
+          </button>
         </div>
         {saving && <Loader2 className="w-4 h-4 animate-spin text-kerpta" />}
       </div>
@@ -170,7 +190,6 @@ function DocumentFooterSection() {
             value={footer}
             onChange={(e) => { setFooter(e.target.value); setDirty(true) }}
             rows={4}
-            placeholder="Ex : En cas de retard de paiement, une pénalité de 3 fois le taux d'intérêt légal sera appliquée..."
             className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-400 transition resize-y"
           />
           {dirty && (
