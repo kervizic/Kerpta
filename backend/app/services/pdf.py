@@ -105,15 +105,34 @@ async def _get_org_info(org_id: uuid.UUID, db: AsyncSession) -> dict:
 
 
 async def _get_org_logo(org_id: uuid.UUID, db: AsyncSession) -> tuple[str | None, str | None]:
-    """Récupère le logo de l'organisation (base64 + mime type)."""
+    """Récupère le logo de l'organisation (base64 brut + mime type).
+
+    Le logo_b64 en base contient le préfixe data URI complet
+    (ex: "data:image/png;base64,iVBOR..."). On l'extrait pour obtenir
+    le base64 brut, car le template HTML construit la data URI lui-même.
+    """
     result = await db.execute(
         text("SELECT logo_b64, mime_type FROM organization_logos WHERE organization_id = :org_id"),
         {"org_id": str(org_id)},
     )
     row = result.fetchone()
-    if not row:
+    if not row or not row[0]:
         return None, None
-    return row[0], row[1] or "image/png"
+
+    raw_b64 = row[0]
+    mime = row[1] or "image/png"
+
+    # Extraire le base64 brut si c'est une data URI complète
+    if raw_b64.startswith("data:"):
+        # Format : "data:image/png;base64,iVBOR..."
+        parts = raw_b64.split(",", 1)
+        if len(parts) == 2:
+            header = parts[0]  # "data:image/png;base64"
+            if ":" in header and ";" in header:
+                mime = header.split(":")[1].split(";")[0]
+            raw_b64 = parts[1]
+
+    return raw_b64, mime
 
 
 async def _get_client_info(client_id: str, org_id: uuid.UUID, db: AsyncSession) -> dict:
