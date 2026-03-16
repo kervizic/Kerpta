@@ -8,7 +8,7 @@ import {
   ShieldCheck, Printer, Lock, X, Info, ArrowLeft, FileDown, Archive, ArchiveRestore,
 } from 'lucide-react'
 import { navigate } from '@/hooks/useRoute'
-import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
+import { orgGet, orgPost, orgPatch, orgDownload } from '@/lib/orgApi'
 import UnitCombobox from '@/components/app/UnitCombobox'
 import ProductAutocomplete, { type AutocompleteProduct } from '@/components/app/ProductAutocomplete'
 import ClientCombobox from '@/components/app/ClientCombobox'
@@ -272,22 +272,22 @@ function InvoicesList() {
     if (selected.size === 0) return
     setBatchLoading(true)
     try {
-      const hdrs: Record<string, string> = { 'Content-Type': 'application/json' }
-      const token = localStorage.getItem('access_token')
-      if (token) hdrs['Authorization'] = `Bearer ${token}`
-      const res = await fetch(`/api/v1/invoices/batch/pdf`, {
-        method: 'POST',
-        headers: hdrs,
-        body: JSON.stringify({ ids: [...selected] }),
+      const { apiClient } = await import('@/lib/api')
+      const orgId = localStorage.getItem('kerpta_active_org')
+      const res = await apiClient.post('/invoices/batch/pdf', { ids: [...selected] }, {
+        headers: orgId ? { 'X-Organization-Id': orgId } : {},
+        responseType: 'blob',
       })
-      if (!res.ok) throw new Error()
-      const blob = await res.blob()
+      const blob = new Blob([res.data])
+      const ct = res.headers['content-type'] || ''
+      const filename = ct.includes('zip') ? 'factures.zip' : 'facture.pdf'
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      const ct = res.headers.get('content-type') || ''
-      a.download = ct.includes('zip') ? 'factures.zip' : 'facture.pdf'
+      a.download = filename
+      document.body.appendChild(a)
       a.click()
+      a.remove()
       URL.revokeObjectURL(url)
     } catch { /* */ }
     setBatchLoading(false)
@@ -375,7 +375,7 @@ function InvoicesList() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 dark:border-gray-700 text-left">
-                <th className="px-2 py-3 w-10">
+                <th className="pl-3 pr-1 py-3 w-8">
                   <input
                     type="checkbox"
                     checked={invoices.length > 0 && selected.size === invoices.length}
@@ -391,7 +391,7 @@ function InvoicesList() {
                 <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase">Total TTC</th>
                 <ColumnFilterHeader filter={INVOICE_FILTERS[4]} value={filters.payment || ''} onChange={(v) => updateFilter('payment', v)} align="right" />
                 <ColumnFilterHeader filter={INVOICE_FILTERS[5]} value={filters.status || []} onChange={(v) => updateFilter('status', v)} />
-                <th className="px-2 py-3 w-10"></th>
+                <th className="px-1 py-3 w-8"></th>
               </tr>
             </thead>
             <tbody>
@@ -405,7 +405,7 @@ function InvoicesList() {
                   const isEditable = ['draft', 'validated'].includes(inv.status)
                   return (
                     <tr key={inv.id} onClick={() => isEditable ? setEditId(inv.id) : setSelectedId(inv.id)} className="border-b border-gray-50 dark:border-gray-700 hover:bg-kerpta-50/50 dark:hover:bg-kerpta-900/30 cursor-pointer transition">
-                      <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
+                      <td className="pl-3 pr-1 py-3" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           checked={selected.has(inv.id)}
@@ -425,11 +425,11 @@ function InvoicesList() {
                       <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">{fmtCurrency(inv.total_ttc)}</td>
                       <td className="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{fmtCurrency(inv.amount_paid)}</td>
                       <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${st.cls}`}>{st.label}</span></td>
-                      <td className="px-2 py-3">
+                      <td className="px-1 py-3">
                         <button
-                          onClick={(e) => { e.stopPropagation(); window.open(`/api/v1/invoices/${inv.id}/pdf?download=1`, '_blank') }}
+                          onClick={(e) => { e.stopPropagation(); void orgDownload(`/invoices/${inv.id}/pdf?download=1`, `${inv.number || inv.proforma_number || 'facture'}.pdf`) }}
                           title="Télécharger le PDF"
-                          className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition"
+                          className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:text-gray-500 dark:hover:text-gray-300 dark:hover:bg-gray-700 transition"
                         >
                           <FileDown className="w-4 h-4" />
                         </button>
@@ -477,9 +477,9 @@ function InvoicesList() {
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-gray-900 dark:text-white">{fmtCurrency(inv.subtotal_ht)}</span>
                       <button
-                        onClick={(e) => { e.stopPropagation(); window.open(`/api/v1/invoices/${inv.id}/pdf?download=1`, '_blank') }}
+                        onClick={(e) => { e.stopPropagation(); void orgDownload(`/invoices/${inv.id}/pdf?download=1`, `${inv.number || inv.proforma_number || 'facture'}.pdf`) }}
                         title="Télécharger le PDF"
-                        className="p-1 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition"
+                        className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:text-gray-500 dark:hover:text-gray-300 dark:hover:bg-gray-700 transition"
                       >
                         <FileDown className="w-3.5 h-3.5" />
                       </button>
@@ -601,7 +601,7 @@ function InvoiceDetailPanel({ invoiceId, onClose }: { invoiceId: string; onClose
               <button onClick={() => doAction('validate')} disabled={!!actionLoading} className={BTN}>
                 {actionLoading === 'validate' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />} Valider
               </button>
-              <button onClick={() => window.open(`/api/v1/invoices/${invoiceId}/pdf?proforma=true`, '_blank')} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 text-sm font-medium rounded-lg transition">
+              <button onClick={() => void orgDownload(`/invoices/${invoiceId}/pdf?proforma=true&download=1`, 'proforma.pdf')} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 text-sm font-medium rounded-lg transition">
                 <Printer className="w-4 h-4" /> Imprimer proforma
               </button>
               <button onClick={() => doAction('send')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 dark:bg-blue-900/40 dark:hover:bg-blue-900/60 dark:text-blue-400 text-sm font-medium rounded-lg transition disabled:opacity-50">
@@ -611,7 +611,7 @@ function InvoiceDetailPanel({ invoiceId, onClose }: { invoiceId: string; onClose
           )}
           {invoice.status === 'validated' && (
             <>
-              <button onClick={() => window.open(`/api/v1/invoices/${invoiceId}/pdf`, '_blank')} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 text-sm font-medium rounded-lg transition">
+              <button onClick={() => void orgDownload(`/invoices/${invoiceId}/pdf?download=1`, 'facture.pdf')} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 text-sm font-medium rounded-lg transition">
                 <Printer className="w-4 h-4" /> Imprimer facture
               </button>
               <button onClick={() => doAction('send')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
@@ -621,7 +621,7 @@ function InvoiceDetailPanel({ invoiceId, onClose }: { invoiceId: string; onClose
           )}
           {['sent', 'partial', 'overdue'].includes(invoice.status) && (
             <>
-              <button onClick={() => window.open(`/api/v1/invoices/${invoiceId}/pdf`, '_blank')} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 text-sm font-medium rounded-lg transition">
+              <button onClick={() => void orgDownload(`/invoices/${invoiceId}/pdf?download=1`, 'facture.pdf')} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 text-sm font-medium rounded-lg transition">
                 <Printer className="w-4 h-4" /> Imprimer facture
               </button>
               <button onClick={() => doAction('mark-paid')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
@@ -1130,7 +1130,7 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
           </div>
 
           {/* Desktop : tableau des lignes */}
-          <div className="hidden md:block overflow-x-auto">
+          <div className="hidden md:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 dark:border-gray-700 text-left text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase">
