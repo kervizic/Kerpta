@@ -31,20 +31,20 @@
 /* Tableau */
 .lines-table { margin-bottom: 8px; }
 .lines-table th {
-  background: #f5f5f5; border-bottom: 1px solid #ccc; padding: 7px 10px;
+  background: #f5f5f5; border-bottom: 1px solid #ccc; padding: 7px 10px 7px 0;
   font-size: 8pt; font-weight: 700; text-align: left; color: #444; text-transform: uppercase; letter-spacing: 0.3px;
 }
 .lines-table td {
-  border-bottom: 1px solid #e8e8e8; padding: 7px 10px; font-size: 8pt; color: #333;
+  border-bottom: 1px solid #e8e8e8; padding: 7px 10px 7px 0; font-size: 8pt; color: #333;
 }
 .lines-table tr:nth-child(even) td { background: #fafafa; }
 .col-num { text-align: right; }
-.col-last { text-align: right; }
+.col-last { text-align: right; padding-right: 0 !important; }
 
 /* Totaux */
 .totals-wrapper { margin-bottom: 18px; }
-.totals-table { width: 280px; float: right; }
-.totals-table td { padding: 4px 10px; font-size: 8pt; }
+.totals-table { width: 200px; float: right; }
+.totals-table td { padding: 4px 0; font-size: 8pt; }
 .totals-label { text-align: left; color: #555; }
 .totals-value { text-align: right; color: #222; font-weight: 500; }
 .totals-total td {
