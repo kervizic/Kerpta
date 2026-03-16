@@ -183,7 +183,7 @@ export default function MobileFilterPanel({
         <div className="border-t border-gray-200 dark:border-gray-700 px-5 py-4 space-y-2">
           <button
             onClick={apply}
-            className="w-full py-2.5 bg-kerpta hover:bg-kerpta-400 text-white text-sm font-semibold rounded-lg transition"
+            className="w-full py-2.5 border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 text-sm font-semibold rounded-lg transition"
           >
             Appliquer les filtres
           </button>

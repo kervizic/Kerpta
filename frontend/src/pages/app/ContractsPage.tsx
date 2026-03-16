@@ -417,7 +417,7 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string; onCl
                 <button
                   onClick={createSituation}
                   disabled={creatingSlice || !sliceLabel.trim()}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-kerpta-600 hover:bg-kerpta text-white text-sm font-semibold rounded-lg transition disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-4 py-2 border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 text-sm font-semibold rounded-lg transition disabled:opacity-50"
                 >
                   {creatingSlice ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Nouvelle situation
                 </button>
@@ -606,7 +606,7 @@ function SituationEditorPanel({ contractId: _contractId, situationId, onClose }:
                 <button onClick={save} disabled={saving} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 text-sm font-medium rounded-lg transition disabled:opacity-50">
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
                 </button>
-                <button onClick={validate} disabled={validating} className="px-4 py-2 bg-kerpta-600 hover:bg-kerpta text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
+                <button onClick={validate} disabled={validating} className="px-4 py-2 border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 text-sm font-semibold rounded-lg transition disabled:opacity-50">
                   {validating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Valider & Facturer'}
                 </button>
               </>

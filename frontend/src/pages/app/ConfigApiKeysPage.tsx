@@ -513,7 +513,7 @@ export default function ConfigApiKeysPage() {
               <button
                 onClick={saveInpi}
                 disabled={inpiSaving}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-kerpta-600 hover:bg-kerpta disabled:opacity-50 text-white text-sm font-semibold transition"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 disabled:opacity-50 text-sm font-semibold transition"
               >
                 {inpiSaving && <Loader2 className="w-4 h-4 animate-spin" />}
                 Enregistrer
@@ -574,7 +574,7 @@ export default function ConfigApiKeysPage() {
             <button
               onClick={saveOAuth}
               disabled={oauthSaving}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-kerpta-600 hover:bg-kerpta disabled:opacity-50 text-white text-sm font-semibold transition"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 disabled:opacity-50 text-sm font-semibold transition"
             >
               {oauthSaving && <Loader2 className="w-4 h-4 animate-spin" />}
               Enregistrer les providers

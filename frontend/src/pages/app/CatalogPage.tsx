@@ -94,7 +94,7 @@ function httpError(err: unknown, fallback: string): string {
 }
 
 import { INPUT, SELECT } from '@/lib/formStyles'
-const BTN_PRIMARY = 'px-4 py-2 bg-kerpta-600 hover:bg-kerpta text-white text-sm font-semibold rounded-lg transition disabled:opacity-50'
+const BTN_PRIMARY = 'px-4 py-2 border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 text-sm font-semibold rounded-lg transition disabled:opacity-50'
 const BTN_SECONDARY = 'px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition'
 
 function fmtPrice(v: number | null | undefined): string {

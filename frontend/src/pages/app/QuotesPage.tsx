@@ -249,7 +249,7 @@ function QuotesList() {
             </button>
             <button
               onClick={() => navigate('/app/devis/new')}
-              className="flex items-center gap-1.5 px-4 py-2 bg-kerpta hover:bg-kerpta-400 text-white text-sm font-semibold rounded-lg transition"
+              className="flex items-center gap-1.5 px-4 py-2 border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 text-sm font-semibold rounded-lg transition"
             >
               <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Nouveau devis</span>
             </button>
@@ -1121,7 +1121,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
           <button
             onClick={() => handleSave(true)}
             disabled={saving || !clientId}
-            className="flex items-center gap-1.5 px-5 py-2.5 text-sm bg-kerpta hover:bg-kerpta-400 text-white font-semibold rounded-lg transition disabled:opacity-50"
+            className="flex items-center gap-1.5 px-5 py-2.5 text-sm border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 font-semibold rounded-lg transition disabled:opacity-50"
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Send className="w-4 h-4" /> Enregistrer et envoyer</>}
           </button>

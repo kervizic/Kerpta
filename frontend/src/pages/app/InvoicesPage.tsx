@@ -275,7 +275,7 @@ function InvoicesList() {
             </button>
             <button
               onClick={() => navigate('/app/factures/nouveau')}
-              className="flex items-center gap-1.5 px-4 py-2 bg-kerpta hover:bg-kerpta-400 text-white text-sm font-semibold rounded-lg transition"
+              className="flex items-center gap-1.5 px-4 py-2 border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 text-sm font-semibold rounded-lg transition"
             >
               <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Nouvelle facture</span>
             </button>
@@ -466,7 +466,7 @@ function InvoiceDetailPanel({ invoiceId, onClose }: { invoiceId: string; onClose
         <div className="flex flex-wrap gap-2 mb-5">
           {invoice.status === 'draft' && (
             <>
-              <button onClick={() => doAction('validate')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-kerpta-600 hover:bg-kerpta text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
+              <button onClick={() => doAction('validate')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 text-sm font-semibold rounded-lg transition disabled:opacity-50">
                 {actionLoading === 'validate' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />} Valider
               </button>
               <button onClick={() => window.open(`/api/v1/invoices/${invoiceId}/pdf?proforma=true`, '_blank')} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 text-sm font-medium rounded-lg transition">
@@ -1256,7 +1256,7 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
             <button
               onClick={() => handleSave(false, true)}
               disabled={saving || !clientId}
-              className="flex items-center gap-1.5 px-5 py-2.5 bg-kerpta-600 hover:bg-kerpta text-white text-sm font-semibold rounded-lg transition disabled:opacity-50"
+              className="flex items-center gap-1.5 px-5 py-2.5 border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 text-sm font-semibold rounded-lg transition disabled:opacity-50"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
               Valider

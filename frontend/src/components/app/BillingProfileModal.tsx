@@ -372,7 +372,7 @@ export default function BillingProfileModal({ profile, onClose, onSaved }: Props
 
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg transition">Annuler</button>
-                <button type="submit" disabled={saving} className="px-4 py-2 text-sm bg-kerpta hover:bg-kerpta-400 text-white font-semibold rounded-lg transition disabled:opacity-50">
+                <button type="submit" disabled={saving} className="px-4 py-2 text-sm border border-kerpta text-kerpta bg-white hover:bg-kerpta-50 dark:bg-gray-800 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 font-semibold rounded-lg transition disabled:opacity-50">
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
                 </button>
               </div>
