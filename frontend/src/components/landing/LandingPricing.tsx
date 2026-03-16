@@ -93,8 +93,8 @@ export function LandingPricing({ content }: { content: Record<string, unknown> }
                   href={plan.cta.href}
                   className={`w-full text-center py-3 px-6 rounded-xl font-semibold text-sm mb-8 transition-all ${
                     plan.highlighted
-                      ? 'bg-kerpta-600/50 text-kerpta-200 border border-kerpta/40 hover:bg-kerpta-600/70 cursor-not-allowed'
-                      : 'bg-gray-900 text-white hover:bg-gray-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 shadow-sm'
+                      ? 'border border-kerpta/40 text-kerpta-600 dark:text-kerpta-400 bg-kerpta-50/50 dark:bg-kerpta-900/10 cursor-not-allowed'
+                      : 'border border-kerpta text-kerpta hover:bg-kerpta-50 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 bg-white dark:bg-gray-900 shadow-sm'
                   }`}
                 >
                   {plan.cta.label}

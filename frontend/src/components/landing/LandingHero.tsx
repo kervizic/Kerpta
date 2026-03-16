@@ -72,7 +72,7 @@ export function LandingHero({ content }: { content: Record<string, unknown> }) {
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <a
             href={ctaPrimary.href}
-            className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-kerpta-600 hover:bg-kerpta text-white font-semibold text-base transition-all shadow-lg shadow-kerpta/25 hover:shadow-kerpta/40"
+            className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl border border-kerpta text-kerpta font-semibold text-base transition-all bg-white hover:bg-kerpta-50 dark:bg-gray-900 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 shadow-lg shadow-kerpta/15 hover:shadow-kerpta/30"
           >
             {ctaPrimary.label}
             <ArrowRight className="w-4 h-4" />

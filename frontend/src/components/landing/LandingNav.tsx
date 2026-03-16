@@ -48,7 +48,7 @@ export function LandingNav() {
           {/* Bouton Se connecter */}
           <button
             onClick={handleLogin}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-kerpta-600 hover:bg-kerpta text-white text-sm font-semibold transition-all shadow-lg shadow-kerpta/25 hover:shadow-kerpta/40"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-kerpta text-kerpta text-sm font-semibold transition-all bg-white hover:bg-kerpta-50 dark:bg-gray-900 dark:text-kerpta-400 dark:hover:bg-kerpta-900/20 shadow-lg shadow-kerpta/15 hover:shadow-kerpta/30"
           >
             Se connecter
           </button>
