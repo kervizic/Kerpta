@@ -406,7 +406,10 @@ async def generate_quote_pdf(
     seller = await _get_org_info(org_id, db)
 
     # Client
-    client = await _get_client_info(quote["client_id"], org_id, db)
+    if quote["client_id"]:
+        client = await _get_client_info(quote["client_id"], org_id, db)
+    else:
+        client = {"name": quote.get("client_name") or "—"}
 
     # Logo
     logo_b64, logo_mime = await _get_org_logo(org_id, db)

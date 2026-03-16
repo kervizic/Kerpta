@@ -184,6 +184,10 @@ async def get_quote_pdf(
         )
     except ValueError as e:
         raise HTTPException(404, str(e))
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).exception("Erreur génération PDF devis %s", quote_id)
+        raise HTTPException(500, f"Erreur génération PDF : {e}")
     disposition = "attachment" if download else "inline"
     return Response(
         content=pdf_bytes,
