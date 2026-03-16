@@ -6,9 +6,12 @@
 
 Fournit la gestion des connexions de stockage et l'upload de fichiers
 vers le provider configuré par l'organisation.
+
+Tous les PDF sont compressés via pikepdf avant stockage.
 """
 
 import json
+import logging
 import uuid
 from datetime import datetime, timezone
 
@@ -17,6 +20,9 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.storage.s3 import S3Adapter
+from app.storage.utils import compress_pdf, sanitize_folder_name
+
+_log = logging.getLogger(__name__)
 
 VALID_PROVIDERS = ("s3", "ftp", "sftp", "google_drive", "onedrive", "dropbox")
 
@@ -228,6 +234,104 @@ async def test_connection(
     raise HTTPException(400, msg)
 
 
+# ── Helpers — Arborescence S3 ─────────────────────────────────────────────────
+
+
+async def get_org_siren(org_id: uuid.UUID, db: AsyncSession) -> str:
+    """Récupère le SIREN de l'organisation (pour le dossier racine S3)."""
+    result = await db.execute(
+        text("SELECT siren FROM organizations WHERE id = :org_id"),
+        {"org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    return row[0] if row and row[0] else "sans-siren"
+
+
+async def get_client_folder(
+    client_id: str, org_id: uuid.UUID, db: AsyncSession
+) -> str:
+    """Construit le nom de dossier client : {Nom-Client}_{id}.
+
+    Returns:
+        Ex: "Dupont-Construction_550e8400-e29b-41d4-a716-446655440000"
+    """
+    result = await db.execute(
+        text("SELECT name, id::text FROM clients WHERE id = :cid AND organization_id = :org_id"),
+        {"cid": client_id, "org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    if not row:
+        return f"client-inconnu_{client_id}"
+    name_clean = sanitize_folder_name(row[0])
+    return f"{name_clean}_{row[1]}"
+
+
+async def get_supplier_folder(
+    supplier_id: str, org_id: uuid.UUID, db: AsyncSession
+) -> str:
+    """Construit le nom de dossier fournisseur : {Nom-Fournisseur}_{id}."""
+    result = await db.execute(
+        text("SELECT name, id::text FROM suppliers WHERE id = :sid AND organization_id = :org_id"),
+        {"sid": supplier_id, "org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    if not row:
+        return f"fournisseur-inconnu_{supplier_id}"
+    name_clean = sanitize_folder_name(row[0])
+    return f"{name_clean}_{row[1]}"
+
+
+async def build_document_path(
+    org_id: uuid.UUID,
+    db: AsyncSession,
+    *,
+    doc_type: str,
+    filename: str,
+    client_id: str | None = None,
+    supplier_id: str | None = None,
+) -> str:
+    """Construit le chemin S3 complet selon l'arborescence Kerpta.
+
+    Structure :
+        Kerpta/{SIREN}/clients/{Nom}_{id}/{sous-dossier}/{fichier}
+        Kerpta/{SIREN}/fournisseurs/{Nom}_{id}/{sous-dossier}/{fichier}
+
+    Args:
+        org_id: UUID de l'organisation
+        db: session BDD
+        doc_type: type de document (facture, devis, bon-commande, bon-livraison, piece-jointe, achat)
+        filename: nom du fichier PDF
+        client_id: UUID du client (si doc client)
+        supplier_id: UUID du fournisseur (si doc fournisseur)
+
+    Returns:
+        Chemin S3 relatif (ex: "Kerpta/123456789/clients/Dupont_abc123/factures/FA-2026-0001.pdf")
+    """
+    siren = await get_org_siren(org_id, db)
+
+    # Mapping type → sous-dossier
+    folder_map = {
+        "facture": "factures",
+        "devis": "devis",
+        "bon-commande": "bons-commande",
+        "bon-livraison": "bons-livraison",
+        "piece-jointe": "pieces-jointes",
+        "achat": "achats",
+    }
+    sub_folder = folder_map.get(doc_type, doc_type)
+
+    if supplier_id:
+        entity_folder = await get_supplier_folder(supplier_id, org_id, db)
+        return f"Kerpta/{siren}/fournisseurs/{entity_folder}/{sub_folder}/{filename}"
+
+    if client_id:
+        entity_folder = await get_client_folder(client_id, org_id, db)
+        return f"Kerpta/{siren}/clients/{entity_folder}/{sub_folder}/{filename}"
+
+    # Fallback : dossier racine org (ne devrait pas arriver)
+    return f"Kerpta/{siren}/{sub_folder}/{filename}"
+
+
 # ── Upload de fichiers ─────────────────────────────────────────────────────────
 
 
@@ -240,6 +344,8 @@ async def upload_document(
     content_type: str = "application/pdf",
 ) -> str | None:
     """Upload un document vers le stockage configuré de l'organisation.
+
+    Le PDF est automatiquement compressé avant upload.
 
     Returns:
         L'URL publique ou le chemin distant du fichier, ou None si pas de stockage configuré.
@@ -260,6 +366,10 @@ async def upload_document(
     provider = row[0]
     credentials = row[1] if isinstance(row[1], dict) else {}
     base_path = row[2] or ""
+
+    # Compresser le PDF avant stockage
+    if content_type == "application/pdf":
+        file_bytes = compress_pdf(file_bytes)
 
     # Construire le chemin complet
     full_path = f"{base_path.rstrip('/')}/{remote_path.lstrip('/')}"

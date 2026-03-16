@@ -33,6 +33,7 @@ resend==2.5.1
 # PDF / Factur-X
 factur-x==3.9
 weasyprint==62.3
+pikepdf==9.4.2            # Compression et optimisation PDF
 
 # Traitement d'images (redimensionnement logos)
 Pillow==11.1.0

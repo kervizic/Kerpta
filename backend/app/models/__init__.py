@@ -36,3 +36,4 @@ from app.models.platform import (  # noqa: F401
     PlatformAdminLog,
     OrganizationStorageConfig,
 )
+from app.models.attachment import Attachment, DocumentAttachment  # noqa: F401

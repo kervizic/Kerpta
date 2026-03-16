@@ -325,10 +325,14 @@ async def generate_invoice_pdf(
     pdf_bytes = _render_pdf(template_name, context)
     filename = f"{doc_type_label.replace(' ', '_')}_{doc_number.replace('/', '-')}.pdf"
 
-    # Backup automatique vers le stockage configuré
+    # Backup automatique vers le stockage configuré (arborescence Kerpta)
     try:
-        year = str(inv["issue_date"])[:4] if inv.get("issue_date") else "0000"
-        remote_path = f"factures/{year}/{filename}"
+        remote_path = await storage_svc.build_document_path(
+            org_id, db,
+            doc_type="facture",
+            filename=filename,
+            client_id=inv["client_id"],
+        )
         pdf_url = await storage_svc.upload_document(org_id, pdf_bytes, remote_path, db)
         if pdf_url:
             await db.execute(
@@ -467,10 +471,14 @@ async def generate_quote_pdf(
     pdf_bytes = _render_pdf(template_name, context)
     filename = f"{doc_type_label.replace(' ', '_')}_{doc_number.replace('/', '-')}.pdf"
 
-    # Backup automatique vers le stockage configuré
+    # Backup automatique vers le stockage configuré (arborescence Kerpta)
     try:
-        year = str(quote.get("issue_date", ""))[:4] or "0000"
-        remote_path = f"devis/{year}/{filename}"
+        remote_path = await storage_svc.build_document_path(
+            org_id, db,
+            doc_type="devis",
+            filename=filename,
+            client_id=quote["client_id"],
+        )
         pdf_url = await storage_svc.upload_document(org_id, pdf_bytes, remote_path, db)
         if pdf_url:
             await db.execute(

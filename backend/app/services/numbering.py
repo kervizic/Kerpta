@@ -32,6 +32,7 @@ _DOC_CONFIG: dict[str, dict] = {
     "contract": {"prefix": "CT", "table": "contracts", "col": "reference"},
     "purchase_order": {"prefix": "BC", "table": "client_purchase_orders"},
     "delivery_note": {"prefix": "BL", "table": "delivery_notes"},
+    "attachment": {"prefix": "PJ", "table": "attachments", "col": "reference"},
 }
 
 
