@@ -175,6 +175,8 @@ async def update_document_footer(
 
 async def generate_auto_footer(org_id: uuid.UUID, db: AsyncSession) -> dict:
     """Génère le pied de page automatique depuis le profil de facturation par défaut + régime TVA org."""
+    from decimal import Decimal, ROUND_HALF_UP
+
     # Régime TVA de l'organisation
     org_result = await db.execute(
         text("SELECT vat_regime, vat_exigibility FROM organizations WHERE id = :org_id"),
@@ -182,7 +184,7 @@ async def generate_auto_footer(org_id: uuid.UUID, db: AsyncSession) -> dict:
     )
     org_row = org_result.fetchone()
 
-    # Profil de facturation par défaut
+    # Profil de facturation par défaut (optionnel)
     result = await db.execute(
         text("""
             SELECT late_penalty_rate, discount_rate, recovery_fee,
@@ -194,10 +196,6 @@ async def generate_auto_footer(org_id: uuid.UUID, db: AsyncSession) -> dict:
         {"org_id": str(org_id)},
     )
     row = result.fetchone()
-    if not row:
-        return {"footer": ""}
-
-    from decimal import Decimal, ROUND_HALF_UP
 
     lines: list[str] = []
 
@@ -212,7 +210,7 @@ async def generate_auto_footer(org_id: uuid.UUID, db: AsyncSession) -> dict:
         lines.append("TVA acquittée sur les encaissements.")
 
     # Pénalités de retard
-    penalty = Decimal(str(row.late_penalty_rate)) if row.late_penalty_rate else None
+    penalty = Decimal(str(row.late_penalty_rate)) if row and row.late_penalty_rate else None
     if penalty and penalty > 0:
         lines.append(
             f"En cas de retard de paiement, une pénalité de {penalty.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)} % annuel sera exigible "
@@ -225,16 +223,21 @@ async def generate_auto_footer(org_id: uuid.UUID, db: AsyncSession) -> dict:
         )
 
     # Indemnité de recouvrement
-    fee = Decimal(str(row.recovery_fee)) if row.recovery_fee else Decimal("0")
+    fee = Decimal(str(row.recovery_fee)) if row and row.recovery_fee else Decimal("0")
     if fee > 0:
         lines.append(
             f"Conformément à l'article D.441-5 du Code de Commerce, tout retard de paiement entraîne de plein droit "
             f"une indemnité forfaitaire pour frais de recouvrement de {fee.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)} €."
         )
+    else:
+        lines.append(
+            "Conformément à l'article D.441-5 du Code de Commerce, tout retard de paiement entraîne de plein droit "
+            "une indemnité forfaitaire pour frais de recouvrement de 40.00 €."
+        )
 
     # Escompte
-    discount = Decimal(str(row.discount_rate)) if row.discount_rate else Decimal("0")
-    if row.early_payment_discount and discount > 0:
+    discount = Decimal(str(row.discount_rate)) if row and row.discount_rate else Decimal("0")
+    if row and row.early_payment_discount and discount > 0:
         lines.append(f"Escompte pour paiement anticipé : {discount.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)} %.")
     else:
         lines.append("Pas d'escompte pour paiement anticipé.")
