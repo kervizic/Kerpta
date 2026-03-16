@@ -18,6 +18,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from io import BytesIO
 from pathlib import Path
 
+from markupsafe import Markup, escape
 from jinja2 import Environment, FileSystemLoader
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -74,6 +75,16 @@ def _fmt_currency_num(value) -> str:
 
 
 _jinja_env.filters["fmt_currency_num"] = _fmt_currency_num
+
+
+def _nl2br(value: str) -> Markup:
+    """Convertit les sauts de ligne en <br> pour le rendu HTML."""
+    if not value:
+        return Markup("")
+    return Markup(escape(value).replace("\n", Markup("<br>")))
+
+
+_jinja_env.filters["nl2br"] = _nl2br
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
