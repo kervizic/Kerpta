@@ -444,10 +444,12 @@ def _build_facturx_xml(inv: dict, seller: dict, client: dict, lines: list, vat_b
 
         line_agreement = _el(item, "ram:SpecifiedLineTradeAgreement")
         net_price = _el(line_agreement, "ram:NetPriceProductTradePrice")
-        _el(net_price, "ram:ChargeAmount", line.get("unit_price_fmt") or "0.00")
+        # Valeur brute decimale (pas le format affichage avec € et virgule)
+        _el(net_price, "ram:ChargeAmount", str(line.get("unit_price") or "0.00"))
 
         line_delivery = _el(item, "ram:SpecifiedLineTradeDelivery")
-        _el(line_delivery, "ram:BilledQuantity", line.get("quantity_fmt") or "1", unitCode=line.get("unit") or "C62")
+        # Valeur brute decimale (pas le format affichage avec virgule)
+        _el(line_delivery, "ram:BilledQuantity", str(line.get("quantity") or "1"), unitCode=line.get("unit") or "C62")
 
         line_settlement = _el(item, "ram:SpecifiedLineTradeSettlement")
         line_tax = _el(line_settlement, "ram:ApplicableTradeTax")
@@ -456,7 +458,8 @@ def _build_facturx_xml(inv: dict, seller: dict, client: dict, lines: list, vat_b
         _el(line_tax, "ram:RateApplicablePercent", str(line.get("vat_rate") or "0"))
 
         line_summation = _el(line_settlement, "ram:SpecifiedTradeSettlementLineMonetarySummation")
-        _el(line_summation, "ram:LineTotalAmount", line.get("total_ht_fmt") or "0.00")
+        # Valeur brute decimale (pas le format affichage avec € et virgule)
+        _el(line_summation, "ram:LineTotalAmount", str(line.get("total_ht") or "0.00"))
 
     # --- HeaderTradeAgreement (vendeur / acheteur) ---
     agreement = _el(txn, "ram:ApplicableHeaderTradeAgreement")
