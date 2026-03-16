@@ -1,47 +1,81 @@
-# Facturation Électronique
+# Facturation Electronique
 
 ## Pourquoi c'est important
 
-La France a décidé de rendre la facturation électronique obligatoire pour toutes les entreprises. Le calendrier est le suivant : à partir du 1er septembre 2026, toutes les entreprises devront être capables de **recevoir** des factures électroniques. L'obligation d'**émettre** des factures électroniques s'appliquera aux grandes entreprises dès cette même date, et aux TPE/PME/micro-entreprises à partir du 1er septembre 2027.
+La France a decide de rendre la facturation electronique obligatoire pour toutes les entreprises. Le calendrier est le suivant : a partir du 1er septembre 2026, toutes les entreprises devront etre capables de **recevoir** des factures electroniques. L'obligation d'**emettre** des factures electroniques s'appliquera aux grandes entreprises des cette meme date, et aux TPE/PME/micro-entreprises a partir du 1er septembre 2027.
 
-Pour Kerpta, qui cible justement les TPE et indépendants, anticiper cette obligation dès la v1 est un argument commercial fort : les clients de Kerpta seront prêts avant l'échéance légale.
+Pour Kerpta, qui cible justement les TPE et independants, anticiper cette obligation des la v1 est un argument commercial fort : les clients de Kerpta seront prets avant l'echeance legale.
 
 ---
 
 ## Le format choisi : Factur-X EN 16931
 
-Parmi les formats possibles, Kerpta a retenu **Factur-X EN 16931**, la norme européenne complète. Ce n'est pas simplement un PDF — c'est un fichier hybride qui contient à la fois un PDF lisible par l'humain et un fichier XML lisible par les machines, le tout dans un seul document.
+Parmi les formats possibles, Kerpta a retenu **Factur-X EN 16931**, la norme europeenne complete. Ce n'est pas simplement un PDF - c'est un fichier hybride qui contient a la fois un PDF lisible par l'humain et un fichier XML lisible par les machines, le tout dans un seul document.
 
-Le PDF/A-3 est la version archivable du PDF, conçue pour durer dans le temps (police embarquée, pas de contenus dynamiques). Le XML embarqué suit le format CII (Cross Industry Invoice) de la norme EN 16931, ce qui permet à n'importe quel logiciel comptable de lire automatiquement les données de la facture sans ressaisie manuelle.
+Le PDF/A-3 est la version archivable du PDF, concue pour durer dans le temps (police embarquee, pas de contenus dynamiques). Le XML embarque suit le format CII (Cross Industry Invoice) de la norme EN 16931, ce qui permet a n'importe quel logiciel comptable de lire automatiquement les donnees de la facture sans ressaisie manuelle.
 
-La librairie Python open source `factur-x` est utilisée pour générer ces fichiers.
-
----
-
-## Comment une facture est générée techniquement
-
-Quand un utilisateur clique sur "Envoyer la facture", voici ce qui se passe dans les coulisses :
-
-L'application crée une tâche en arrière-plan pour ne pas faire attendre l'utilisateur. Cette tâche est confiée à **Celery**, le gestionnaire de tâches asynchrones, qui la place dans une file d'attente sur **Redis**.
-
-Un worker Celery récupère la tâche et génère d'abord le rendu HTML de la facture à partir d'un template Jinja2 (le moteur de template Python). Ce HTML est ensuite converti en PDF/A-3 par **Playwright**, un outil de pilotage de navigateur headless (sans interface graphique).
-
-En parallèle, un service interne génère le fichier XML CII EN 16931 à partir des données de la facture et de ses lignes stockées en base. Toutes les données nécessaires (numéro, dates, coordonnées vendeur et acheteur avec SIRET, détail des lignes avec TVA, totaux) sont déjà présentes dans la base de données — aucun champ supplémentaire n'est nécessaire.
-
-La librairie `factur-x` embarque ensuite le XML dans le PDF pour créer le fichier Factur-X final. Ce fichier est stocké dans **MinIO** (le système de stockage de fichiers, compatible avec le standard S3 d'Amazon), et l'URL est enregistrée dans la base de données. Enfin, l'email avec le fichier Factur-X en pièce jointe est envoyé via l'API **Resend**.
+La librairie Python open source `factur-x` est utilisee pour generer ces fichiers.
 
 ---
 
-## La connexion à une PDP (Plateforme de Dématérialisation Partenaire)
+## Comment un document est genere techniquement
 
-Pour aller au-delà de la simple génération du fichier, il faudra à terme se connecter à une PDP agréée par la DGFIP (l'administration fiscale). Ces plateformes servent d'intermédiaires officiels pour la transmission des factures électroniques entre entreprises et vers l'État pour le e-reporting.
+Quand un utilisateur telecharge ou envoie un document, voici ce qui se passe :
 
-Cette connexion est planifiée en Phase 5 (après le MVP). En attendant, les colonnes nécessaires dans la base de données (référence PDP, statut de transmission, date d'envoi) sont déjà créées dès la v1 mais restent vides. Cela évite d'avoir à modifier la structure de la base de données lors de l'activation de cette fonctionnalité, ce qui serait une opération risquée sur une base en production avec des données réelles.
+1. **Generation HTML** : un template Jinja2 est rempli avec les donnees du document. Trois styles sont disponibles (classique, moderne, minimaliste), configurables par organisation.
+
+2. **Conversion PDF** : le HTML est converti en PDF via **WeasyPrint** (moteur de rendu CSS pur, pas de navigateur headless).
+
+3. **Generation XML CII** : la fonction `_build_document_xml()` construit le XML au format CII EN 16931 a partir des donnees du document. Cette meme structure est utilisee pour tous les types de documents.
+
+4. **Embarquement** : la librairie `factur-x` embarque le XML dans le PDF pour creer un fichier PDF/A-3 hybride.
+
+5. **Stockage** : le PDF est sauvegarde via le StorageAdapter de l'organisation (FTP, SFTP, Google Drive, OneDrive, Dropbox ou S3) et l'URL est enregistree en base.
 
 ---
 
-## Ce qui est déjà fait vs ce qui reste à faire
+## XML embarque dans tous les documents
 
-Dès la v1, la structure de base de données complète est en place, la numérotation séquentielle sans trou est implémentée, et les colonnes PDP sont présentes. Restent à implémenter : le template HTML de facture avec toutes les mentions légales obligatoires, la génération PDF/A-3 via Playwright, la génération du XML EN 16931, la validation du fichier XML avec les outils officiels, et l'archivage dans MinIO.
+La meme structure XML CII est embarquee dans **tous** les PDF generes par Kerpta, pas seulement les factures validees. Cela permet un parsing uniforme par des outils d'extraction comme Doctext.
 
-La connexion à une PDP, la gestion des statuts de retour, le e-reporting B2C et international vers la DGFIP, et le support du format UBL pour les marchés publics (Chorus Pro) sont prévus en Phase 5.
+Chaque type de document utilise un code UNTDID 1001 different dans le champ `TypeCode` du XML :
+
+| Type de document | Code | Obligatoire legalement |
+|---|---|---|
+| Facture validee | 380 | Oui (Factur-X officiel) |
+| Avoir valide | 381 | Oui (Factur-X officiel) |
+| Proforma / brouillon | 325 | Non (mais embarque pour parsing) |
+| Devis / offre | 310 | Non (mais embarque pour parsing) |
+
+Les champs optionnels (mode de paiement, coordonnees bancaires, date d'echeance) sont omis du XML quand ils ne s'appliquent pas au type de document (par exemple, un devis n'a pas de mode de reglement).
+
+---
+
+## La connexion a une PDP (Plateforme de Dematerialisation Partenaire)
+
+Pour aller au-dela de la simple generation du fichier, il faudra a terme se connecter a une PDP agreee par la DGFIP (l'administration fiscale). Ces plateformes servent d'intermediaires officiels pour la transmission des factures electroniques entre entreprises et vers l'Etat pour le e-reporting.
+
+Cette connexion est planifiee en Phase 5 (apres le MVP). En attendant, les colonnes necessaires dans la base de donnees (reference PDP, statut de transmission, date d'envoi) sont deja creees mais restent vides. Cela evite d'avoir a modifier la structure de la base de donnees lors de l'activation de cette fonctionnalite.
+
+---
+
+## Ce qui est fait vs ce qui reste
+
+### Implemente
+
+- Structure de base de donnees complete (organisation, clients, lignes de facture avec TVA)
+- Numerotation sequentielle sans trou (PF-YYYY-NNNN puis FA-YYYY-NNNN a la validation)
+- Trois templates PDF (classique, moderne, minimaliste) avec polices Inter/Inter Display
+- Generation PDF via WeasyPrint
+- Generation XML CII EN 16931 pour tous les documents
+- Embarquement XML dans le PDF via lib factur-x
+- Stockage via StorageAdapter (FTP/SFTP/GDrive/OneDrive/Dropbox/S3)
+- Colonnes PDP preparees en base (nullables)
+
+### Phase 5
+
+- Connexion a une PDP agreee DGFIP (API REST)
+- Gestion des statuts retour PDP (webhooks)
+- E-reporting B2C et international (flux DGFIP)
+- Support format UBL pour marches publics (Chorus Pro)
+- Validation XML avec outils officiels EN 16931
