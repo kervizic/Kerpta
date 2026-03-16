@@ -138,6 +138,24 @@ async def _get_org_info(org_id: uuid.UUID, db: AsyncSession) -> dict:
     }
 
 
+async def _get_default_bank_details(org_id: uuid.UUID, db: AsyncSession) -> dict | None:
+    """Récupère le RIB du profil de facturation par défaut."""
+    result = await db.execute(
+        text("""
+            SELECT ba.iban, ba.bic, ba.bank_name
+            FROM billing_profiles bp
+            JOIN bank_accounts ba ON ba.id = bp.bank_account_id
+            WHERE bp.organization_id = :org_id AND bp.is_default = true
+            LIMIT 1
+        """),
+        {"org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    if not row:
+        return None
+    return {"iban": row[0], "bic": row[1], "bank_name": row[2]}
+
+
 async def _get_default_payment_note(org_id: uuid.UUID, db: AsyncSession) -> str:
     """Récupère la note de règlement du profil de facturation par défaut."""
     result = await db.execute(
@@ -398,13 +416,15 @@ async def generate_invoice_pdf(
     paid = Decimal(str(inv["amount_paid"] or 0))
     remaining = (ttc - paid).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
-    # Infos bancaires
+    # Infos bancaires - depuis la facture, sinon depuis le profil par defaut
     bank_details = inv.get("bank_details")
     if isinstance(bank_details, str):
         try:
             bank_details = json.loads(bank_details)
         except Exception:
             bank_details = None
+    if not bank_details:
+        bank_details = await _get_default_bank_details(org_id, db)
 
     # Style + mentions legales + options pied de page
     style, org_footer, footer_options = await _get_print_config(org_id, db)
