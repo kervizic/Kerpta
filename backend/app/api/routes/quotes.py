@@ -118,6 +118,7 @@ async def convert_to_contract(
 @router.get("/{quote_id}/pdf")
 async def get_quote_pdf(
     quote_id: str,
+    download: bool = False,
     ctx: OrgContext = Depends(get_org_context),
     db: AsyncSession = Depends(get_db),
 ):
@@ -128,8 +129,9 @@ async def get_quote_pdf(
         )
     except ValueError as e:
         raise HTTPException(404, str(e))
+    disposition = "attachment" if download else "inline"
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+        headers={"Content-Disposition": f'{disposition}; filename="{filename}"'},
     )
