@@ -174,7 +174,7 @@ table { border-collapse: collapse; width: 100%; }
     {% if footer_options.show_phone and seller.phone %}{% set _ = parts.append("Tel : " ~ seller.phone) %}{% endif %}
     {% if footer_options.show_email and seller.email %}{% set _ = parts.append(seller.email) %}{% endif %}
     {% if footer_options.show_website and seller.website %}{% set _ = parts.append(seller.website) %}{% endif %}
-    {{ parts | join(" &middot; ") }}
+    {{ parts | join(" - ") }}
   </div>
   {% endif %}
   <div class="footer-line">
