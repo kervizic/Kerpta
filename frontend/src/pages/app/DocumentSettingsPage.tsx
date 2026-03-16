@@ -185,21 +185,36 @@ function DocumentHeaderSection() {
 
 // ── Section Pied de page (infos emetteur en bas de chaque page PDF) ──────
 
+interface OrgInfo {
+  legal_form: string | null
+  capital: string | null
+  org_siren: string | null
+  rcs_city: string | null
+  vat_number: string | null
+  phone: string | null
+  email: string | null
+  website: string | null
+}
+
 function PageFooterSection() {
   const [showPhone, setShowPhone] = useState(false)
   const [showEmail, setShowEmail] = useState(false)
   const [showWebsite, setShowWebsite] = useState(false)
+  const [orgInfo, setOrgInfo] = useState<OrgInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    orgGet<{ show_phone: boolean; show_email: boolean; show_website: boolean }>('/billing/page-footer-options')
-      .then((data) => {
-        setShowPhone(data.show_phone ?? false)
-        setShowEmail(data.show_email ?? false)
-        setShowWebsite(data.show_website ?? false)
-      })
-      .catch(() => {})
+    const orgId = localStorage.getItem('kerpta_active_org')
+    Promise.all([
+      orgGet<{ show_phone: boolean; show_email: boolean; show_website: boolean }>('/billing/page-footer-options'),
+      orgId ? orgGet<OrgInfo>(`/organizations/${orgId}`) : Promise.resolve(null),
+    ]).then(([opts, org]) => {
+      setShowPhone(opts.show_phone ?? false)
+      setShowEmail(opts.show_email ?? false)
+      setShowWebsite(opts.show_website ?? false)
+      if (org) setOrgInfo(org)
+    }).catch(() => {})
       .finally(() => setLoading(false))
   }, [])
 
@@ -220,6 +235,29 @@ function PageFooterSection() {
          : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:border-gray-300'
     }`
 
+  // Construire l'aperçu du pied de page
+  function buildPreview(): string[] {
+    if (!orgInfo) return []
+    const lines: string[] = []
+    // Ligne optionnelle : tel / email / site
+    const optParts: string[] = []
+    if (showPhone && orgInfo.phone) optParts.push(`Tél : ${orgInfo.phone}`)
+    if (showEmail && orgInfo.email) optParts.push(orgInfo.email)
+    if (showWebsite && orgInfo.website) optParts.push(orgInfo.website)
+    if (optParts.length > 0) lines.push(optParts.join(' · '))
+    // Ligne obligatoire : forme juridique, capital, SIREN, RCS, TVA
+    const legalParts: string[] = []
+    if (orgInfo.legal_form) legalParts.push(orgInfo.legal_form)
+    if (orgInfo.capital) legalParts.push(`au capital de ${orgInfo.capital} €`)
+    if (orgInfo.org_siren) legalParts.push(`SIREN : ${orgInfo.org_siren}`)
+    if (orgInfo.rcs_city) legalParts.push(`R.C.S ${orgInfo.rcs_city}`)
+    if (orgInfo.vat_number) legalParts.push(`TVA : ${orgInfo.vat_number}`)
+    if (legalParts.length > 0) lines.push(legalParts.join(' - '))
+    return lines
+  }
+
+  const preview = buildPreview()
+
   return (
     <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
       <div className="flex items-center justify-between mb-4">
@@ -232,16 +270,26 @@ function PageFooterSection() {
       {loading ? (
         <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-kerpta" /></div>
       ) : (
-        <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => toggle('show_phone', !showPhone)} className={toggleStyle(showPhone)}>
-            Telephone
-          </button>
-          <button type="button" onClick={() => toggle('show_email', !showEmail)} className={toggleStyle(showEmail)}>
-            Email
-          </button>
-          <button type="button" onClick={() => toggle('show_website', !showWebsite)} className={toggleStyle(showWebsite)}>
-            Site web
-          </button>
+        <div className="space-y-4">
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => toggle('show_phone', !showPhone)} className={toggleStyle(showPhone)}>
+              Telephone
+            </button>
+            <button type="button" onClick={() => toggle('show_email', !showEmail)} className={toggleStyle(showEmail)}>
+              Email
+            </button>
+            <button type="button" onClick={() => toggle('show_website', !showWebsite)} className={toggleStyle(showWebsite)}>
+              Site web
+            </button>
+          </div>
+          {preview.length > 0 && (
+            <div className="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3 text-center">
+              <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1.5">Aperçu</p>
+              {preview.map((line, i) => (
+                <p key={i} className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">{line}</p>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </section>
