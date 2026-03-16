@@ -110,7 +110,7 @@ table { border-collapse: collapse; width: 100%; }
     {% for line in lines %}
     <tr>
       {% if columns.reference %}<td class="col-desc">{% if line.reference %}[{{ line.reference }}]{% endif %}</td>{% endif %}
-      <td class="col-desc">{% if not columns.reference and line.reference %}[{{ line.reference }}] {% endif %}{{ (line.description or '')|nl2br }}</td>
+      <td class="col-desc">{% if not columns.reference and line.reference %}[{{ line.reference }}] {% endif %}{% set desc_parts = (line.description or '').split('\n') %}{{ desc_parts[0] }}{% if desc_parts|length > 1 %}<br><span class="line-detail">{{ desc_parts[1:]|join('\n')|nl2br }}</span>{% endif %}</td>
       {% if columns.quantity %}<td class="col-desc">{{ line.quantity_fmt }}{% if columns.unit and line.unit %} {{ line.unit }}{% endif %}</td>{% endif %}
       {% if columns.unit_price %}<td class="col-desc">{{ line.unit_price_fmt }}</td>{% endif %}
       {% if columns.vat_rate %}<td class="col-desc">{{ line.vat_rate }}%</td>{% endif %}

@@ -1040,6 +1040,16 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
                           className={LINE_INPUT}
                           placeholder="Désignation"
                         />
+                        <textarea
+                          value={line.description.includes('\n') ? line.description.split('\n').slice(1).join('\n') : ''}
+                          onChange={(e) => {
+                            const name = line.description.split('\n')[0]
+                            updateLine(i, 'description', e.target.value ? `${name}\n${e.target.value}` : name)
+                          }}
+                          placeholder="Description (optionnel)"
+                          rows={1}
+                          className={`${LINE_INPUT} mt-1 text-xs text-gray-500 dark:text-gray-400 resize-none`}
+                        />
                       </td>
                       {activeColumns.quantity && (
                         <td className="px-1 py-1.5">
@@ -1106,6 +1116,16 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
                     clientId={clientId || null}
                     className={INPUT}
                     placeholder="Désignation"
+                  />
+                  <textarea
+                    value={line.description.includes('\n') ? line.description.split('\n').slice(1).join('\n') : ''}
+                    onChange={(e) => {
+                      const name = line.description.split('\n')[0]
+                      updateLine(i, 'description', e.target.value ? `${name}\n${e.target.value}` : name)
+                    }}
+                    placeholder="Description (optionnel)"
+                    rows={1}
+                    className={`${INPUT} mt-1 text-xs text-gray-500 dark:text-gray-400 resize-none`}
                   />
 
                   {/* Grille 2 colonnes pour les champs numériques */}

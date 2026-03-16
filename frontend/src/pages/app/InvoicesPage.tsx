@@ -1188,6 +1188,17 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
                           placeholder="Désignation"
                           disabled={isValidated}
                         />
+                        <textarea
+                          value={line.description.includes('\n') ? line.description.split('\n').slice(1).join('\n') : ''}
+                          onChange={(e) => {
+                            const name = line.description.split('\n')[0]
+                            updateLine(i, 'description', e.target.value ? `${name}\n${e.target.value}` : name)
+                          }}
+                          placeholder="Description (optionnel)"
+                          rows={1}
+                          disabled={isValidated}
+                          className={`${LINE_INPUT} mt-1 text-xs text-gray-500 dark:text-gray-400 resize-none`}
+                        />
                       </td>
                       <td className="px-1 py-1.5">
                         <input type="number" step="0.01" min="0.01" value={line.quantity} onChange={(e) => updateLine(i, 'quantity', e.target.value)} className={`${LINE_INPUT} text-right`} disabled={isValidated} />
@@ -1253,6 +1264,17 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
                     className={INPUT}
                     placeholder="Désignation"
                     disabled={isValidated}
+                  />
+                  <textarea
+                    value={line.description.includes('\n') ? line.description.split('\n').slice(1).join('\n') : ''}
+                    onChange={(e) => {
+                      const name = line.description.split('\n')[0]
+                      updateLine(i, 'description', e.target.value ? `${name}\n${e.target.value}` : name)
+                    }}
+                    placeholder="Description (optionnel)"
+                    rows={1}
+                    disabled={isValidated}
+                    className={`${INPUT} mt-1 text-xs text-gray-500 dark:text-gray-400 resize-none`}
                   />
 
                   {/* Grille 2 colonnes pour les champs numériques */}
