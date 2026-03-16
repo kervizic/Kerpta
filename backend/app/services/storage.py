@@ -339,29 +339,37 @@ async def build_document_path(
 # ── Vérification S3 ──────────────────────────────────────────────────────────
 
 
-async def has_active_storage(org_id: uuid.UUID, db: AsyncSession) -> bool:
-    """Vérifie si l'organisation a un stockage actif configuré."""
+async def _get_platform_s3_config(db: AsyncSession) -> dict | None:
+    """Récupère la config S3 plateforme depuis platform_config.api_keys->'s3'."""
     result = await db.execute(
-        text("""
-            SELECT COUNT(*) FROM organization_storage_configs
-            WHERE organization_id = :org_id AND is_active = true
-        """),
-        {"org_id": str(org_id)},
+        text("SELECT api_keys->'s3' FROM platform_config LIMIT 1")
     )
-    return (result.scalar() or 0) > 0
+    row = result.fetchone()
+    if not row or not row[0]:
+        return None
+    cfg = row[0] if isinstance(row[0], dict) else {}
+    # Vérifier que les champs essentiels sont renseignés
+    if cfg.get("endpoint") and cfg.get("access_key") and cfg.get("bucket"):
+        return cfg
+    return None
+
+
+async def has_active_storage(org_id: uuid.UUID, db: AsyncSession) -> bool:
+    """Vérifie si le stockage S3 plateforme est configuré."""
+    return await _get_platform_s3_config(db) is not None
 
 
 async def require_active_storage(org_id: uuid.UUID, db: AsyncSession) -> None:
-    """Lève une HTTPException si aucun stockage n'est configuré.
+    """Lève une HTTPException si le stockage S3 plateforme n'est pas configuré.
 
     Doit être appelé avant tout upload de fichier (PJ, RIB, etc.).
     """
     if not await has_active_storage(org_id, db):
         raise HTTPException(
             400,
-            "Aucun backup configuré pour Kerpta. "
-            "Merci de renseigner votre configuration de stockage : "
-            "https://kerpta.fr/app/config/stockage",
+            "Aucun backup S3 configuré pour Kerpta. "
+            "Contactez l'administrateur de la plateforme pour configurer "
+            "le stockage S3 dans la configuration générale.",
         )
 
 
@@ -376,41 +384,26 @@ async def upload_document(
     *,
     content_type: str = "application/pdf",
 ) -> str | None:
-    """Upload un document vers le stockage configuré de l'organisation.
+    """Upload un document vers le stockage S3 plateforme.
 
     Le PDF est automatiquement compressé avant upload.
 
     Returns:
         L'URL publique ou le chemin distant du fichier, ou None si pas de stockage configuré.
     """
-    result = await db.execute(
-        text("""
-            SELECT provider, credentials, base_path
-            FROM organization_storage_configs
-            WHERE organization_id = :org_id AND is_active = true
-            LIMIT 1
-        """),
-        {"org_id": str(org_id)},
-    )
-    row = result.fetchone()
-    if not row:
+    s3_config = await _get_platform_s3_config(db)
+    if not s3_config:
         return None
 
-    provider = row[0]
-    credentials = row[1] if isinstance(row[1], dict) else {}
-    base_path = row[2] or ""
+    base_path = s3_config.get("base_path", "")
 
     # Compresser le PDF avant stockage
     if content_type == "application/pdf":
         file_bytes = compress_pdf(file_bytes)
 
     # Construire le chemin complet
-    full_path = f"{base_path.rstrip('/')}/{remote_path.lstrip('/')}"
+    full_path = f"{base_path.rstrip('/')}/{remote_path.lstrip('/')}" if base_path else remote_path
 
-    if provider == "s3":
-        adapter = S3Adapter(credentials)
-        url = adapter.upload(file_bytes, full_path, content_type=content_type)
-        return url
-
-    # TODO : implémenter FTP, SFTP, Google Drive, OneDrive, Dropbox
-    return None
+    adapter = S3Adapter(s3_config)
+    url = adapter.upload(file_bytes, full_path, content_type=content_type)
+    return url

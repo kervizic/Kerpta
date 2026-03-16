@@ -13,6 +13,7 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  Database,
   ExternalLink,
   HelpCircle,
   KeyRound,
@@ -34,6 +35,15 @@ interface ProviderCfg {
 interface InpiCfg {
   username: string
   password: string
+}
+
+interface S3Cfg {
+  endpoint: string
+  access_key: string
+  secret_key: string
+  bucket: string
+  region: string
+  base_path: string
 }
 
 interface ApiKeysData {
@@ -291,6 +301,11 @@ export default function ConfigApiKeysPage() {
   const [inpiStatus, setInpiStatus] = useState<{ ok: boolean; msg: string } | null>(null)
   const [showInpiHelp, setShowInpiHelp] = useState(false)
 
+  // État local S3
+  const [s3, setS3] = useState<S3Cfg>({ endpoint: '', access_key: '', secret_key: '', bucket: '', region: '', base_path: '' })
+  const [s3Saving, setS3Saving] = useState(false)
+  const [s3Status, setS3Status] = useState<{ ok: boolean; msg: string } | null>(null)
+
   useEffect(() => {
     // isAdmin === null : fetchMe pas encore terminé → on attend
     if (isAdmin === null) return
@@ -313,6 +328,18 @@ export default function ConfigApiKeysPage() {
           setInpi({
             username: inpiData.username || '',
             password: '', // Le mot de passe est masqué côté serveur
+          })
+        }
+        // Charger la config S3 existante
+        const s3Data = d.api_keys?.s3
+        if (s3Data) {
+          setS3({
+            endpoint: s3Data.endpoint || '',
+            access_key: s3Data.access_key || '',
+            secret_key: '', // Le secret est masqué côté serveur
+            bucket: s3Data.bucket || '',
+            region: s3Data.region || '',
+            base_path: s3Data.base_path || '',
           })
         }
       })
@@ -353,6 +380,23 @@ export default function ConfigApiKeysPage() {
       setInpiStatus({ ok: false, msg: "Erreur lors de l'enregistrement" })
     } finally {
       setInpiSaving(false)
+    }
+  }
+
+  async function saveS3() {
+    if (!s3.endpoint || !s3.access_key || !s3.bucket) {
+      setS3Status({ ok: false, msg: 'Endpoint, Access Key et Bucket sont requis' })
+      return
+    }
+    setS3Saving(true)
+    setS3Status(null)
+    try {
+      await apiClient.put('/config/external-keys', { s3 })
+      setS3Status({ ok: true, msg: 'Configuration S3 enregistrée' })
+    } catch {
+      setS3Status({ ok: false, msg: "Erreur lors de l'enregistrement" })
+    } finally {
+      setS3Saving(false)
     }
   }
 
@@ -520,6 +564,91 @@ export default function ConfigApiKeysPage() {
                 Enregistrer
               </button>
               {inpiStatus && <StatusBadge ok={inpiStatus.ok} message={inpiStatus.msg} />}
+            </div>
+          </div>
+        </section>
+
+        {/* ── Section S3 — Stockage plateforme ────────────────────────────── */}
+        <section className="mb-10">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Database className="w-4 h-4 text-gray-500" />
+              <h2 className="text-base font-semibold text-gray-900">
+                Stockage S3 — Backup plateforme
+              </h2>
+            </div>
+            {!!(data?.api_keys?.s3?.endpoint) && (
+              <StatusBadge ok={true} message="Configuré" />
+            )}
+          </div>
+
+          <p className="text-sm text-gray-600 mb-4">
+            Le stockage S3 est utilisé pour sauvegarder <strong>tous les documents</strong> de la plateforme
+            (factures, devis, pièces jointes, RIB…). Compatible OVH Object Storage, AWS S3, Scaleway, Backblaze B2.
+          </p>
+
+          <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
+            <div>
+              <InputField
+                label="Endpoint URL *"
+                value={s3.endpoint}
+                onChange={(v) => setS3((prev) => ({ ...prev, endpoint: v }))}
+                placeholder="https://s3.gra.io.cloud.ovh.net"
+              />
+              <p className="text-[10px] text-gray-400 mt-0.5">URL du service S3 (OVH, AWS, Scaleway…)</p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <InputField
+                label="Access Key *"
+                value={s3.access_key}
+                onChange={(v) => setS3((prev) => ({ ...prev, access_key: v }))}
+                placeholder="AKIAIOSFODNN7EXAMPLE"
+              />
+              <InputField
+                label="Secret Key *"
+                value={s3.secret_key}
+                onChange={(v) => setS3((prev) => ({ ...prev, secret_key: v }))}
+                type="password"
+                placeholder="wJalrXUtnFEMI/K7MDENG..."
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <InputField
+                label="Bucket *"
+                value={s3.bucket}
+                onChange={(v) => setS3((prev) => ({ ...prev, bucket: v }))}
+                placeholder="kerpta-documents"
+              />
+              <InputField
+                label="Région"
+                value={s3.region}
+                onChange={(v) => setS3((prev) => ({ ...prev, region: v }))}
+                placeholder="gra (optionnel)"
+              />
+            </div>
+
+            <div>
+              <InputField
+                label="Chemin de base"
+                value={s3.base_path}
+                onChange={(v) => setS3((prev) => ({ ...prev, base_path: v }))}
+                placeholder="kerpta/ (optionnel)"
+              />
+              <p className="text-[10px] text-gray-400 mt-0.5">Préfixe des fichiers dans le bucket</p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={saveS3}
+                disabled={s3Saving}
+                className={`${BTN} px-5 py-2.5 rounded-xl`}
+              >
+                {s3Saving && <Loader2 className="w-4 h-4 animate-spin" />}
+                Enregistrer
+              </button>
+              {s3Status && <StatusBadge ok={s3Status.ok} message={s3Status.msg} />}
             </div>
           </div>
         </section>

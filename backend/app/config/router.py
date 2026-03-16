@@ -50,8 +50,18 @@ class InpiConfig(BaseModel):
     password: str = ""
 
 
+class S3Config(BaseModel):
+    endpoint: str = ""
+    access_key: str = ""
+    secret_key: str = ""
+    bucket: str = ""
+    region: str = ""
+    base_path: str = ""
+
+
 class ExternalKeysUpdateRequest(BaseModel):
     inpi: InpiConfig | None = None
+    s3: S3Config | None = None
 
 
 # ── GET /me — utilisateur courant ─────────────────────────────────────────────
@@ -150,7 +160,7 @@ async def get_api_keys(
             if isinstance(cfg, dict):
                 masked_cfg = {}
                 for k, v in cfg.items():
-                    if k in ("password", "secret", "api_key") and isinstance(v, str) and v:
+                    if k in ("password", "secret", "api_key", "secret_key") and isinstance(v, str) and v:
                         masked_cfg[k] = ("••••" + v[-4:]) if len(v) > 4 else "••••"
                     else:
                         masked_cfg[k] = v
@@ -234,6 +244,16 @@ async def update_external_keys(
         existing["inpi"] = {
             "username": body.inpi.username,
             "password": body.inpi.password,
+        }
+
+    if body.s3 is not None:
+        existing["s3"] = {
+            "endpoint": body.s3.endpoint,
+            "access_key": body.s3.access_key,
+            "secret_key": body.s3.secret_key,
+            "bucket": body.s3.bucket,
+            "region": body.s3.region,
+            "base_path": body.s3.base_path,
         }
 
     # UPSERT dans platform_config
