@@ -1,14 +1,14 @@
 {% extends "pdf/base.html" %}
 {% block style %}
 /* ═══════════════════════════════════════════════════════════════════
-   Style MINIMALISTE — Maximum d'espace, typographie fine
-   Inspiré Stripe Invoicing
+   Style MINIMALISTE - Maximum d'espace, typographie fine
+   Inspire Stripe Invoicing
    ═══════════════════════════════════════════════════════════════════ */
 
-/* En-tête */
-.header { margin-bottom: 28px; }
+/* En-tete */
+.header { margin-bottom: 28px; min-height: 110px; }
 .header-left { float: left; width: 50%; }
-.header-right { float: right; width: 45%; text-align: left; padding-top: 12px; }
+.header-right { float: right; width: 45%; text-align: left; padding-top: 35px; }
 .logo { max-height: 50px; max-width: 160px; margin-bottom: 12px; }
 .seller-name { font-size: 10pt; font-weight: 500; color: #333; margin-bottom: 4px; }
 .seller-address { font-size: 7.5pt; color: #999; line-height: 1.6; }
@@ -46,16 +46,19 @@
 .totals-total td { border-top: 1px solid #ccc; font-weight: 700; font-size: 11pt; color: #111; padding-top: 8px; }
 .totals-due td { font-weight: 700; color: #c0392b; }
 
+/* Conditions de reglement */
+.payment-conditions { font-size: 8pt; color: #555; font-weight: 500; margin-top: 6px; width: 280px; float: right; text-align: right; }
+
 /* Banque */
 .bank-section { font-size: 7.5pt; color: #aaa; font-family: 'Liberation Mono', 'Courier New', monospace; margin-bottom: 16px; clear: both; }
 
 /* Notes */
 .notes-text { font-size: 8pt; color: #777; line-height: 1.6; margin-bottom: 14px; white-space: pre-line; }
 
-/* Mentions légales */
+/* Mentions legales */
 .legal-footer { font-size: 7pt; color: #aaa; line-height: 1.5; margin-bottom: 14px; white-space: pre-line; }
 
-/* Pied de page émetteur */
+/* Pied de page emetteur */
 .page-footer {
   position: fixed; bottom: 0; left: 0; right: 0;
   text-align: center; font-size: 6.5pt; color: #bbb; line-height: 1.6;

@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react'
 import { Plus, Loader2, Pencil, Trash2, FileText, Sparkles, Minus, RefreshCw } from 'lucide-react'
 import { orgGet, orgPatch } from '@/lib/orgApi'
-import { INPUT, BTN_SM } from '@/lib/formStyles'
+import { INPUT, BTN_SM, TEXTAREA } from '@/lib/formStyles'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -190,7 +190,7 @@ function DocumentFooterSection() {
             value={footer}
             onChange={(e) => { setFooter(e.target.value); setDirty(true) }}
             rows={4}
-            className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-400 transition resize-y"
+            className={TEXTAREA}
           />
           {dirty && (
             <div className="flex justify-end">

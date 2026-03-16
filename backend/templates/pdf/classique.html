@@ -1,14 +1,14 @@
 {% extends "pdf/base.html" %}
 {% block style %}
 /* ═══════════════════════════════════════════════════════════════════
-   Style CLASSIQUE — Inspiré factures pro (Sage, Cegid)
-   Sobre, lisible, bordures légères
+   Style CLASSIQUE - Inspire factures pro (Sage, Cegid)
+   Sobre, lisible, bordures legeres
    ═══════════════════════════════════════════════════════════════════ */
 
-/* En-tête */
-.header { margin-bottom: 20px; }
+/* En-tete */
+.header { margin-bottom: 20px; min-height: 110px; }
 .header-left { float: left; width: 50%; }
-.header-right { float: right; width: 45%; text-align: left; padding-top: 8px; }
+.header-right { float: right; width: 45%; text-align: left; padding-top: 35px; }
 .logo { max-height: 65px; max-width: 200px; margin-bottom: 8px; }
 .seller-name { font-size: 10pt; font-weight: 700; color: #111; margin-bottom: 4px; }
 .seller-address { font-size: 8.5pt; color: #444; line-height: 1.5; }
@@ -46,16 +46,19 @@
 .totals-total td { border-top: 1px solid #333; font-weight: 700; font-size: 10.5pt; color: #111; padding-top: 6px; }
 .totals-due td { font-weight: 700; color: #c0392b; }
 
+/* Conditions de reglement */
+.payment-conditions { font-size: 8.5pt; color: #333; font-weight: 600; margin-top: 6px; width: 300px; float: right; text-align: right; }
+
 /* Banque */
 .bank-section { font-size: 8pt; color: #555; font-family: 'Liberation Mono', 'Courier New', monospace; margin-bottom: 14px; clear: both; }
 
 /* Notes */
 .notes-text { font-size: 8.5pt; color: #444; line-height: 1.5; margin-bottom: 12px; white-space: pre-line; }
 
-/* Mentions légales */
+/* Mentions legales */
 .legal-footer { font-size: 7.5pt; color: #666; line-height: 1.5; margin-bottom: 12px; white-space: pre-line; }
 
-/* Pied de page émetteur */
+/* Pied de page emetteur */
 .page-footer {
   position: fixed; bottom: 0; left: 0; right: 0;
   text-align: center; font-size: 7pt; color: #777; line-height: 1.6;

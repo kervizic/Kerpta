@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from weasyprint import HTML
 
 from app.services import storage as storage_svc
+from app.services import billing as billing_svc
 
 _log = logging.getLogger(__name__)
 
@@ -41,19 +42,25 @@ _jinja_env = Environment(
 )
 
 
-def _fmt_currency(value) -> str:
-    """Formate un montant en EUR avec 2 décimales et séparateur de milliers."""
+def _fmt_number(value, decimals: int = 2) -> str:
+    """Formate un nombre avec N décimales et séparateur de milliers."""
     try:
-        d = Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        quant = Decimal("1") / Decimal(10) ** decimals  # ex: 0.01 pour 2
+        d = Decimal(str(value)).quantize(quant, rounding=ROUND_HALF_UP)
         sign = "-" if d < 0 else ""
         d = abs(d)
-        integer_part = int(d)
-        decimal_part = str(d).split(".")[1] if "." in str(d) else "00"
-        # Séparateur de milliers
-        formatted = f"{integer_part:,}".replace(",", " ")
-        return f"{sign}{formatted},{decimal_part} €"
+        parts = str(d).split(".")
+        integer_part = int(parts[0])
+        decimal_part = parts[1] if len(parts) > 1 else "0" * decimals
+        formatted = f"{integer_part:,}".replace(",", "\u202f")  # espace fine insécable
+        return f"{sign}{formatted},{decimal_part}"
     except Exception:
-        return f"{value} €"
+        return str(value)
+
+
+def _fmt_currency(value) -> str:
+    """Formate un montant en EUR avec 2 décimales et séparateur de milliers."""
+    return f"{_fmt_number(value, 2)}\u00a0€"
 
 
 _jinja_env.filters["fmt_currency"] = _fmt_currency
@@ -61,16 +68,7 @@ _jinja_env.filters["fmt_currency"] = _fmt_currency
 
 def _fmt_currency_num(value) -> str:
     """Formate un montant sans le symbole € (pour les colonnes prix unitaire)."""
-    try:
-        d = Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-        sign = "-" if d < 0 else ""
-        d = abs(d)
-        integer_part = int(d)
-        decimal_part = str(d).split(".")[1] if "." in str(d) else "00"
-        formatted = f"{integer_part:,}".replace(",", " ")
-        return f"{sign}{formatted},{decimal_part}"
-    except Exception:
-        return str(value)
+    return _fmt_number(value, 2)
 
 
 _jinja_env.filters["fmt_currency_num"] = _fmt_currency_num
@@ -104,7 +102,7 @@ async def _get_org_info(org_id: uuid.UUID, db: AsyncSession) -> dict:
     result = await db.execute(
         text("""
             SELECT name, siret, siren, vat_number, address, legal_form,
-                   rcs_city, capital, ape_code, email, phone
+                   rcs_city, capital, ape_code, email, phone, website
             FROM organizations WHERE id = :org_id
         """),
         {"org_id": str(org_id)},
@@ -124,7 +122,38 @@ async def _get_org_info(org_id: uuid.UUID, db: AsyncSession) -> dict:
         "ape_code": row[8],
         "email": row[9],
         "phone": row[10],
+        "website": row[11],
     }
+
+
+async def _get_default_payment_note(org_id: uuid.UUID, db: AsyncSession) -> str:
+    """Récupère la note de règlement du profil de facturation par défaut."""
+    result = await db.execute(
+        text("""
+            SELECT payment_note FROM billing_profiles
+            WHERE organization_id = :org_id AND is_default = true
+            LIMIT 1
+        """),
+        {"org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    return row[0] if row and row[0] else ""
+
+
+async def _get_rounding_config(org_id: uuid.UUID, db: AsyncSession) -> dict:
+    """Récupère la config des arrondis pour le formatage PDF."""
+    return await billing_svc.get_rounding(org_id, db)
+
+
+def _format_lines(lines: list[dict], rounding: dict) -> list[dict]:
+    """Pré-formate les valeurs des lignes selon la config d'arrondi."""
+    qty_dec = rounding.get("quantity_display", 2)
+    price_dec = rounding.get("unit_price_display", 2)
+    for line in lines:
+        line["quantity_fmt"] = _fmt_number(line.get("quantity", 0), qty_dec)
+        line["unit_price_fmt"] = f"{_fmt_number(line.get('unit_price', 0), price_dec)}\u00a0€"
+        line["total_ht_fmt"] = _fmt_currency(line.get("total_ht", 0))
+    return lines
 
 
 async def _get_org_logo(org_id: uuid.UUID, db: AsyncSession) -> tuple[str | None, str | None]:
@@ -324,11 +353,14 @@ async def generate_invoice_pdf(
     else:
         client = await _get_client_info(inv["client_id"], org_id, db)
 
-    # Logo
+    # Logo + colonnes (per doc type pour factures)
     logo_b64, logo_mime = await _get_org_logo(org_id, db)
+    doc_type_key = "avoir" if inv["is_credit_note"] else "facture"
+    columns, show_logo, show_company_name = await _get_document_columns(org_id, db, doc_type_key)
 
-    # Colonnes
-    columns, _show_logo, _show_company = await _get_document_columns(org_id, db)
+    # Rounding + formatage des lignes
+    rounding = await _get_rounding_config(org_id, db)
+    lines = _format_lines(lines, rounding)
 
     # Ventilation TVA
     vat_breakdown = _compute_vat_breakdown(lines)
@@ -368,6 +400,9 @@ async def generate_invoice_pdf(
     # Footer : priorité au footer du document, sinon footer org
     footer = inv.get("footer") or org_footer
 
+    # Note de règlement depuis le profil de facturation par défaut
+    payment_note = await _get_default_payment_note(org_id, db)
+
     context = {
         "title": f"{doc_type_label} {doc_number}",
         "doc_type_label": doc_type_label,
@@ -379,9 +414,9 @@ async def generate_invoice_pdf(
         "seller": seller,
         "client": client,
         "client_label": "Destinataire",
-        "logo_b64": logo_b64,
-        "logo_mime": logo_mime,
-        "show_company_name": True,
+        "logo_b64": logo_b64 if show_logo else None,
+        "logo_mime": logo_mime if show_logo else None,
+        "show_company_name": show_company_name,
         "columns": columns,
         "lines": lines,
         "subtotal_ht": str(inv["subtotal_ht"]),
@@ -396,6 +431,7 @@ async def generate_invoice_pdf(
         "bank_details": bank_details,
         "notes": inv.get("notes"),
         "footer": footer,
+        "payment_note": payment_note,
     }
 
     pdf_bytes = _render_pdf(template_name, context)
@@ -485,13 +521,17 @@ async def generate_quote_pdf(
     if quote["client_id"]:
         client = await _get_client_info(quote["client_id"], org_id, db)
     else:
-        client = {"name": quote.get("client_name") or "—"}
+        client = {"name": quote.get("client_name") or "-"}
 
     # Logo
     logo_b64, logo_mime = await _get_org_logo(org_id, db)
 
     # Colonnes + options d'en-tête (per document type)
     columns, show_logo, show_company_name = await _get_document_columns(org_id, db, doc_type_raw)
+
+    # Rounding + formatage des lignes
+    rounding = await _get_rounding_config(org_id, db)
+    lines = _format_lines(lines, rounding)
 
     # Ventilation TVA
     vat_breakdown = _compute_vat_breakdown(lines)
@@ -517,6 +557,9 @@ async def generate_quote_pdf(
 
     # Footer : priorité au footer du document, sinon footer org
     footer = quote.get("footer") or org_footer
+
+    # Note de règlement depuis le profil de facturation par défaut
+    payment_note = await _get_default_payment_note(org_id, db)
 
     context = {
         "title": f"{doc_type_label} {doc_number}",
@@ -546,6 +589,7 @@ async def generate_quote_pdf(
         "bank_details": None,
         "notes": quote.get("notes"),
         "footer": footer,
+        "payment_note": payment_note,
     }
 
     pdf_bytes = _render_pdf(template_name, context)

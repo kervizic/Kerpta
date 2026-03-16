@@ -31,7 +31,7 @@ table { border-collapse: collapse; width: 100%; }
 <body>
 
 {% block content %}
-<!-- ── En-tête : émetteur à gauche ──────────────────────────────── -->
+<!-- ── En-tete : emetteur a gauche ──────────────────────────────── -->
 <div class="header clearfix">
   <div class="header-left">
     {% if logo_b64 %}
@@ -56,7 +56,7 @@ table { border-collapse: collapse; width: 100%; }
       {% if client.address.street %}{{ client.address.street }}<br>{% endif %}
       {% if client.address.zip %}{{ client.address.zip }}{% endif %}
       {% if client.address.city %} {{ client.address.city }}{% endif %}
-      {% if client.address.country and client.address.country != 'France' %}<br>{{ client.address.country }}{% endif %}
+      {% if client.address.country %}<br>{{ client.address.country }}{% endif %}
     </div>
     {% endif %}
     {% if client.siret %}<div class="client-detail">SIRET : {{ client.siret }}</div>{% endif %}
@@ -74,13 +74,13 @@ table { border-collapse: collapse; width: 100%; }
   </div>
   {% if due_date %}
   <div class="date-item">
-    <span class="date-label">Date d'échéance :</span><br>
+    <span class="date-label">Date d'echeance :</span><br>
     <span class="date-value">{{ due_date }}</span>
   </div>
   {% endif %}
   {% if customer_reference %}
   <div class="date-item">
-    <span class="date-label">Réf. client :</span><br>
+    <span class="date-label">Ref. client :</span><br>
     <span class="date-value">{{ customer_reference }}</span>
   </div>
   {% endif %}
@@ -96,9 +96,9 @@ table { border-collapse: collapse; width: 100%; }
 <table class="lines-table">
   <thead>
     <tr>
-      {% if columns.reference %}<th class="col-desc">Réf.</th>{% endif %}
-      <th class="col-desc">Désignation</th>
-      {% if columns.quantity %}<th class="col-num">Quantité</th>{% endif %}
+      {% if columns.reference %}<th class="col-desc">Ref.</th>{% endif %}
+      <th class="col-desc">Designation</th>
+      {% if columns.quantity %}<th class="col-num">Quantite</th>{% endif %}
       {% if columns.unit_price %}<th class="col-num">Prix unitaire</th>{% endif %}
       {% if columns.vat_rate %}<th class="col-num">TVA</th>{% endif %}
       {% if columns.discount_percent %}<th class="col-num">Rem.</th>{% endif %}
@@ -110,22 +110,19 @@ table { border-collapse: collapse; width: 100%; }
     <tr>
       {% if columns.reference %}<td class="col-desc">{% if line.reference %}[{{ line.reference }}]{% endif %}</td>{% endif %}
       <td class="col-desc">{% if not columns.reference and line.reference %}[{{ line.reference }}] {% endif %}{{ line.description or '' }}</td>
-      {% if columns.quantity %}<td class="col-num">{{ line.quantity }}{% if columns.unit and line.unit %} {{ line.unit }}{% endif %}</td>{% endif %}
-      {% if columns.unit_price %}<td class="col-num">{{ line.unit_price|fmt_currency }}</td>{% endif %}
+      {% if columns.quantity %}<td class="col-num">{{ line.quantity_fmt }}{% if columns.unit and line.unit %} {{ line.unit }}{% endif %}</td>{% endif %}
+      {% if columns.unit_price %}<td class="col-num">{{ line.unit_price_fmt }}</td>{% endif %}
       {% if columns.vat_rate %}<td class="col-num">{{ line.vat_rate }}%</td>{% endif %}
       {% if columns.discount_percent %}<td class="col-num">{% if line.discount_percent and line.discount_percent != '0' and line.discount_percent != '0.00' %}{{ line.discount_percent }}%{% endif %}</td>{% endif %}
-      {% if columns.total_ht %}<td class="col-num col-last">{{ line.total_ht|fmt_currency }}</td>{% endif %}
+      {% if columns.total_ht %}<td class="col-num col-last">{{ line.total_ht_fmt }}</td>{% endif %}
     </tr>
     {% endfor %}
   </tbody>
 </table>
 
-<!-- ── Totaux ────────────────────────────────────────────────────── -->
+<!-- ── Totaux + conditions de reglement ──────────────────────────── -->
 <div class="totals-wrapper clearfix">
   <table class="totals-table">
-    {% if payment_method %}
-    <tr><td class="totals-label">Condition de règlement : {{ payment_method }}</td><td class="totals-value"></td></tr>
-    {% endif %}
     <tr class="totals-row"><td class="totals-label">Sous-total</td><td class="totals-value">{{ subtotal_ht|fmt_currency }}</td></tr>
     {% if discount_label %}
     <tr class="totals-row"><td class="totals-label">Remise {{ discount_label }}</td><td class="totals-value">-{{ discount_amount|fmt_currency }}</td></tr>
@@ -135,44 +132,55 @@ table { border-collapse: collapse; width: 100%; }
     {% endfor %}
     <tr class="totals-total"><td class="totals-label">Total</td><td class="totals-value">{{ total_ttc|fmt_currency }}</td></tr>
     {% if amount_paid and amount_paid != '0' and amount_paid != '0.00' %}
-    <tr class="totals-row"><td class="totals-label">Déjà réglé</td><td class="totals-value">{{ amount_paid|fmt_currency }}</td></tr>
-    <tr class="totals-due"><td class="totals-label">Reste à payer</td><td class="totals-value">{{ remaining|fmt_currency }}</td></tr>
+    <tr class="totals-row"><td class="totals-label">Deja regle</td><td class="totals-value">{{ amount_paid|fmt_currency }}</td></tr>
+    <tr class="totals-due"><td class="totals-label">Reste a payer</td><td class="totals-value">{{ remaining|fmt_currency }}</td></tr>
     {% endif %}
   </table>
+  {% if payment_method %}
+  <div class="payment-conditions">Condition de reglement : {{ payment_method }}</div>
+  {% endif %}
 </div>
 
-<!-- ── Coordonnées bancaires ────────────────────────────────────── -->
+<!-- ── Coordonnees bancaires ────────────────────────────────────── -->
 {% if bank_details %}
 <div class="bank-section">
   {% if bank_details.iban %}IBAN : {{ bank_details.iban }}{% endif %}
-  {% if bank_details.bic %} — BIC : {{ bank_details.bic }}{% endif %}
+  {% if bank_details.bic %} - BIC : {{ bank_details.bic }}{% endif %}
 </div>
 {% endif %}
 
-<!-- ── Notes / Mentions légales ──────────────────────────────────── -->
-{% if notes %}
-<div class="notes-text">{{ notes }}</div>
-{% endif %}
-
+<!-- ── Mentions legales (footer du document) ──────────────────────── -->
 {% if footer %}
 <div class="legal-footer">{{ footer }}</div>
 {% endif %}
 
-<!-- ── Pied de page : coordonnées émetteur ──────────────────────── -->
+<!-- ── Note de reglement ──────────────────────────────────────────── -->
+{% if payment_note %}
+<div class="notes-text">{{ payment_note }}</div>
+{% endif %}
+
+<!-- ── Notes ──────────────────────────────────────────────────────── -->
+{% if notes %}
+<div class="notes-text">{{ notes }}</div>
+{% endif %}
+
+<!-- ── Pied de page : coordonnees emetteur ──────────────────────── -->
 <div class="page-footer">
-  {% if seller.phone or seller.email %}
+  {% if seller.phone or seller.email or seller.website %}
   <div class="footer-line">
-    {% if seller.phone %}Téléphone : {{ seller.phone }}{% endif %}
+    {% if seller.phone %}Telephone : {{ seller.phone }}{% endif %}
     {% if seller.phone and seller.email %} &nbsp;&middot;&nbsp; {% endif %}
     {% if seller.email %}Courriel : {{ seller.email }}{% endif %}
+    {% if seller.website %} &nbsp;&middot;&nbsp; Web : {{ seller.website }}{% endif %}
+    {% if seller.vat_number %} &nbsp;&middot;&nbsp; TVA : {{ seller.vat_number }}{% endif %}
   </div>
   {% endif %}
   <div class="footer-line">
     {% if seller.legal_form %}{{ seller.legal_form }}{% endif %}
     {% if seller.capital %} au capital de {{ seller.capital }} €{% endif %}
-    {% if seller.siren %} — SIREN : {{ seller.siren }}{% endif %}
+    {% if seller.siren %} - SIREN : {{ seller.siren }}{% endif %}
     {% if seller.rcs_city %} R.C.S {{ seller.rcs_city }}{% endif %}
-    {% if seller.vat_number %} — TVA : {{ seller.vat_number }}{% endif %}
+    {% if not seller.phone and seller.vat_number %} - TVA : {{ seller.vat_number }}{% endif %}
   </div>
 </div>
 {% endblock %}

@@ -9,7 +9,7 @@ import ModalOverlay from '@/components/app/ModalOverlay'
 import { apiClient } from '@/lib/api'
 import { useAuthStore } from '@/stores/authStore'
 
-import { INPUT, SELECT, BTN } from '@/lib/formStyles'
+import { INPUT, SELECT, BTN, TEXTAREA } from '@/lib/formStyles'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -116,7 +116,6 @@ export default function BillingProfileModal({ profile, onClose, onSaved }: Props
   const [paymentNote, setPaymentNote] = useState('')
   const [legalMentionsAuto, setLegalMentionsAuto] = useState(true)
   const [legalMentions, setLegalMentions] = useState('')
-  const [footer, setFooter] = useState('')
   const [isDefault, setIsDefault] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -159,7 +158,6 @@ export default function BillingProfileModal({ profile, onClose, onSaved }: Props
       setPaymentNote(profile.payment_note || '')
       setLegalMentionsAuto(profile.legal_mentions_auto ?? true)
       setLegalMentions(profile.legal_mentions || '')
-      setFooter(profile.footer || '')
       setIsDefault(profile.is_default)
     }
   }, [profile, activeOrgId])
@@ -197,7 +195,6 @@ export default function BillingProfileModal({ profile, onClose, onSaved }: Props
       payment_note: paymentNote || null,
       legal_mentions_auto: legalMentionsAuto,
       legal_mentions: legalMentionsAuto ? autoText : (legalMentions || null),
-      footer: footer || null,
       is_default: isDefault,
     }
     try {
@@ -345,7 +342,7 @@ export default function BillingProfileModal({ profile, onClose, onSaved }: Props
                       value={legalMentions}
                       onChange={(e) => setLegalMentions(e.target.value)}
                       rows={6}
-                      className={INPUT}
+                      className={TEXTAREA}
                       placeholder="Saisissez vos mentions légales personnalisées..."
                     />
                   </>
@@ -355,13 +352,7 @@ export default function BillingProfileModal({ profile, onClose, onSaved }: Props
               {/* Note de règlement */}
               <div>
                 <label className="text-xs text-gray-500 mb-1 block">Note de règlement (ex: affacturage, coordonnées factor...)</label>
-                <textarea value={paymentNote} onChange={(e) => setPaymentNote(e.target.value)} rows={4} className={INPUT} placeholder="Pour être libératoire, votre règlement doit être effectué à l'ordre de..." />
-              </div>
-
-              {/* Pied de page */}
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">Pied de page personnalisé</label>
-                <textarea value={footer} onChange={(e) => setFooter(e.target.value)} rows={4} className={INPUT} placeholder="Texte libre en bas du document" />
+                <textarea value={paymentNote} onChange={(e) => setPaymentNote(e.target.value)} rows={5} className={TEXTAREA} placeholder="Pour être libératoire, votre règlement doit être effectué à l'ordre de..." />
               </div>
 
               {/* Options */}

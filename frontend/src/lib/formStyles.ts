@@ -60,6 +60,9 @@ export const LABEL = 'block text-xs font-semibold text-gray-600 dark:text-gray-4
 
 // ─── Badges ───────────────────────────────────────────────────────────────
 
+/** Textarea multi-lignes (notes, mentions legales, pied de page) */
+export const TEXTAREA = 'w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-400 transition resize-y'
+
 /** Badge compteur (notification, filtre actif) */
 export const BADGE_COUNT = 'bg-kerpta text-white text-[9px] font-bold rounded-full flex items-center justify-center'
 
