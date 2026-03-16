@@ -55,6 +55,7 @@ interface InvoiceDetail extends Invoice {
   purchase_order_number: string | null
   notes: string | null
   footer: string | null
+  bank_details: { iban?: string; bic?: string; bank_name?: string } | null
   lines: InvoiceLineDetail[]
 }
 
@@ -77,6 +78,7 @@ interface BillingProfile {
   id: string; name: string; is_default: boolean
   payment_terms: number | null; payment_method: string | null
   footer: string | null
+  bank_account_iban: string | null; bank_account_bic: string | null; bank_account_bank_name: string | null
 }
 
 // ── Types ligne formulaire ────────────────────────────────────────────────
@@ -724,6 +726,7 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
   const [purchaseOrderNumber, setPurchaseOrderNumber] = useState('')
   const [notes, setNotes] = useState('')
   const [footer, setFooter] = useState('')
+  const [bankDetails, setBankDetails] = useState<{ iban?: string; bic?: string; bank_name?: string } | null>(null)
   const [lines, setLines] = useState<FormLine[]>([emptyLine()])
 
   // Données de référence
@@ -784,6 +787,16 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
       setPaymentTerms(profile.payment_terms)
       setDueDate(addDays(issueDate, profile.payment_terms))
     }
+    // Cascade RIB depuis le profil
+    if (profile.bank_account_iban) {
+      setBankDetails({
+        iban: profile.bank_account_iban,
+        bic: profile.bank_account_bic || undefined,
+        bank_name: profile.bank_account_bank_name || undefined,
+      })
+    } else {
+      setBankDetails(null)
+    }
   }
 
   // Charger la facture si édition
@@ -805,6 +818,7 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
         setPurchaseOrderNumber(inv.purchase_order_number || '')
         setNotes(inv.notes || '')
         setFooter(inv.footer || '')
+        setBankDetails(inv.bank_details || null)
         setLines(
           inv.lines.length > 0
             ? inv.lines.map((l) => ({
@@ -936,6 +950,7 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
       discount_value: parseFloat(discountValue) || 0,
       notes: notes || null,
       footer: footer || null,
+      bank_details: bankDetails || null,
       lines: updatedLines.map((l, i) => ({
         product_id: l.product_id,
         position: i,

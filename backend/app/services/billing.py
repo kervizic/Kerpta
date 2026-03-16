@@ -789,6 +789,7 @@ async def list_billing_profiles(org_id: uuid.UUID, db: AsyncSession) -> list[dic
         text("""
             SELECT bp.id::text, bp.name, bp.bank_account_id::text,
                    ba.label AS bank_account_label, ba.iban AS bank_account_iban,
+                   ba.bic AS bank_account_bic, ba.bank_name AS bank_account_bank_name,
                    bp.payment_terms, bp.payment_term_type, bp.payment_term_day,
                    bp.payment_method,
                    bp.late_penalty_rate, bp.discount_rate,
