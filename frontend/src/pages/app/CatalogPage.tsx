@@ -339,7 +339,7 @@ function NewProductModal({ onClose, onCreated }: { onClose: () => void; onCreate
 
 // ── D&eacute;tail article ──────────────────────────────────────────────────────────
 
-function ProductDetailModal({ productId, onClose }: { productId: string; onClose: () => void }) {
+export function ProductDetailModal({ productId, onClose }: { productId: string; onClose: () => void }) {
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'variants' | 'purchases' | 'discounts'>('variants')

@@ -14,6 +14,7 @@ import ClientCombobox from '@/components/app/ClientCombobox'
 import BillingProfileModal, { type BillingProfileData } from '@/components/app/BillingProfileModal'
 import ClientPanel from '@/components/app/ClientPanel'
 import { CreateClientForm } from '@/pages/app/ClientsPage'
+import { ProductDetailModal } from '@/pages/app/CatalogPage'
 import DatePicker from '@/components/app/DatePicker'
 import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
 import MobileFilterPanel from '@/components/app/MobileFilterPanel'
@@ -744,6 +745,7 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
   const [profileModal, setProfileModal] = useState<BillingProfileData | 'new' | null>(null)
   const [clientPanelId, setClientPanelId] = useState<string | null>(null)
   const [showNewClient, setShowNewClient] = useState(false)
+  const [editProductId, setEditProductId] = useState<string | null>(null)
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodOption[]>([])
   const [docColumns, setDocColumns] = useState({
     reference: true, description: true, quantity: true, unit: true,
@@ -1232,6 +1234,11 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
                         <td className="px-1 py-1.5">
                           <div className="flex gap-0.5">
                             {line.product_id && (
+                              <button onClick={() => setEditProductId(line.product_id)} className="p-1 rounded hover:bg-kerpta-50 dark:hover:bg-kerpta-900/30 transition" title="Modifier l'article">
+                                <Pencil className="w-3.5 h-3.5 text-gray-400 hover:text-kerpta-600" />
+                              </button>
+                            )}
+                            {line.product_id && (
                               <button onClick={() => refreshLine(i)} className="p-1 rounded hover:bg-blue-50 transition" title="Actualiser depuis le catalogue">
                                 <RefreshCw className="w-3.5 h-3.5 text-gray-400 hover:text-blue-500" />
                               </button>
@@ -1320,6 +1327,11 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
                     <span className="text-sm font-semibold text-gray-900 dark:text-white">{fmtCurrency(lineHT)}</span>
                     {!isValidated && (
                       <div className="flex items-center gap-1 ml-auto">
+                        {line.product_id && (
+                          <button onClick={() => setEditProductId(line.product_id)} className="p-1.5 rounded hover:bg-kerpta-50 dark:hover:bg-kerpta-900/30 transition">
+                            <Pencil className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                          </button>
+                        )}
                         {line.product_id && (
                           <button onClick={() => refreshLine(i)} className="p-1.5 rounded hover:bg-blue-50 transition">
                             <RefreshCw className="w-4 h-4 text-gray-400 dark:text-gray-500" />
@@ -1485,6 +1497,14 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
                 .then((data) => setClients(data.items))
                 .catch(() => {})
             }}
+          />
+        )}
+
+        {/* Modale détail article */}
+        {editProductId && (
+          <ProductDetailModal
+            productId={editProductId}
+            onClose={() => setEditProductId(null)}
           />
         )}
     </>

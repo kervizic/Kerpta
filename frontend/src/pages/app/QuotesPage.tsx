@@ -15,6 +15,7 @@ import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/comp
 import MobileFilterPanel from '@/components/app/MobileFilterPanel'
 import ClientPanel from '@/components/app/ClientPanel'
 import { CreateClientForm } from '@/pages/app/ClientsPage'
+import { ProductDetailModal } from '@/pages/app/CatalogPage'
 import { INPUT, SELECT, LINE_INPUT, LINE_SELECT, BTN, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER, BADGE_COUNT, CARD } from '@/lib/formStyles'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -683,6 +684,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
   const [saving, setSaving] = useState(false)
   const [clientPanelId, setClientPanelId] = useState<string | null>(null)
   const [showNewClient, setShowNewClient] = useState(false)
+  const [editProductId, setEditProductId] = useState<string | null>(null)
 
   // Colonnes effectives = colonnes globales ∩ colonnes du type de document sélectionné
   const activeColumns = useMemo(() => {
@@ -1086,6 +1088,11 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
                       <td className="px-1">
                         <div className="h-[30px] flex items-center gap-0.5">
                           {line.product_id && (
+                            <button onClick={() => setEditProductId(line.product_id)} className="p-1 rounded hover:bg-kerpta-50 dark:hover:bg-kerpta-900/30 transition" title="Modifier l'article">
+                              <Pencil className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 hover:text-kerpta-600" />
+                            </button>
+                          )}
+                          {line.product_id && (
                             <button onClick={() => refreshLine(i)} className="p-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30 transition" title="Actualiser depuis le catalogue">
                               <RefreshCw className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 hover:text-blue-500" />
                             </button>
@@ -1174,6 +1181,11 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
                       <span className="text-sm font-semibold text-gray-900 dark:text-white">{fmtCurrency(lineHT)}</span>
                     )}
                     <div className="flex items-center gap-1 ml-auto">
+                      {line.product_id && (
+                        <button onClick={() => setEditProductId(line.product_id)} className="p-1.5 rounded hover:bg-kerpta-50 dark:hover:bg-kerpta-900/30 transition">
+                          <Pencil className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                        </button>
+                      )}
                       {line.product_id && (
                         <button onClick={() => refreshLine(i)} className="p-1.5 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30 transition">
                           <RefreshCw className="w-4 h-4 text-gray-400 dark:text-gray-500" />
@@ -1316,6 +1328,14 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
               setShowNewClient(false)
               setClientId(id)
             }}
+          />
+        )}
+
+        {/* Modale détail article */}
+        {editProductId && (
+          <ProductDetailModal
+            productId={editProductId}
+            onClose={() => setEditProductId(null)}
           />
         )}
     </>
