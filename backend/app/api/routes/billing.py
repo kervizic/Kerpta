@@ -64,6 +64,26 @@ async def update_document_columns(
     return await svc.update_document_columns(ctx.org_id, data, db)
 
 
+# ── Pied de page document ──────────────────────────────────────────────────
+
+
+@router.get("/document-footer")
+async def get_document_footer(
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await svc.get_document_footer(ctx.org_id, db)
+
+
+@router.patch("/document-footer")
+async def update_document_footer(
+    data: dict,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await svc.update_document_footer(ctx.org_id, data.get("footer", ""), db)
+
+
 # ── Taux de TVA ────────────────────────────────────────────────────────────
 
 

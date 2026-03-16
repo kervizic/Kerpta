@@ -59,21 +59,44 @@ def _fmt_currency(value) -> str:
 _jinja_env.filters["fmt_currency"] = _fmt_currency
 
 
+def _fmt_currency_num(value) -> str:
+    """Formate un montant sans le symbole € (pour les colonnes prix unitaire)."""
+    try:
+        d = Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        sign = "-" if d < 0 else ""
+        d = abs(d)
+        integer_part = int(d)
+        decimal_part = str(d).split(".")[1] if "." in str(d) else "00"
+        formatted = f"{integer_part:,}".replace(",", " ")
+        return f"{sign}{formatted},{decimal_part}"
+    except Exception:
+        return str(value)
+
+
+_jinja_env.filters["fmt_currency_num"] = _fmt_currency_num
+
+
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 
-async def _get_print_style(org_id: uuid.UUID, db: AsyncSession) -> str:
-    """Récupère le style d'impression configuré pour l'organisation."""
+async def _get_print_config(org_id: uuid.UUID, db: AsyncSession) -> tuple[str, str]:
+    """Récupère le style d'impression et le pied de page de l'organisation.
+
+    Returns:
+        (style, document_footer)
+    """
     result = await db.execute(
         text("SELECT module_config FROM organizations WHERE id = :org_id"),
         {"org_id": str(org_id)},
     )
     row = result.fetchone()
     if not row or not row[0]:
-        return DEFAULT_STYLE
+        return DEFAULT_STYLE, ""
     config = row[0] if isinstance(row[0], dict) else {}
     style = config.get("print_style", DEFAULT_STYLE)
-    return style if style in VALID_STYLES else DEFAULT_STYLE
+    style = style if style in VALID_STYLES else DEFAULT_STYLE
+    footer = config.get("document_footer", "")
+    return style, footer
 
 
 async def _get_org_info(org_id: uuid.UUID, db: AsyncSession) -> dict:
@@ -155,21 +178,45 @@ async def _get_client_info(client_id: str, org_id: uuid.UUID, db: AsyncSession) 
     }
 
 
-async def _get_document_columns(org_id: uuid.UUID, db: AsyncSession) -> dict:
-    """Récupère la config des colonnes du document."""
+async def _get_document_columns(
+    org_id: uuid.UUID,
+    db: AsyncSession,
+    document_type: str | None = None,
+) -> tuple[dict, bool, bool]:
+    """Récupère la config des colonnes du document + options d'en-tête.
+
+    Si *document_type* est fourni, cherche dans les types de documents
+    configurés par l'organisation (``quote_document_types``).
+    Sinon, utilise la config globale ``document_columns``.
+
+    Returns:
+        (columns_dict, show_logo, show_company_name)
+    """
     result = await db.execute(
         text("SELECT module_config FROM organizations WHERE id = :org_id"),
         {"org_id": str(org_id)},
     )
     row = result.fetchone()
-    default = {
+    default_cols = {
         "reference": True, "description": True, "quantity": True, "unit": True,
         "unit_price": True, "vat_rate": True, "discount_percent": True, "total_ht": True,
     }
     if not row or not row[0]:
-        return default
+        return default_cols, True, True
+
     config = row[0] if isinstance(row[0], dict) else {}
-    return config.get("document_columns", default)
+
+    # Chercher dans les types de documents si un type est spécifié
+    if document_type:
+        doc_types = config.get("quote_document_types", [])
+        for dt in doc_types:
+            if dt.get("key") == document_type:
+                cols = dt.get("columns", default_cols)
+                show_logo = dt.get("show_logo", True)
+                show_company_name = dt.get("show_company_name", True)
+                return cols, show_logo, show_company_name
+
+    return config.get("document_columns", default_cols), True, True
 
 
 def _compute_vat_breakdown(lines: list[dict]) -> list[dict]:
@@ -281,7 +328,7 @@ async def generate_invoice_pdf(
     logo_b64, logo_mime = await _get_org_logo(org_id, db)
 
     # Colonnes
-    columns = await _get_document_columns(org_id, db)
+    columns, _show_logo, _show_company = await _get_document_columns(org_id, db)
 
     # Ventilation TVA
     vat_breakdown = _compute_vat_breakdown(lines)
@@ -314,9 +361,12 @@ async def generate_invoice_pdf(
         except Exception:
             bank_details = None
 
-    # Style
-    style = await _get_print_style(org_id, db)
+    # Style + pied de page org
+    style, org_footer = await _get_print_config(org_id, db)
     template_name = f"pdf/{style}.html"
+
+    # Footer : priorité au footer du document, sinon footer org
+    footer = inv.get("footer") or org_footer
 
     context = {
         "title": f"{doc_type_label} {doc_number}",
@@ -331,6 +381,7 @@ async def generate_invoice_pdf(
         "client_label": "Destinataire",
         "logo_b64": logo_b64,
         "logo_mime": logo_mime,
+        "show_company_name": True,
         "columns": columns,
         "lines": lines,
         "subtotal_ht": str(inv["subtotal_ht"]),
@@ -344,8 +395,7 @@ async def generate_invoice_pdf(
         "payment_method": inv.get("payment_method"),
         "bank_details": bank_details,
         "notes": inv.get("notes"),
-        "footer": inv.get("footer"),
-        "accent_color": ACCENT_COLOR,
+        "footer": footer,
     }
 
     pdf_bytes = _render_pdf(template_name, context)
@@ -440,8 +490,8 @@ async def generate_quote_pdf(
     # Logo
     logo_b64, logo_mime = await _get_org_logo(org_id, db)
 
-    # Colonnes
-    columns = await _get_document_columns(org_id, db)
+    # Colonnes + options d'en-tête (per document type)
+    columns, show_logo, show_company_name = await _get_document_columns(org_id, db, doc_type_raw)
 
     # Ventilation TVA
     vat_breakdown = _compute_vat_breakdown(lines)
@@ -461,9 +511,12 @@ async def generate_quote_pdf(
             else Decimal(str(quote["discount_value"])).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         )
 
-    # Style
-    style = await _get_print_style(org_id, db)
+    # Style + pied de page org
+    style, org_footer = await _get_print_config(org_id, db)
     template_name = f"pdf/{style}.html"
+
+    # Footer : priorité au footer du document, sinon footer org
+    footer = quote.get("footer") or org_footer
 
     context = {
         "title": f"{doc_type_label} {doc_number}",
@@ -476,8 +529,9 @@ async def generate_quote_pdf(
         "seller": seller,
         "client": client,
         "client_label": "Destinataire",
-        "logo_b64": logo_b64,
-        "logo_mime": logo_mime,
+        "logo_b64": logo_b64 if show_logo else None,
+        "logo_mime": logo_mime if show_logo else None,
+        "show_company_name": show_company_name,
         "columns": columns,
         "lines": lines,
         "subtotal_ht": str(quote["subtotal_ht"]),
@@ -491,8 +545,7 @@ async def generate_quote_pdf(
         "payment_method": None,
         "bank_details": None,
         "notes": quote.get("notes"),
-        "footer": quote.get("footer"),
-        "accent_color": ACCENT_COLOR,
+        "footer": footer,
     }
 
     pdf_bytes = _render_pdf(template_name, context)

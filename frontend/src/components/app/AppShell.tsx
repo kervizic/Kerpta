@@ -18,6 +18,7 @@ const ContractsPage = lazy(() => import('@/pages/app/ContractsPage'))
 const InvoicesPage = lazy(() => import('@/pages/app/InvoicesPage'))
 const ModulesPage = lazy(() => import('@/pages/app/ModulesPage'))
 const InvoiceSettingsPage = lazy(() => import('@/pages/app/InvoiceSettingsPage'))
+const DocumentSettingsPage = lazy(() => import('@/pages/app/DocumentSettingsPage'))
 const StorageSettingsPage = lazy(() => import('@/pages/app/StorageSettingsPage'))
 
 interface AppShellProps {
@@ -150,6 +151,8 @@ export default function AppShell({ path }: AppShellProps) {
               <ConfigApiKeysPage key={activeOrgId} />
             ) : path === '/app/config/stockage' ? (
               <StorageSettingsPage key={activeOrgId} />
+            ) : path === '/app/config/documents' ? (
+              <DocumentSettingsPage key={activeOrgId} />
             ) : path === '/app/config/facturation' ? (
               <InvoiceSettingsPage key={activeOrgId} />
             ) : path === '/app/org/settings' ? (

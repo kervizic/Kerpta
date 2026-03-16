@@ -134,6 +134,45 @@ async def update_document_columns(
     return merged
 
 
+# ── Pied de page (mentions légales PDF) ────────────────────────────────────
+
+
+async def get_document_footer(org_id: uuid.UUID, db: AsyncSession) -> dict:
+    """Retourne le pied de page configuré pour les documents PDF."""
+    result = await db.execute(
+        text("SELECT module_config FROM organizations WHERE id = :org_id"),
+        {"org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    if not row or not row[0]:
+        return {"footer": ""}
+    config = row[0] if isinstance(row[0], dict) else {}
+    return {"footer": config.get("document_footer", "")}
+
+
+async def update_document_footer(
+    org_id: uuid.UUID, footer: str, db: AsyncSession
+) -> dict:
+    """Met à jour le pied de page des documents PDF dans module_config."""
+    result = await db.execute(
+        text("SELECT module_config FROM organizations WHERE id = :org_id"),
+        {"org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    config = (row[0] if row and row[0] and isinstance(row[0], dict) else {})
+    config["document_footer"] = footer.strip()
+
+    await db.execute(
+        text("""
+            UPDATE organizations SET module_config = CAST(:config AS jsonb)
+            WHERE id = :org_id
+        """),
+        {"org_id": str(org_id), "config": json.dumps(config)},
+    )
+    await db.commit()
+    return {"footer": footer.strip()}
+
+
 # ── Types de documents (devis) ──────────────────────────────────────────────
 
 DEFAULT_QUOTE_DOCUMENT_TYPES = [
