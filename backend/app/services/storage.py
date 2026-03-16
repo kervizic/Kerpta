@@ -250,35 +250,53 @@ async def get_org_siren(org_id: uuid.UUID, db: AsyncSession) -> str:
 async def get_client_folder(
     client_id: str, org_id: uuid.UUID, db: AsyncSession
 ) -> str:
-    """Construit le nom de dossier client : {Nom-Client}_{id}.
+    """Construit le nom de dossier client : {Nom-Client}_{SIREN}.
+
+    Utilise le SIREN du client (9 premiers chiffres du SIRET) s'il est
+    renseigne, sinon le company_siren, sinon l'UUID en fallback.
 
     Returns:
-        Ex: "Dupont-Construction_550e8400-e29b-41d4-a716-446655440000"
+        Ex: "Dupont-Construction_838377331"
     """
     result = await db.execute(
-        text("SELECT name, id::text FROM clients WHERE id = :cid AND organization_id = :org_id"),
+        text("SELECT name, siret, company_siren, id::text FROM clients WHERE id = :cid AND organization_id = :org_id"),
         {"cid": client_id, "org_id": str(org_id)},
     )
     row = result.fetchone()
     if not row:
         return f"client-inconnu_{client_id}"
     name_clean = sanitize_folder_name(row[0])
-    return f"{name_clean}_{row[1]}"
+    # SIREN = 9 premiers chiffres du SIRET, sinon company_siren, sinon UUID
+    siren = None
+    if row[1] and len(row[1].strip()) >= 9:
+        siren = row[1].strip()[:9]
+    elif row[2]:
+        siren = row[2].strip()
+    identifier = siren or row[3]
+    return f"{name_clean}_{identifier}"
 
 
 async def get_supplier_folder(
     supplier_id: str, org_id: uuid.UUID, db: AsyncSession
 ) -> str:
-    """Construit le nom de dossier fournisseur : {Nom-Fournisseur}_{id}."""
+    """Construit le nom de dossier fournisseur : {Nom-Fournisseur}_{SIREN}.
+
+    Utilise le SIREN du fournisseur (9 premiers chiffres du SIRET) s'il est
+    renseigne, sinon l'UUID en fallback.
+    """
     result = await db.execute(
-        text("SELECT name, id::text FROM suppliers WHERE id = :sid AND organization_id = :org_id"),
+        text("SELECT name, siret, id::text FROM suppliers WHERE id = :sid AND organization_id = :org_id"),
         {"sid": supplier_id, "org_id": str(org_id)},
     )
     row = result.fetchone()
     if not row:
         return f"fournisseur-inconnu_{supplier_id}"
     name_clean = sanitize_folder_name(row[0])
-    return f"{name_clean}_{row[1]}"
+    siren = None
+    if row[1] and len(row[1].strip()) >= 9:
+        siren = row[1].strip()[:9]
+    identifier = siren or row[2]
+    return f"{name_clean}_{identifier}"
 
 
 async def build_document_path(
@@ -293,8 +311,8 @@ async def build_document_path(
     """Construit le chemin S3 complet selon l'arborescence Kerpta.
 
     Structure :
-        Kerpta/{SIREN}/clients/{Nom}_{id}/{sous-dossier}/{fichier}
-        Kerpta/{SIREN}/fournisseurs/{Nom}_{id}/{sous-dossier}/{fichier}
+        Kerpta/{SIREN}/clients/{Nom}_{SIREN-client}/{sous-dossier}/{fichier}
+        Kerpta/{SIREN}/fournisseurs/{Nom}_{SIREN-fournisseur}/{sous-dossier}/{fichier}
 
     Args:
         org_id: UUID de l'organisation
@@ -305,7 +323,7 @@ async def build_document_path(
         supplier_id: UUID du fournisseur (si doc fournisseur)
 
     Returns:
-        Chemin S3 relatif (ex: "Kerpta/123456789/clients/Dupont_abc123/factures/FA-2026-0001.pdf")
+        Chemin S3 relatif (ex: "Kerpta/123456789/clients/Dupont_838377331/factures/FA-2026-0001.pdf")
     """
     siren = await get_org_siren(org_id, db)
 
