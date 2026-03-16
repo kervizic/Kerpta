@@ -139,38 +139,30 @@ table { border-collapse: collapse; width: 100%; }
   </table>
 </div>
 
-<!-- ── Reglement ────────────────────────────────────────────────── -->
-{% if payment_terms_label or payment_method or bank_details %}
-<div class="payment-block clearfix">
-  <div class="section-title">Reglement</div>
+<!-- ── Reglement + Mentions legales + Notes ─────────────────────── -->
+{% if payment_terms_label or payment_method or bank_details or footer or payment_note or notes %}
+<div class="bottom-info clearfix">
   {% if payment_terms_label %}
-  <div class="payment-line">Conditions de reglement : {{ payment_terms_label }}</div>
+  <div class="info-line">Conditions de reglement : {{ payment_terms_label }}</div>
   {% endif %}
   {% if payment_method %}
-  <div class="payment-line">Mode de reglement : {{ payment_method }}</div>
+  <div class="info-line">Mode de reglement : {{ payment_method }}</div>
   {% endif %}
   {% if bank_details %}
-  <div class="payment-line">
+  <div class="info-line">
     {% if bank_details.iban %}IBAN : {{ bank_details.iban }}{% endif %}
     {% if bank_details.bic %} &nbsp;-&nbsp; BIC : {{ bank_details.bic }}{% endif %}
   </div>
   {% endif %}
-</div>
-{% endif %}
-
-<!-- ── Mentions legales ──────────────────────────────────────────── -->
-{% if footer %}
-<div class="legal-block">
-  <div class="section-title">Mentions legales</div>
-  <div class="legal-footer">{{ footer }}</div>
-</div>
-{% endif %}
-
-<!-- ── Notes ────────────────────────────────────────────────────── -->
-{% if payment_note or notes %}
-<div class="notes-block">
-  {% if payment_note %}<div class="notes-text">{{ payment_note }}</div>{% endif %}
-  {% if notes %}<div class="notes-text">{{ notes }}</div>{% endif %}
+  {% if footer %}
+  <div class="info-line"><strong>Mentions legales :</strong> {{ footer }}</div>
+  {% endif %}
+  {% if payment_note %}
+  <div class="info-line info-note"><strong>Notes :</strong> {{ payment_note }}</div>
+  {% endif %}
+  {% if notes %}
+  <div class="info-line info-note"><strong>Notes :</strong> {{ notes }}</div>
+  {% endif %}
 </div>
 {% endif %}
 
