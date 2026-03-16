@@ -99,9 +99,9 @@ table { border-collapse: collapse; width: 100%; }
     <tr>
       {% if columns.reference %}<th class="col-desc">Réf.</th>{% endif %}
       <th class="col-desc">Désignation</th>
-      {% if columns.quantity %}<th class="col-num">Qté.</th>{% endif %}
-      {% if columns.unit_price %}<th class="col-num">P.U.</th>{% endif %}
-      {% if columns.vat_rate %}<th class="col-num">TVA</th>{% endif %}
+      {% if columns.quantity %}<th class="col-desc">Qté.</th>{% endif %}
+      {% if columns.unit_price %}<th class="col-desc">P.U.</th>{% endif %}
+      {% if columns.vat_rate %}<th class="col-desc">TVA</th>{% endif %}
       {% if columns.discount_percent %}<th class="col-num">Rem.</th>{% endif %}
       {% if columns.total_ht %}<th class="col-num col-last">Montant</th>{% endif %}
     </tr>
@@ -111,9 +111,9 @@ table { border-collapse: collapse; width: 100%; }
     <tr>
       {% if columns.reference %}<td class="col-desc">{% if line.reference %}[{{ line.reference }}]{% endif %}</td>{% endif %}
       <td class="col-desc">{% if not columns.reference and line.reference %}[{{ line.reference }}] {% endif %}{{ line.description or '' }}</td>
-      {% if columns.quantity %}<td class="col-num">{{ line.quantity_fmt }}{% if columns.unit and line.unit %} {{ line.unit }}{% endif %}</td>{% endif %}
-      {% if columns.unit_price %}<td class="col-num">{{ line.unit_price_fmt }}</td>{% endif %}
-      {% if columns.vat_rate %}<td class="col-num">{{ line.vat_rate }}%</td>{% endif %}
+      {% if columns.quantity %}<td class="col-desc">{{ line.quantity_fmt }}{% if columns.unit and line.unit %} {{ line.unit }}{% endif %}</td>{% endif %}
+      {% if columns.unit_price %}<td class="col-desc">{{ line.unit_price_fmt }}</td>{% endif %}
+      {% if columns.vat_rate %}<td class="col-desc">{{ line.vat_rate }}%</td>{% endif %}
       {% if columns.discount_percent %}<td class="col-num">{% if line.discount_percent and line.discount_percent != '0' and line.discount_percent != '0.00' %}{{ line.discount_percent }}%{% endif %}</td>{% endif %}
       {% if columns.total_ht %}<td class="col-num col-last">{{ line.total_ht_fmt }}</td>{% endif %}
     </tr>
