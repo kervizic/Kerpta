@@ -143,7 +143,7 @@ export default function ClientCombobox({ value, onChange, onSelect, onNewClient,
                 onMouseDown={(e) => { e.preventDefault(); handleSelect(c) }}
                 onMouseEnter={() => setHighlightIndex(i)}
                 className={`px-3 py-2 text-sm cursor-pointer transition ${
-                  i === highlightIndex ? 'bg-orange-50' : c.id === value ? 'bg-orange-50/50 text-orange-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
+                  i === highlightIndex ? 'bg-kerpta-50' : c.id === value ? 'bg-kerpta-50/50 text-kerpta-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
                 {c.name}
@@ -157,7 +157,7 @@ export default function ClientCombobox({ value, onChange, onSelect, onNewClient,
                 onMouseDown={(e) => { e.preventDefault(); setOpen(false); onNewClient() }}
                 onMouseEnter={() => setHighlightIndex(filtered.length)}
                 className={`px-3 py-2 text-sm cursor-pointer transition flex items-center gap-1.5 ${
-                  highlightIndex === filtered.length ? 'bg-orange-50 text-orange-700' : 'text-orange-600 hover:bg-orange-50'
+                  highlightIndex === filtered.length ? 'bg-kerpta-50 text-kerpta-700' : 'text-kerpta-600 hover:bg-kerpta-50'
                 }`}
               >
                 <Plus className="w-3.5 h-3.5" />

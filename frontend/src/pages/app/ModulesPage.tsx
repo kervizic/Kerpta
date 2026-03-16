@@ -25,7 +25,7 @@ export default function ModulesPage() {
   if (loading) {
     return (
       <div className="flex-1 flex justify-center items-center">
-        <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
+        <Loader2 className="w-6 h-6 animate-spin text-kerpta" />
       </div>
     )
   }
@@ -81,7 +81,7 @@ export default function ModulesPage() {
 function ToggleSwitch({ on }: { on: boolean }) {
   return (
     <div
-      className={`relative rounded-full transition-colors ${on ? 'bg-orange-500' : 'bg-gray-300'}`}
+      className={`relative rounded-full transition-colors ${on ? 'bg-kerpta' : 'bg-gray-300'}`}
       style={{ width: 40, height: 22 }}
     >
       <div

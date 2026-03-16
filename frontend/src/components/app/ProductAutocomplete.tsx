@@ -136,7 +136,7 @@ export default function ProductAutocomplete({
               onMouseDown={(e) => { e.preventDefault(); handleSelect(p) }}
               onMouseEnter={() => setHighlightIndex(i)}
               className={`px-3 py-2 cursor-pointer transition ${
-                i === highlightIndex ? 'bg-orange-50' : 'hover:bg-gray-50'
+                i === highlightIndex ? 'bg-kerpta-50' : 'hover:bg-gray-50'
               }`}
             >
               <div className="text-xs font-medium text-gray-900 truncate">{p.name}</div>
@@ -151,7 +151,7 @@ export default function ProductAutocomplete({
       )}
       {loading && (
         <div className="absolute right-2 top-1/2 -translate-y-1/2">
-          <div className="w-3 h-3 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
+          <div className="w-3 h-3 border-2 border-kerpta-400 border-t-transparent rounded-full animate-spin" />
         </div>
       )}
     </div>

@@ -100,7 +100,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex flex-col items-center justify-center px-4">
       {/* Gradient de fond */}
       <div className="absolute inset-0 -z-10 overflow-hidden">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-orange-500/10 dark:bg-orange-600/20 rounded-full blur-3xl" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-kerpta/10 dark:bg-kerpta-600/20 rounded-full blur-3xl" />
       </div>
 
       {/* Card */}
@@ -108,7 +108,7 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <h1 className="font-sarpanch text-4xl leading-none">
-            <span className="text-[#888888] dark:text-gray-300">KER</span><span className="text-orange-500">PTA</span>
+            <span className="text-[#888888] dark:text-gray-300">KER</span><span className="text-kerpta">PTA</span>
           </h1>
           <p className="text-gray-500 dark:text-slate-400 text-sm mt-1">Connectez-vous à votre espace</p>
         </div>
@@ -116,7 +116,7 @@ export default function LoginPage() {
         <div className="bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl p-6">
           {loading && (
             <div className="flex justify-center py-8">
-              <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-8 h-8 border-2 border-kerpta border-t-transparent rounded-full animate-spin" />
             </div>
           )}
 

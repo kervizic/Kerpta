@@ -17,7 +17,7 @@ const InvitePage = lazy(() => import('@/pages/InvitePage'))
 function LoadingScreen() {
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950 flex items-center justify-center">
-      <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-8 h-8 border-2 border-kerpta border-t-transparent rounded-full animate-spin" />
     </div>
   )
 }

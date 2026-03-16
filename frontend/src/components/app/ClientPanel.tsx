@@ -221,13 +221,13 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
         {/* ── En-tête ──────────────────────────────────────────────── */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10 rounded-t-2xl">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-700 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-kerpta-50 dark:bg-kerpta-900/30 border border-kerpta-200 dark:border-kerpta-700 flex items-center justify-center">
               {loading ? (
-                <Loader2 className="w-5 h-5 animate-spin text-orange-500" />
+                <Loader2 className="w-5 h-5 animate-spin text-kerpta" />
               ) : client?.type === 'company' ? (
-                <Building2 className="w-5 h-5 text-orange-600" />
+                <Building2 className="w-5 h-5 text-kerpta-600" />
               ) : (
-                <UserRound className="w-5 h-5 text-orange-600" />
+                <UserRound className="w-5 h-5 text-kerpta-600" />
               )}
             </div>
             {client && (
@@ -250,7 +250,7 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
 
         {loading ? (
           <div className="flex justify-center py-16">
-            <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
+            <Loader2 className="w-6 h-6 animate-spin text-kerpta" />
           </div>
         ) : !client ? (
           <div className="py-16 text-center text-gray-400 dark:text-gray-500 text-sm">Client introuvable</div>
@@ -263,7 +263,7 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
                 <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Contacts</h3>
                 <button
                   onClick={addContact}
-                  className="flex items-center gap-1 text-xs text-orange-500 hover:text-orange-600 transition"
+                  className="flex items-center gap-1 text-xs text-kerpta hover:text-kerpta-600 transition"
                 >
                   <Plus className="w-3 h-3" /> Ajouter
                 </button>
@@ -340,7 +340,7 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
                   <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Établissement à facturer</h3>
                   <button
                     onClick={() => setShowEtabSelector(!showEtabSelector)}
-                    className="flex items-center gap-1 text-xs text-orange-500 hover:text-orange-600 transition"
+                    className="flex items-center gap-1 text-xs text-kerpta hover:text-kerpta-600 transition"
                     title="Changer d'établissement"
                   >
                     <Pencil className="w-3 h-3" /> Modifier
@@ -398,16 +398,16 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
                           onClick={() => handleSelectEtab(etab)}
                           className={`w-full text-left p-3 rounded-xl border transition ${
                             isSelected
-                              ? 'border-orange-400 bg-orange-50 dark:bg-orange-900/30 ring-2 ring-orange-200'
+                              ? 'border-kerpta-400 bg-kerpta-50 dark:bg-kerpta-900/30 ring-2 ring-kerpta-200'
                               : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600'
                           }`}
                         >
                           <div className="flex items-center gap-2">
                             <Building2 className="w-4 h-4 text-gray-400 dark:text-gray-500 shrink-0" />
                             <span className="text-sm font-mono font-medium text-gray-900 dark:text-white">{formatSiret(etab.siret)}</span>
-                            {etab.siege && <span className="px-1.5 py-0.5 bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-400 text-[10px] font-semibold rounded uppercase">Siège</span>}
+                            {etab.siege && <span className="px-1.5 py-0.5 bg-kerpta-100 dark:bg-kerpta-900/40 text-kerpta-700 dark:text-kerpta-400 text-[10px] font-semibold rounded uppercase">Siège</span>}
                             {isClosed && <span className="px-1.5 py-0.5 bg-red-100 text-red-700 text-[10px] font-semibold rounded uppercase">Fermé</span>}
-                            {isSelected && <Check className="w-4 h-4 text-orange-600 ml-auto shrink-0" />}
+                            {isSelected && <Check className="w-4 h-4 text-kerpta-600 ml-auto shrink-0" />}
                           </div>
                           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 ml-6">{formatEtabAddress(etab.adresse)}</p>
                           {etab.activite_principale && (
@@ -505,7 +505,7 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
 
 function SaveIndicator({ status }: { status: 'idle' | 'saving' | 'saved' | 'error' }) {
   if (status === 'idle') return null
-  if (status === 'saving') return <span className="flex items-center gap-1 text-xs text-orange-400"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Sauvegarde...</span>
+  if (status === 'saving') return <span className="flex items-center gap-1 text-xs text-kerpta-400"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Sauvegarde...</span>
   if (status === 'saved') return <span className="flex items-center gap-1 text-xs text-green-500"><Check className="w-3.5 h-3.5" /> Sauvegardé</span>
   return <span className="flex items-center gap-1 text-xs text-red-400"><AlertTriangle className="w-3.5 h-3.5" /> Erreur</span>
 }
@@ -600,7 +600,7 @@ function ContactRow({ contact, onSave, onDelete }: {
       </div>
       <AutoSaveField label="" value={contact.job_title || ''} placeholder="Poste" onSave={(v) => onSave({ job_title: v || null })} />
       {contact.is_primary && (
-        <span className="inline-flex items-center gap-1 text-[10px] text-orange-600 font-semibold">
+        <span className="inline-flex items-center gap-1 text-[10px] text-kerpta-600 font-semibold">
           <Star className="w-3 h-3" /> Contact principal
         </span>
       )}

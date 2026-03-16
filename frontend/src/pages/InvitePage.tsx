@@ -98,14 +98,14 @@ export default function InvitePage({ token }: { token: string }) {
         <div className="text-center mb-8">
           <span className="text-2xl font-bold">
             <span className="text-gray-900">KER</span>
-            <span className="text-orange-500">PTA</span>
+            <span className="text-kerpta">PTA</span>
           </span>
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
           {loading && (
             <div className="flex flex-col items-center py-6">
-              <Loader2 className="w-8 h-8 animate-spin text-orange-500 mb-3" />
+              <Loader2 className="w-8 h-8 animate-spin text-kerpta mb-3" />
               <p className="text-sm text-gray-400">Chargement de l'invitation…</p>
             </div>
           )}
@@ -119,7 +119,7 @@ export default function InvitePage({ token }: { token: string }) {
               <p className="text-sm text-gray-500 mb-6">{error}</p>
               <button
                 onClick={() => navigate('/app')}
-                className="text-sm text-orange-600 hover:text-orange-700 font-medium transition"
+                className="text-sm text-kerpta-600 hover:text-kerpta-700 font-medium transition"
               >
                 Retour à l'application
               </button>
@@ -141,8 +141,8 @@ export default function InvitePage({ token }: { token: string }) {
           {!loading && !error && !accepted && preview && (
             <>
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-center">
-                  <Users className="w-6 h-6 text-orange-600" />
+                <div className="w-12 h-12 rounded-xl bg-kerpta-50 border border-kerpta-200 flex items-center justify-center">
+                  <Users className="w-6 h-6 text-kerpta-600" />
                 </div>
                 <div>
                   <h2 className="text-base font-semibold text-gray-900">
@@ -185,7 +185,7 @@ export default function InvitePage({ token }: { token: string }) {
               <button
                 onClick={() => void handleAccept()}
                 disabled={accepting}
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition"
+                className="w-full flex items-center justify-center gap-2 py-2.5 bg-kerpta hover:bg-kerpta-600 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition"
               >
                 {accepting && <Loader2 className="w-4 h-4 animate-spin" />}
                 {accepting ? 'Acceptation…' : "Accepter l'invitation →"}

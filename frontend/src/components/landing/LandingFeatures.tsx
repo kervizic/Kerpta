@@ -13,7 +13,7 @@ const COLOR_MAP: Record<string, { bg: string; text: string; ring: string }> = {
   blue:    { bg: 'bg-blue-50 dark:bg-blue-500/10',       text: 'text-blue-600 dark:text-blue-400',    ring: 'ring-blue-200 dark:ring-blue-500/20' },
   amber:   { bg: 'bg-amber-50 dark:bg-amber-500/10',     text: 'text-amber-600 dark:text-amber-400',  ring: 'ring-amber-200 dark:ring-amber-500/20' },
   emerald: { bg: 'bg-emerald-50 dark:bg-emerald-500/10', text: 'text-emerald-600 dark:text-emerald-400', ring: 'ring-emerald-200 dark:ring-emerald-500/20' },
-  orange:  { bg: 'bg-orange-50 dark:bg-orange-500/10',   text: 'text-orange-600 dark:text-orange-400',  ring: 'ring-orange-200 dark:ring-orange-500/20' },
+  orange:  { bg: 'bg-kerpta-50 dark:bg-kerpta/10',   text: 'text-kerpta-600 dark:text-kerpta-400',  ring: 'ring-kerpta-200 dark:ring-kerpta/20' },
   pink:    { bg: 'bg-pink-50 dark:bg-pink-500/10',       text: 'text-pink-600 dark:text-pink-400',    ring: 'ring-pink-200 dark:ring-pink-500/20' },
   cyan:    { bg: 'bg-cyan-50 dark:bg-cyan-500/10',       text: 'text-cyan-600 dark:text-cyan-400',    ring: 'ring-cyan-200 dark:ring-cyan-500/20' },
   purple:  { bg: 'bg-purple-50 dark:bg-purple-500/10',   text: 'text-purple-600 dark:text-purple-400',  ring: 'ring-purple-200 dark:ring-purple-500/20' },

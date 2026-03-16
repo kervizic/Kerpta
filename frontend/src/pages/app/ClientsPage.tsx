@@ -137,7 +137,7 @@ function ClientsList() {
           <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Clients</h1>
           <button
             onClick={() => navigate('/app/clients/new')}
-            className="flex items-center gap-1.5 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold rounded-lg transition"
+            className="flex items-center gap-1.5 px-4 py-2 bg-kerpta-600 hover:bg-kerpta text-white text-sm font-semibold rounded-lg transition"
           >
             <Plus className="w-4 h-4" /> Nouveau client
           </button>
@@ -151,7 +151,7 @@ function ClientsList() {
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1) }}
             placeholder="Rechercher un client..."
-            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white dark:bg-gray-800 dark:text-white"
+            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-400 bg-white dark:bg-gray-800 dark:text-white"
           />
         </div>
 
@@ -159,7 +159,7 @@ function ClientsList() {
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden">
           {loading ? (
             <div className="flex justify-center py-12">
-              <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
+              <Loader2 className="w-6 h-6 animate-spin text-kerpta" />
             </div>
           ) : clients.length === 0 ? (
             <div className="py-12 text-center text-gray-400 dark:text-gray-500 text-sm">Aucun client trouvé</div>
@@ -179,7 +179,7 @@ function ClientsList() {
                   <tr
                     key={c.id}
                     onClick={() => setSelectedId(c.id)}
-                    className="border-b border-gray-50 dark:border-gray-700 hover:bg-orange-50/50 dark:hover:bg-gray-700/50 cursor-pointer transition"
+                    className="border-b border-gray-50 dark:border-gray-700 hover:bg-kerpta-50/50 dark:hover:bg-gray-700/50 cursor-pointer transition"
                   >
                     <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{c.name}</td>
                     <td className="px-4 py-3 text-gray-500 dark:text-gray-400">{c.type === 'company' ? 'Entreprise' : 'Particulier'}</td>
@@ -496,8 +496,8 @@ function CreateClientForm() {
                             setSiret('')
                             setVatNumber('')
                           }}
-                          className={`w-full text-left px-3 py-2 text-sm hover:bg-orange-50 dark:hover:bg-orange-900/30 transition ${
-                            c.code === countryCode ? 'bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 font-medium' : 'text-gray-700 dark:text-gray-200'
+                          className={`w-full text-left px-3 py-2 text-sm hover:bg-kerpta-50 dark:hover:bg-kerpta-900/30 transition ${
+                            c.code === countryCode ? 'bg-kerpta-50 dark:bg-kerpta-900/30 text-kerpta-600 dark:text-kerpta-400 font-medium' : 'text-gray-700 dark:text-gray-200'
                           }`}
                         >
                           {c.name}
@@ -576,7 +576,7 @@ function CreateClientForm() {
                   {addressSuggestions.length > 0 && (
                     <div className="absolute z-20 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg dark:shadow-black/50 max-h-48 overflow-y-auto">
                       {addressSuggestions.map((s, i) => (
-                        <button key={i} type="button" onClick={() => selectAddressSuggestion(s)} className="w-full text-left px-3 py-2 text-sm hover:bg-orange-50 dark:hover:bg-orange-900/30 transition text-gray-700 dark:text-gray-200">
+                        <button key={i} type="button" onClick={() => selectAddressSuggestion(s)} className="w-full text-left px-3 py-2 text-sm hover:bg-kerpta-50 dark:hover:bg-kerpta-900/30 transition text-gray-700 dark:text-gray-200">
                           {s.label}
                         </button>
                       ))}
@@ -628,13 +628,13 @@ function CreateClientForm() {
                       const isSelected = selectedEtab === etab.siret
                       return (
                         <button key={etab.siret} type="button" onClick={() => handleSelectEtab(etab)}
-                          className={`w-full text-left p-3 rounded-xl border transition ${isSelected ? 'border-orange-400 bg-orange-50 dark:bg-orange-900/30 ring-2 ring-orange-200 dark:ring-orange-700' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-300'}`}
+                          className={`w-full text-left p-3 rounded-xl border transition ${isSelected ? 'border-kerpta-400 bg-kerpta-50 dark:bg-kerpta-900/30 ring-2 ring-kerpta-200 dark:ring-kerpta-700' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-300'}`}
                         >
                           <div className="flex items-center gap-2 mb-1">
                             <Building2 className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                             <span className="text-sm font-mono font-medium text-gray-900 dark:text-white">{formatSiret(etab.siret)}</span>
-                            {etab.siege && <span className="px-1.5 py-0.5 bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-400 text-[10px] font-semibold rounded uppercase">Siège</span>}
-                            {isSelected && <CheckCircle2 className="w-4 h-4 text-orange-600 ml-auto" />}
+                            {etab.siege && <span className="px-1.5 py-0.5 bg-kerpta-100 dark:bg-kerpta-900/40 text-kerpta-700 dark:text-kerpta-400 text-[10px] font-semibold rounded uppercase">Siège</span>}
+                            {isSelected && <CheckCircle2 className="w-4 h-4 text-kerpta-600 ml-auto" />}
                           </div>
                           <p className="text-xs text-gray-500 dark:text-gray-400 ml-6">{formatAddress(etab.adresse)}</p>
                           {etab.activite_principale && <p className="text-xs text-gray-400 dark:text-gray-500 ml-6 mt-0.5">APE : {etab.activite_principale}</p>}
@@ -715,7 +715,7 @@ function CreateClientForm() {
           {/* ── Boutons ──────────────────────────────────────────────────── */}
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={() => navigate('/app/clients')} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">Annuler</button>
-            <button type="submit" disabled={saving || !name} className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
+            <button type="submit" disabled={saving || !name} className="px-4 py-2 bg-kerpta-600 hover:bg-kerpta text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Créer'}
             </button>
           </div>

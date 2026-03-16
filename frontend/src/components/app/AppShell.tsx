@@ -27,7 +27,7 @@ interface AppShellProps {
 function PageSpinner() {
   return (
     <div className="flex-1 flex items-center justify-center">
-      <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-8 h-8 border-2 border-kerpta border-t-transparent rounded-full animate-spin" />
     </div>
   )
 }
@@ -36,7 +36,7 @@ function DashboardPlaceholder() {
   return (
     <div className="flex-1 flex items-center justify-center">
       <div className="text-center">
-        <div className="w-16 h-16 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center mx-auto mb-4">
+        <div className="w-16 h-16 rounded-2xl bg-kerpta/10 border border-kerpta/20 flex items-center justify-center mx-auto mb-4">
           <span className="text-3xl">📊</span>
         </div>
         <h2 className="text-xl font-semibold text-gray-900 mb-2">Tableau de bord</h2>
@@ -104,7 +104,7 @@ export default function AppShell({ path }: AppShellProps) {
   if (orgs === null) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-kerpta border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
@@ -140,7 +140,7 @@ export default function AppShell({ path }: AppShellProps) {
             <Menu className="w-5 h-5" />
           </button>
           <span className="font-sarpanch text-2xl leading-none">
-            <span className="text-[#888888]">KER</span><span className="text-orange-500">PTA</span>
+            <span className="text-[#888888]">KER</span><span className="text-kerpta">PTA</span>
           </span>
         </div>
 

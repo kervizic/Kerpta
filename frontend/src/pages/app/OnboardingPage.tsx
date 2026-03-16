@@ -93,7 +93,7 @@ export default function OnboardingPage({
         <div className="text-center mb-8">
           <span className="text-2xl font-bold">
             <span className="text-gray-900">KER</span>
-            <span className="text-orange-500">PTA</span>
+            <span className="text-kerpta">PTA</span>
           </span>
         </div>
       )}
@@ -156,10 +156,10 @@ function ChoiceStep({ onSelect }: { onSelect: (step: Step) => void }) {
       <div className="space-y-3">
         <button
           onClick={() => onSelect('create')}
-          className="w-full flex items-start gap-4 p-4 rounded-xl border-2 border-gray-200 hover:border-orange-400 hover:bg-orange-50/50 transition-all text-left group"
+          className="w-full flex items-start gap-4 p-4 rounded-xl border-2 border-gray-200 hover:border-kerpta-400 hover:bg-kerpta-50/50 transition-all text-left group"
         >
-          <div className="w-10 h-10 rounded-lg bg-orange-50 border border-orange-200 flex items-center justify-center shrink-0 group-hover:bg-orange-100 transition">
-            <Building2 className="w-5 h-5 text-orange-600" />
+          <div className="w-10 h-10 rounded-lg bg-kerpta-50 border border-kerpta-200 flex items-center justify-center shrink-0 group-hover:bg-kerpta-100 transition">
+            <Building2 className="w-5 h-5 text-kerpta-600" />
           </div>
           <div>
             <div className="text-sm font-semibold text-gray-900">Créer mon entreprise</div>
@@ -171,10 +171,10 @@ function ChoiceStep({ onSelect }: { onSelect: (step: Step) => void }) {
 
         <button
           onClick={() => onSelect('join')}
-          className="w-full flex items-start gap-4 p-4 rounded-xl border-2 border-gray-200 hover:border-orange-400 hover:bg-orange-50/50 transition-all text-left group"
+          className="w-full flex items-start gap-4 p-4 rounded-xl border-2 border-gray-200 hover:border-kerpta-400 hover:bg-kerpta-50/50 transition-all text-left group"
         >
-          <div className="w-10 h-10 rounded-lg bg-gray-50 border border-gray-200 flex items-center justify-center shrink-0 group-hover:bg-orange-50 group-hover:border-orange-200 transition">
-            <Users className="w-5 h-5 text-gray-500 group-hover:text-orange-600 transition" />
+          <div className="w-10 h-10 rounded-lg bg-gray-50 border border-gray-200 flex items-center justify-center shrink-0 group-hover:bg-kerpta-50 group-hover:border-kerpta-200 transition">
+            <Users className="w-5 h-5 text-gray-500 group-hover:text-kerpta-600 transition" />
           </div>
           <div>
             <div className="text-sm font-semibold text-gray-900">Rejoindre une structure</div>
@@ -306,7 +306,7 @@ function CreateStep({
             onChange={(e) => setSiret(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && void lookupSiret()}
             placeholder="362 521 879 00034"
-            className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+            className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-400 focus:border-transparent"
           />
           <button
             type="button"
@@ -321,9 +321,9 @@ function CreateStep({
         {searchError && <p className="text-xs text-red-600 mt-1.5">{searchError}</p>}
         <p className="text-xs text-gray-400 mt-1.5">
           Vous ne connaissez pas votre SIREN ?{' '}
-          <a href="https://www.pappers.fr" target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:underline">Pappers</a>
+          <a href="https://www.pappers.fr" target="_blank" rel="noopener noreferrer" className="text-kerpta hover:underline">Pappers</a>
           {' '}ou{' '}
-          <a href="https://www.societe.com" target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:underline">Societe.com</a>
+          <a href="https://www.societe.com" target="_blank" rel="noopener noreferrer" className="text-kerpta hover:underline">Societe.com</a>
         </p>
       </div>
 
@@ -359,7 +359,7 @@ function CreateStep({
             <select
               value={vatRegime}
               onChange={(e) => setVatRegime(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent bg-white"
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-400 focus:border-transparent bg-white"
             >
               <option value="">— Sélectionner —</option>
               <option value="none">Franchise de base (sans TVA)</option>
@@ -378,7 +378,7 @@ function CreateStep({
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-400 focus:border-transparent"
               />
             </div>
             <div>
@@ -389,7 +389,7 @@ function CreateStep({
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-400 focus:border-transparent"
               />
             </div>
           </div>
@@ -403,7 +403,7 @@ function CreateStep({
           <button
             type="submit"
             disabled={saving}
-            className="w-full flex items-center justify-center gap-2 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition"
+            className="w-full flex items-center justify-center gap-2 py-2.5 bg-kerpta hover:bg-kerpta-600 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition"
           >
             {saving && <Loader2 className="w-4 h-4 animate-spin" />}
             {saving ? 'Création en cours…' : 'Créer ma structure →'}
@@ -497,7 +497,7 @@ function JoinStep({
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && void searchOrgs()}
               placeholder="Nom de l'entreprise ou SIREN…"
-              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-400 focus:border-transparent"
             />
             <button
               type="button"
@@ -518,7 +518,7 @@ function JoinStep({
                 <li key={r.org_id}>
                   <button
                     onClick={() => setSelected(r)}
-                    className="w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 border-gray-200 hover:border-orange-400 hover:bg-orange-50/40 transition text-left"
+                    className="w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 border-gray-200 hover:border-kerpta-400 hover:bg-kerpta-50/40 transition text-left"
                   >
                     <div>
                       <div className="text-sm font-medium text-gray-900">{r.org_name}</div>
@@ -526,7 +526,7 @@ function JoinStep({
                         <div className="text-xs text-gray-400 mt-0.5">SIREN {r.org_siren}</div>
                       )}
                     </div>
-                    <span className="text-xs text-orange-500 font-medium">Sélectionner →</span>
+                    <span className="text-xs text-kerpta font-medium">Sélectionner →</span>
                   </button>
                 </li>
               ))}
@@ -538,7 +538,7 @@ function JoinStep({
       {/* Confirmation + message */}
       {selected && (
         <div className="space-y-4">
-          <div className="p-4 bg-orange-50 border border-orange-200 rounded-xl flex items-center justify-between">
+          <div className="p-4 bg-kerpta-50 border border-kerpta-200 rounded-xl flex items-center justify-between">
             <div>
               <div className="text-sm font-semibold text-gray-900">{selected.org_name}</div>
               {selected.org_siren && (
@@ -562,7 +562,7 @@ function JoinStep({
               onChange={(e) => setMessage(e.target.value)}
               rows={3}
               placeholder="Présentez-vous en quelques mots…"
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent resize-none"
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-400 focus:border-transparent resize-none"
             />
           </div>
 
@@ -575,7 +575,7 @@ function JoinStep({
           <button
             onClick={() => void sendRequest()}
             disabled={sending}
-            className="w-full flex items-center justify-center gap-2 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition"
+            className="w-full flex items-center justify-center gap-2 py-2.5 bg-kerpta hover:bg-kerpta-600 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition"
           >
             {sending && <Loader2 className="w-4 h-4 animate-spin" />}
             {sending ? 'Envoi en cours…' : 'Envoyer ma demande →'}
@@ -610,7 +610,7 @@ function JoinPendingStep({
       </p>
       <button
         onClick={onNewOrg}
-        className="text-sm text-orange-600 hover:text-orange-700 font-medium underline-offset-2 hover:underline transition"
+        className="text-sm text-kerpta-600 hover:text-kerpta-700 font-medium underline-offset-2 hover:underline transition"
       >
         Créer ma propre structure à la place
       </button>

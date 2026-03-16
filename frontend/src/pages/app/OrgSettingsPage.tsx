@@ -669,7 +669,7 @@ export default function OrgSettingsPage() {
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <Loader2 className="w-6 h-6 text-orange-500 animate-spin" />
+        <Loader2 className="w-6 h-6 text-kerpta animate-spin" />
       </div>
     )
   }
@@ -693,7 +693,7 @@ export default function OrgSettingsPage() {
         {/* En-tête */}
         <div>
           <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <Building className="w-5 h-5 text-orange-500" />
+            <Building className="w-5 h-5 text-kerpta" />
             Ma structure
           </h1>
           <p className="text-sm text-gray-400 mt-1">
@@ -716,7 +716,7 @@ export default function OrgSettingsPage() {
             {/* Aperçu */}
             <div className={`relative w-28 h-28 rounded-xl border-2 flex items-center justify-center shrink-0 transition ${
               displayedLogoSrc
-                ? 'border-orange-300 bg-orange-50'
+                ? 'border-kerpta-300 bg-kerpta-50'
                 : 'border-dashed border-gray-200 bg-gray-50'
             }`}>
               {displayedLogoSrc ? (
@@ -729,7 +729,7 @@ export default function OrgSettingsPage() {
                 <ImagePlus className="w-8 h-8 text-gray-300" />
               )}
               {logoPreview && (
-                <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                <span className="absolute -top-2 -right-2 bg-kerpta text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
                   Aperçu
                 </span>
               )}
@@ -763,7 +763,7 @@ export default function OrgSettingsPage() {
                 <div className="flex gap-2 flex-wrap">
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:border-orange-300 hover:text-orange-600 transition"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:border-kerpta-300 hover:text-kerpta-600 transition"
                   >
                     <Upload className="w-3.5 h-3.5" />
                     {currentLogo ? 'Changer le logo' : 'Choisir un logo'}
@@ -787,7 +787,7 @@ export default function OrgSettingsPage() {
                   <button
                     onClick={handleLogoUpload}
                     disabled={logoUploading}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-orange-600 hover:bg-orange-500 text-white rounded-lg transition disabled:opacity-60"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-kerpta-600 hover:bg-kerpta text-white rounded-lg transition disabled:opacity-60"
                   >
                     {logoUploading
                       ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -833,7 +833,7 @@ export default function OrgSettingsPage() {
                 onClick={handleEnrich}
                 disabled={enriching}
                 title="Actualiser depuis data.gouv et INPI"
-                className="inline-flex items-center gap-1 px-2 py-0.5 text-xs text-gray-500 hover:text-orange-600 hover:bg-orange-50 rounded-md transition disabled:opacity-50"
+                className="inline-flex items-center gap-1 px-2 py-0.5 text-xs text-gray-500 hover:text-kerpta-600 hover:bg-kerpta-50 rounded-md transition disabled:opacity-50"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${enriching ? 'animate-spin' : ''}`} />
                 {enriching ? 'Actualisation…' : 'Actualiser'}
@@ -857,11 +857,11 @@ export default function OrgSettingsPage() {
               </p>
               <ul className="space-y-1 ml-1">
                 <li className="flex items-center gap-1.5">
-                  <PenLine className="w-3 h-3 text-orange-500 dark:text-orange-400 shrink-0" />
+                  <PenLine className="w-3 h-3 text-kerpta dark:text-kerpta-400 shrink-0" />
                   <span>Passer en <strong>mode manuel</strong> pour saisir une valeur personnalisée</span>
                 </li>
                 <li className="flex items-center gap-1.5">
-                  <RefreshCw className="w-3 h-3 text-orange-500 dark:text-orange-400 shrink-0" />
+                  <RefreshCw className="w-3 h-3 text-kerpta dark:text-kerpta-400 shrink-0" />
                   <span>Revenir en <strong>mode auto</strong> pour restaurer la valeur SIRENE</span>
                 </li>
               </ul>
@@ -880,7 +880,7 @@ export default function OrgSettingsPage() {
                   type="button"
                   onClick={() => toggleFieldManual('name')}
                   title={isManual('name') ? 'Restaurer depuis SIRENE' : 'Modifier manuellement'}
-                  className="text-gray-300 hover:text-orange-500 transition p-0.5"
+                  className="text-gray-300 hover:text-kerpta transition p-0.5"
                 >
                   {isManual('name')
                     ? <RefreshCw className="w-3 h-3" />
@@ -894,7 +894,7 @@ export default function OrgSettingsPage() {
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                   onBlur={() => blurSave('name', 'name', editName, org.org_name)}
-                  className="w-full px-3 py-1.5 text-sm border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  className="w-full px-3 py-1.5 text-sm border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-300"
                 />
               ) : (
                 <span className="font-medium text-gray-900">{org.org_name || '—'}</span>
@@ -909,7 +909,7 @@ export default function OrgSettingsPage() {
                   type="button"
                   onClick={() => toggleFieldManual('legal_form')}
                   title={isManual('legal_form') ? 'Restaurer depuis SIRENE' : 'Modifier manuellement'}
-                  className="text-gray-300 hover:text-orange-500 transition p-0.5"
+                  className="text-gray-300 hover:text-kerpta transition p-0.5"
                 >
                   {isManual('legal_form')
                     ? <RefreshCw className="w-3 h-3" />
@@ -924,7 +924,7 @@ export default function OrgSettingsPage() {
                     setEditLegalForm(e.target.value)
                     void saveField('legal_form', { legal_form: e.target.value || null })
                   }}
-                  className="w-full px-3 py-1.5 text-sm border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  className="w-full px-3 py-1.5 text-sm border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-300"
                 >
                   <option value="">Non renseigné</option>
                   <option value="SAS">SAS</option>
@@ -950,7 +950,7 @@ export default function OrgSettingsPage() {
                   type="button"
                   onClick={() => toggleFieldManual('siren')}
                   title={isManual('siren') ? 'Restaurer depuis SIRENE' : 'Modifier manuellement'}
-                  className="text-gray-300 hover:text-orange-500 transition p-0.5"
+                  className="text-gray-300 hover:text-kerpta transition p-0.5"
                 >
                   {isManual('siren')
                     ? <RefreshCw className="w-3 h-3" />
@@ -966,7 +966,7 @@ export default function OrgSettingsPage() {
                   onBlur={() => blurSave('siren', 'siren', editSiren, org.org_siren)}
                   placeholder="123456789"
                   maxLength={9}
-                  className="w-full px-3 py-1.5 text-sm font-mono border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  className="w-full px-3 py-1.5 text-sm font-mono border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-300"
                 />
               ) : (
                 <span className="font-mono text-gray-900">{org.org_siren || '—'}</span>
@@ -981,7 +981,7 @@ export default function OrgSettingsPage() {
                   type="button"
                   onClick={() => toggleFieldManual('siret')}
                   title={isManual('siret') ? 'Restaurer depuis SIRENE' : 'Modifier manuellement'}
-                  className="text-gray-300 hover:text-orange-500 transition p-0.5"
+                  className="text-gray-300 hover:text-kerpta transition p-0.5"
                 >
                   {isManual('siret')
                     ? <RefreshCw className="w-3 h-3" />
@@ -997,7 +997,7 @@ export default function OrgSettingsPage() {
                   onBlur={() => blurSave('siret', 'siret', editSiret, org.org_siret)}
                   placeholder="12345678901234"
                   maxLength={14}
-                  className="w-full px-3 py-1.5 text-sm font-mono border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  className="w-full px-3 py-1.5 text-sm font-mono border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-300"
                 />
               ) : (
                 <span className="font-mono text-gray-900">{org.org_siret || '—'}</span>
@@ -1012,7 +1012,7 @@ export default function OrgSettingsPage() {
                   type="button"
                   onClick={() => toggleFieldManual('vat_number')}
                   title={isManual('vat_number') ? 'Restaurer depuis SIRENE' : 'Modifier manuellement'}
-                  className="text-gray-300 hover:text-orange-500 transition p-0.5"
+                  className="text-gray-300 hover:text-kerpta transition p-0.5"
                 >
                   {isManual('vat_number')
                     ? <RefreshCw className="w-3 h-3" />
@@ -1027,7 +1027,7 @@ export default function OrgSettingsPage() {
                   onChange={(e) => setEditVatNumber(e.target.value)}
                   onBlur={() => blurSave('vat_number', 'vat_number', editVatNumber, org.vat_number)}
                   placeholder="FR12345678901"
-                  className="w-full px-3 py-1.5 text-sm font-mono border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  className="w-full px-3 py-1.5 text-sm font-mono border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-300"
                 />
               ) : (
                 <span className="font-mono text-gray-900">{org.vat_number || '—'}</span>
@@ -1042,7 +1042,7 @@ export default function OrgSettingsPage() {
                   type="button"
                   onClick={() => toggleFieldManual('ape_code')}
                   title={isManual('ape_code') ? 'Restaurer depuis SIRENE' : 'Modifier manuellement'}
-                  className="text-gray-300 hover:text-orange-500 transition p-0.5"
+                  className="text-gray-300 hover:text-kerpta transition p-0.5"
                 >
                   {isManual('ape_code')
                     ? <RefreshCw className="w-3 h-3" />
@@ -1057,7 +1057,7 @@ export default function OrgSettingsPage() {
                   onChange={(e) => setEditApeCode(e.target.value)}
                   onBlur={() => blurSave('ape_code', 'ape_code', editApeCode, org.ape_code)}
                   placeholder="6201Z"
-                  className="w-full px-3 py-1.5 text-sm font-mono border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  className="w-full px-3 py-1.5 text-sm font-mono border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-300"
                 />
               ) : (
                 <span className="font-mono text-gray-900">{org.ape_code || '—'}</span>
@@ -1073,7 +1073,7 @@ export default function OrgSettingsPage() {
                 onChange={(e) => setEditRcsCity(e.target.value)}
                 onBlur={() => blurSave('rcs_city', 'rcs_city', editRcsCity, org.rcs_city)}
                 placeholder="Paris"
-                className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-300"
               />
             </div>
 
@@ -1086,7 +1086,7 @@ export default function OrgSettingsPage() {
                     type="button"
                     onClick={() => toggleFieldManual('capital')}
                     title={isManual('capital') ? 'Restaurer depuis INPI' : 'Modifier manuellement'}
-                    className="text-gray-300 hover:text-orange-500 transition p-0.5"
+                    className="text-gray-300 hover:text-kerpta transition p-0.5"
                   >
                     {isManual('capital')
                       ? <RefreshCw className="w-3 h-3" />
@@ -1108,7 +1108,7 @@ export default function OrgSettingsPage() {
                       placeholder="10000"
                       step="0.01"
                       min="0"
-                      className="w-full px-3 py-1.5 pr-8 text-sm border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                      className="w-full px-3 py-1.5 pr-8 text-sm border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-300"
                     />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">€</span>
                   </div>
@@ -1153,7 +1153,7 @@ export default function OrgSettingsPage() {
                   type="button"
                   onClick={() => toggleFieldManual('address')}
                   title={isManual('address') ? 'Restaurer depuis SIRENE' : 'Modifier manuellement'}
-                  className="text-gray-300 hover:text-orange-500 transition p-0.5"
+                  className="text-gray-300 hover:text-kerpta transition p-0.5"
                 >
                   {isManual('address')
                     ? <RefreshCw className="w-3 h-3" />
@@ -1169,7 +1169,7 @@ export default function OrgSettingsPage() {
                     onChange={(e) => setEditAddrVoie(e.target.value)}
                     onBlur={blurSaveAddress}
                     placeholder="Numéro et voie"
-                    className="w-full px-3 py-1.5 text-sm border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                    className="w-full px-3 py-1.5 text-sm border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-300"
                   />
                   <input
                     type="text"
@@ -1177,7 +1177,7 @@ export default function OrgSettingsPage() {
                     onChange={(e) => setEditAddrComplement(e.target.value)}
                     onBlur={blurSaveAddress}
                     placeholder="Complément d'adresse (optionnel)"
-                    className="w-full px-3 py-1.5 text-sm border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                    className="w-full px-3 py-1.5 text-sm border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-300"
                   />
                   <div className="grid grid-cols-2 gap-2">
                     <input
@@ -1187,7 +1187,7 @@ export default function OrgSettingsPage() {
                       onBlur={blurSaveAddress}
                       placeholder="Code postal"
                       maxLength={5}
-                      className="px-3 py-1.5 text-sm border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                      className="px-3 py-1.5 text-sm border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-300"
                     />
                     <input
                       type="text"
@@ -1195,7 +1195,7 @@ export default function OrgSettingsPage() {
                       onChange={(e) => setEditAddrCommune(e.target.value)}
                       onBlur={blurSaveAddress}
                       placeholder="Commune"
-                      className="px-3 py-1.5 text-sm border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                      className="px-3 py-1.5 text-sm border border-amber-300 bg-amber-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-300"
                     />
                   </div>
                 </>
@@ -1230,7 +1230,7 @@ export default function OrgSettingsPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 onBlur={() => blurSave('email', 'email', email, org.email)}
                 placeholder="contact@monentreprise.fr"
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-300"
               />
             </div>
             <div>
@@ -1243,7 +1243,7 @@ export default function OrgSettingsPage() {
                 onChange={(e) => setPhone(e.target.value)}
                 onBlur={() => blurSave('phone', 'phone', phone, org.phone)}
                 placeholder="+33 1 23 45 67 89"
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-300"
               />
             </div>
             <div>
@@ -1256,7 +1256,7 @@ export default function OrgSettingsPage() {
                 onChange={(e) => setWebsite(e.target.value)}
                 onBlur={() => blurSave('website', 'website', website, org.website)}
                 placeholder="https://www.monentreprise.fr"
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-300"
               />
             </div>
           </div>
@@ -1285,7 +1285,7 @@ export default function OrgSettingsPage() {
                   setVatRegime(e.target.value)
                   void saveField('vat_regime', { vat_regime: e.target.value || null })
                 }}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300 bg-white"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-300 bg-white"
               >
                 <option value="">Non renseigné</option>
                 <option value="none">Franchise en base (non assujetti)</option>
@@ -1310,7 +1310,7 @@ export default function OrgSettingsPage() {
                   setAccountingRegime(e.target.value)
                   void saveField('accounting_regime', { accounting_regime: e.target.value || null })
                 }}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300 bg-white"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-300 bg-white"
               >
                 <option value="">Non renseigné</option>
                 <option value="micro">Micro-entreprise</option>
@@ -1338,7 +1338,7 @@ export default function OrgSettingsPage() {
                   setVatExigibility(e.target.value)
                   void saveField('vat_exigibility', { vat_exigibility: e.target.value || 'encaissements' })
                 }}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300 bg-white max-w-xs"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-300 bg-white max-w-xs"
               >
                 <option value="encaissements">Sur les encaissements</option>
                 <option value="debits">Sur les débits</option>
@@ -1421,8 +1421,8 @@ export default function OrgSettingsPage() {
                         isClosed
                           ? 'border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed'
                           : isSelected
-                            ? 'border-orange-400 bg-orange-50'
-                            : 'border-gray-200 hover:border-orange-200 hover:bg-gray-50'
+                            ? 'border-kerpta-400 bg-kerpta-50'
+                            : 'border-gray-200 hover:border-kerpta-200 hover:bg-gray-50'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -1431,7 +1431,7 @@ export default function OrgSettingsPage() {
                           isClosed
                             ? 'border-gray-200 bg-gray-100'
                             : isSelected
-                              ? 'border-orange-500 bg-orange-500'
+                              ? 'border-kerpta bg-kerpta'
                               : 'border-gray-300'
                         }`}>
                           {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
@@ -1442,7 +1442,7 @@ export default function OrgSettingsPage() {
                               {siretFormatted}
                             </span>
                             {etab.siege && (
-                              <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-medium shrink-0">
+                              <span className="text-xs bg-kerpta-100 text-kerpta-700 px-1.5 py-0.5 rounded font-medium shrink-0">
                                 Siège social
                               </span>
                             )}
@@ -1483,7 +1483,7 @@ export default function OrgSettingsPage() {
                     href={`https://www.pappers.fr/entreprise/${org.org_siren}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-orange-500 hover:underline"
+                    className="text-kerpta hover:underline"
                   >
                     Pappers
                   </a>{' '}
@@ -1503,7 +1503,7 @@ export default function OrgSettingsPage() {
             <button
               onClick={handleAddShareholder}
               disabled={shAdding}
-              className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-orange-600 bg-orange-50 hover:bg-orange-100 rounded-lg transition disabled:opacity-60"
+              className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-kerpta-600 bg-kerpta-50 hover:bg-kerpta-100 rounded-lg transition disabled:opacity-60"
             >
               {shAdding ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
               Ajouter
@@ -1524,7 +1524,7 @@ export default function OrgSettingsPage() {
                   <select
                     value={sh.type}
                     onChange={(e) => handleUpdateShareholder(sh.id, 'type', e.target.value)}
-                    className="px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300 bg-white"
+                    className="px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-300 bg-white"
                   >
                     <option value="physical">Personne physique</option>
                     <option value="legal">Personne morale</option>
@@ -1551,7 +1551,7 @@ export default function OrgSettingsPage() {
                         if (e.target.value !== (sh.first_name ?? ''))
                           handleUpdateShareholder(sh.id, 'first_name', e.target.value)
                       }}
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-300"
                     />
                   </div>
                   <div>
@@ -1563,7 +1563,7 @@ export default function OrgSettingsPage() {
                         if (e.target.value !== (sh.last_name ?? ''))
                           handleUpdateShareholder(sh.id, 'last_name', e.target.value)
                       }}
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-300"
                     />
                   </div>
                 </div>
@@ -1582,7 +1582,7 @@ export default function OrgSettingsPage() {
                           if (e.target.value !== (sh.company_name ?? ''))
                             handleUpdateShareholder(sh.id, 'company_name', e.target.value)
                         }}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-300"
                       />
                     </div>
                     <div>
@@ -1595,18 +1595,18 @@ export default function OrgSettingsPage() {
                           if (e.target.value !== (sh.company_siren ?? ''))
                             handleUpdateShareholder(sh.id, 'company_siren', e.target.value)
                         }}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300 font-mono"
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-300 font-mono"
                       />
                     </div>
                   </div>
 
                   {/* Représentants */}
-                  <div className="ml-4 border-l-2 border-orange-200 pl-4 space-y-2">
+                  <div className="ml-4 border-l-2 border-kerpta-200 pl-4 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-gray-500 font-medium">Représentants</span>
                       <button
                         onClick={() => handleAddRepresentative(sh.id)}
-                        className="flex items-center gap-1 px-2 py-1 text-xs text-orange-600 hover:bg-orange-50 rounded transition"
+                        className="flex items-center gap-1 px-2 py-1 text-xs text-kerpta-600 hover:bg-kerpta-50 rounded transition"
                       >
                         <UserPlus className="w-3 h-3" /> Ajouter
                       </button>
@@ -1624,7 +1624,7 @@ export default function OrgSettingsPage() {
                             if (e.target.value !== rep.first_name)
                               handleUpdateRepresentative(sh.id, rep.id, 'first_name', e.target.value)
                           }}
-                          className="flex-1 px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                          className="flex-1 px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-300"
                         />
                         <input
                           type="text"
@@ -1634,7 +1634,7 @@ export default function OrgSettingsPage() {
                             if (e.target.value !== rep.last_name)
                               handleUpdateRepresentative(sh.id, rep.id, 'last_name', e.target.value)
                           }}
-                          className="flex-1 px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                          className="flex-1 px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-300"
                         />
                         <input
                           type="text"
@@ -1644,7 +1644,7 @@ export default function OrgSettingsPage() {
                             if (e.target.value !== (rep.quality ?? ''))
                               handleUpdateRepresentative(sh.id, rep.id, 'quality', e.target.value)
                           }}
-                          className="flex-1 px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                          className="flex-1 px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-300"
                         />
                         <button
                           onClick={() => handleDeleteRepresentative(sh.id, rep.id)}
@@ -1671,7 +1671,7 @@ export default function OrgSettingsPage() {
                       if (e.target.value !== (sh.quality ?? ''))
                         handleUpdateShareholder(sh.id, 'quality', e.target.value)
                     }}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-300"
                   />
                 </div>
                 <div>
@@ -1684,7 +1684,7 @@ export default function OrgSettingsPage() {
                       if (v !== (sh.shares_count ?? null))
                         handleUpdateShareholder(sh.id, 'shares_count', v)
                     }}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-300"
                   />
                 </div>
                 <div>
@@ -1700,7 +1700,7 @@ export default function OrgSettingsPage() {
                       if (v !== (sh.ownership_pct ?? null))
                         handleUpdateShareholder(sh.id, 'ownership_pct', v)
                     }}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-300"
                   />
                 </div>
                 <div>
@@ -1712,7 +1712,7 @@ export default function OrgSettingsPage() {
                       if (e.target.value !== (sh.entry_date ?? ''))
                         handleUpdateShareholder(sh.id, 'entry_date', e.target.value || null)
                     }}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-300"
                   />
                 </div>
               </div>
@@ -1728,7 +1728,7 @@ export default function OrgSettingsPage() {
                       if (e.target.value !== (sh.exit_date ?? ''))
                         handleUpdateShareholder(sh.id, 'exit_date', e.target.value || null)
                     }}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-300"
                   />
                 </div>
                 <div className="col-span-3">
@@ -1760,7 +1760,7 @@ export default function OrgSettingsPage() {
                       if (parts.length >= 3) addr.commune = parts[2]
                       handleUpdateShareholder(sh.id, 'address', addr)
                     }}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-300"
                   />
                 </div>
               </div>
@@ -1776,7 +1776,7 @@ export default function OrgSettingsPage() {
         {/* Indicateur de sauvegarde automatique */}
         {(savingField || savedField) && (
           <div className="flex items-center gap-1.5 text-xs text-gray-400 justify-end">
-            {savingField && <Loader2 className="w-3 h-3 animate-spin text-orange-400" />}
+            {savingField && <Loader2 className="w-3 h-3 animate-spin text-kerpta-400" />}
             {savingField && 'Enregistrement…'}
             {!savingField && savedField && (
               <>

@@ -28,14 +28,14 @@ export function InfoHint({ children, size = 'sm' }: InfoHintProps) {
         onClick={() => setOpen((o) => !o)}
         className={`${padding} rounded-md transition ${
           open
-            ? 'text-orange-500 dark:text-orange-400 bg-orange-50 dark:bg-orange-500/10'
-            : 'text-gray-400 dark:text-gray-500 hover:text-orange-500 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-500/10'
+            ? 'text-kerpta dark:text-kerpta-400 bg-kerpta-50 dark:bg-kerpta/10'
+            : 'text-gray-400 dark:text-gray-500 hover:text-kerpta dark:hover:text-kerpta-400 hover:bg-kerpta-50 dark:hover:bg-kerpta/10'
         }`}
       >
         <Info className={iconSize} />
       </button>
       {open && (
-        <div className="text-xs text-gray-600 dark:text-gray-300 bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/20 rounded-lg px-3 py-2 space-y-0.5">
+        <div className="text-xs text-gray-600 dark:text-gray-300 bg-kerpta-50 dark:bg-kerpta/10 border border-kerpta-200 dark:border-kerpta/20 rounded-lg px-3 py-2 space-y-0.5">
           {children}
         </div>
       )}

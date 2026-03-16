@@ -68,8 +68,8 @@ export default function UnitCombobox({ value, onChange, className = '', placehol
                 onChange(u.label)
                 setOpen(false)
               }}
-              className={`px-3 py-1.5 text-sm cursor-pointer hover:bg-orange-50 transition ${
-                u.label === value ? 'bg-orange-50 text-orange-700 font-medium' : 'text-gray-700'
+              className={`px-3 py-1.5 text-sm cursor-pointer hover:bg-kerpta-50 transition ${
+                u.label === value ? 'bg-kerpta-50 text-kerpta-700 font-medium' : 'text-gray-700'
               }`}
             >
               {u.label}

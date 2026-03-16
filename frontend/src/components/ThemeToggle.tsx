@@ -18,7 +18,7 @@ export function ThemeToggle() {
         bg-white dark:bg-slate-800
         border border-gray-200 dark:border-white/10
         text-gray-500 dark:text-slate-400
-        hover:text-orange-600 dark:hover:text-orange-400
+        hover:text-kerpta-600 dark:hover:text-kerpta-400
         shadow-md hover:shadow-lg
         transition-all duration-200"
     >

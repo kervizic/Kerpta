@@ -141,7 +141,7 @@ function InputField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400/20 transition"
+        className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-kerpta-400 focus:ring-1 focus:ring-kerpta-400/20 transition"
       />
     </div>
   )
@@ -171,7 +171,7 @@ function ProviderRow({
   return (
     <div
       className={`rounded-xl border transition-all ${
-        config.enabled ? 'border-orange-300 bg-orange-50' : 'border-gray-200 bg-white'
+        config.enabled ? 'border-kerpta-300 bg-kerpta-50' : 'border-gray-200 bg-white'
       }`}
     >
       {/* En-tête du provider */}
@@ -189,7 +189,7 @@ function ProviderRow({
               if (next) setExpanded(true)
             }}
             className={`relative inline-flex rounded-full transition-colors focus:outline-none ${
-              config.enabled ? 'bg-orange-500' : 'bg-gray-300'
+              config.enabled ? 'bg-kerpta' : 'bg-gray-300'
             }`}
             style={{ minWidth: '2.5rem', height: '1.375rem' }}
           >
@@ -215,7 +215,7 @@ function ProviderRow({
                 if (!expanded) setExpanded(true)
               }}
               title="Procédure de configuration"
-              className="p-1 rounded-md text-gray-400 hover:text-orange-600 hover:bg-orange-50 transition"
+              className="p-1 rounded-md text-gray-400 hover:text-kerpta-600 hover:bg-kerpta-50 transition"
             >
               <HelpCircle className="w-4 h-4" />
             </button>
@@ -375,7 +375,7 @@ export default function ConfigApiKeysPage() {
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-kerpta border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
@@ -388,8 +388,8 @@ export default function ConfigApiKeysPage() {
       <div className="max-w-2xl mx-auto">
         {/* En-tête */}
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-center">
-            <KeyRound className="w-5 h-5 text-orange-500" />
+          <div className="w-10 h-10 rounded-xl bg-kerpta-50 border border-kerpta-200 flex items-center justify-center">
+            <KeyRound className="w-5 h-5 text-kerpta" />
           </div>
           <div>
             <h1 className="text-xl font-bold text-gray-900">Clés API</h1>
@@ -513,7 +513,7 @@ export default function ConfigApiKeysPage() {
               <button
                 onClick={saveInpi}
                 disabled={inpiSaving}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white text-sm font-semibold transition"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-kerpta-600 hover:bg-kerpta disabled:opacity-50 text-white text-sm font-semibold transition"
               >
                 {inpiSaving && <Loader2 className="w-4 h-4 animate-spin" />}
                 Enregistrer
@@ -542,9 +542,9 @@ export default function ConfigApiKeysPage() {
 
           {/* Bannière post-sauvegarde — redémarrage GoTrue en cours */}
           {restarting && (
-            <div className="flex items-center gap-3 rounded-xl bg-orange-50 border border-orange-300 px-4 py-3 mb-4">
-              <RefreshCw className="w-4 h-4 text-orange-500 animate-spin shrink-0" />
-              <p className="text-sm font-semibold text-orange-800">
+            <div className="flex items-center gap-3 rounded-xl bg-kerpta-50 border border-kerpta-300 px-4 py-3 mb-4">
+              <RefreshCw className="w-4 h-4 text-kerpta animate-spin shrink-0" />
+              <p className="text-sm font-semibold text-kerpta-800">
                 GoTrue redémarre — la connexion est temporairement indisponible (~10 s)
               </p>
             </div>
@@ -574,7 +574,7 @@ export default function ConfigApiKeysPage() {
             <button
               onClick={saveOAuth}
               disabled={oauthSaving}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white text-sm font-semibold transition"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-kerpta-600 hover:bg-kerpta disabled:opacity-50 text-white text-sm font-semibold transition"
             >
               {oauthSaving && <Loader2 className="w-4 h-4 animate-spin" />}
               Enregistrer les providers

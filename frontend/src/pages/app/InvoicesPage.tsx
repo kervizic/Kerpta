@@ -111,7 +111,7 @@ function emptyLine(): FormLine {
 
 const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
   draft: { label: 'Brouillon', cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' },
-  validated: { label: 'Validée', cls: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400' },
+  validated: { label: 'Validée', cls: 'bg-kerpta-100 text-kerpta-700 dark:bg-kerpta-900/40 dark:text-kerpta-400' },
   sent: { label: 'Envoyée', cls: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400' },
   partial: { label: 'Partiel', cls: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400' },
   paid: { label: 'Payée', cls: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' },
@@ -251,7 +251,7 @@ function InvoicesList() {
               </div>
             </div>
             {activeFilterCount > 0 && (
-              <span className="text-[10px] bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 px-2 py-0.5 rounded-full font-medium">
+              <span className="text-[10px] bg-kerpta-100 text-kerpta-700 dark:bg-kerpta-900/40 dark:text-kerpta-400 px-2 py-0.5 rounded-full font-medium">
                 {activeFilterCount} filtre{activeFilterCount > 1 ? 's' : ''}
               </span>
             )}
@@ -261,21 +261,21 @@ function InvoicesList() {
             <button
               onClick={() => setShowMobileFilters(true)}
               className={`md:hidden relative p-2 rounded-lg border transition ${
-                activeFilterCount > 0 ? 'border-orange-300 bg-orange-50 text-orange-600 dark:border-orange-600 dark:bg-orange-900/30 dark:text-orange-400' : 'border-gray-200 text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700'
+                activeFilterCount > 0 ? 'border-kerpta-300 bg-kerpta-50 text-kerpta-600 dark:border-kerpta-600 dark:bg-kerpta-900/30 dark:text-kerpta-400' : 'border-gray-200 text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700'
               }`}
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
               </svg>
               {activeFilterCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-kerpta text-white text-[9px] font-bold rounded-full flex items-center justify-center">
                   {activeFilterCount}
                 </span>
               )}
             </button>
             <button
               onClick={() => navigate('/app/factures/nouveau')}
-              className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white text-sm font-semibold rounded-lg transition"
+              className="flex items-center gap-1.5 px-4 py-2 bg-kerpta hover:bg-kerpta-400 text-white text-sm font-semibold rounded-lg transition"
             >
               <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Nouvelle facture</span>
             </button>
@@ -299,7 +299,7 @@ function InvoicesList() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={8} className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin text-orange-500 mx-auto" /></td></tr>
+                <tr><td colSpan={8} className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin text-kerpta mx-auto" /></td></tr>
               ) : invoices.length === 0 ? (
                 <tr><td colSpan={8} className="py-12 text-center text-gray-400 dark:text-gray-500 text-sm">Aucune facture trouvée</td></tr>
               ) : (
@@ -307,7 +307,7 @@ function InvoicesList() {
                   const st = STATUS_LABELS[inv.status] || { label: inv.status, cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' }
                   const isEditable = ['draft', 'validated'].includes(inv.status)
                   return (
-                    <tr key={inv.id} onClick={() => isEditable ? setEditId(inv.id) : setSelectedId(inv.id)} className="border-b border-gray-50 dark:border-gray-700 hover:bg-orange-50/50 dark:hover:bg-orange-900/30 cursor-pointer transition">
+                    <tr key={inv.id} onClick={() => isEditable ? setEditId(inv.id) : setSelectedId(inv.id)} className="border-b border-gray-50 dark:border-gray-700 hover:bg-kerpta-50/50 dark:hover:bg-kerpta-900/30 cursor-pointer transition">
                       <td className="px-4 py-3 font-mono text-xs text-gray-700 dark:text-gray-200">
                         {inv.number || inv.proforma_number || '—'}
                       </td>
@@ -331,7 +331,7 @@ function InvoicesList() {
         {/* Mobile : cartes */}
         <div className="md:hidden space-y-2">
           {loading ? (
-            <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
+            <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-kerpta" /></div>
           ) : invoices.length === 0 ? (
             <div className="py-12 text-center text-gray-400 dark:text-gray-500 text-sm">Aucune facture trouvée</div>
           ) : (
@@ -342,7 +342,7 @@ function InvoicesList() {
                 <div
                   key={inv.id}
                   onClick={() => isEditable ? setEditId(inv.id) : setSelectedId(inv.id)}
-                  className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 cursor-pointer hover:border-orange-200 dark:hover:border-orange-700 transition active:bg-orange-50/50 dark:active:bg-orange-900/30"
+                  className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 cursor-pointer hover:border-kerpta-200 dark:hover:border-kerpta-700 transition active:bg-kerpta-50/50 dark:active:bg-kerpta-900/30"
                 >
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="font-mono text-xs text-gray-500 dark:text-gray-400">{inv.number || inv.proforma_number || '—'}</span>
@@ -434,7 +434,7 @@ function InvoiceDetailPanel({ invoiceId, onClose }: { invoiceId: string; onClose
         onClick={(e) => e.stopPropagation()}
       >
         {loading ? (
-          <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
+          <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-kerpta" /></div>
         ) : !invoice ? (
           <div className="py-16 text-center text-gray-400 dark:text-gray-500 text-sm">Facture introuvable</div>
         ) : (
@@ -442,8 +442,8 @@ function InvoiceDetailPanel({ invoiceId, onClose }: { invoiceId: string; onClose
         {/* En-tête */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10 rounded-t-2xl">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-700 flex items-center justify-center shrink-0">
-              <FileText className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+            <div className="w-10 h-10 rounded-xl bg-kerpta-50 dark:bg-kerpta-900/30 border border-kerpta-200 dark:border-kerpta-700 flex items-center justify-center shrink-0">
+              <FileText className="w-5 h-5 text-kerpta-600 dark:text-kerpta-400" />
             </div>
             <div className="min-w-0">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white truncate">
@@ -466,7 +466,7 @@ function InvoiceDetailPanel({ invoiceId, onClose }: { invoiceId: string; onClose
         <div className="flex flex-wrap gap-2 mb-5">
           {invoice.status === 'draft' && (
             <>
-              <button onClick={() => doAction('validate')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
+              <button onClick={() => doAction('validate')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-kerpta-600 hover:bg-kerpta text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
                 {actionLoading === 'validate' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />} Valider
               </button>
               <button onClick={() => window.open(`/api/v1/invoices/${invoiceId}/pdf?proforma=true`, '_blank')} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 text-sm font-medium rounded-lg transition">
@@ -516,7 +516,7 @@ function InvoiceDetailPanel({ invoiceId, onClose }: { invoiceId: string; onClose
           </div>
           <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
             <p className="text-xs text-gray-400 dark:text-gray-500 uppercase font-semibold mb-1">Total TTC</p>
-            <p className="text-lg font-bold text-orange-600 dark:text-orange-400">{fmtCurrency(invoice.total_ttc)}</p>
+            <p className="text-lg font-bold text-kerpta-600 dark:text-kerpta-400">{fmtCurrency(invoice.total_ttc)}</p>
           </div>
           <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
             <p className="text-xs text-gray-400 dark:text-gray-500 uppercase font-semibold mb-1">Payé</p>
@@ -878,11 +878,11 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
     if (onClose) return (
       <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 overflow-y-auto" onClick={onClose}>
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl dark:shadow-black/50 w-full mx-2 md:mx-6 max-w-5xl mt-2 md:mt-8 mb-2 md:mb-8 flex justify-center py-16" onClick={(e) => e.stopPropagation()}>
-          <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
+          <Loader2 className="w-6 h-6 animate-spin text-kerpta" />
         </div>
       </div>
     )
-    return <div className="flex-1 flex justify-center items-center"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
+    return <div className="flex-1 flex justify-center items-center"><Loader2 className="w-6 h-6 animate-spin text-kerpta" /></div>
   }
 
   const formContent = (
@@ -903,11 +903,11 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
         )}
 
         {isValidated && (
-          <div className="flex items-start gap-3 px-5 py-4 bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-700 rounded-2xl mb-4">
-            <Lock className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
+          <div className="flex items-start gap-3 px-5 py-4 bg-kerpta-50 dark:bg-kerpta-900/30 border border-kerpta-200 dark:border-kerpta-700 rounded-2xl mb-4">
+            <Lock className="w-5 h-5 text-kerpta shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-semibold text-orange-800 dark:text-orange-400">Facture validée</p>
-              <p className="text-xs text-orange-600 dark:text-orange-400 mt-0.5">
+              <p className="text-sm font-semibold text-kerpta-800 dark:text-kerpta-400">Facture validée</p>
+              <p className="text-xs text-kerpta-600 dark:text-kerpta-400 mt-0.5">
                 Seuls les notes internes et le mode de règlement sont modifiables après validation (obligation légale française).
               </p>
             </div>
@@ -991,7 +991,7 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
           <div className="flex items-center gap-3 mb-4">
             <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Lignes</h2>
             {lines.some((l) => !l.product_id && l.description.trim()) && (
-              <span className="text-[10px] bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 px-2 py-0.5 rounded-full font-medium">
+              <span className="text-[10px] bg-kerpta-100 text-kerpta-700 dark:bg-kerpta-900/40 dark:text-kerpta-400 px-2 py-0.5 rounded-full font-medium">
                 {lines.filter((l) => !l.product_id && l.description.trim()).length} nouvel article{lines.filter((l) => !l.product_id && l.description.trim()).length > 1 ? 's' : ''} sera créé{lines.filter((l) => !l.product_id && l.description.trim()).length > 1 ? 's' : ''}
               </span>
             )}
@@ -1162,7 +1162,7 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
           {!isValidated && (
             <button
               onClick={() => setLines((prev) => [...prev, emptyLine()])}
-              className="mt-2 flex items-center gap-1.5 text-xs text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300 font-medium transition px-2 py-1"
+              className="mt-2 flex items-center gap-1.5 text-xs text-kerpta-600 hover:text-kerpta-700 dark:text-kerpta-400 dark:hover:text-kerpta-300 font-medium transition px-2 py-1"
             >
               <Plus className="w-3.5 h-3.5" /> Ajouter un élément
             </button>
@@ -1178,7 +1178,7 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
                 <button type="button" onClick={() => {
                   const full = profilesFull.find((p) => p.id === billingProfileId)
                   if (full) setProfileModal(full)
-                }} className="text-orange-600 hover:underline font-medium">profil de facturation</button>.
+                }} className="text-kerpta-600 hover:underline font-medium">profil de facturation</button>.
               </span>
             </div>
           )}
@@ -1256,7 +1256,7 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
             <button
               onClick={() => handleSave(false, true)}
               disabled={saving || !clientId}
-              className="flex items-center gap-1.5 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50"
+              className="flex items-center gap-1.5 px-5 py-2.5 bg-kerpta-600 hover:bg-kerpta text-white text-sm font-semibold rounded-lg transition disabled:opacity-50"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
               Valider

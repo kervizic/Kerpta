@@ -94,7 +94,7 @@ function httpError(err: unknown, fallback: string): string {
 }
 
 import { INPUT, SELECT } from '@/lib/formStyles'
-const BTN_PRIMARY = 'px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50'
+const BTN_PRIMARY = 'px-4 py-2 bg-kerpta-600 hover:bg-kerpta text-white text-sm font-semibold rounded-lg transition disabled:opacity-50'
 const BTN_SECONDARY = 'px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition'
 
 function fmtPrice(v: number | null | undefined): string {
@@ -148,7 +148,7 @@ function ProductsList({ initialSelectedId }: { initialSelectedId?: string } = {}
               onClick={() => { setShowArchived(!showArchived); setPage(1) }}
               className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border transition ${
                 showArchived
-                  ? 'bg-orange-50 border-orange-200 text-orange-700 dark:bg-orange-900/30 dark:border-orange-700 dark:text-orange-400'
+                  ? 'bg-kerpta-50 border-kerpta-200 text-kerpta-700 dark:bg-kerpta-900/30 dark:border-kerpta-700 dark:text-kerpta-400'
                   : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700'
               }`}
             >
@@ -166,13 +166,13 @@ function ProductsList({ initialSelectedId }: { initialSelectedId?: string } = {}
             type="text" value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1) }}
             placeholder="Rechercher un article..."
-            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-400"
           />
         </div>
 
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden">
           {loading ? (
-            <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
+            <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-kerpta" /></div>
           ) : products.length === 0 ? (
             <div className="py-12 text-center text-gray-400 dark:text-gray-500 text-sm">Aucun article trouv&eacute;</div>
           ) : (<>
@@ -191,7 +191,7 @@ function ProductsList({ initialSelectedId }: { initialSelectedId?: string } = {}
               <tbody>
                 {products.map((p) => (
                   <tr key={p.id} onClick={() => setSelectedId(p.id)}
-                    className="border-b border-gray-50 dark:border-gray-700 hover:bg-orange-50/50 dark:hover:bg-orange-900/30 cursor-pointer transition">
+                    className="border-b border-gray-50 dark:border-gray-700 hover:bg-kerpta-50/50 dark:hover:bg-kerpta-900/30 cursor-pointer transition">
                     <td className="px-4 py-3 text-gray-500 dark:text-gray-400 font-mono text-xs">{p.reference || '\u2014'}</td>
                     <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">
                       <span className={p.archived_at ? 'text-gray-400 dark:text-gray-500' : ''}>{p.name}</span>
@@ -217,7 +217,7 @@ function ProductsList({ initialSelectedId }: { initialSelectedId?: string } = {}
             <div className="md:hidden space-y-2 p-3">
               {products.map((p) => (
                 <div key={p.id} onClick={() => setSelectedId(p.id)}
-                  className="border border-gray-100 dark:border-gray-700 rounded-xl p-3 hover:bg-orange-50/50 dark:hover:bg-orange-900/30 cursor-pointer transition">
+                  className="border border-gray-100 dark:border-gray-700 rounded-xl p-3 hover:bg-kerpta-50/50 dark:hover:bg-kerpta-900/30 cursor-pointer transition">
                   <div className="flex items-center justify-between">
                     <span className={`font-medium text-sm ${p.archived_at ? 'text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>{p.name}</span>
                     {p.archived_at && <span className="text-[10px] bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400 px-1.5 py-0.5 rounded-full">Archivé</span>}
@@ -409,8 +409,8 @@ function ProductDetailModal({ productId, onClose }: { productId: string; onClose
         {/* En-tête */}
         <div className="flex items-center justify-between px-4 md:px-6 py-4 border-b border-gray-100 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10 rounded-t-2xl">
           <div className="flex items-center gap-3 min-w-0 flex-1">
-            <div className="w-10 h-10 rounded-xl bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-700 flex items-center justify-center shrink-0">
-              {loading ? <Loader2 className="w-5 h-5 animate-spin text-orange-500" /> : <Layers className="w-5 h-5 text-orange-600" />}
+            <div className="w-10 h-10 rounded-xl bg-kerpta-50 dark:bg-kerpta-900/30 border border-kerpta-200 dark:border-kerpta-700 flex items-center justify-center shrink-0">
+              {loading ? <Loader2 className="w-5 h-5 animate-spin text-kerpta" /> : <Layers className="w-5 h-5 text-kerpta-600" />}
             </div>
             {product && (
               <div className="min-w-0 flex-1">
@@ -421,7 +421,7 @@ function ProductDetailModal({ productId, onClose }: { productId: string; onClose
                     onChange={(e) => setEditName(e.target.value)}
                     onBlur={() => { if (editName.trim() && editName !== product.name) saveField('name', editName.trim()); else setEditingName(false) }}
                     onKeyDown={(e) => { if (e.key === 'Enter') { e.currentTarget.blur() } else if (e.key === 'Escape') setEditingName(false) }}
-                    className="text-lg font-semibold text-gray-900 dark:text-white w-full px-2 py-0.5 border border-orange-300 dark:bg-gray-900 rounded-lg focus:outline-none focus:ring-1 focus:ring-orange-400"
+                    className="text-lg font-semibold text-gray-900 dark:text-white w-full px-2 py-0.5 border border-kerpta-300 dark:bg-gray-900 rounded-lg focus:outline-none focus:ring-1 focus:ring-kerpta-400"
                   />
                 ) : (
                   <div className="flex items-center gap-1.5 group">
@@ -441,11 +441,11 @@ function ProductDetailModal({ productId, onClose }: { productId: string; onClose
                       onBlur={() => { saveField('reference', editRef.trim() || null); setEditingRef(false) }}
                       onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); else if (e.key === 'Escape') setEditingRef(false) }}
                       placeholder="Référence"
-                      className="text-xs text-gray-500 dark:text-gray-400 font-mono px-1.5 py-0.5 border border-orange-300 dark:bg-gray-900 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 w-32"
+                      className="text-xs text-gray-500 dark:text-gray-400 font-mono px-1.5 py-0.5 border border-kerpta-300 dark:bg-gray-900 rounded focus:outline-none focus:ring-1 focus:ring-kerpta-400 w-32"
                     />
                   ) : (
                     <button onClick={() => { setEditRef(product.reference || ''); setEditingRef(true) }}
-                      className="text-xs text-gray-500 dark:text-gray-400 font-mono hover:text-orange-600 dark:hover:text-orange-400 transition">
+                      className="text-xs text-gray-500 dark:text-gray-400 font-mono hover:text-kerpta-600 dark:hover:text-kerpta-400 transition">
                       {product.reference || '+ Réf.'}
                     </button>
                   )}
@@ -475,7 +475,7 @@ function ProductDetailModal({ productId, onClose }: { productId: string; onClose
                 )}
               </>
             )}
-            {savingField && <Loader2 className="w-4 h-4 animate-spin text-orange-500" />}
+            {savingField && <Loader2 className="w-4 h-4 animate-spin text-kerpta" />}
             <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
               <X className="w-5 h-5 text-gray-400" />
             </button>
@@ -484,7 +484,7 @@ function ProductDetailModal({ productId, onClose }: { productId: string; onClose
 
         {loading ? (
           <div className="flex justify-center py-16">
-            <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
+            <Loader2 className="w-6 h-6 animate-spin text-kerpta" />
           </div>
         ) : !product ? (
           <div className="py-16 text-center text-gray-400 dark:text-gray-500 text-sm">Article introuvable</div>
@@ -559,7 +559,7 @@ function ProductDetailModal({ productId, onClose }: { productId: string; onClose
                 {tabs.map(t => (
                   <button key={t.key} onClick={() => setTab(t.key)}
                     className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition ${
-                      tab === t.key ? 'border-orange-500 text-orange-600 dark:text-orange-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                      tab === t.key ? 'border-kerpta text-kerpta-600 dark:text-kerpta-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                     }`}>
                     <t.icon className="w-3 h-3" /> {t.label}
                   </button>
@@ -601,7 +601,7 @@ function EditableInfoCard({ label, value, editingField, fieldKey, editFieldValue
   const isEditing = editingField === fieldKey
   return (
     <div
-      className={`border rounded-xl p-3 transition cursor-pointer group ${isEditing ? 'border-orange-300 bg-orange-50/30 dark:bg-orange-900/20' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-orange-200 dark:hover:border-orange-700'}`}
+      className={`border rounded-xl p-3 transition cursor-pointer group ${isEditing ? 'border-kerpta-300 bg-kerpta-50/30 dark:bg-kerpta-900/20' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-kerpta-200 dark:hover:border-kerpta-700'}`}
       onClick={() => { if (!isEditing) onStartEdit() }}
     >
       <div className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wide flex items-center justify-between">
@@ -615,7 +615,7 @@ function EditableInfoCard({ label, value, editingField, fieldKey, editFieldValue
             value={editFieldValue}
             onChange={(e) => { onChangeValue(e.target.value); }}
             onBlur={onSave}
-            className="w-full mt-1 text-sm font-semibold text-gray-900 dark:text-white px-1 py-0.5 border border-orange-300 rounded focus:outline-none focus:ring-1 focus:ring-orange-400 bg-white dark:bg-gray-900"
+            className="w-full mt-1 text-sm font-semibold text-gray-900 dark:text-white px-1 py-0.5 border border-kerpta-300 rounded focus:outline-none focus:ring-1 focus:ring-kerpta-400 bg-white dark:bg-gray-900"
           >
             {selectOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
@@ -628,7 +628,7 @@ function EditableInfoCard({ label, value, editingField, fieldKey, editFieldValue
             onChange={(e) => onChangeValue(e.target.value)}
             onBlur={onSave}
             onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); else if (e.key === 'Escape') onCancel() }}
-            className="w-full mt-1 text-sm font-semibold text-gray-900 dark:text-white px-1 py-0.5 border border-orange-300 dark:bg-gray-900 rounded focus:outline-none focus:ring-1 focus:ring-orange-400"
+            className="w-full mt-1 text-sm font-semibold text-gray-900 dark:text-white px-1 py-0.5 border border-kerpta-300 dark:bg-gray-900 rounded focus:outline-none focus:ring-1 focus:ring-kerpta-400"
           />
         )
       ) : (
@@ -678,7 +678,7 @@ function VariantsTab({ productId }: { productId: string }) {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-orange-500" /></div>
+        <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-kerpta" /></div>
       ) : variants.length === 0 ? (
         <div className="py-8 text-center text-gray-400 dark:text-gray-500 text-sm">Aucune variante client</div>
       ) : (
@@ -771,7 +771,7 @@ function VariantFormModal({ productId, clients, onClose, onSaved }: {
             {['inherit', 'fixed', 'coefficient'].map(m => (
               <label key={m} className="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-200">
                 <input type="radio" name="variantPriceMode" value={m} checked={priceMode === m}
-                  onChange={() => setPriceMode(m)} className="text-orange-600 focus:ring-orange-400" />
+                  onChange={() => setPriceMode(m)} className="text-kerpta-600 focus:ring-kerpta-400" />
                 {m === 'inherit' ? 'Hériter' : m === 'fixed' ? 'Fixe' : 'Coefficient'}
               </label>
             ))}
@@ -826,7 +826,7 @@ function PurchaseLinksTab({ productId }: { productId: string }) {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-orange-500" /></div>
+        <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-kerpta" /></div>
       ) : links.length === 0 ? (
         <div className="py-8 text-center text-gray-400 dark:text-gray-500 text-sm">Aucun lien achat fournisseur</div>
       ) : (
@@ -847,7 +847,7 @@ function PurchaseLinksTab({ productId }: { productId: string }) {
                 <tr key={l.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
                   <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">
                     {l.supplier_name || '\u2014'}
-                    {l.is_default && <span className="ml-1.5 text-[10px] bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 px-1.5 py-0.5 rounded-full">D&eacute;faut</span>}
+                    {l.is_default && <span className="ml-1.5 text-[10px] bg-kerpta-100 text-kerpta-700 dark:bg-kerpta-900/40 dark:text-kerpta-400 px-1.5 py-0.5 rounded-full">D&eacute;faut</span>}
                   </td>
                   <td className="px-4 py-3 text-gray-500 dark:text-gray-400 font-mono text-xs">{l.supplier_reference || '\u2014'}</td>
                   <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">{fmtPrice(l.purchase_price)}</td>
@@ -926,12 +926,12 @@ function PurchaseLinkFormModal({ productId, onClose, onSaved }: {
           <div className="flex gap-4">
             <label className="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-200">
               <input type="radio" name="linkPriceMode" value="coefficient" checked={salePriceMode === 'coefficient'}
-                onChange={() => setSalePriceMode('coefficient')} className="text-orange-600 focus:ring-orange-400" />
+                onChange={() => setSalePriceMode('coefficient')} className="text-kerpta-600 focus:ring-kerpta-400" />
               Coefficient
             </label>
             <label className="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-200">
               <input type="radio" name="linkPriceMode" value="fixed" checked={salePriceMode === 'fixed'}
-                onChange={() => setSalePriceMode('fixed')} className="text-orange-600 focus:ring-orange-400" />
+                onChange={() => setSalePriceMode('fixed')} className="text-kerpta-600 focus:ring-kerpta-400" />
               Prix fixe
             </label>
           </div>
@@ -946,7 +946,7 @@ function PurchaseLinkFormModal({ productId, onClose, onSaved }: {
           )}
           <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
             <input type="checkbox" checked={isDefault} onChange={e => setIsDefault(e.target.checked)}
-              className="rounded border-gray-300 text-orange-600 focus:ring-orange-400" />
+              className="rounded border-gray-300 text-kerpta-600 focus:ring-kerpta-400" />
             Achat par défaut
           </label>
           <div className="flex justify-end gap-2 pt-2">
@@ -996,7 +996,7 @@ function QuantityDiscountsTab({ productId }: { productId: string }) {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-orange-500" /></div>
+        <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-kerpta" /></div>
       ) : discounts.length === 0 ? (
         <div className="py-8 text-center text-gray-400 dark:text-gray-500 text-sm">Aucun palier de remise quantit&eacute;</div>
       ) : (
@@ -1014,7 +1014,7 @@ function QuantityDiscountsTab({ productId }: { productId: string }) {
               {discounts.map(d => (
                 <tr key={d.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
                   <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{Number(d.min_quantity)}</td>
-                  <td className="px-4 py-3 text-orange-600 dark:text-orange-400 font-semibold">-{Number(d.discount_percent)} %</td>
+                  <td className="px-4 py-3 text-kerpta-600 dark:text-kerpta-400 font-semibold">-{Number(d.discount_percent)} %</td>
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{d.client_name || 'Tous'}</td>
                   <td className="px-4 py-3 text-right">
                     <button onClick={() => handleDelete(d.id)} className="text-gray-400 hover:text-red-500 transition">

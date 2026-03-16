@@ -78,10 +78,10 @@ export default function MobileFilterPanel({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-orange-500" />
+            <Filter className="w-4 h-4 text-kerpta" />
             <h2 className="text-base font-semibold text-gray-900 dark:text-white">Filtres</h2>
             {activeCount > 0 && (
-              <span className="text-[10px] bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-400 px-2 py-0.5 rounded-full font-medium">
+              <span className="text-[10px] bg-kerpta-100 dark:bg-kerpta-900/40 text-kerpta-700 dark:text-kerpta-400 px-2 py-0.5 rounded-full font-medium">
                 {activeCount}
               </span>
             )}
@@ -139,7 +139,7 @@ export default function MobileFilterPanel({
                         }}
                         className={`px-3 py-1.5 text-xs rounded-full border transition ${
                           selected
-                            ? 'bg-orange-50 dark:bg-orange-900/30 border-orange-300 dark:border-orange-600 text-orange-700 dark:text-orange-400 font-medium'
+                            ? 'bg-kerpta-50 dark:bg-kerpta-900/30 border-kerpta-300 dark:border-kerpta-600 text-kerpta-700 dark:text-kerpta-400 font-medium'
                             : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
                         }`}
                       >
@@ -183,7 +183,7 @@ export default function MobileFilterPanel({
         <div className="border-t border-gray-200 dark:border-gray-700 px-5 py-4 space-y-2">
           <button
             onClick={apply}
-            className="w-full py-2.5 bg-orange-500 hover:bg-orange-400 text-white text-sm font-semibold rounded-lg transition"
+            className="w-full py-2.5 bg-kerpta hover:bg-kerpta-400 text-white text-sm font-semibold rounded-lg transition"
           >
             Appliquer les filtres
           </button>

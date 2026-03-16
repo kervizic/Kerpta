@@ -160,7 +160,7 @@ function ProviderCard({
               <button
                 onClick={() => onConnect(provider.key)}
                 disabled={loading}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white bg-orange-500 hover:bg-orange-600 transition disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white bg-kerpta hover:bg-kerpta-600 transition disabled:opacity-50"
               >
                 {loading ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -207,7 +207,7 @@ function FtpModal({
   }
 
   const inputCls =
-    'block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition'
+    'block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-kerpta-400 focus:border-kerpta-400 outline-none transition'
 
   return (
     <ModalOverlay onClose={onClose} size="md" title="Connexion FTP / SFTP">
@@ -272,7 +272,7 @@ function FtpModal({
               onChange={(e) =>
                 setForm({ ...form, use_sftp: e.target.checked, port: e.target.checked ? '22' : '21' })
               }
-              className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
+              className="w-4 h-4 rounded border-gray-300 text-kerpta focus:ring-kerpta-400"
             />
             <span className="text-sm text-gray-700">Utiliser SFTP (recommandé)</span>
           </label>
@@ -289,7 +289,7 @@ function FtpModal({
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded-lg hover:bg-orange-600 transition disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-kerpta rounded-lg hover:bg-kerpta-600 transition disabled:opacity-50"
             >
               {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               Connecter
@@ -381,8 +381,8 @@ export default function StorageSettingsPage() {
       <div className="max-w-3xl mx-auto px-6 py-8">
         {/* Header */}
         <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-center">
-            <HardDrive className="w-5 h-5 text-orange-600" />
+          <div className="w-10 h-10 rounded-xl bg-kerpta-50 border border-kerpta-200 flex items-center justify-center">
+            <HardDrive className="w-5 h-5 text-kerpta-600" />
           </div>
           <div>
             <h1 className="text-xl font-bold text-gray-900">Stockage externe</h1>
@@ -412,7 +412,7 @@ export default function StorageSettingsPage() {
         {/* Liste des providers */}
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-6 h-6 text-orange-500 animate-spin" />
+            <Loader2 className="w-6 h-6 text-kerpta animate-spin" />
           </div>
         ) : (
           <div className="space-y-4">

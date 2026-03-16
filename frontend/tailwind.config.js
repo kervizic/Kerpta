@@ -5,13 +5,13 @@ export default {
   theme: {
     extend: {
       colors: {
-        orange: {
+        kerpta: {
           50:  '#fff8eb',
           100: '#ffecc6',
           200: '#ffda88',
           300: '#ffc34a',
           400: '#ffb020',
-          500: '#ff9900',
+          DEFAULT: '#ff9900',
           600: '#e07800',
           700: '#b85800',
           800: '#954308',

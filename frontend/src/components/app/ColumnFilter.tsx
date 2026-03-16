@@ -84,7 +84,7 @@ function FilterPopover({
     left = window.innerWidth - 210
   }
 
-  const inputCls = 'w-full px-2.5 py-1.5 text-xs border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400'
+  const inputCls = 'w-full px-2.5 py-1.5 text-xs border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-400'
 
   return createPortal(
     <div
@@ -110,7 +110,7 @@ function FilterPopover({
           <button
             onClick={() => onChange('')}
             className={`text-left px-2.5 py-1.5 text-xs rounded-lg transition ${
-              !value ? 'bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 font-medium' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+              !value ? 'bg-kerpta-50 dark:bg-kerpta-900/30 text-kerpta-700 dark:text-kerpta-400 font-medium' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
             }`}
           >
             Tous
@@ -120,7 +120,7 @@ function FilterPopover({
               key={opt.value}
               onClick={() => onChange(opt.value)}
               className={`text-left px-2.5 py-1.5 text-xs rounded-lg transition ${
-                value === opt.value ? 'bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 font-medium' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                value === opt.value ? 'bg-kerpta-50 dark:bg-kerpta-900/30 text-kerpta-700 dark:text-kerpta-400 font-medium' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
               }`}
             >
               {opt.label}
@@ -137,7 +137,7 @@ function FilterPopover({
               <label
                 key={opt.value}
                 className={`flex items-center gap-2 px-2.5 py-1.5 text-xs rounded-lg cursor-pointer transition ${
-                  selected ? 'bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  selected ? 'bg-kerpta-50 dark:bg-kerpta-900/30 text-kerpta-700 dark:text-kerpta-400' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}
               >
                 <input
@@ -151,7 +151,7 @@ function FilterPopover({
                       onChange([...arr, opt.value])
                     }
                   }}
-                  className="rounded border-gray-300 text-orange-500 focus:ring-orange-400 w-3.5 h-3.5"
+                  className="rounded border-gray-300 text-kerpta focus:ring-kerpta-400 w-3.5 h-3.5"
                 />
                 {opt.label}
               </label>
@@ -247,11 +247,11 @@ export default function ColumnFilterHeader({
         ref={btnRef}
         onClick={handleOpen}
         className={`inline-flex items-center gap-1 text-xs font-semibold uppercase transition ${
-          isActive ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
+          isActive ? 'text-kerpta-600 dark:text-kerpta-400' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
         }`}
       >
         {filter.label}
-        <Filter className={`w-3 h-3 ${isActive ? 'fill-orange-200' : ''}`} />
+        <Filter className={`w-3 h-3 ${isActive ? 'fill-kerpta-200' : ''}`} />
       </button>
       {open && anchorRect && (
         <FilterPopover

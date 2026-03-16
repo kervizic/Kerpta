@@ -161,7 +161,7 @@ function OrgSelector({
             className="w-8 h-8 rounded-lg object-contain bg-white shrink-0"
           />
         ) : (
-          <div className="w-8 h-8 rounded-lg bg-orange-50 border border-orange-200 flex items-center justify-center text-orange-600 text-xs font-bold shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-kerpta-50 border border-kerpta-200 flex items-center justify-center text-kerpta-600 text-xs font-bold shrink-0">
             {active ? initials(active.org_name) : '?'}
           </div>
         )}
@@ -185,7 +185,7 @@ function OrgSelector({
               key={o.org_id}
               onClick={() => { onSelect(o.org_id); setOpen(false) }}
               className={`w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-left transition ${
-                o.org_id === activeOrgId ? 'bg-orange-50' : 'hover:bg-gray-50'
+                o.org_id === activeOrgId ? 'bg-kerpta-50' : 'hover:bg-gray-50'
               }`}
             >
               {o.org_logo_thumb ? (
@@ -195,15 +195,15 @@ function OrgSelector({
                   className="w-6 h-6 rounded-md object-contain bg-white shrink-0"
                 />
               ) : (
-                <div className="w-6 h-6 rounded-md bg-orange-50 border border-orange-200 flex items-center justify-center text-orange-600 text-xs font-bold shrink-0">
+                <div className="w-6 h-6 rounded-md bg-kerpta-50 border border-kerpta-200 flex items-center justify-center text-kerpta-600 text-xs font-bold shrink-0">
                   {initials(o.org_name)}
                 </div>
               )}
-              <span className={`text-sm truncate flex-1 ${o.org_id === activeOrgId ? 'font-medium text-orange-700' : 'text-gray-700'}`}>
+              <span className={`text-sm truncate flex-1 ${o.org_id === activeOrgId ? 'font-medium text-kerpta-700' : 'text-gray-700'}`}>
                 {o.org_name}
               </span>
               {o.org_id === activeOrgId && (
-                <Check className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+                <Check className="w-3.5 h-3.5 text-kerpta shrink-0" />
               )}
             </button>
           ))}
@@ -252,7 +252,7 @@ function NavBtn({
         sub ? 'px-3 py-1.5 text-xs' : 'px-3 py-2 text-sm'
       } ${
         isActive
-          ? 'bg-orange-50 text-orange-700 border border-orange-200'
+          ? 'bg-kerpta-50 text-kerpta-700 border border-kerpta-200'
           : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
       }`}
     >
@@ -328,7 +328,7 @@ function SectionAccordionInner({
         onClick={toggle}
         className={`w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm font-semibold transition ${
           hasActive && !open
-            ? 'text-orange-700 bg-orange-50/50'
+            ? 'text-kerpta-700 bg-kerpta-50/50'
             : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
         }`}
       >
@@ -436,7 +436,7 @@ export function AppSidebar({ currentPath, onClose }: AppSidebarProps) {
       <div className="px-4 py-3 border-b border-gray-100">
         <a href="/" className="flex items-center gap-2 group">
           <span className="font-sarpanch text-2xl leading-none">
-            <span className="text-[#888888]">KER</span><span className="text-orange-500">PTA</span>
+            <span className="text-[#888888]">KER</span><span className="text-kerpta">PTA</span>
           </span>
         </a>
       </div>
@@ -510,7 +510,7 @@ export function AppSidebar({ currentPath, onClose }: AppSidebarProps) {
                 className="w-8 h-8 rounded-full object-cover bg-gray-100"
               />
             ) : (
-              <div className="w-8 h-8 rounded-full bg-orange-50 border border-orange-200 flex items-center justify-center text-orange-600 text-sm font-semibold">
+              <div className="w-8 h-8 rounded-full bg-kerpta-50 border border-kerpta-200 flex items-center justify-center text-kerpta-600 text-sm font-semibold">
                 {user.name.charAt(0).toUpperCase()}
               </div>
             )}
@@ -531,7 +531,7 @@ export function AppSidebar({ currentPath, onClose }: AppSidebarProps) {
           <button
             onClick={toggleTheme}
             title={theme === 'dark' ? 'Mode clair' : 'Mode sombre'}
-            className="p-2 rounded-lg text-gray-400 hover:text-orange-500 hover:bg-orange-50 dark:text-gray-500 dark:hover:text-orange-400 dark:hover:bg-orange-500/10 transition-all"
+            className="p-2 rounded-lg text-gray-400 hover:text-kerpta hover:bg-kerpta-50 dark:text-gray-500 dark:hover:text-kerpta-400 dark:hover:bg-kerpta/10 transition-all"
           >
             {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>

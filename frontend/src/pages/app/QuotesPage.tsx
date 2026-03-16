@@ -225,7 +225,7 @@ function QuotesList() {
               </div>
             </div>
             {activeFilterCount > 0 && (
-              <span className="text-[10px] bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 px-2 py-0.5 rounded-full font-medium">
+              <span className="text-[10px] bg-kerpta-100 text-kerpta-700 dark:bg-kerpta-900/40 dark:text-kerpta-400 px-2 py-0.5 rounded-full font-medium">
                 {activeFilterCount} filtre{activeFilterCount > 1 ? 's' : ''}
               </span>
             )}
@@ -235,21 +235,21 @@ function QuotesList() {
             <button
               onClick={() => setShowMobileFilters(true)}
               className={`md:hidden relative p-2 rounded-lg border transition ${
-                activeFilterCount > 0 ? 'border-orange-300 bg-orange-50 text-orange-600 dark:border-orange-600 dark:bg-orange-900/30 dark:text-orange-400' : 'border-gray-200 text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700'
+                activeFilterCount > 0 ? 'border-kerpta-300 bg-kerpta-50 text-kerpta-600 dark:border-kerpta-600 dark:bg-kerpta-900/30 dark:text-kerpta-400' : 'border-gray-200 text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700'
               }`}
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
               </svg>
               {activeFilterCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-kerpta text-white text-[9px] font-bold rounded-full flex items-center justify-center">
                   {activeFilterCount}
                 </span>
               )}
             </button>
             <button
               onClick={() => navigate('/app/devis/new')}
-              className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white text-sm font-semibold rounded-lg transition"
+              className="flex items-center gap-1.5 px-4 py-2 bg-kerpta hover:bg-kerpta-400 text-white text-sm font-semibold rounded-lg transition"
             >
               <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Nouveau devis</span>
             </button>
@@ -271,7 +271,7 @@ function QuotesList() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin text-orange-500 mx-auto" /></td></tr>
+                <tr><td colSpan={6} className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin text-kerpta mx-auto" /></td></tr>
               ) : quotes.length === 0 ? (
                 <tr><td colSpan={6} className="py-12 text-center text-gray-400 dark:text-gray-500 text-sm">Aucun devis trouvé</td></tr>
               ) : (
@@ -280,7 +280,7 @@ function QuotesList() {
                   const typeLabel = q.is_avenant ? `Avenant n°${q.avenant_number}` : (docTypeLabels[q.document_type] || q.document_type)
                   const isEditable = q.status === 'draft'
                   return (
-                    <tr key={q.id} onClick={() => isEditable ? setEditId(q.id) : setSelectedId(q.id)} className="border-b border-gray-50 dark:border-gray-700 hover:bg-orange-50/50 dark:hover:bg-orange-900/30 cursor-pointer transition">
+                    <tr key={q.id} onClick={() => isEditable ? setEditId(q.id) : setSelectedId(q.id)} className="border-b border-gray-50 dark:border-gray-700 hover:bg-kerpta-50/50 dark:hover:bg-kerpta-900/30 cursor-pointer transition">
                       <td className="px-4 py-3 font-mono text-xs text-gray-700 dark:text-gray-200">{q.number}</td>
                       <td className="px-4 py-3 text-gray-500 dark:text-gray-400">{typeLabel}</td>
                       <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{q.client_name || '—'}</td>
@@ -298,7 +298,7 @@ function QuotesList() {
         {/* Mobile : cartes */}
         <div className="md:hidden space-y-2">
           {loading ? (
-            <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
+            <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-kerpta" /></div>
           ) : quotes.length === 0 ? (
             <div className="py-12 text-center text-gray-400 dark:text-gray-500 text-sm">Aucun devis trouvé</div>
           ) : (
@@ -310,7 +310,7 @@ function QuotesList() {
                 <div
                   key={q.id}
                   onClick={() => isEditable ? setEditId(q.id) : setSelectedId(q.id)}
-                  className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 cursor-pointer hover:border-orange-200 dark:hover:border-orange-700 transition active:bg-orange-50/50 dark:active:bg-orange-900/30"
+                  className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 cursor-pointer hover:border-kerpta-200 dark:hover:border-kerpta-700 transition active:bg-kerpta-50/50 dark:active:bg-kerpta-900/30"
                 >
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="font-mono text-xs text-gray-500 dark:text-gray-400">{q.number}</span>
@@ -401,7 +401,7 @@ function QuoteDetailPanel({ quoteId, onClose }: { quoteId: string; onClose: () =
         onClick={(e) => e.stopPropagation()}
       >
         {loading ? (
-          <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
+          <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-kerpta" /></div>
         ) : !quote ? (
           <div className="py-16 text-center text-gray-400 dark:text-gray-500 text-sm">Devis introuvable</div>
         ) : (
@@ -462,7 +462,7 @@ function QuoteDetailPanel({ quoteId, onClose }: { quoteId: string; onClose: () =
           </div>
           <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
             <p className="text-xs text-gray-400 dark:text-gray-500 uppercase font-semibold mb-1">Total TTC</p>
-            <p className="text-xl font-bold text-orange-600 dark:text-orange-400">{fmtCurrency(quote.total_ttc)}</p>
+            <p className="text-xl font-bold text-kerpta-600 dark:text-kerpta-400">{fmtCurrency(quote.total_ttc)}</p>
           </div>
         </div>
 
@@ -774,11 +774,11 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
     if (onClose) return (
       <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 overflow-y-auto overscroll-contain" onClick={onClose}>
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl dark:shadow-black/50 w-full mx-2 md:mx-6 max-w-5xl mt-2 md:mt-8 mb-2 md:mb-8 flex justify-center py-16" onClick={(e) => e.stopPropagation()}>
-          <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
+          <Loader2 className="w-6 h-6 animate-spin text-kerpta" />
         </div>
       </div>
     )
-    return <div className="flex-1 flex justify-center items-center"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
+    return <div className="flex-1 flex justify-center items-center"><Loader2 className="w-6 h-6 animate-spin text-kerpta" /></div>
   }
 
   const formContent = (
@@ -854,7 +854,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
           <div className="flex items-center gap-3 mb-4">
             <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Lignes</h2>
             {lines.some((l) => !l.product_id && l.description.trim()) && (
-              <span className="text-[10px] bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 px-2 py-0.5 rounded-full font-medium">
+              <span className="text-[10px] bg-kerpta-100 text-kerpta-700 dark:bg-kerpta-900/40 dark:text-kerpta-400 px-2 py-0.5 rounded-full font-medium">
                 {lines.filter((l) => !l.product_id && l.description.trim()).length} nouvel article{lines.filter((l) => !l.product_id && l.description.trim()).length > 1 ? 's' : ''} sera créé{lines.filter((l) => !l.product_id && l.description.trim()).length > 1 ? 's' : ''}
               </span>
             )}
@@ -1026,7 +1026,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
 
           <button
             onClick={() => setLines((prev) => [...prev, emptyLine()])}
-            className="mt-2 flex items-center gap-1.5 text-xs text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 font-medium transition px-2 py-1"
+            className="mt-2 flex items-center gap-1.5 text-xs text-kerpta-600 dark:text-kerpta-400 hover:text-kerpta-700 dark:hover:text-kerpta-300 font-medium transition px-2 py-1"
           >
             <Plus className="w-3.5 h-3.5" /> Ajouter un élément
           </button>
@@ -1121,7 +1121,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
           <button
             onClick={() => handleSave(true)}
             disabled={saving || !clientId}
-            className="flex items-center gap-1.5 px-5 py-2.5 text-sm bg-orange-500 hover:bg-orange-400 text-white font-semibold rounded-lg transition disabled:opacity-50"
+            className="flex items-center gap-1.5 px-5 py-2.5 text-sm bg-kerpta hover:bg-kerpta-400 text-white font-semibold rounded-lg transition disabled:opacity-50"
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Send className="w-4 h-4" /> Enregistrer et envoyer</>}
           </button>

@@ -38,7 +38,7 @@ export function LandingFooter({ content }: { content: Record<string, unknown> })
           <div className="flex flex-col items-center md:items-start gap-2">
             <div className="flex items-center gap-2">
               <span className="font-sarpanch text-2xl leading-none">
-                <span className="text-[#888888] dark:text-gray-300">KER</span><span className="text-orange-500">PTA</span>
+                <span className="text-[#888888] dark:text-gray-300">KER</span><span className="text-kerpta">PTA</span>
               </span>
             </div>
             <p className="text-sm text-gray-400 dark:text-slate-500 max-w-xs text-center md:text-left">{tagline}</p>

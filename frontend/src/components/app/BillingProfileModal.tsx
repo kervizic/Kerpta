@@ -216,7 +216,7 @@ export default function BillingProfileModal({ profile, onClose, onSaved }: Props
     <ModalOverlay onClose={onClose} size="xl" title={isNew ? 'Nouveau profil' : 'Modifier le profil'}>
         <div>
           {loadingRef ? (
-            <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-orange-500" /></div>
+            <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-kerpta" /></div>
           ) : (
             <form onSubmit={handleSave} className="space-y-4">
               {/* Identité */}
@@ -268,7 +268,7 @@ export default function BillingProfileModal({ profile, onClose, onSaved }: Props
                       type="checkbox"
                       checked={legalMentionsAuto}
                       onChange={(e) => handleToggleAuto(e.target.checked)}
-                      className="rounded border-gray-300 text-orange-500 focus:ring-orange-400"
+                      className="rounded border-gray-300 text-kerpta focus:ring-kerpta-400"
                     />
                     Mode automatique
                   </label>
@@ -293,7 +293,7 @@ export default function BillingProfileModal({ profile, onClose, onSaved }: Props
                           : 'TVA sur les encaissements'
                     }</strong>
                     <span className="text-gray-400"> — modifiable dans </span>
-                    <a href="/app/config/structure" className="text-orange-500 hover:underline">Ma structure</a>
+                    <a href="/app/config/structure" className="text-kerpta hover:underline">Ma structure</a>
                   </span>
                 </div>
 
@@ -323,7 +323,7 @@ export default function BillingProfileModal({ profile, onClose, onSaved }: Props
                             type="checkbox"
                             checked={earlyPaymentDiscount}
                             onChange={(e) => setEarlyPaymentDiscount(e.target.checked)}
-                            className="rounded border-gray-300 text-orange-500 focus:ring-orange-400"
+                            className="rounded border-gray-300 text-kerpta focus:ring-kerpta-400"
                           />
                           Escompte pour paiement anticipé
                         </label>
@@ -366,13 +366,13 @@ export default function BillingProfileModal({ profile, onClose, onSaved }: Props
 
               {/* Options */}
               <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                <input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} className="rounded border-gray-300 text-orange-500 focus:ring-orange-400" />
+                <input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} className="rounded border-gray-300 text-kerpta focus:ring-kerpta-400" />
                 Profil par défaut
               </label>
 
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg transition">Annuler</button>
-                <button type="submit" disabled={saving} className="px-4 py-2 text-sm bg-orange-500 hover:bg-orange-400 text-white font-semibold rounded-lg transition disabled:opacity-50">
+                <button type="submit" disabled={saving} className="px-4 py-2 text-sm bg-kerpta hover:bg-kerpta-400 text-white font-semibold rounded-lg transition disabled:opacity-50">
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
                 </button>
               </div>

@@ -62,14 +62,14 @@ export function LandingPricing({ content }: { content: Record<string, unknown> }
                 key={plan.id}
                 className={`relative rounded-2xl p-8 flex flex-col ${
                   plan.highlighted
-                    ? 'bg-orange-600/10 border border-orange-500/40 ring-1 ring-orange-500/30'
+                    ? 'bg-kerpta-600/10 border border-kerpta/40 ring-1 ring-kerpta/30'
                     : 'bg-white border border-gray-200 shadow-sm dark:bg-white/[0.02] dark:border-white/5'
                 }`}
               >
                 {/* Badge */}
                 {plan.badge && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-orange-600 text-white text-xs font-semibold shadow-lg">
+                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-kerpta-600 text-white text-xs font-semibold shadow-lg">
                       <Zap className="w-3 h-3" />
                       {plan.badge}
                     </span>
@@ -81,7 +81,7 @@ export function LandingPricing({ content }: { content: Record<string, unknown> }
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">{plan.name}</h3>
                   <p className="text-gray-500 dark:text-slate-400 text-sm mb-4">{plan.description}</p>
                   <div className="flex items-baseline gap-2">
-                    <span className={`text-4xl font-bold ${plan.highlighted ? 'text-orange-600 dark:text-orange-300' : 'text-gray-900 dark:text-white'}`}>
+                    <span className={`text-4xl font-bold ${plan.highlighted ? 'text-kerpta-600 dark:text-kerpta-300' : 'text-gray-900 dark:text-white'}`}>
                       {plan.price}
                     </span>
                     <span className="text-gray-400 dark:text-slate-500 text-sm">{plan.period}</span>
@@ -93,7 +93,7 @@ export function LandingPricing({ content }: { content: Record<string, unknown> }
                   href={plan.cta.href}
                   className={`w-full text-center py-3 px-6 rounded-xl font-semibold text-sm mb-8 transition-all ${
                     plan.highlighted
-                      ? 'bg-orange-600/50 text-orange-200 border border-orange-500/40 hover:bg-orange-600/70 cursor-not-allowed'
+                      ? 'bg-kerpta-600/50 text-kerpta-200 border border-kerpta/40 hover:bg-kerpta-600/70 cursor-not-allowed'
                       : 'bg-gray-900 text-white hover:bg-gray-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 shadow-sm'
                   }`}
                 >

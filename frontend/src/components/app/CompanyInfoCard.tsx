@@ -159,7 +159,7 @@ export default function CompanyInfoCard({ siren, hideIdentity = false }: Company
   if (loading) {
     return (
       <div className="flex justify-center py-8">
-        <Loader2 className="w-5 h-5 text-orange-500 animate-spin" />
+        <Loader2 className="w-5 h-5 text-kerpta animate-spin" />
       </div>
     )
   }
@@ -333,7 +333,7 @@ export default function CompanyInfoCard({ siren, hideIdentity = false }: Company
                       {formatSiret(etab.siret)}
                     </span>
                     {etab.siege && (
-                      <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-medium">
+                      <span className="text-xs bg-kerpta-100 text-kerpta-700 px-1.5 py-0.5 rounded font-medium">
                         Siège
                       </span>
                     )}
@@ -440,7 +440,7 @@ export default function CompanyInfoCard({ siren, hideIdentity = false }: Company
                   href={`https://www.legifrance.gouv.fr/conv_coll/id/KALICONT${idcc.padStart(12, '0')}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-orange-500 hover:underline flex items-center gap-1 text-xs"
+                  className="text-kerpta hover:underline flex items-center gap-1 text-xs"
                 >
                   Légifrance <ExternalLink className="w-3 h-3" />
                 </a>
@@ -458,7 +458,7 @@ export default function CompanyInfoCard({ siren, hideIdentity = false }: Company
           href={`https://www.pappers.fr/entreprise/${company.siren}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-orange-500 hover:underline"
+          className="text-kerpta hover:underline"
         >
           Pappers
         </a>

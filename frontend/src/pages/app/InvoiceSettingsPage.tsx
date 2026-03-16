@@ -94,12 +94,12 @@ function BankAccountsSection() {
     <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Comptes bancaires</h2>
-        <button onClick={() => openModal('new')} className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-400 text-white text-xs font-semibold rounded-lg transition">
+        <button onClick={() => openModal('new')} className="flex items-center gap-1.5 px-3 py-1.5 bg-kerpta hover:bg-kerpta-400 text-white text-xs font-semibold rounded-lg transition">
           <Plus className="w-3.5 h-3.5" /> Ajouter
         </button>
       </div>
       {loading ? (
-        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-orange-500" /></div>
+        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-kerpta" /></div>
       ) : items.length === 0 ? (
         <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-6">Aucun compte bancaire</p>
       ) : (
@@ -113,7 +113,7 @@ function BankAccountsSection() {
               <td className="px-3 py-2 text-gray-500 dark:text-gray-400">{a.bank_name || '—'}</td>
               <td className="px-3 py-2 font-mono text-xs text-gray-600 dark:text-gray-300">{a.iban}</td>
               <td className="px-3 py-2 font-mono text-xs text-gray-500 dark:text-gray-400">{a.bic || '—'}</td>
-              <td className="px-3 py-2 text-center">{a.is_default && <Star className="w-4 h-4 text-orange-500 mx-auto" />}</td>
+              <td className="px-3 py-2 text-center">{a.is_default && <Star className="w-4 h-4 text-kerpta mx-auto" />}</td>
               <td className="px-3 py-2">
                 <div className="flex gap-1 justify-end">
                   <button onClick={() => openModal(a)} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700"><Pencil className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" /></button>
@@ -133,12 +133,12 @@ function BankAccountsSection() {
             <input type="text" value={iban} onChange={(e) => setIban(e.target.value)} placeholder="IBAN *" required className={INPUT} />
             <input type="text" value={bic} onChange={(e) => setBic(e.target.value)} placeholder="BIC" className={INPUT} />
             <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-              <input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} className="rounded border-gray-300 text-orange-500 focus:ring-orange-400" />
+              <input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} className="rounded border-gray-300 text-kerpta focus:ring-kerpta-400" />
               Compte par défaut
             </label>
             <div className="flex justify-end gap-2 pt-2">
               <button type="button" onClick={() => setModal(null)} className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">Annuler</button>
-              <button type="submit" disabled={saving} className="px-4 py-2 text-sm bg-orange-500 hover:bg-orange-400 text-white font-semibold rounded-lg transition disabled:opacity-50">
+              <button type="submit" disabled={saving} className="px-4 py-2 text-sm bg-kerpta hover:bg-kerpta-400 text-white font-semibold rounded-lg transition disabled:opacity-50">
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
               </button>
             </div>
@@ -173,12 +173,12 @@ function BillingProfilesSection() {
     <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Profils de facturation</h2>
-        <button onClick={() => setModal('new')} className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-400 text-white text-xs font-semibold rounded-lg transition">
+        <button onClick={() => setModal('new')} className="flex items-center gap-1.5 px-3 py-1.5 bg-kerpta hover:bg-kerpta-400 text-white text-xs font-semibold rounded-lg transition">
           <Plus className="w-3.5 h-3.5" /> Ajouter
         </button>
       </div>
       {loading ? (
-        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-orange-500" /></div>
+        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-kerpta" /></div>
       ) : items.length === 0 ? (
         <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-6">Aucun profil de facturation</p>
       ) : (
@@ -195,7 +195,7 @@ function BillingProfilesSection() {
                 {p.payment_term_type === 'end_of_month' ? 'fin de mois' : p.payment_term_type === 'end_of_month_the' ? `fin de mois le ${p.payment_term_day ?? '—'}` : 'net'}
               </td>
               <td className="px-3 py-2 text-gray-500 dark:text-gray-400 capitalize">{p.payment_method || '—'}</td>
-              <td className="px-3 py-2 text-center">{p.is_default && <Star className="w-4 h-4 text-orange-500 mx-auto" />}</td>
+              <td className="px-3 py-2 text-center">{p.is_default && <Star className="w-4 h-4 text-kerpta mx-auto" />}</td>
               <td className="px-3 py-2">
                 <div className="flex gap-1 justify-end">
                   <button onClick={() => setModal(p)} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700"><Pencil className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" /></button>
@@ -280,12 +280,12 @@ function UnitsSection() {
           <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Unités</h2>
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Unités de mesure disponibles dans les formulaires</p>
         </div>
-        <button onClick={addRow} className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-400 text-white text-xs font-semibold rounded-lg transition">
+        <button onClick={addRow} className="flex items-center gap-1.5 px-3 py-1.5 bg-kerpta hover:bg-kerpta-400 text-white text-xs font-semibold rounded-lg transition">
           <Plus className="w-3.5 h-3.5" /> Ajouter
         </button>
       </div>
       {loading ? (
-        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-orange-500" /></div>
+        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-kerpta" /></div>
       ) : (
         <>
           <div className="space-y-2 mb-4">
@@ -308,7 +308,7 @@ function UnitsSection() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50"
+              className="flex items-center gap-1.5 px-4 py-2 bg-kerpta hover:bg-kerpta-400 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
             </button>
@@ -387,12 +387,12 @@ function PaymentMethodsSection() {
           <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Modes de règlement</h2>
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Méthodes de paiement disponibles dans les profils de facturation</p>
         </div>
-        <button onClick={addRow} className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-400 text-white text-xs font-semibold rounded-lg transition">
+        <button onClick={addRow} className="flex items-center gap-1.5 px-3 py-1.5 bg-kerpta hover:bg-kerpta-400 text-white text-xs font-semibold rounded-lg transition">
           <Plus className="w-3.5 h-3.5" /> Ajouter
         </button>
       </div>
       {loading ? (
-        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-orange-500" /></div>
+        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-kerpta" /></div>
       ) : (
         <>
           <div className="space-y-2 mb-4">
@@ -415,7 +415,7 @@ function PaymentMethodsSection() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50"
+              className="flex items-center gap-1.5 px-4 py-2 bg-kerpta hover:bg-kerpta-400 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
             </button>
@@ -472,12 +472,12 @@ function VatRatesSection() {
           <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Taux de TVA</h2>
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Taux disponibles dans les formulaires de devis et factures</p>
         </div>
-        <button onClick={addRate} className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-400 text-white text-xs font-semibold rounded-lg transition">
+        <button onClick={addRate} className="flex items-center gap-1.5 px-3 py-1.5 bg-kerpta hover:bg-kerpta-400 text-white text-xs font-semibold rounded-lg transition">
           <Plus className="w-3.5 h-3.5" /> Ajouter
         </button>
       </div>
       {loading ? (
-        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-orange-500" /></div>
+        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-kerpta" /></div>
       ) : (
         <>
           <div className="space-y-2 mb-4">
@@ -512,7 +512,7 @@ function VatRatesSection() {
             <button
               onClick={handleSave}
               disabled={saving || rates.filter((r) => r.rate.trim()).length === 0}
-              className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50"
+              className="flex items-center gap-1.5 px-4 py-2 bg-kerpta hover:bg-kerpta-400 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
             </button>
@@ -628,14 +628,14 @@ function QuoteDocumentTypesSection() {
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Types disponibles lors de la création d'un devis, avec leurs colonnes</p>
         </div>
         <div className="flex items-center gap-2">
-          {saving && <Loader2 className="w-4 h-4 animate-spin text-orange-500" />}
-          <button onClick={startAdd} className="flex items-center gap-1 text-xs text-orange-600 dark:text-orange-400 hover:text-orange-700 font-medium transition">
+          {saving && <Loader2 className="w-4 h-4 animate-spin text-kerpta" />}
+          <button onClick={startAdd} className="flex items-center gap-1 text-xs text-kerpta-600 dark:text-kerpta-400 hover:text-kerpta-700 font-medium transition">
             <Plus className="w-3.5 h-3.5" /> Ajouter
           </button>
         </div>
       </div>
       {loading ? (
-        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-orange-500" /></div>
+        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-kerpta" /></div>
       ) : (
         <div className="space-y-2">
           {types.map((t, idx) => (
@@ -666,7 +666,7 @@ function QuoteDocumentTypesSection() {
                             onClick={() => setEditColumns((prev) => ({ ...prev, [col.key]: !prev[col.key] }))}
                             className={`px-2.5 py-1 text-xs rounded-full border transition ${
                               locked ? 'bg-gray-100 dark:bg-gray-700 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 cursor-default' :
-                              on ? 'bg-orange-50 dark:bg-orange-900/30 border-orange-200 dark:border-orange-700 text-orange-700 dark:text-orange-400' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:border-gray-300'
+                              on ? 'bg-kerpta-50 dark:bg-kerpta-900/30 border-kerpta-200 dark:border-kerpta-700 text-kerpta-700 dark:text-kerpta-400' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:border-gray-300'
                             }`}
                           >
                             {col.label}
@@ -676,7 +676,7 @@ function QuoteDocumentTypesSection() {
                     </div>
                   </div>
                   <div className="flex gap-2 pt-1">
-                    <button onClick={confirmEdit} disabled={!editKey.trim() || !editTitle.trim()} className="px-3 py-1.5 text-xs bg-orange-500 text-white rounded-lg hover:bg-orange-400 transition disabled:opacity-50">
+                    <button onClick={confirmEdit} disabled={!editKey.trim() || !editTitle.trim()} className="px-3 py-1.5 text-xs bg-kerpta text-white rounded-lg hover:bg-kerpta-400 transition disabled:opacity-50">
                       Enregistrer
                     </button>
                     <button onClick={cancelEdit} className="px-3 py-1.5 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">
@@ -691,7 +691,7 @@ function QuoteDocumentTypesSection() {
                     <span className="text-[10px] text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded font-mono">{t.key}</span>
                     <div className="flex gap-1">
                       {ALL_COLUMNS.filter((c) => t.columns[c.key] !== false).map((c) => (
-                        <span key={c.key} className="text-[10px] bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 px-1.5 py-0.5 rounded">{c.label}</span>
+                        <span key={c.key} className="text-[10px] bg-kerpta-50 dark:bg-kerpta-900/30 text-kerpta-600 dark:text-kerpta-400 px-1.5 py-0.5 rounded">{c.label}</span>
                       ))}
                     </div>
                   </div>
@@ -711,7 +711,7 @@ function QuoteDocumentTypesSection() {
           ))}
 
           {addMode && (
-            <div className="border border-orange-200 dark:border-orange-700 rounded-lg p-4 space-y-3 bg-orange-50/30 dark:bg-orange-900/20">
+            <div className="border border-kerpta-200 dark:border-kerpta-700 rounded-lg p-4 space-y-3 bg-kerpta-50/30 dark:bg-kerpta-900/20">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-gray-500 mb-1 block">Clé (identifiant)</label>
@@ -736,7 +736,7 @@ function QuoteDocumentTypesSection() {
                         onClick={() => setEditColumns((prev) => ({ ...prev, [col.key]: !prev[col.key] }))}
                         className={`px-2.5 py-1 text-xs rounded-full border transition ${
                           locked ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-default' :
-                          on ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-white border-gray-200 text-gray-400 hover:border-gray-300'
+                          on ? 'bg-kerpta-50 border-kerpta-200 text-kerpta-700' : 'bg-white border-gray-200 text-gray-400 hover:border-gray-300'
                         }`}
                       >
                         {col.label}
@@ -746,7 +746,7 @@ function QuoteDocumentTypesSection() {
                 </div>
               </div>
               <div className="flex gap-2 pt-1">
-                <button onClick={confirmEdit} disabled={!editKey.trim() || !editTitle.trim()} className="px-3 py-1.5 text-xs bg-orange-500 text-white rounded-lg hover:bg-orange-400 transition disabled:opacity-50">
+                <button onClick={confirmEdit} disabled={!editKey.trim() || !editTitle.trim()} className="px-3 py-1.5 text-xs bg-kerpta text-white rounded-lg hover:bg-kerpta-400 transition disabled:opacity-50">
                   Ajouter
                 </button>
                 <button onClick={cancelEdit} className="px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-100 rounded-lg transition">
@@ -815,10 +815,10 @@ function DocumentColumnsSection() {
           <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Colonnes du document</h2>
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Colonnes affichées sur les devis, factures et PDF</p>
         </div>
-        {saving && <Loader2 className="w-4 h-4 animate-spin text-orange-500" />}
+        {saving && <Loader2 className="w-4 h-4 animate-spin text-kerpta" />}
       </div>
       {loading ? (
-        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-orange-500" /></div>
+        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-kerpta" /></div>
       ) : columns ? (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {(Object.keys(COLUMN_LABELS) as (keyof ColumnConfig)[]).map((key) => {
@@ -829,7 +829,7 @@ function DocumentColumnsSection() {
                 key={key}
                 className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border transition cursor-pointer select-none ${
                   locked ? 'border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 cursor-default' :
-                  enabled ? 'border-orange-200 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/30' : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  enabled ? 'border-kerpta-200 dark:border-kerpta-700 bg-kerpta-50 dark:bg-kerpta-900/30' : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}
               >
                 <button
@@ -839,7 +839,7 @@ function DocumentColumnsSection() {
                   disabled={locked}
                   onClick={() => toggle(key)}
                   className={`relative inline-flex h-4 w-7 shrink-0 rounded-full border-2 border-transparent transition-colors ${
-                    locked ? 'bg-gray-300 dark:bg-gray-600 cursor-default' : enabled ? 'bg-orange-500' : 'bg-gray-200 dark:bg-gray-600'
+                    locked ? 'bg-gray-300 dark:bg-gray-600 cursor-default' : enabled ? 'bg-kerpta' : 'bg-gray-200 dark:bg-gray-600'
                   }`}
                 >
                   <span className={`pointer-events-none inline-block h-3 w-3 rounded-full bg-white shadow transform transition ${
@@ -915,10 +915,10 @@ function RoundingSection() {
           <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Arrondis</h2>
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Précision des quantités et prix sur les documents et dans les calculs</p>
         </div>
-        {saving && <Loader2 className="w-4 h-4 animate-spin text-orange-500" />}
+        {saving && <Loader2 className="w-4 h-4 animate-spin text-kerpta" />}
       </div>
       {loading ? (
-        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-orange-500" /></div>
+        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-kerpta" /></div>
       ) : config ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {ROUNDING_FIELDS.map((field) => (
@@ -927,7 +927,7 @@ function RoundingSection() {
               <select
                 value={config[field.key]}
                 onChange={(e) => handleChange(field.key, parseInt(e.target.value))}
-                className="px-2 py-1 text-xs border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white dark:bg-gray-800 dark:text-gray-200"
+                className="px-2 py-1 text-xs border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-400 bg-white dark:bg-gray-800 dark:text-gray-200"
               >
                 {DECIMAL_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>

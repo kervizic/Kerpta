@@ -168,7 +168,7 @@ function ContractsList() {
               </div>
             </div>
             {activeFilterCount > 0 && (
-              <span className="text-[10px] bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 px-2 py-0.5 rounded-full font-medium">
+              <span className="text-[10px] bg-kerpta-100 text-kerpta-700 dark:bg-kerpta-900/40 dark:text-kerpta-400 px-2 py-0.5 rounded-full font-medium">
                 {activeFilterCount} filtre{activeFilterCount > 1 ? 's' : ''}
               </span>
             )}
@@ -180,7 +180,7 @@ function ContractsList() {
             <Filter className="w-4 h-4" />
             Filtres
             {activeFilterCount > 0 && (
-              <span className="text-[10px] bg-orange-500 text-white px-1.5 py-0.5 rounded-full font-medium leading-none">{activeFilterCount}</span>
+              <span className="text-[10px] bg-kerpta text-white px-1.5 py-0.5 rounded-full font-medium leading-none">{activeFilterCount}</span>
             )}
           </button>
         </div>
@@ -199,14 +199,14 @@ function ContractsList() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin text-orange-500 mx-auto" /></td></tr>
+                <tr><td colSpan={6} className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin text-kerpta mx-auto" /></td></tr>
               ) : contracts.length === 0 ? (
                 <tr><td colSpan={6} className="py-12 text-center text-gray-400 dark:text-gray-500 text-sm">Aucun contrat trouvé</td></tr>
               ) : (
                 contracts.map((c) => {
                   const st = STATUS_LABELS[c.status] || { label: c.status, cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' }
                   return (
-                    <tr key={c.id} onClick={() => setSelectedId(c.id)} className="border-b border-gray-50 dark:border-gray-700 hover:bg-orange-50/50 dark:hover:bg-orange-900/30 cursor-pointer transition">
+                    <tr key={c.id} onClick={() => setSelectedId(c.id)} className="border-b border-gray-50 dark:border-gray-700 hover:bg-kerpta-50/50 dark:hover:bg-kerpta-900/30 cursor-pointer transition">
                       <td className="px-4 py-3 font-mono text-xs text-gray-700 dark:text-gray-200">{c.reference}</td>
                       <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{c.client_name || '—'}</td>
                       <td className="px-4 py-3 text-gray-500 dark:text-gray-400">{TYPE_LABELS[c.contract_type] || c.contract_type}</td>
@@ -224,14 +224,14 @@ function ContractsList() {
         {/* Mobile cards */}
         <div className="md:hidden space-y-2">
           {loading ? (
-            <div className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin text-orange-500 mx-auto" /></div>
+            <div className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin text-kerpta mx-auto" /></div>
           ) : contracts.length === 0 ? (
             <div className="py-12 text-center text-gray-400 dark:text-gray-500 text-sm">Aucun contrat trouvé</div>
           ) : (
             contracts.map((c) => {
               const st = STATUS_LABELS[c.status] || { label: c.status, cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' }
               return (
-                <div key={c.id} onClick={() => setSelectedId(c.id)} className="bg-white border border-gray-200 dark:bg-gray-800 dark:border-gray-700 rounded-xl p-4 cursor-pointer hover:bg-orange-50/50 dark:hover:bg-orange-900/30 transition">
+                <div key={c.id} onClick={() => setSelectedId(c.id)} className="bg-white border border-gray-200 dark:bg-gray-800 dark:border-gray-700 rounded-xl p-4 cursor-pointer hover:bg-kerpta-50/50 dark:hover:bg-kerpta-900/30 transition">
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="font-mono text-xs text-gray-700 dark:text-gray-200">{c.reference}</span>
                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${st.cls}`}>{st.label}</span>
@@ -327,7 +327,7 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string; onCl
         onClick={(e) => e.stopPropagation()}
       >
         {loading ? (
-          <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
+          <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-kerpta" /></div>
         ) : !contract || !st ? (
           <div className="py-16 text-center text-gray-400 dark:text-gray-500 text-sm">Contrat introuvable</div>
         ) : (<>
@@ -351,7 +351,7 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string; onCl
         {/* Budget card */}
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5 mb-6">
           <div className="flex items-center gap-2 mb-3">
-            <BarChart3 className="w-4 h-4 text-orange-500" />
+            <BarChart3 className="w-4 h-4 text-kerpta" />
             <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Budget</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
@@ -365,11 +365,11 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string; onCl
             </div>
             <div>
               <p className="text-xs text-gray-400 dark:text-gray-500">Restant</p>
-              <p className="text-lg font-bold text-orange-600 dark:text-orange-400">{fmtCurrency(contract.remaining)}</p>
+              <p className="text-lg font-bold text-kerpta-600 dark:text-kerpta-400">{fmtCurrency(contract.remaining)}</p>
             </div>
           </div>
           <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2.5">
-            <div className="bg-orange-500 h-2.5 rounded-full transition-all" style={{ width: `${progressWidth}%` }} />
+            <div className="bg-kerpta h-2.5 rounded-full transition-all" style={{ width: `${progressWidth}%` }} />
           </div>
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 text-right">{Number(contract.progress_percent).toFixed(1)} %</p>
         </div>
@@ -380,7 +380,7 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string; onCl
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`px-4 py-2.5 text-sm font-medium transition ${tab === t ? 'text-orange-600 dark:text-orange-400 border-b-2 border-orange-500' : 'text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200'}`}
+              className={`px-4 py-2.5 text-sm font-medium transition ${tab === t ? 'text-kerpta-600 dark:text-kerpta-400 border-b-2 border-kerpta' : 'text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200'}`}
             >
               {t === 'budget' ? 'Informations' : t === 'situations' ? `Situations (${situations.length})` : `Devis (${quotes.length})`}
             </button>
@@ -412,12 +412,12 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string; onCl
                   value={sliceLabel}
                   onChange={(e) => setSliceLabel(e.target.value)}
                   placeholder="Libellé période (ex: Mars 2026)"
-                  className="flex-1 px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  className="flex-1 px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-400"
                 />
                 <button
                   onClick={createSituation}
                   disabled={creatingSlice || !sliceLabel.trim()}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-4 py-2 bg-kerpta-600 hover:bg-kerpta text-white text-sm font-semibold rounded-lg transition disabled:opacity-50"
                 >
                   {creatingSlice ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Nouvelle situation
                 </button>
@@ -444,7 +444,7 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string; onCl
                         : s.status === 'invoiced' ? { label: 'Facturée', cls: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400' }
                         : { label: 'Payée', cls: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' }
                       return (
-                        <tr key={s.id} onClick={() => setSituationId(s.id)} className="border-b border-gray-50 dark:border-gray-700 hover:bg-orange-50/50 dark:hover:bg-orange-900/30 cursor-pointer transition">
+                        <tr key={s.id} onClick={() => setSituationId(s.id)} className="border-b border-gray-50 dark:border-gray-700 hover:bg-kerpta-50/50 dark:hover:bg-kerpta-900/30 cursor-pointer transition">
                           <td className="px-4 py-3 font-mono text-gray-700 dark:text-gray-200">#{s.situation_number}</td>
                           <td className="px-4 py-3 text-gray-900 dark:text-white">{s.period_label}</td>
                           <td className="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{fmtCurrency(s.previously_invoiced)}</td>
@@ -590,7 +590,7 @@ function SituationEditorPanel({ contractId: _contractId, situationId, onClose }:
         onClick={(e) => e.stopPropagation()}
       >
         {loading ? (
-          <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
+          <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-kerpta" /></div>
         ) : !situation ? (
           <div className="py-16 text-center text-gray-400 dark:text-gray-500 text-sm">Situation introuvable</div>
         ) : (<>
@@ -606,7 +606,7 @@ function SituationEditorPanel({ contractId: _contractId, situationId, onClose }:
                 <button onClick={save} disabled={saving} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 text-sm font-medium rounded-lg transition disabled:opacity-50">
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
                 </button>
-                <button onClick={validate} disabled={validating} className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
+                <button onClick={validate} disabled={validating} className="px-4 py-2 bg-kerpta-600 hover:bg-kerpta text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
                   {validating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Valider & Facturer'}
                 </button>
               </>
@@ -627,7 +627,7 @@ function SituationEditorPanel({ contractId: _contractId, situationId, onClose }:
           </div>
           <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
             <p className="text-xs text-gray-400 dark:text-gray-500 uppercase font-semibold mb-1">A facturer</p>
-            <p className="text-xl font-bold text-orange-600">{fmtCurrency(situation.invoice_amount)}</p>
+            <p className="text-xl font-bold text-kerpta-600">{fmtCurrency(situation.invoice_amount)}</p>
           </div>
         </div>
 
@@ -662,7 +662,7 @@ function SituationEditorPanel({ contractId: _contractId, situationId, onClose }:
                           step="0.01"
                           value={l.completion_percent}
                           onChange={(e) => updateLinePercent(i, e.target.value)}
-                          className="w-20 px-2 py-1 text-sm text-right border border-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-orange-400"
+                          className="w-20 px-2 py-1 text-sm text-right border border-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-kerpta-400"
                         />
                       ) : (
                         <span className="text-gray-700 dark:text-gray-200">{Number(l.completion_percent).toFixed(1)}%</span>
