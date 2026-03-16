@@ -4,10 +4,9 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import {
-  Plus, Search, ArrowLeft, Loader2,
+  Plus, Search, Loader2,
   Building2, MapPin, CheckCircle2,
 } from 'lucide-react'
-import { navigate } from '@/hooks/useRoute'
 import { orgGet, orgPost } from '@/lib/orgApi'
 import { apiClient } from '@/lib/api'
 import ClientPanel from '@/components/app/ClientPanel'
@@ -96,7 +95,7 @@ function httpError(err: unknown, fallback: string): string {
   return fallback
 }
 
-import { INPUT, SELECT, BTN } from '@/lib/formStyles'
+import { INPUT, SELECT, BTN, OVERLAY_BACKDROP, OVERLAY_PANEL } from '@/lib/formStyles'
 
 function formatAddress(a: Record<string, string | null> | null | undefined): string {
   if (!a) return '—'
@@ -117,6 +116,7 @@ function ClientsList() {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [showCreate, setShowCreate] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -136,7 +136,7 @@ function ClientsList() {
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Clients</h1>
           <button
-            onClick={() => navigate('/app/clients/new')}
+            onClick={() => setShowCreate(true)}
             className={BTN}
           >
             <Plus className="w-4 h-4" /> Nouveau client
@@ -224,13 +224,20 @@ function ClientsList() {
           onClose={() => { setSelectedId(null); void load() }}
         />
       )}
+
+      {/* ── Modal création client ──────────────────────────────────── */}
+      {showCreate && (
+        <CreateClientForm
+          onClose={() => { setShowCreate(false); void load() }}
+        />
+      )}
     </div>
   )
 }
 
 // ── Formulaire de création ───────────────────────────────────────────────────
 
-function CreateClientForm() {
+export function CreateClientForm({ onClose, onCreated }: { onClose?: () => void; onCreated?: (id: string) => void } = {}) {
   // Type
   const [type, setType] = useState<'company' | 'individual'>('company')
 
@@ -425,23 +432,16 @@ function CreateClientForm() {
         })
       }
 
-      navigate(`/app/clients/${result.id}`)
+      if (onCreated) onCreated(result.id)
+      else onClose?.()
     } catch (err) {
       setError(httpError(err, 'Erreur lors de la création'))
     }
     setSaving(false)
   }
 
-  return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="max-w-2xl mx-auto px-6 py-8">
-        <button
-          onClick={() => navigate('/app/clients')}
-          className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 mb-4 transition"
-        >
-          <ArrowLeft className="w-4 h-4" /> Retour
-        </button>
-
+  const formBody = (
+    <>
         <h1 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Nouveau client</h1>
 
         {error && (
@@ -714,12 +714,19 @@ function CreateClientForm() {
 
           {/* ── Boutons ──────────────────────────────────────────────────── */}
           <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={() => navigate('/app/clients')} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">Annuler</button>
+            <button type="button" onClick={() => onClose?.()} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">Annuler</button>
             <button type="submit" disabled={saving || !name} className={BTN}>
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Créer'}
             </button>
           </div>
         </form>
+    </>
+  )
+
+  return (
+    <div className={OVERLAY_BACKDROP} onClick={onClose}>
+      <div className={`${OVERLAY_PANEL} px-3 md:px-6 py-4 md:py-6`} onClick={(e) => e.stopPropagation()}>
+        {formBody}
       </div>
     </div>
   )
@@ -727,9 +734,6 @@ function CreateClientForm() {
 
 // ── Page principale ───────────────────────────────────────────────────────────
 
-export default function ClientsPage({ path }: { path: string }) {
-  if (path === '/app/clients/new') {
-    return <CreateClientForm />
-  }
+export default function ClientsPage() {
   return <ClientsList />
 }

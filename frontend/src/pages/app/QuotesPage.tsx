@@ -4,9 +4,8 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import {
-  Loader2, ArrowLeft, Send, Check, X, Copy, Plus, Trash2, RefreshCw, Info, Pencil, FileDown, Archive, ArchiveRestore,
+  Loader2, Send, Check, X, Copy, Plus, Trash2, RefreshCw, Info, Pencil, FileDown, Archive, ArchiveRestore,
 } from 'lucide-react'
-import { navigate } from '@/hooks/useRoute'
 import { orgGet, orgPost, orgPatch, orgDownload } from '@/lib/orgApi'
 import UnitCombobox from '@/components/app/UnitCombobox'
 import ProductAutocomplete, { type AutocompleteProduct } from '@/components/app/ProductAutocomplete'
@@ -15,6 +14,7 @@ import DatePicker from '@/components/app/DatePicker'
 import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
 import MobileFilterPanel from '@/components/app/MobileFilterPanel'
 import ClientPanel from '@/components/app/ClientPanel'
+import { CreateClientForm } from '@/pages/app/ClientsPage'
 import { INPUT, SELECT, LINE_INPUT, LINE_SELECT, BTN, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER, BADGE_COUNT, CARD } from '@/lib/formStyles'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -682,6 +682,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
   const [loading, setLoading] = useState(isEdit)
   const [saving, setSaving] = useState(false)
   const [clientPanelId, setClientPanelId] = useState<string | null>(null)
+  const [showNewClient, setShowNewClient] = useState(false)
 
   // Colonnes effectives = colonnes globales ∩ colonnes du type de document sélectionné
   const activeColumns = useMemo(() => {
@@ -909,8 +910,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
         void orgDownload(`/quotes/${resultId}/pdf?download=1`, 'devis.pdf')
       }
 
-      if (onClose) onClose()
-      else navigate('/app/devis')
+      onClose?.()
     } catch { /* */ }
     setSaving(false)
   }
@@ -950,7 +950,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
                   value={clientId}
                   onChange={setClientId}
                   onSelect={handleClientSelect}
-                  onNewClient={() => navigate('/app/clients?action=nouveau')}
+                  onNewClient={() => setShowNewClient(true)}
                   className={INPUT}
                 />
                 {clientId && (
@@ -1251,7 +1251,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
         {/* Actions */}
         <div className="flex justify-end gap-3 pb-8">
           <button
-            onClick={() => onClose ? onClose() : navigate('/app/devis')}
+            onClick={() => onClose?.()}
             className="px-4 py-2.5 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
           >
             Annuler
@@ -1285,6 +1285,20 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
             clientId={clientPanelId}
             compact
             onClose={() => setClientPanelId(null)}
+          />
+        )}
+
+        {/* Modale création client */}
+        {showNewClient && (
+          <CreateClientForm
+            onClose={() => setShowNewClient(false)}
+            onCreated={(id) => {
+              setShowNewClient(false)
+              setClientId(id)
+              orgGet<{ items: ClientItem[] }>('/clients', { page_size: 100 })
+                .then((data) => setClients(data.items))
+                .catch(() => {})
+            }}
           />
         )}
     </>

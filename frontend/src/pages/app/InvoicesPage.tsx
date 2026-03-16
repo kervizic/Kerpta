@@ -5,15 +5,15 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import {
   Loader2, Send, Check, FileText, Plus, Trash2, Pencil, RefreshCw,
-  ShieldCheck, Printer, Lock, X, Info, ArrowLeft, FileDown, Archive, ArchiveRestore,
+  ShieldCheck, Printer, Lock, X, Info, FileDown, Archive, ArchiveRestore,
 } from 'lucide-react'
-import { navigate } from '@/hooks/useRoute'
 import { orgGet, orgPost, orgPatch, orgDownload } from '@/lib/orgApi'
 import UnitCombobox from '@/components/app/UnitCombobox'
 import ProductAutocomplete, { type AutocompleteProduct } from '@/components/app/ProductAutocomplete'
 import ClientCombobox from '@/components/app/ClientCombobox'
 import BillingProfileModal, { type BillingProfileData } from '@/components/app/BillingProfileModal'
 import ClientPanel from '@/components/app/ClientPanel'
+import { CreateClientForm } from '@/pages/app/ClientsPage'
 import DatePicker from '@/components/app/DatePicker'
 import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
 import MobileFilterPanel from '@/components/app/MobileFilterPanel'
@@ -743,6 +743,7 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
   const [profilesFull, setProfilesFull] = useState<BillingProfileData[]>([])
   const [profileModal, setProfileModal] = useState<BillingProfileData | 'new' | null>(null)
   const [clientPanelId, setClientPanelId] = useState<string | null>(null)
+  const [showNewClient, setShowNewClient] = useState(false)
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodOption[]>([])
   const [docColumns, setDocColumns] = useState({
     reference: true, description: true, quantity: true, unit: true,
@@ -987,8 +988,7 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
         await orgPost(`/invoices/${resultId}/send`)
       }
 
-      if (onClose) onClose()
-      else navigate('/app/factures')
+      onClose?.()
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const d = err.response?.data as { detail?: unknown }
@@ -1079,7 +1079,7 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
                 <ClientCombobox
                   value={clientId}
                   onChange={handleClientChange}
-                  onNewClient={() => navigate('/app/clients?action=nouveau')}
+                  onNewClient={() => setShowNewClient(true)}
                   className={INPUT}
                   disabled={isValidated}
                 />
@@ -1448,6 +1448,21 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
             clientId={clientPanelId}
             compact
             onClose={() => setClientPanelId(null)}
+          />
+        )}
+
+        {/* Modale création client */}
+        {showNewClient && (
+          <CreateClientForm
+            onClose={() => setShowNewClient(false)}
+            onCreated={(id) => {
+              setShowNewClient(false)
+              setClientId(id)
+              // Recharger la liste des clients
+              orgGet<{ items: ClientOption[] }>('/clients', { page_size: 100 })
+                .then((data) => setClients(data.items))
+                .catch(() => {})
+            }}
           />
         )}
     </>

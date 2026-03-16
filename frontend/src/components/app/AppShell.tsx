@@ -160,7 +160,7 @@ export default function AppShell({ path }: AppShellProps) {
             ) : path === '/app/org/modules' ? (
               <ModulesPage key={activeOrgId} />
             ) : path.startsWith('/app/clients') ? (
-              <ClientsPage path={path} key={activeOrgId} />
+              <ClientsPage key={activeOrgId} />
             ) : path.startsWith('/app/catalogue') ? (
               <CatalogPage path={path} key={activeOrgId} />
             ) : path === '/app/devis' || path.startsWith('/app/devis/') ? (
