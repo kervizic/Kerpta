@@ -1,85 +1,82 @@
 {% extends "pdf/base.html" %}
 {% block style %}
 /* ═══════════════════════════════════════════════════════════════════
-   Style MODERNE — Accent couleur, lignes épurées, design actuel
+   Style MODERNE — Épuré, design actuel, inspiré Pennylane/Stripe
+   Noir et gris uniquement — professionnel pour impression
    ═══════════════════════════════════════════════════════════════════ */
 
-:root { --accent: {{ accent_color | default('#ff9900') }}; }
-
 /* En-tête */
-.header { display: flex; justify-content: space-between; margin-bottom: 30px; padding-bottom: 15px; border-bottom: 3px solid var(--accent); }
-.header-left { flex: 1; }
-.header-right { text-align: right; }
-.logo { max-height: 50px; max-width: 160px; margin-bottom: 10px; display: block; }
-.seller-name { font-size: 13pt; font-weight: 700; color: #1a1a1a; margin-bottom: 6px; }
-.seller-address, .seller-siret, .seller-vat, .seller-legal, .seller-rcs {
-  font-size: 8pt; color: #666; line-height: 1.5;
-}
-.doc-type { font-size: 18pt; font-weight: 800; color: var(--accent); margin-bottom: 4px; }
-.doc-number { font-size: 10pt; font-weight: 600; color: #333; margin-bottom: 8px; }
-.doc-date, .doc-due, .doc-ref, .doc-po { font-size: 8.5pt; color: #777; line-height: 1.6; }
+.header { margin-bottom: 32px; padding-bottom: 16px; border-bottom: 1px solid #e0e0e0; }
+.header-left { float: left; width: 50%; }
+.header-right { float: right; width: 45%; text-align: right; }
+.logo { max-height: 50px; max-width: 170px; margin-bottom: 10px; }
+.seller-name { font-size: 13pt; font-weight: 700; color: #111; margin-bottom: 5px; }
+.seller-detail { font-size: 8pt; color: #777; line-height: 1.6; }
 
-/* Client */
-.client-box {
-  border-left: 4px solid var(--accent); padding: 12px 16px;
-  margin: 0 0 25px auto; width: 50%; background: #faf9f7;
-}
-.client-label { font-size: 7pt; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent); font-weight: 700; margin-bottom: 6px; }
-.client-name { font-size: 11pt; font-weight: 700; color: #1a1a1a; margin-bottom: 3px; }
-.client-address, .client-siret, .client-vat { font-size: 8.5pt; color: #555; line-height: 1.5; }
+.doc-type { font-size: 22pt; font-weight: 300; color: #111; margin-bottom: 4px; }
+.doc-number { font-size: 10pt; font-weight: 600; color: #444; margin-bottom: 12px; }
+.doc-meta { width: auto; margin-left: auto; }
+.doc-meta td { padding: 2px 0; font-size: 8.5pt; }
+.meta-label { color: #999; padding-right: 14px; text-align: right; }
+.meta-value { color: #333; font-weight: 500; text-align: right; }
+
+/* Parties */
+.parties { margin-bottom: 30px; }
+.party-seller { float: left; width: 46%; padding: 14px 18px; border: 1px solid #eee; border-radius: 4px; }
+.party-client { float: right; width: 46%; padding: 14px 18px; background: #fafafa; border: 1px solid #eee; border-radius: 4px; }
+.party-label { font-size: 7pt; text-transform: uppercase; letter-spacing: 0.3px; color: #aaa; font-weight: 600; margin-bottom: 6px; }
+.party-name { font-size: 10.5pt; font-weight: 700; color: #111; margin-bottom: 4px; }
+.party-detail { font-size: 8pt; color: #666; line-height: 1.6; }
 
 /* Lignes */
-.lines-table { margin-bottom: 25px; }
+.lines-table { margin-bottom: 26px; }
 .lines-table th {
-  border-bottom: 2px solid var(--accent); padding: 8px 10px;
-  font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.8px;
-  color: #555; font-weight: 700; text-align: left; background: none;
+  border-bottom: 2px solid #222; padding: 9px 10px;
+  font-size: 7pt; text-transform: uppercase;
+  color: #666; font-weight: 700; text-align: left; background: none;
 }
 .lines-table td {
-  border-bottom: 1px solid #eee; padding: 7px 10px; font-size: 8.5pt; color: #333;
+  border-bottom: 1px solid #eee; padding: 8px 10px; font-size: 8.5pt; color: #333;
 }
-.lines-table tbody tr:last-child td { border-bottom: 2px solid #ddd; }
+.lines-table tbody tr:last-child td { border-bottom: 2px solid #e0e0e0; }
 .col-qty, .col-price, .col-vat, .col-disc, .col-total { text-align: right; }
 .col-ref { width: 60px; }
-.col-qty { width: 45px; }
-.col-unit { width: 45px; }
-.col-price { width: 75px; }
-.col-vat { width: 45px; }
-.col-disc { width: 45px; }
-.col-total { width: 80px; }
+.col-qty { width: 50px; }
+.col-unit { width: 50px; }
+.col-price { width: 80px; }
+.col-vat { width: 50px; }
+.col-disc { width: 50px; }
+.col-total { width: 85px; }
 
 /* Totaux */
-.totals-section { display: flex; justify-content: flex-end; margin-bottom: 25px; }
-.totals-spacer { flex: 1; }
-.totals-table { width: 260px; }
+.totals-wrapper { margin-bottom: 26px; }
+.totals-table { width: 260px; float: right; }
 .totals-table td { padding: 5px 10px; font-size: 9pt; }
-.totals-label { text-align: left; color: #666; }
+.totals-label { text-align: left; color: #777; }
 .totals-value { text-align: right; font-weight: 500; color: #222; }
 .totals-total td {
-  border-top: none; font-weight: 800; font-size: 12pt; padding-top: 10px; color: #fff;
-  background: var(--accent); border-radius: 0;
+  border-top: 2px solid #222; font-weight: 700; font-size: 12pt;
+  padding-top: 10px; color: #111;
 }
-.totals-total .totals-label { color: #fff; }
-.totals-total .totals-value { color: #fff; }
 .totals-due td { font-weight: 700; color: #c0392b; }
 
 /* Paiement */
 .payment-section {
-  margin-bottom: 15px; padding: 10px 16px; border-radius: 6px;
-  background: linear-gradient(135deg, #faf9f7, #f5f3ef);
+  margin-bottom: 16px; padding: 12px 16px; border-radius: 4px;
+  background: #fafafa; border: 1px solid #eee;
   font-size: 8.5pt; color: #555;
 }
-.payment-method { font-weight: 700; color: #333; margin-bottom: 3px; }
-.bank-info { font-family: 'Courier New', monospace; font-size: 8pt; color: #666; }
+.payment-method { font-weight: 600; color: #333; margin-bottom: 3px; }
+.bank-info { font-family: 'Liberation Mono', 'Courier New', monospace; font-size: 8pt; color: #666; }
 
 /* Notes */
-.notes-section { margin-bottom: 15px; }
-.notes-label { font-size: 7.5pt; text-transform: uppercase; color: var(--accent); font-weight: 700; letter-spacing: 1px; margin-bottom: 4px; }
+.notes-section { margin-bottom: 16px; }
+.notes-label { font-size: 7pt; text-transform: uppercase; color: #aaa; font-weight: 600; margin-bottom: 4px; }
 .notes-text { font-size: 8.5pt; color: #555; white-space: pre-line; }
 
 /* Mentions légales */
 .legal-footer {
-  margin-top: 25px; padding-top: 12px; border-top: 1px solid #e0ddd8;
-  font-size: 7pt; color: #999; line-height: 1.5; white-space: pre-line;
+  margin-top: 26px; padding-top: 12px; border-top: 1px solid #e0e0e0;
+  font-size: 7pt; color: #aaa; line-height: 1.6; white-space: pre-line;
 }
 {% endblock %}

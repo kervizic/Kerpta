@@ -1,74 +1,74 @@
 {% extends "pdf/base.html" %}
 {% block style %}
 /* ═══════════════════════════════════════════════════════════════════
-   Style CLASSIQUE — Professionnel, bordures, en-têtes gris
+   Style CLASSIQUE — Sobre, professionnel, inspiré Sage/Cegid
    ═══════════════════════════════════════════════════════════════════ */
 
 /* En-tête */
-.header { display: flex; justify-content: space-between; margin-bottom: 25px; }
-.header-left { flex: 1; }
-.header-right { text-align: right; }
-.logo { max-height: 60px; max-width: 180px; margin-bottom: 8px; display: block; }
-.seller-name { font-size: 14pt; font-weight: bold; color: #222; margin-bottom: 4px; }
-.seller-address, .seller-siret, .seller-vat, .seller-legal, .seller-rcs {
-  font-size: 8pt; color: #555; line-height: 1.5;
-}
-.doc-type { font-size: 16pt; font-weight: bold; color: #333; text-transform: uppercase; margin-bottom: 6px; }
-.doc-number { font-size: 11pt; font-weight: 600; color: #555; margin-bottom: 4px; }
-.doc-date, .doc-due, .doc-ref, .doc-po { font-size: 9pt; color: #666; line-height: 1.6; }
+.header { margin-bottom: 28px; padding-bottom: 18px; border-bottom: 2px solid #333; }
+.header-left { float: left; width: 55%; }
+.header-right { float: right; width: 40%; text-align: right; }
+.logo { max-height: 55px; max-width: 180px; margin-bottom: 10px; }
+.seller-name { font-size: 14pt; font-weight: 700; color: #1a1a1a; margin-bottom: 4px; }
+.seller-detail { font-size: 8pt; color: #555; line-height: 1.5; }
 
-/* Client */
-.client-box {
-  border: 1px solid #ccc; border-radius: 4px; padding: 12px 16px;
-  margin: 0 0 20px auto; width: 55%; background: #fafafa;
-}
-.client-label { font-size: 7pt; text-transform: uppercase; letter-spacing: 1px; color: #999; margin-bottom: 4px; }
-.client-name { font-size: 11pt; font-weight: bold; color: #222; margin-bottom: 2px; }
-.client-address, .client-siret, .client-vat { font-size: 8.5pt; color: #555; line-height: 1.5; }
+.doc-type { font-size: 20pt; font-weight: 700; color: #1a1a1a; margin-bottom: 2px; }
+.doc-number { font-size: 11pt; color: #555; font-weight: 600; margin-bottom: 10px; }
+.doc-meta { width: auto; margin-left: auto; }
+.doc-meta td { padding: 2px 0; font-size: 8.5pt; }
+.meta-label { color: #888; padding-right: 12px; text-align: right; }
+.meta-value { color: #333; font-weight: 500; text-align: right; }
+
+/* Parties */
+.parties { margin-bottom: 28px; }
+.party-seller { float: left; width: 48%; padding: 14px 16px; background: #f7f7f7; border: 1px solid #e0e0e0; }
+.party-client { float: right; width: 48%; padding: 14px 16px; background: #f7f7f7; border: 1px solid #e0e0e0; }
+.party-label { font-size: 7pt; text-transform: uppercase; letter-spacing: 0.5px; color: #999; font-weight: 700; margin-bottom: 6px; }
+.party-name { font-size: 10.5pt; font-weight: 700; color: #1a1a1a; margin-bottom: 4px; }
+.party-detail { font-size: 8pt; color: #555; line-height: 1.5; }
 
 /* Lignes */
-.lines-table { margin-bottom: 20px; }
+.lines-table { margin-bottom: 24px; }
 .lines-table th {
-  background: #e8e8e8; border: 1px solid #ccc; padding: 6px 8px;
-  font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.5px;
-  color: #444; font-weight: 700; text-align: left;
+  background: #f0f0f0; border: 1px solid #ddd; padding: 7px 10px;
+  font-size: 7.5pt; text-transform: uppercase;
+  color: #555; font-weight: 700; text-align: left;
 }
 .lines-table td {
-  border: 1px solid #ddd; padding: 5px 8px; font-size: 8.5pt; color: #333;
+  border: 1px solid #e5e5e5; padding: 7px 10px; font-size: 8.5pt; color: #333;
 }
-.lines-table tbody tr:nth-child(even) td { background: #f9f9f9; }
+.lines-table tbody tr:nth-child(even) td { background: #fafafa; }
 .col-qty, .col-price, .col-vat, .col-disc, .col-total { text-align: right; }
 .col-ref { width: 60px; }
-.col-qty { width: 45px; }
-.col-unit { width: 45px; }
-.col-price { width: 75px; }
-.col-vat { width: 45px; }
-.col-disc { width: 45px; }
-.col-total { width: 80px; }
+.col-qty { width: 50px; }
+.col-unit { width: 50px; }
+.col-price { width: 80px; }
+.col-vat { width: 50px; }
+.col-disc { width: 50px; }
+.col-total { width: 85px; }
 
 /* Totaux */
-.totals-section { display: flex; justify-content: flex-end; margin-bottom: 20px; }
-.totals-spacer { flex: 1; }
-.totals-table { width: 250px; }
-.totals-table td { padding: 4px 8px; font-size: 9pt; }
-.totals-label { text-align: left; color: #555; }
+.totals-wrapper { margin-bottom: 24px; }
+.totals-table { width: 260px; float: right; }
+.totals-table td { padding: 5px 10px; font-size: 9pt; }
+.totals-label { text-align: left; color: #666; }
 .totals-value { text-align: right; font-weight: 500; color: #222; }
-.totals-total td { border-top: 2px solid #333; font-weight: bold; font-size: 11pt; padding-top: 8px; color: #111; }
-.totals-due td { font-weight: bold; color: #c0392b; }
+.totals-total td { border-top: 2px solid #333; font-weight: 700; font-size: 11pt; padding-top: 10px; color: #1a1a1a; }
+.totals-due td { font-weight: 700; color: #c0392b; }
 
 /* Paiement */
-.payment-section { margin-bottom: 15px; padding: 10px 14px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; font-size: 8.5pt; color: #444; }
-.payment-method { font-weight: 600; margin-bottom: 2px; }
-.bank-info { font-family: 'Courier New', monospace; font-size: 8pt; letter-spacing: 0.5px; }
+.payment-section { margin-bottom: 16px; padding: 10px 14px; background: #f7f7f7; border: 1px solid #e0e0e0; font-size: 8.5pt; color: #444; }
+.payment-method { font-weight: 600; margin-bottom: 3px; }
+.bank-info { font-family: 'Liberation Mono', 'Courier New', monospace; font-size: 8pt; color: #555; }
 
 /* Notes */
-.notes-section { margin-bottom: 15px; }
-.notes-label { font-size: 7.5pt; text-transform: uppercase; color: #999; letter-spacing: 0.5px; margin-bottom: 4px; }
+.notes-section { margin-bottom: 16px; }
+.notes-label { font-size: 7.5pt; text-transform: uppercase; color: #999; margin-bottom: 4px; font-weight: 600; }
 .notes-text { font-size: 8.5pt; color: #555; white-space: pre-line; }
 
 /* Mentions légales */
 .legal-footer {
-  margin-top: 20px; padding-top: 10px; border-top: 1px solid #ccc;
-  font-size: 7pt; color: #888; line-height: 1.5; white-space: pre-line;
+  margin-top: 24px; padding-top: 12px; border-top: 1px solid #ddd;
+  font-size: 7pt; color: #999; line-height: 1.5; white-space: pre-line;
 }
 {% endblock %}
