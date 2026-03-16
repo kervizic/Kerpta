@@ -1295,9 +1295,6 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
             onCreated={(id) => {
               setShowNewClient(false)
               setClientId(id)
-              orgGet<{ items: ClientItem[] }>('/clients', { page_size: 100 })
-                .then((data) => setClients(data.items))
-                .catch(() => {})
             }}
           />
         )}
@@ -1321,6 +1318,6 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
 
 // ── Page ───────────────────────────────────────────────────────────────────────
 
-export default function QuotesPage({ path }: { path: string }) {
+export default function QuotesPage() {
   return <QuotesList />
 }

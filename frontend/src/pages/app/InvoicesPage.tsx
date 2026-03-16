@@ -1485,6 +1485,6 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
 
 // ── Page ───────────────────────────────────────────────────────────────────────
 
-export default function InvoicesPage({ path }: { path: string }) {
+export default function InvoicesPage() {
   return <InvoicesList />
 }

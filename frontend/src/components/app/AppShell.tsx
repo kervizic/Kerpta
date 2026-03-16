@@ -159,16 +159,16 @@ export default function AppShell({ path }: AppShellProps) {
               <OrgSettingsPage key={activeOrgId} />
             ) : path === '/app/org/modules' ? (
               <ModulesPage key={activeOrgId} />
-            ) : path.startsWith('/app/clients') ? (
+            ) : path === '/app/clients' ? (
               <ClientsPage key={activeOrgId} />
             ) : path.startsWith('/app/catalogue') ? (
               <CatalogPage path={path} key={activeOrgId} />
-            ) : path === '/app/devis' || path.startsWith('/app/devis/') ? (
-              <QuotesPage path={path} key={activeOrgId} />
+            ) : path === '/app/devis' ? (
+              <QuotesPage key={activeOrgId} />
             ) : path.startsWith('/app/contrats') ? (
               <ContractsPage path={path} key={activeOrgId} />
-            ) : path.startsWith('/app/factures') ? (
-              <InvoicesPage path={path} key={activeOrgId} />
+            ) : path === '/app/factures' ? (
+              <InvoicesPage key={activeOrgId} />
             ) : placeholderTitle ? (
               <ModulePlaceholder title={placeholderTitle} />
             ) : orgs.length === 0 || path === '/app/onboarding' ? (
