@@ -180,6 +180,7 @@ function InvoicesList() {
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editId, setEditId] = useState<string | null>(null)
+  const [showCreate, setShowCreate] = useState(false)
   const [showMobileFilters, setShowMobileFilters] = useState(false)
 
   // Sélection multiple + archivage
@@ -364,7 +365,7 @@ function InvoicesList() {
               )}
             </button>
             <button
-              onClick={() => navigate('/app/factures/nouveau')}
+              onClick={() => setShowCreate(true)}
               className={BTN}
             >
               <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Nouvelle facture</span>
@@ -514,6 +515,13 @@ function InvoicesList() {
           <InvoiceFormPage
             invoiceId={editId}
             onClose={() => { setEditId(null); void load() }}
+          />
+        )}
+
+        {/* Formulaire création en overlay */}
+        {showCreate && (
+          <InvoiceFormPage
+            onClose={() => { setShowCreate(false); void load() }}
           />
         )}
 
@@ -1445,30 +1453,15 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
     </>
   )
 
-  // Mode overlay (édition depuis la liste)
-  if (onClose) {
-    return (
-      <div
-        className={OVERLAY_BACKDROP}
-        onClick={onClose}
-      >
-        <div
-          className={`${OVERLAY_PANEL} px-3 md:px-6 py-4 md:py-6`}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {formContent}
-        </div>
-      </div>
-    )
-  }
-
-  // Mode pleine page (création)
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 md:py-8">
-        <button onClick={() => navigate('/app/factures')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 mb-4 transition">
-          <ArrowLeft className="w-4 h-4" /> Retour
-        </button>
+    <div
+      className={OVERLAY_BACKDROP}
+      onClick={onClose}
+    >
+      <div
+        className={`${OVERLAY_PANEL} px-3 md:px-6 py-4 md:py-6`}
+        onClick={(e) => e.stopPropagation()}
+      >
         {formContent}
       </div>
     </div>
@@ -1478,6 +1471,5 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
 // ── Page ───────────────────────────────────────────────────────────────────────
 
 export default function InvoicesPage({ path }: { path: string }) {
-  if (path === '/app/factures/nouveau') return <InvoiceFormPage />
   return <InvoicesList />
 }
