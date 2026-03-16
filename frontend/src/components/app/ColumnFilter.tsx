@@ -242,7 +242,7 @@ export default function ColumnFilterHeader({
     (Array.isArray(value) && value.some(Boolean))
 
   return (
-    <th className={`px-4 py-3 ${align === 'right' ? 'text-right' : ''}`}>
+    <th className={`px-4 py-3 whitespace-nowrap ${align === 'right' ? 'text-right' : ''}`}>
       <button
         ref={btnRef}
         onClick={handleOpen}

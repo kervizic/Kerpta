@@ -375,7 +375,7 @@ function InvoicesList() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 dark:border-gray-700 text-left">
-                <th className="pl-3 pr-1 py-3 w-0">
+                <th className="pl-3 pr-1 py-3 w-[1%] whitespace-nowrap">
                   <input
                     type="checkbox"
                     checked={invoices.length > 0 && selected.size === invoices.length}
@@ -387,11 +387,11 @@ function InvoicesList() {
                 <ColumnFilterHeader filter={INVOICE_FILTERS[1]} value={filters.type || ''} onChange={(v) => updateFilter('type', v)} />
                 <ColumnFilterHeader filter={INVOICE_FILTERS[2]} value={filters.client || ''} onChange={(v) => updateFilter('client', v)} />
                 <ColumnFilterHeader filter={INVOICE_FILTERS[3]} value={filters.date || []} onChange={(v) => updateFilter('date', v)} />
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase">Échéance</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase">Total TTC</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase whitespace-nowrap">Échéance</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase whitespace-nowrap">Total TTC</th>
                 <ColumnFilterHeader filter={INVOICE_FILTERS[4]} value={filters.payment || ''} onChange={(v) => updateFilter('payment', v)} align="right" />
                 <ColumnFilterHeader filter={INVOICE_FILTERS[5]} value={filters.status || []} onChange={(v) => updateFilter('status', v)} />
-                <th className="p-0 w-0"></th>
+                <th className="pr-2 py-3 w-[1%] whitespace-nowrap"></th>
               </tr>
             </thead>
             <tbody>
@@ -405,7 +405,7 @@ function InvoicesList() {
                   const isEditable = ['draft', 'validated'].includes(inv.status)
                   return (
                     <tr key={inv.id} onClick={() => isEditable ? setEditId(inv.id) : setSelectedId(inv.id)} className="border-b border-gray-50 dark:border-gray-700 hover:bg-kerpta-50/50 dark:hover:bg-kerpta-900/30 cursor-pointer transition">
-                      <td className="pl-3 pr-1 py-3 w-0" onClick={(e) => e.stopPropagation()}>
+                      <td className="pl-3 pr-1 py-3 w-[1%] whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           checked={selected.has(inv.id)}
@@ -413,19 +413,19 @@ function InvoicesList() {
                           className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-kerpta focus:ring-kerpta-400"
                         />
                       </td>
-                      <td className="px-4 py-3 font-mono text-xs text-gray-700 dark:text-gray-200">
+                      <td className="px-4 py-3 font-mono text-xs text-gray-700 dark:text-gray-200 whitespace-nowrap">
                         {inv.number || inv.proforma_number || '—'}
                       </td>
-                      <td className="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">
+                      <td className="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs whitespace-nowrap">
                         {inv.is_credit_note ? 'Avoir' : 'Facture'}
                       </td>
                       <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{inv.client_name || '—'}</td>
-                      <td className="px-4 py-3 text-gray-500 dark:text-gray-400">{inv.issue_date}</td>
-                      <td className="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{inv.due_date || '—'}</td>
-                      <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">{fmtCurrency(inv.total_ttc)}</td>
-                      <td className="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{fmtCurrency(inv.amount_paid)}</td>
-                      <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${st.cls}`}>{st.label}</span></td>
-                      <td className="pr-2 py-3 w-0">
+                      <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">{inv.issue_date}</td>
+                      <td className="px-4 py-3 text-right text-gray-500 dark:text-gray-400 whitespace-nowrap">{inv.due_date || '—'}</td>
+                      <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200 whitespace-nowrap">{fmtCurrency(inv.total_ttc)}</td>
+                      <td className="px-4 py-3 text-right text-gray-500 dark:text-gray-400 whitespace-nowrap">{fmtCurrency(inv.amount_paid)}</td>
+                      <td className="px-4 py-3 whitespace-nowrap"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${st.cls}`}>{st.label}</span></td>
+                      <td className="pr-2 py-3 w-[1%] whitespace-nowrap">
                         <button
                           onClick={(e) => { e.stopPropagation(); void orgDownload(`/invoices/${inv.id}/pdf?download=1`, `${inv.number || inv.proforma_number || 'facture'}.pdf`) }}
                           title="Télécharger le PDF"
