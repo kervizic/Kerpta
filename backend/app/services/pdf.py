@@ -77,14 +77,14 @@ _jinja_env.filters["fmt_currency_num"] = _fmt_currency_num
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 
-async def _get_print_config(org_id: uuid.UUID, db: AsyncSession) -> tuple[str, str]:
-    """Récupère le style d'impression et le pied de page de l'organisation.
+async def _get_print_config(org_id: uuid.UUID, db: AsyncSession) -> tuple[str, str, dict]:
+    """Récupère le style d'impression, les mentions légales et les options de pied de page.
 
-    Si aucun pied de page personnalisé n'est enregistré, le génère
+    Si aucune mention légale personnalisée n'est enregistrée, la génère
     automatiquement depuis le profil de facturation par défaut.
 
     Returns:
-        (style, document_footer)
+        (style, legal_footer, footer_options)
     """
     result = await db.execute(
         text("SELECT module_config FROM organizations WHERE id = :org_id"),
@@ -93,7 +93,7 @@ async def _get_print_config(org_id: uuid.UUID, db: AsyncSession) -> tuple[str, s
     row = result.fetchone()
     if not row or not row[0]:
         auto = await billing_svc.generate_auto_footer(org_id, db)
-        return DEFAULT_STYLE, auto.get("footer", "")
+        return DEFAULT_STYLE, auto.get("footer", ""), {}
     config = row[0] if isinstance(row[0], dict) else {}
     style = config.get("print_style", DEFAULT_STYLE)
     style = style if style in VALID_STYLES else DEFAULT_STYLE
@@ -101,7 +101,12 @@ async def _get_print_config(org_id: uuid.UUID, db: AsyncSession) -> tuple[str, s
     if not footer:
         auto = await billing_svc.generate_auto_footer(org_id, db)
         footer = auto.get("footer", "")
-    return style, footer
+    footer_options = {
+        "show_phone": config.get("footer_show_phone", False),
+        "show_email": config.get("footer_show_email", False),
+        "show_website": config.get("footer_show_website", False),
+    }
+    return style, footer, footer_options
 
 
 async def _get_org_info(org_id: uuid.UUID, db: AsyncSession) -> dict:
@@ -401,8 +406,8 @@ async def generate_invoice_pdf(
         except Exception:
             bank_details = None
 
-    # Style + pied de page org
-    style, org_footer = await _get_print_config(org_id, db)
+    # Style + mentions legales + options pied de page
+    style, org_footer, footer_options = await _get_print_config(org_id, db)
     template_name = f"pdf/{style}.html"
 
     # Footer : priorité au footer du document, sinon footer org
@@ -440,6 +445,7 @@ async def generate_invoice_pdf(
         "notes": inv.get("notes"),
         "footer": footer,
         "payment_note": payment_note,
+        "footer_options": footer_options,
     }
 
     pdf_bytes = _render_pdf(template_name, context)
@@ -559,8 +565,8 @@ async def generate_quote_pdf(
             else Decimal(str(quote["discount_value"])).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         )
 
-    # Style + pied de page org
-    style, org_footer = await _get_print_config(org_id, db)
+    # Style + mentions legales + options pied de page
+    style, org_footer, footer_options = await _get_print_config(org_id, db)
     template_name = f"pdf/{style}.html"
 
     # Footer : priorité au footer du document, sinon footer org
@@ -598,6 +604,7 @@ async def generate_quote_pdf(
         "notes": quote.get("notes"),
         "footer": footer,
         "payment_note": payment_note,
+        "footer_options": footer_options,
     }
 
     pdf_bytes = _render_pdf(template_name, context)

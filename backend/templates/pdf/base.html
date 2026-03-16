@@ -165,8 +165,17 @@ table { border-collapse: collapse; width: 100%; }
 </div>
 {% endif %}
 
-<!-- ── Pied de page : mentions legales obligatoires emetteur ─────── -->
+<!-- ── Pied de page emetteur ──────────────────────────────────────── -->
 <div class="page-footer">
+  {% if footer_options is defined and (footer_options.show_phone or footer_options.show_email or footer_options.show_website) %}
+  <div class="footer-line">
+    {% set parts = [] %}
+    {% if footer_options.show_phone and seller.phone %}{% set _ = parts.append("Tel : " ~ seller.phone) %}{% endif %}
+    {% if footer_options.show_email and seller.email %}{% set _ = parts.append(seller.email) %}{% endif %}
+    {% if footer_options.show_website and seller.website %}{% set _ = parts.append(seller.website) %}{% endif %}
+    {{ parts | join(" &middot; ") }}
+  </div>
+  {% endif %}
   <div class="footer-line">
     {% if seller.legal_form %}{{ seller.legal_form }}{% endif %}
     {% if seller.capital %} au capital de {{ seller.capital }} €{% endif %}

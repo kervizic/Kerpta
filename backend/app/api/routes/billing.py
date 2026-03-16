@@ -109,6 +109,23 @@ async def update_document_header(
     return await svc.update_document_header(ctx.org_id, data, db)
 
 
+@router.get("/page-footer-options")
+async def get_page_footer_options(
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await svc.get_page_footer_options(ctx.org_id, db)
+
+
+@router.patch("/page-footer-options")
+async def update_page_footer_options(
+    data: dict,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await svc.update_page_footer_options(ctx.org_id, data, db)
+
+
 # ── Taux de TVA ────────────────────────────────────────────────────────────
 
 

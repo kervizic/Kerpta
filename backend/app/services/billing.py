@@ -292,6 +292,54 @@ async def update_document_header(
     }
 
 
+# ── Options pied de page PDF ────────────────────────────────────────────────
+
+
+async def get_page_footer_options(org_id: uuid.UUID, db: AsyncSession) -> dict:
+    """Retourne les options d'affichage du pied de page PDF."""
+    result = await db.execute(
+        text("SELECT module_config FROM organizations WHERE id = :org_id"),
+        {"org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    config = row[0] if row and row[0] and isinstance(row[0], dict) else {}
+    return {
+        "show_phone": config.get("footer_show_phone", False),
+        "show_email": config.get("footer_show_email", False),
+        "show_website": config.get("footer_show_website", False),
+    }
+
+
+async def update_page_footer_options(
+    org_id: uuid.UUID, data: dict, db: AsyncSession
+) -> dict:
+    """Met à jour les options d'affichage du pied de page PDF."""
+    result = await db.execute(
+        text("SELECT module_config FROM organizations WHERE id = :org_id"),
+        {"org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    config = row[0] if row and row[0] and isinstance(row[0], dict) else {}
+
+    for key in ("show_phone", "show_email", "show_website"):
+        if key in data:
+            config[f"footer_{key}"] = bool(data[key])
+
+    await db.execute(
+        text("""
+            UPDATE organizations SET module_config = CAST(:config AS jsonb)
+            WHERE id = :org_id
+        """),
+        {"org_id": str(org_id), "config": json.dumps(config)},
+    )
+    await db.commit()
+    return {
+        "show_phone": config.get("footer_show_phone", False),
+        "show_email": config.get("footer_show_email", False),
+        "show_website": config.get("footer_show_website", False),
+    }
+
+
 # ── Types de documents (devis) ──────────────────────────────────────────────
 
 DEFAULT_QUOTE_DOCUMENT_TYPES = [

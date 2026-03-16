@@ -183,9 +183,74 @@ function DocumentHeaderSection() {
   )
 }
 
-// ── Section Pied de page ────────────────────────────────────────────────
+// ── Section Pied de page (infos emetteur en bas de chaque page PDF) ──────
 
-function DocumentFooterSection() {
+function PageFooterSection() {
+  const [showPhone, setShowPhone] = useState(false)
+  const [showEmail, setShowEmail] = useState(false)
+  const [showWebsite, setShowWebsite] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    orgGet<{ show_phone: boolean; show_email: boolean; show_website: boolean }>('/billing/page-footer-options')
+      .then((data) => {
+        setShowPhone(data.show_phone ?? false)
+        setShowEmail(data.show_email ?? false)
+        setShowWebsite(data.show_website ?? false)
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  async function toggle(key: 'show_phone' | 'show_email' | 'show_website', value: boolean) {
+    if (key === 'show_phone') setShowPhone(value)
+    else if (key === 'show_email') setShowEmail(value)
+    else setShowWebsite(value)
+    setSaving(true)
+    try {
+      await orgPatch('/billing/page-footer-options', { [key]: value })
+    } catch { /* */ }
+    setSaving(false)
+  }
+
+  const toggleStyle = (on: boolean) =>
+    `px-3 py-1.5 text-xs rounded-full border transition cursor-pointer ${
+      on ? 'bg-kerpta-50 dark:bg-kerpta-900/30 border-kerpta-200 dark:border-kerpta-700 text-kerpta-700 dark:text-kerpta-400'
+         : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:border-gray-300'
+    }`
+
+  return (
+    <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Pied de page</h2>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Informations affichees en bas de chaque page PDF (forme juridique, SIREN, RCS, TVA sont toujours affiches)</p>
+        </div>
+        {saving && <Loader2 className="w-4 h-4 animate-spin text-kerpta" />}
+      </div>
+      {loading ? (
+        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-kerpta" /></div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => toggle('show_phone', !showPhone)} className={toggleStyle(showPhone)}>
+            Telephone
+          </button>
+          <button type="button" onClick={() => toggle('show_email', !showEmail)} className={toggleStyle(showEmail)}>
+            Email
+          </button>
+          <button type="button" onClick={() => toggle('show_website', !showWebsite)} className={toggleStyle(showWebsite)}>
+            Site web
+          </button>
+        </div>
+      )}
+    </section>
+  )
+}
+
+// ── Section Mentions legales (conditions de reglement) ───────────────────
+
+function LegalMentionsSection() {
   const [footer, setFooter] = useState('')
   const [isCustom, setIsCustom] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -224,7 +289,6 @@ function DocumentFooterSection() {
   async function handleRefresh() {
     setRefreshing(true)
     try {
-      // Vider le footer personnalisé pour repasser en mode auto
       await orgPatch('/billing/document-footer', { footer: '' })
       const auto = await orgGet<{ footer: string }>('/billing/auto-footer')
       setFooter(auto.footer || '')
@@ -238,12 +302,12 @@ function DocumentFooterSection() {
     <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Pied de page par defaut</h2>
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Mentions legales</h2>
           <button
             onClick={handleRefresh}
             disabled={refreshing}
             className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-            title="Revenir au pied de page automatique (genere depuis vos informations)"
+            title="Regenerer automatiquement depuis le profil de facturation"
           >
             <RefreshCw className={`w-3.5 h-3.5 text-gray-400 dark:text-gray-500 ${refreshing ? 'animate-spin' : ''}`} />
           </button>
@@ -259,8 +323,8 @@ function DocumentFooterSection() {
         <div className="space-y-3">
           <p className="text-xs text-gray-400 dark:text-gray-500">
             {isCustom
-              ? 'Pied de page personnalise. Cliquez sur le bouton actualiser pour revenir au mode automatique.'
-              : 'Genere automatiquement depuis vos informations. Se met a jour si vous changez vos coordonnees.'}
+              ? 'Mentions personnalisees. Cliquez sur le bouton actualiser pour revenir au mode automatique.'
+              : 'Conditions de reglement generees automatiquement (penalites de retard, indemnite de recouvrement, escompte).'}
           </p>
           <textarea
             value={footer}
@@ -509,7 +573,8 @@ export default function DocumentSettingsPage() {
         <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Documents</h1>
         <PrintStyleSection />
         <DocumentHeaderSection />
-        <DocumentFooterSection />
+        <PageFooterSection />
+        <LegalMentionsSection />
         <DocumentTypesSection />
       </div>
     </div>
