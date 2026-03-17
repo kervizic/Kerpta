@@ -4,11 +4,12 @@
    Style MODERNE - Inspire factures SaaS (Pennylane, Stripe)
    Separateur noir sous en-tetes, bordures fines entre lignes
    ═══════════════════════════════════════════════════════════════════ */
+{% set sep = cl.separator if cl is defined and cl.separator is defined and cl.separator else '' %}
 
 /* Tableau : bordure noire sous en-tetes, bordures fines */
-.lines-table th { border-bottom: 1px solid #222; }
-.lines-table td { border-bottom: 1px solid #eee; }
+.lines-table th { border-bottom: 1px solid {{ sep if sep else '#222222' }}; }
+.lines-table td { border-bottom: 1px solid {{ sep if sep else '#eeeeee' }}; }
 
 /* Pied de page emetteur */
-.page-footer-first, .page-footer-other { border-top: 1px solid #e0e0e0; }
+.page-footer-first, .page-footer-other { border-top: 1px solid {{ sep if sep else '#e0e0e0' }}; }
 {% endblock %}

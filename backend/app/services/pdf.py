@@ -90,14 +90,15 @@ _jinja_env.filters["nl2br"] = _nl2br
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 
-async def _get_print_config(org_id: uuid.UUID, db: AsyncSession) -> tuple[str, str, dict]:
-    """Récupère le style d'impression, les mentions légales et les options de pied de page.
+async def _get_print_config(org_id: uuid.UUID, db: AsyncSession) -> tuple[str, str, dict, dict]:
+    """Récupère le style d'impression, les mentions légales, les options de pied de page
+    et la configuration de style du document.
 
     Si aucune mention légale personnalisée n'est enregistrée, la génère
     automatiquement depuis le profil de facturation par défaut.
 
     Returns:
-        (style, legal_footer, footer_options)
+        (style, legal_footer, footer_options, document_styling)
     """
     result = await db.execute(
         text("SELECT module_config FROM organizations WHERE id = :org_id"),
@@ -106,7 +107,7 @@ async def _get_print_config(org_id: uuid.UUID, db: AsyncSession) -> tuple[str, s
     row = result.fetchone()
     if not row or not row[0]:
         auto = await billing_svc.generate_auto_footer(org_id, db)
-        return DEFAULT_STYLE, auto.get("footer", ""), {}
+        return DEFAULT_STYLE, auto.get("footer", ""), {}, billing_svc.DEFAULT_DOCUMENT_STYLING.copy()
     config = row[0] if isinstance(row[0], dict) else {}
     style = config.get("print_style", DEFAULT_STYLE)
     style = style if style in VALID_STYLES else DEFAULT_STYLE
@@ -123,7 +124,12 @@ async def _get_print_config(org_id: uuid.UUID, db: AsyncSession) -> tuple[str, s
         "footer_logo_other_pages": config.get("footer_logo_other_pages", legacy_logo),
         "show_page_number": config.get("footer_show_page_number", True),
     }
-    return style, footer, footer_options
+    # Style du document (tailles, gras, couleurs, labels, sections)
+    saved_styling = config.get("document_styling", {})
+    document_styling = billing_svc._deep_merge_styling(
+        billing_svc.DEFAULT_DOCUMENT_STYLING, saved_styling
+    )
+    return style, footer, footer_options, document_styling
 
 
 async def _get_org_info(org_id: uuid.UUID, db: AsyncSession) -> dict:
@@ -866,8 +872,8 @@ async def _build_common_context(
         payment_terms = pay_config["payment_terms"]
         payment_method = pay_config["payment_method"]
 
-    # Style + mentions legales + options pied de page
-    style, org_footer, footer_options = await _get_print_config(org_id, db)
+    # Style + mentions legales + options pied de page + styling document
+    style, org_footer, footer_options, document_styling = await _get_print_config(org_id, db)
     template_name = f"pdf/{style}.html"
 
     # Footer : priorite au footer du document, sinon footer org
@@ -940,6 +946,7 @@ async def _build_common_context(
         "payment_note": payment_note,
         "footer_options": footer_options,
         "footer_center_lines": footer_center_lines,
+        "styling": document_styling,
     }
 
     return context, template_name

@@ -206,6 +206,26 @@ async def update_invoice_columns(
     return await svc.update_invoice_columns(ctx.org_id, data, db)
 
 
+# ── Style des documents ──────────────────────────────────────────────────────
+
+
+@router.get("/document-styling")
+async def get_document_styling(
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await svc.get_document_styling(ctx.org_id, db)
+
+
+@router.patch("/document-styling")
+async def update_document_styling(
+    data: dict,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await svc.update_document_styling(ctx.org_id, data, db)
+
+
 # ── Comptes bancaires ────────────────────────────────────────────────────────
 
 

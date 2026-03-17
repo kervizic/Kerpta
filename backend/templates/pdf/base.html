@@ -4,6 +4,11 @@
 <meta charset="utf-8">
 <title>{{ title }}</title>
 <style>
+{% set fs = styling.font_sizes if styling is defined and styling.font_sizes is defined else {} %}
+{% set bl = styling.bold if styling is defined and styling.bold is defined else {} %}
+{% set cl = styling.colors if styling is defined and styling.colors is defined else {} %}
+{% set lb = styling.column_labels if styling is defined and styling.column_labels is defined else {} %}
+{% set ss = styling.show_sections if styling is defined and styling.show_sections is defined else {} %}
 /* ── Reset + base ────────────────────────────────────────────────── */
 @page {
   size: A4;
@@ -33,14 +38,14 @@ table { border-collapse: collapse; width: 100%; }
 .page-footer-first { position: running(footerFirst); }
 .page-footer-other { position: running(footerOther); }
 .page-footer-first, .page-footer-other {
-  font-size: 8pt; color: #555; line-height: 1.5;
+  font-size: {{ fs.footer | default(8) }}pt; color: {{ cl.footer_text | default('#555555') }}; line-height: 1.5;
   padding-top: 3px;
 }
 .footer-table { width: 100%; border-collapse: collapse; }
 .footer-table td { padding: 0; vertical-align: bottom; border: none; }
 .footer-col-left { width: 100px; text-align: left; vertical-align: bottom; }
 .footer-col-center { text-align: center; vertical-align: bottom; }
-.footer-col-right { width: 70px; text-align: right; vertical-align: bottom; font-size: 8pt; color: #555; }
+.footer-col-right { width: 70px; text-align: right; vertical-align: bottom; font-size: {{ fs.footer | default(8) }}pt; color: {{ cl.footer_text | default('#555555') }}; }
 {% if footer_options is not defined or footer_options.show_page_number is not defined or footer_options.show_page_number %}
 .footer-col-right::after {
   content: "Page " counter(page) " / " counter(pages);
@@ -55,45 +60,45 @@ table { border-collapse: collapse; width: 100%; }
 .header-left { float: left; width: 80mm; }
 .header-right { position: absolute; left: 107mm; top: 28mm; width: 67mm; text-align: left; }
 .logo { max-height: 45px; max-width: 160px; margin-bottom: 4px; }
-.seller-name { font-size: 13pt; font-weight: 600; color: #555; margin-bottom: 4px; font-variation-settings: 'opsz' 28; text-transform: uppercase; }
-.seller-address { font-size: 9pt; color: #555; line-height: 1.4; }
-.client-name { font-size: 11pt; font-weight: 600; color: #555; margin-bottom: 3px; font-variation-settings: 'opsz' 28; text-transform: uppercase; }
-.client-detail { font-size: 9pt; color: #555; line-height: 1.4; }
+.seller-name { font-size: {{ fs.seller_name | default(13) }}pt; font-weight: {{ '600' if bl.seller_name | default(true) else '400' }}; color: {{ cl.labels | default('#555555') }}; margin-bottom: 4px; font-variation-settings: 'opsz' 28; text-transform: uppercase; }
+.seller-address { font-size: {{ fs.seller_address | default(9) }}pt; color: {{ cl.labels | default('#555555') }}; line-height: 1.4; }
+.client-name { font-size: {{ fs.client_name | default(11) }}pt; font-weight: {{ '600' if bl.client_name | default(true) else '400' }}; color: {{ cl.labels | default('#555555') }}; margin-bottom: 3px; font-variation-settings: 'opsz' 28; text-transform: uppercase; }
+.client-detail { font-size: {{ fs.client_address | default(9) }}pt; color: {{ cl.labels | default('#555555') }}; line-height: 1.4; }
 
 /* Titre */
-.doc-title { font-size: 13pt; font-weight: 600; color: #555; margin: 24px 0 24px 0; font-variation-settings: 'opsz' 28; text-transform: uppercase; }
+.doc-title { font-size: {{ fs.doc_title | default(13) }}pt; font-weight: {{ '600' if bl.doc_title | default(true) else '400' }}; color: {{ cl.title | default('#555555') }}; margin: 24px 0 24px 0; font-variation-settings: 'opsz' 28; text-transform: uppercase; }
 
 /* Dates */
 .doc-dates { margin-bottom: 28px; }
 .date-item { float: left; margin-right: 40px; }
-.date-label { font-size: 9pt; font-weight: 600; color: #555; text-transform: uppercase; font-variation-settings: 'opsz' 28; }
-.date-value { font-size: 9pt; color: #222; margin-top: 2px; }
+.date-label { font-size: {{ fs.dates_refs | default(9) }}pt; font-weight: {{ '600' if bl.dates_label | default(true) else '400' }}; color: {{ cl.labels | default('#555555') }}; text-transform: uppercase; font-variation-settings: 'opsz' 28; }
+.date-value { font-size: {{ fs.dates_refs | default(9) }}pt; font-weight: {{ '600' if bl.dates_value | default(false) else '400' }}; color: {{ cl.values | default('#222222') }}; margin-top: 2px; }
 
 /* Tableau */
 .lines-table { margin-bottom: 12px; }
 .lines-table th {
   padding: 4px 10px 4px 0;
-  font-size: 9pt; font-weight: 600; text-align: left; color: #555; text-transform: uppercase; font-variation-settings: 'opsz' 28;
+  font-size: {{ fs.table_header | default(9) }}pt; font-weight: {{ '600' if bl.table_header | default(true) else '400' }}; text-align: left; color: {{ cl.labels | default('#555555') }}; text-transform: uppercase; font-variation-settings: 'opsz' 28;
 }
 .lines-table td {
-  padding: 4px 10px 4px 0; font-size: 9pt; color: #222; vertical-align: top;
+  padding: 4px 10px 4px 0; font-size: {{ fs.table_cell | default(9) }}pt; font-weight: {{ '600' if bl.table_cell | default(false) else '400' }}; color: {{ cl.values | default('#222222') }}; vertical-align: top;
 }
-.line-detail { font-size: 8pt; color: #222; font-style: italic; padding-left: 8px; }
+.line-detail { font-size: {{ fs.line_detail | default(8) }}pt; color: {{ cl.values | default('#222222') }}; font-style: italic; padding-left: 8px; }
 .lines-table .col-num { text-align: right; }
 .lines-table .col-last { text-align: right; padding-right: 0; }
 
 /* Totaux */
 .totals-wrapper { margin-bottom: 24px; }
 .totals-table { width: auto; float: right; line-height: 1.1; }
-.totals-table td { padding: 4px 0; font-size: 9pt; }
-.totals-label { text-align: left; color: #555; font-weight: 600; font-variation-settings: 'opsz' 28; text-transform: uppercase; }
+.totals-table td { padding: 4px 0; font-size: {{ fs.totals | default(9) }}pt; }
+.totals-label { text-align: left; color: {{ cl.labels | default('#555555') }}; font-weight: {{ '600' if bl.totals_label | default(true) else '400' }}; font-variation-settings: 'opsz' 28; text-transform: uppercase; }
 .totals-spacer { width: 30px; }
-.totals-value { text-align: right; color: #222; font-weight: 400; }
+.totals-value { text-align: right; color: {{ cl.values | default('#222222') }}; font-weight: {{ '600' if bl.totals_value | default(false) else '400' }}; }
 
 /* Infos bas de page (reglement, mentions, notes) */
 .bottom-info { margin-top: 28px; clear: both; }
-.info-line { font-size: 9pt; color: #222; line-height: 1.2; margin-bottom: 6px; }
-.info-line strong { font-variation-settings: 'opsz' 28; text-transform: uppercase; font-size: 9pt; font-weight: 600; color: #555; }
+.info-line { font-size: {{ fs.bottom_info | default(9) }}pt; color: {{ cl.values | default('#222222') }}; line-height: 1.2; margin-bottom: 6px; }
+.info-line strong { font-variation-settings: 'opsz' 28; text-transform: uppercase; font-size: {{ fs.bottom_info | default(9) }}pt; font-weight: 600; color: {{ cl.labels | default('#555555') }}; }
 
 {% block style %}{% endblock %}
 </style>
@@ -192,14 +197,14 @@ table { border-collapse: collapse; width: 100%; }
 <table class="lines-table">
   <thead>
     <tr>
-      {% if columns.reference %}<th class="col-desc">Réf.</th>{% endif %}
-      <th class="col-desc">Désignation</th>
-      {% if columns.quantity %}<th class="col-desc">Qté.</th>{% endif %}
-      {% if columns.unit_price %}<th class="col-desc">P.U.</th>{% endif %}
-      {% if columns.vat_rate %}<th class="col-desc">TVA</th>{% endif %}
-      {% if columns.discount_percent %}<th class="col-num">Rem.</th>{% endif %}
-      {% if columns.total_ht %}<th class="col-num {% if not columns.total_ttc %}col-last{% endif %}">Montant HT</th>{% endif %}
-      {% if columns.total_ttc %}<th class="col-num col-last">Montant TTC</th>{% endif %}
+      {% if columns.reference %}<th class="col-desc">{{ lb.reference | default('Réf.') }}</th>{% endif %}
+      <th class="col-desc">{{ lb.description | default('Désignation') }}</th>
+      {% if columns.quantity %}<th class="col-desc">{{ lb.quantity | default('Qté.') }}</th>{% endif %}
+      {% if columns.unit_price %}<th class="col-desc">{{ lb.unit_price | default('P.U.') }}</th>{% endif %}
+      {% if columns.vat_rate %}<th class="col-desc">{{ lb.vat_rate | default('TVA') }}</th>{% endif %}
+      {% if columns.discount_percent %}<th class="col-num">{{ lb.discount_percent | default('Rem.') }}</th>{% endif %}
+      {% if columns.total_ht %}<th class="col-num {% if not columns.total_ttc %}col-last{% endif %}">{{ lb.total_ht | default('Montant HT') }}</th>{% endif %}
+      {% if columns.total_ttc %}<th class="col-num col-last">{{ lb.total_ttc | default('Montant TTC') }}</th>{% endif %}
     </tr>
   </thead>
   <tbody>
@@ -235,25 +240,25 @@ table { border-collapse: collapse; width: 100%; }
 <!-- ── Reglement + Mentions legales + Notes ─────────────────────── -->
 {% if payment_terms_label or payment_method or bank_details or footer or payment_note or notes %}
 <div class="bottom-info clearfix">
-  {% if payment_terms_label %}
+  {% if (ss.payment_terms | default(true)) and payment_terms_label %}
   <div class="info-line"><strong>Conditions de règlement :</strong> {{ payment_terms_label }}</div>
   {% endif %}
-  {% if payment_method %}
+  {% if (ss.payment_method | default(true)) and payment_method %}
   <div class="info-line"><strong>Mode de règlement :</strong> {{ payment_method }}</div>
   {% endif %}
-  {% if bank_details %}
+  {% if (ss.bank_details | default(true)) and bank_details %}
   <div class="info-line">
     {% if bank_details.iban %}<strong>IBAN :</strong> {{ bank_details.iban }}{% endif %}
     {% if bank_details.bic %} &nbsp;-&nbsp; <strong>BIC :</strong> {{ bank_details.bic }}{% endif %}
   </div>
   {% endif %}
-  {% if footer %}
+  {% if (ss.legal_footer | default(true)) and footer %}
   <div class="info-line"><strong>Mentions légales :</strong> {{ footer }}</div>
   {% endif %}
-  {% if payment_note %}
+  {% if (ss.notes | default(true)) and payment_note %}
   <div class="info-line info-note"><strong>Notes :</strong> {{ payment_note }}</div>
   {% endif %}
-  {% if notes %}
+  {% if (ss.notes | default(true)) and notes %}
   <div class="info-line info-note"><strong>Notes :</strong> {{ notes }}</div>
   {% endif %}
 </div>

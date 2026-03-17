@@ -4,11 +4,12 @@
    Style MINIMALISTE - Ultra-epure, inspire Stripe Invoicing
    Aucune bordure, aucun fond, maximum de blanc
    ═══════════════════════════════════════════════════════════════════ */
+{% set sep = cl.separator if cl is defined and cl.separator is defined and cl.separator else '' %}
 
 /* Tableau : aucune bordure */
-.lines-table th { border-bottom: none; }
-.lines-table td { border-bottom: none; }
+.lines-table th { border-bottom: {{ '1px solid ' + sep if sep else 'none' }}; }
+.lines-table td { border-bottom: {{ '1px solid ' + sep if sep else 'none' }}; }
 
 /* Pied de page emetteur : pas de separateur */
-.page-footer-first, .page-footer-other { border-top: none; }
+.page-footer-first, .page-footer-other { border-top: {{ '1px solid ' + sep if sep else 'none' }}; }
 {% endblock %}

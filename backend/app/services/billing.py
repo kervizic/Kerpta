@@ -4,6 +4,8 @@
 
 """Service métier — facturation (comptes bancaires, profils, unités)."""
 
+import json
+import re
 import uuid
 
 from fastapi import HTTPException
@@ -20,8 +22,6 @@ from app.schemas.billing import (
     UnitCreate,
     UnitUpdate,
 )
-
-import json
 
 DEFAULT_UNITS = ["U", "pce.", "ens.", "h", "jr", "m", "ml", "m\u00b2", "kg", "L", "km"]
 DEFAULT_PAYMENT_METHODS = ["Virement bancaire", "Chèque", "Carte bancaire", "Espèces", "Prélèvement"]
@@ -490,6 +490,179 @@ async def update_invoice_columns(
     )
     await db.commit()
     return validated
+
+
+# ── Style des documents ──────────────────────────────────────────────────
+
+DEFAULT_DOCUMENT_STYLING = {
+    "font_sizes": {
+        "seller_name": 13,
+        "seller_address": 9,
+        "client_name": 11,
+        "client_address": 9,
+        "doc_title": 13,
+        "dates_refs": 9,
+        "table_header": 9,
+        "table_cell": 9,
+        "line_detail": 8,
+        "totals": 9,
+        "bottom_info": 9,
+        "footer": 8,
+    },
+    "bold": {
+        "seller_name": True,
+        "seller_address": False,
+        "client_name": True,
+        "client_address": False,
+        "doc_title": True,
+        "dates_label": True,
+        "dates_value": False,
+        "table_header": True,
+        "table_cell": False,
+        "totals_label": True,
+        "totals_value": False,
+    },
+    "colors": {
+        "title": "#555555",
+        "labels": "#555555",
+        "values": "#222222",
+        "separator": "",
+        "footer_text": "#555555",
+    },
+    "column_labels": {
+        "reference": "Réf.",
+        "description": "Désignation",
+        "quantity": "Qté.",
+        "unit_price": "P.U.",
+        "vat_rate": "TVA",
+        "discount_percent": "Rem.",
+        "total_ht": "Montant HT",
+        "total_ttc": "Montant TTC",
+    },
+    "show_sections": {
+        "payment_terms": True,
+        "payment_method": True,
+        "bank_details": True,
+        "legal_footer": True,
+        "notes": True,
+    },
+}
+
+_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
+
+
+def _deep_merge_styling(defaults: dict, saved: dict) -> dict:
+    """Deep-merge saved styling into defaults (2 levels max)."""
+    merged = {}
+    for key, default_val in defaults.items():
+        if isinstance(default_val, dict):
+            saved_sub = saved.get(key, {})
+            if not isinstance(saved_sub, dict):
+                saved_sub = {}
+            merged[key] = {**default_val, **saved_sub}
+        else:
+            merged[key] = saved.get(key, default_val)
+    return merged
+
+
+async def get_document_styling(org_id: uuid.UUID, db: AsyncSession) -> dict:
+    """Retourne le style des documents depuis module_config.document_styling."""
+    result = await db.execute(
+        text("SELECT module_config FROM organizations WHERE id = :org_id"),
+        {"org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    if not row or not row[0]:
+        return {k: (v.copy() if isinstance(v, dict) else v)
+                for k, v in DEFAULT_DOCUMENT_STYLING.items()}
+    config = row[0] if isinstance(row[0], dict) else {}
+    saved = config.get("document_styling", {})
+    if not isinstance(saved, dict):
+        saved = {}
+    return _deep_merge_styling(DEFAULT_DOCUMENT_STYLING, saved)
+
+
+async def update_document_styling(
+    org_id: uuid.UUID, data: dict, db: AsyncSession
+) -> dict:
+    """Met à jour le style des documents dans module_config.document_styling."""
+    # Validate incoming data
+    if "font_sizes" in data and isinstance(data["font_sizes"], dict):
+        for k, v in data["font_sizes"].items():
+            if k not in DEFAULT_DOCUMENT_STYLING["font_sizes"]:
+                raise HTTPException(422, f"Clé font_sizes inconnue : {k}")
+            if not isinstance(v, int) or v < 6 or v > 20:
+                raise HTTPException(
+                    422, f"font_sizes.{k} doit être un entier entre 6 et 20"
+                )
+
+    if "bold" in data and isinstance(data["bold"], dict):
+        for k, v in data["bold"].items():
+            if k not in DEFAULT_DOCUMENT_STYLING["bold"]:
+                raise HTTPException(422, f"Clé bold inconnue : {k}")
+            if not isinstance(v, bool):
+                raise HTTPException(422, f"bold.{k} doit être un booléen")
+
+    if "colors" in data and isinstance(data["colors"], dict):
+        for k, v in data["colors"].items():
+            if k not in DEFAULT_DOCUMENT_STYLING["colors"]:
+                raise HTTPException(422, f"Clé colors inconnue : {k}")
+            if not isinstance(v, str):
+                raise HTTPException(422, f"colors.{k} doit être une chaîne")
+            if v != "" and not _COLOR_RE.match(v):
+                raise HTTPException(
+                    422, f"colors.{k} doit être au format #RRGGBB ou vide"
+                )
+
+    if "column_labels" in data and isinstance(data["column_labels"], dict):
+        for k, v in data["column_labels"].items():
+            if k not in DEFAULT_DOCUMENT_STYLING["column_labels"]:
+                raise HTTPException(422, f"Clé column_labels inconnue : {k}")
+            if not isinstance(v, str) or len(v) > 30:
+                raise HTTPException(
+                    422, f"column_labels.{k} doit être une chaîne de 30 car. max"
+                )
+
+    if "show_sections" in data and isinstance(data["show_sections"], dict):
+        for k, v in data["show_sections"].items():
+            if k not in DEFAULT_DOCUMENT_STYLING["show_sections"]:
+                raise HTTPException(422, f"Clé show_sections inconnue : {k}")
+            if not isinstance(v, bool):
+                raise HTTPException(422, f"show_sections.{k} doit être un booléen")
+
+    # Read current config
+    result = await db.execute(
+        text("SELECT module_config FROM organizations WHERE id = :org_id"),
+        {"org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    config = (row[0] if row and row[0] and isinstance(row[0], dict) else {})
+
+    # Deep-merge partial update with existing saved styling
+    existing = config.get("document_styling", {})
+    if not isinstance(existing, dict):
+        existing = {}
+
+    # Merge each sub-dict from the incoming data into existing
+    for key in DEFAULT_DOCUMENT_STYLING:
+        if key in data and isinstance(data[key], dict):
+            if key not in existing or not isinstance(existing[key], dict):
+                existing[key] = {}
+            existing[key].update(data[key])
+
+    config["document_styling"] = existing
+
+    await db.execute(
+        text("""
+            UPDATE organizations SET module_config = CAST(:config AS jsonb)
+            WHERE id = :org_id
+        """),
+        {"org_id": str(org_id), "config": json.dumps(config)},
+    )
+    await db.commit()
+
+    # Return full merged config (defaults + saved)
+    return _deep_merge_styling(DEFAULT_DOCUMENT_STYLING, existing)
 
 
 # ── Taux de TVA ────────────────────────────────────────────────────────────

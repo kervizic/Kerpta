@@ -3,7 +3,7 @@
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
 import { useEffect, useState } from 'react'
-import { Plus, Loader2, Pencil, Trash2, FileText, Sparkles, Minus } from 'lucide-react'
+import { Plus, Loader2, Pencil, Trash2, FileText, Sparkles, Minus, Bold } from 'lucide-react'
 import { orgGet, orgPatch } from '@/lib/orgApi'
 import { INPUT, BTN_SM } from '@/lib/formStyles'
 
@@ -358,6 +358,266 @@ function PageFooterSection() {
 
 
 
+// ── Section Style du document (tailles, gras, couleurs, labels, sections) ──
+
+interface DocumentStyling {
+  font_sizes: Record<string, number>
+  bold: Record<string, boolean>
+  colors: Record<string, string>
+  column_labels: Record<string, string>
+  show_sections: Record<string, boolean>
+}
+
+const FONT_SIZE_OPTIONS = [6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 18, 20]
+
+const FONT_SIZE_FIELDS: { key: string; label: string; boldKey?: string }[] = [
+  { key: 'seller_name', label: 'Nom emetteur', boldKey: 'seller_name' },
+  { key: 'seller_address', label: 'Adresse emetteur', boldKey: 'seller_address' },
+  { key: 'client_name', label: 'Nom client', boldKey: 'client_name' },
+  { key: 'client_address', label: 'Adresse client', boldKey: 'client_address' },
+  { key: 'doc_title', label: 'Titre du document', boldKey: 'doc_title' },
+  { key: 'dates_refs', label: 'Dates et references' },
+  { key: 'table_header', label: 'En-tetes tableau', boldKey: 'table_header' },
+  { key: 'table_cell', label: 'Cellules tableau', boldKey: 'table_cell' },
+  { key: 'line_detail', label: 'Detail des lignes' },
+  { key: 'totals', label: 'Totaux' },
+  { key: 'bottom_info', label: 'Conditions / Mentions' },
+  { key: 'footer', label: 'Pied de page emetteur' },
+]
+
+const COLOR_FIELDS: { key: string; label: string }[] = [
+  { key: 'title', label: 'Titre du document' },
+  { key: 'labels', label: 'Labels (dates, totaux, en-tetes)' },
+  { key: 'values', label: 'Valeurs (texte, montants)' },
+  { key: 'separator', label: 'Traits / separateurs' },
+  { key: 'footer_text', label: 'Pied de page' },
+]
+
+const COLUMN_LABEL_FIELDS: { key: string; defaultLabel: string }[] = [
+  { key: 'reference', defaultLabel: 'Ref.' },
+  { key: 'description', defaultLabel: 'Designation' },
+  { key: 'quantity', defaultLabel: 'Qte.' },
+  { key: 'unit_price', defaultLabel: 'P.U.' },
+  { key: 'vat_rate', defaultLabel: 'TVA' },
+  { key: 'discount_percent', defaultLabel: 'Rem.' },
+  { key: 'total_ht', defaultLabel: 'Montant HT' },
+  { key: 'total_ttc', defaultLabel: 'Montant TTC' },
+]
+
+const SECTION_FIELDS: { key: string; label: string }[] = [
+  { key: 'payment_terms', label: 'Conditions de reglement' },
+  { key: 'payment_method', label: 'Mode de reglement' },
+  { key: 'bank_details', label: 'Coordonnees bancaires (IBAN/BIC)' },
+  { key: 'legal_footer', label: 'Mentions legales' },
+  { key: 'notes', label: 'Notes' },
+]
+
+function DocumentStylingSection() {
+  const [styling, setStyling] = useState<DocumentStyling | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [openSub, setOpenSub] = useState<string | null>(null)
+
+  useEffect(() => {
+    orgGet<DocumentStyling>('/billing/document-styling')
+      .then(setStyling)
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  async function patch(partial: Partial<DocumentStyling>) {
+    setSaving(true)
+    try {
+      const result = await orgPatch('/billing/document-styling', partial)
+      setStyling(result as unknown as DocumentStyling)
+    } catch { /* */ }
+    setSaving(false)
+  }
+
+  function updateFontSize(key: string, value: number) {
+    if (!styling) return
+    const updated = { ...styling.font_sizes, [key]: value }
+    setStyling({ ...styling, font_sizes: updated })
+    patch({ font_sizes: { [key]: value } })
+  }
+
+  function toggleBold(key: string) {
+    if (!styling) return
+    const updated = { ...styling.bold, [key]: !styling.bold[key] }
+    setStyling({ ...styling, bold: updated })
+    patch({ bold: { [key]: !styling.bold[key] } })
+  }
+
+  function updateColor(key: string, value: string) {
+    if (!styling) return
+    const updated = { ...styling.colors, [key]: value }
+    setStyling({ ...styling, colors: updated })
+    patch({ colors: { [key]: value } })
+  }
+
+  function updateLabel(key: string, value: string) {
+    if (!styling) return
+    const updated = { ...styling.column_labels, [key]: value }
+    setStyling({ ...styling, column_labels: updated })
+    patch({ column_labels: { [key]: value } })
+  }
+
+  function toggleSection(key: string) {
+    if (!styling) return
+    const updated = { ...styling.show_sections, [key]: !styling.show_sections[key] }
+    setStyling({ ...styling, show_sections: updated })
+    patch({ show_sections: { [key]: !styling.show_sections[key] } })
+  }
+
+  const toggleStyle = (on: boolean) =>
+    `px-3 py-1.5 text-xs rounded-full border transition cursor-pointer ${
+      on ? 'bg-kerpta-50 dark:bg-kerpta-900/30 border-kerpta-200 dark:border-kerpta-700 text-kerpta-700 dark:text-kerpta-400'
+         : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:border-gray-300'
+    }`
+
+  const subHeader = (key: string, label: string) => (
+    <button
+      type="button"
+      onClick={() => setOpenSub(openSub === key ? null : key)}
+      className="flex items-center justify-between w-full py-2 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide hover:text-gray-800 dark:hover:text-gray-200 transition"
+    >
+      {label}
+      <span className="text-gray-400 dark:text-gray-500">{openSub === key ? '-' : '+'}</span>
+    </button>
+  )
+
+  return (
+    <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Style du document</h2>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Tailles de texte, gras, couleurs, libelles et sections visibles sur les PDF</p>
+        </div>
+        {saving && <Loader2 className="w-4 h-4 animate-spin text-kerpta" />}
+      </div>
+      {loading || !styling ? (
+        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-kerpta" /></div>
+      ) : (
+        <div className="divide-y divide-gray-100 dark:divide-gray-700">
+          {/* Tailles et gras */}
+          <div>
+            {subHeader('fonts', 'Tailles de texte et gras')}
+            {openSub === 'fonts' && (
+              <div className="pb-4 space-y-2">
+                {FONT_SIZE_FIELDS.map((f) => (
+                  <div key={f.key} className="flex items-center gap-3">
+                    <span className="text-xs text-gray-600 dark:text-gray-400 w-44 flex-shrink-0">{f.label}</span>
+                    <select
+                      value={styling.font_sizes[f.key] ?? 9}
+                      onChange={(e) => updateFontSize(f.key, parseInt(e.target.value))}
+                      className="h-[30px] px-2 py-0.5 text-xs border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded focus:outline-none focus:ring-1 focus:ring-kerpta-400 w-16"
+                    >
+                      {FONT_SIZE_OPTIONS.map((s) => (
+                        <option key={s} value={s}>{s}pt</option>
+                      ))}
+                    </select>
+                    {f.boldKey && (
+                      <button
+                        type="button"
+                        onClick={() => toggleBold(f.boldKey!)}
+                        title="Gras"
+                        className={`w-7 h-7 rounded flex items-center justify-center border transition ${
+                          styling.bold[f.boldKey]
+                            ? 'bg-kerpta-50 dark:bg-kerpta-900/30 border-kerpta-200 dark:border-kerpta-700 text-kerpta-700 dark:text-kerpta-400'
+                            : 'border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:border-gray-300'
+                        }`}
+                      >
+                        <Bold className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Couleurs */}
+          <div>
+            {subHeader('colors', 'Couleurs')}
+            {openSub === 'colors' && (
+              <div className="pb-4 space-y-2">
+                {COLOR_FIELDS.map((c) => (
+                  <div key={c.key} className="flex items-center gap-3">
+                    <span className="text-xs text-gray-600 dark:text-gray-400 w-44 flex-shrink-0">{c.label}</span>
+                    <input
+                      type="color"
+                      value={styling.colors[c.key] || '#555555'}
+                      onChange={(e) => updateColor(c.key, e.target.value)}
+                      className="w-8 h-8 rounded border border-gray-200 dark:border-gray-600 cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      value={styling.colors[c.key] || ''}
+                      onChange={(e) => updateColor(c.key, e.target.value)}
+                      placeholder={c.key === 'separator' ? 'Defaut du theme' : '#555555'}
+                      className="h-[30px] w-24 px-2 py-0.5 text-xs font-mono border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded focus:outline-none focus:ring-1 focus:ring-kerpta-400"
+                    />
+                    {c.key === 'separator' && styling.colors[c.key] && (
+                      <button
+                        type="button"
+                        onClick={() => updateColor('separator', '')}
+                        className="text-[10px] text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                      >
+                        Reinitialiser
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Libelles des colonnes */}
+          <div>
+            {subHeader('labels', 'Libelles des colonnes')}
+            {openSub === 'labels' && (
+              <div className="pb-4 grid grid-cols-2 gap-2">
+                {COLUMN_LABEL_FIELDS.map((f) => (
+                  <div key={f.key}>
+                    <label className="text-[10px] text-gray-400 dark:text-gray-500 mb-0.5 block">{f.defaultLabel}</label>
+                    <input
+                      type="text"
+                      value={styling.column_labels[f.key] ?? f.defaultLabel}
+                      onChange={(e) => updateLabel(f.key, e.target.value)}
+                      placeholder={f.defaultLabel}
+                      maxLength={30}
+                      className="h-[30px] w-full px-2 py-0.5 text-xs border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded focus:outline-none focus:ring-1 focus:ring-kerpta-400"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Sections visibles */}
+          <div>
+            {subHeader('sections', 'Sections visibles')}
+            {openSub === 'sections' && (
+              <div className="pb-4 flex flex-wrap gap-2">
+                {SECTION_FIELDS.map((s) => (
+                  <button
+                    key={s.key}
+                    type="button"
+                    onClick={() => toggleSection(s.key)}
+                    className={toggleStyle(styling.show_sections[s.key] !== false)}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </section>
+  )
+}
+
 // ── Section Mise en page et colonnes ────────────────────────────────────
 
 function DocumentTypesSection({ endpoint, title, description }: { endpoint: string; title: string; description: string }) {
@@ -647,6 +907,7 @@ export default function DocumentSettingsPage() {
         <PrintStyleSection />
         <DocumentHeaderSection />
         <PageFooterSection />
+        <DocumentStylingSection />
         <DocumentTypesSection
           endpoint="/billing/quote-document-types"
           title="Colonnes des devis"
