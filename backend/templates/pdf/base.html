@@ -8,14 +8,6 @@
 @page {
   size: A4;
   margin: 18mm 18mm 20mm 18mm;
-  {% if footer_options is not defined or footer_options.show_page_number is not defined or footer_options.show_page_number %}
-  @bottom-right {
-    content: "Page " counter(page) " / " counter(pages);
-    font-size: 7pt;
-    color: #888;
-    font-family: 'Inter', 'Liberation Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  }
-  {% endif %}
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
@@ -37,7 +29,12 @@ table { border-collapse: collapse; width: 100%; }
 .footer-table td { padding: 0; vertical-align: middle; border: none; }
 .footer-col-left { width: 40px; text-align: left; }
 .footer-col-center { text-align: center; }
-.footer-col-right { width: 60px; text-align: right; font-size: 7pt; color: #888; }
+.footer-col-right { width: 70px; text-align: right; font-size: 7pt; color: #888; }
+{% if footer_options is not defined or footer_options.show_page_number is not defined or footer_options.show_page_number %}
+.footer-col-right::after {
+  content: "Page " counter(page) " / " counter(pages);
+}
+{% endif %}
 .footer-logo { max-height: 22px; max-width: 40px; }
 .footer-line { margin-bottom: 0; }
 
@@ -50,7 +47,7 @@ table { border-collapse: collapse; width: 100%; }
 <!-- ── En-tete : emetteur a gauche ──────────────────────────────── -->
 <div class="header clearfix">
   <div class="header-left">
-    {% if logo_b64 %}
+    {% if show_header_logo and logo_b64 %}
     <img src="data:{{ logo_mime }};base64,{{ logo_b64 }}" class="logo">
     {% endif %}
     {% if show_company_name is not defined or show_company_name %}
