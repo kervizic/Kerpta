@@ -436,11 +436,12 @@ const SPACING_GROUPS: { group: string; hint?: string; fields: { key: string; lab
   },
   {
     group: 'En-tete',
-    hint: 'Zone contenant le logo, l\'emetteur (gauche) et le client (droite). Le client est positionne a 40mm du haut de page (norme AFNOR fenetre d\'enveloppe).',
+    hint: 'Zone contenant le logo, l\'emetteur (gauche) et le client (droite). AFNOR NF Z 10-011 : client a 40mm du haut et 105mm min. du bord gauche (fenetre d\'enveloppe).',
     fields: [
       { key: 'header_margin_bottom', label: 'Marge basse en-tete', unit: 'px', def: 28, hint: 'Espace entre le bas du bloc en-tete (emetteur/client) et le titre du document' },
       { key: 'header_min_height', label: 'Hauteur min. en-tete', unit: 'mm', def: 52, hint: 'Hauteur minimale du bloc en-tete. Augmenter si le titre chevauche le bloc client' },
       { key: 'header_left_width', label: 'Largeur bloc emetteur', unit: 'mm', def: 80, hint: 'Largeur du bloc emetteur (logo + nom + adresse) a gauche' },
+      { key: 'client_block_left', label: 'Position bloc client', unit: 'mm', def: 110, hint: 'Distance entre le bord gauche de la feuille et le bloc client. Norme AFNOR NF Z 10-011 : minimum 105mm (zone fenetre d\'enveloppe). S\'ajuste auto avec les marges.' },
       { key: 'header_right_width', label: 'Largeur bloc client', unit: 'mm', def: 67, hint: 'Largeur du bloc client (nom + adresse + TVA) a droite' },
     ],
   },

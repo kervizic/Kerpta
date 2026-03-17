@@ -558,6 +558,7 @@ DEFAULT_DOCUMENT_STYLING = {
         "header_margin_bottom": 28,
         "header_min_height": 52,
         "header_left_width": 80,
+        "client_block_left": 110,
         "header_right_width": 67,
         "logo_max_height": 45,
         "logo_max_width": 160,
