@@ -226,7 +226,7 @@ function PageFooterSection() {
       setShowPhone(o.show_phone ?? false)
       setShowEmail(o.show_email ?? false)
       setShowWebsite(o.show_website ?? false)
-      setShowFooterLogo(o.show_footer_logo ?? false)
+      setShowFooterLogo(o.show_footer_logo ?? true)
       setShowPageNumber(o.show_page_number ?? true)
       if (org) setOrgInfo(org as OrgInfo)
       if (logo) setLogoSrc(logo as string)
