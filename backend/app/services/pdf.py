@@ -620,15 +620,21 @@ def _build_document_xml(
         _el(postal, "ram:CityName", client_addr["commune"])
     # Utiliser country_code du client (ISO 3166-1 alpha-2), pas le champ texte "pays"
     _el(postal, "ram:CountryID", client.get("country_code") or "FR")
-    # BT-49 : adresse electronique de l'acheteur (BR-FR-12)
-    # Priorite : email, sinon SIREN si disponible (particuliers/etrangers peuvent ne pas en avoir)
+    # BT-49 : adresse electronique de l'acheteur (BR-FR-12 - OBLIGATOIRE en FR CTC)
+    # Cascade : email > SIREN > SIRET > n° TVA intracom > nom du client
     buyer_email = client.get("email") or ""
-    if buyer_email or buyer_siren:
-        buyer_endpoint = _el(buyer_party, "ram:URIUniversalCommunication")
-        if buyer_email:
-            _el(buyer_endpoint, "ram:URIID", buyer_email, schemeID="EM")
-        else:
-            _el(buyer_endpoint, "ram:URIID", buyer_siren, schemeID="0002")
+    buyer_endpoint = _el(buyer_party, "ram:URIUniversalCommunication")
+    if buyer_email:
+        _el(buyer_endpoint, "ram:URIID", buyer_email, schemeID="EM")
+    elif buyer_siren:
+        _el(buyer_endpoint, "ram:URIID", buyer_siren, schemeID="0002")
+    elif client.get("siret"):
+        _el(buyer_endpoint, "ram:URIID", client["siret"], schemeID="0002")
+    elif client.get("vat_number"):
+        _el(buyer_endpoint, "ram:URIID", client["vat_number"], schemeID="9906")
+    else:
+        # Particulier sans email ni identifiant : nom comme dernier recours
+        _el(buyer_endpoint, "ram:URIID", client.get("name") or "INCONNU", schemeID="EM")
     if client.get("vat_number"):
         buyer_tax = _el(buyer_party, "ram:SpecifiedTaxRegistration")
         _el(buyer_tax, "ram:ID", client["vat_number"], schemeID="VA")
