@@ -688,7 +688,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
   const [docTypes, setDocTypes] = useState<DocTypeConfig[]>([])
   const [docColumns, setDocColumns] = useState({
     reference: true, description: true, quantity: true, unit: true,
-    unit_price: true, vat_rate: true, discount_percent: true, total_ht: true,
+    unit_price: true, vat_rate: true, discount_percent: true, total_ht: true, total_ttc: false,
   })
   const [vatRates, setVatRates] = useState<{ rate: string; label: string }[]>([
     { rate: '20', label: 'TVA 20%' }, { rate: '10', label: 'TVA 10%' },
