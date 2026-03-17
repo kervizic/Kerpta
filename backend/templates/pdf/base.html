@@ -72,11 +72,11 @@ table { border-collapse: collapse; width: 100%; }
       </div>
       {% endif %}
       <div class="footer-line">
-        {% if seller.legal_form %}{{ seller.legal_form }}{% endif %}
+        {% if seller.vat_number %}TVA : {{ seller.vat_number }}{% endif %}
+        {% if seller.legal_form %}{% if seller.vat_number %} - {% endif %}{{ seller.legal_form }}{% endif %}
         {% if seller.capital %} au capital de {{ seller.capital }} €{% endif %}
         {% if seller.siren %} - SIREN : {{ seller.siren }}{% endif %}
         {% if seller.rcs_city %} - R.C.S {{ seller.rcs_city }}{% endif %}
-        {% if seller.vat_number %} - TVA : {{ seller.vat_number }}{% endif %}
       </div>
     </td>
     <td class="footer-col-right"></td>
