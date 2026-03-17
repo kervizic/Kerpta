@@ -217,6 +217,24 @@ async def _get_payment_note_from_profile(
     return row[0] if row and row[0] else ""
 
 
+async def _get_payment_config_from_profile(
+    org_id: uuid.UUID, db: AsyncSession
+) -> dict:
+    """Récupère conditions de règlement + mode de paiement du profil par défaut."""
+    result = await db.execute(
+        text("""
+            SELECT payment_terms, payment_method FROM billing_profiles
+            WHERE organization_id = :org_id AND is_default = true
+            LIMIT 1
+        """),
+        {"org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    if not row:
+        return {"payment_terms": None, "payment_method": None}
+    return {"payment_terms": row[0], "payment_method": row[1]}
+
+
 async def _get_rounding_config(org_id: uuid.UUID, db: AsyncSession) -> dict:
     """Récupère la config des arrondis pour le formatage PDF."""
     return await billing_svc.get_rounding(org_id, db)
@@ -1050,6 +1068,14 @@ async def generate_quote_pdf(
     # Footer : priorité au footer du document, sinon footer org
     footer = quote.get("footer") or org_footer
 
+    # Conditions de reglement + mode de paiement depuis le profil par defaut
+    pay_config = await _get_payment_config_from_profile(org_id, db)
+    pay_terms = pay_config["payment_terms"]
+    pay_method = pay_config["payment_method"]
+
+    # Infos bancaires depuis le profil par defaut
+    bank_details = await _get_bank_details_from_profile(org_id, db)
+
     # Note de règlement depuis le profil de facturation
     payment_note = await _get_payment_note_from_profile(org_id, db)
 
@@ -1078,9 +1104,9 @@ async def generate_quote_pdf(
         "discount_label": discount_label,
         "discount_amount": discount_amount,
         "vat_breakdown": vat_breakdown,
-        "payment_terms_label": None,
-        "payment_method": None,
-        "bank_details": None,
+        "payment_terms_label": "Comptant" if pay_terms == 0 else (f"{pay_terms} jours net" if pay_terms else None),
+        "payment_method": pay_method,
+        "bank_details": bank_details,
         "notes": quote.get("notes"),
         "footer": footer,
         "payment_note": payment_note,
