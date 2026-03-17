@@ -8,6 +8,7 @@ import {
   Layers, ShoppingCart, Users, BarChart3, X,
 } from 'lucide-react'
 import { orgGet, orgPost, orgPatch, orgDelete } from '@/lib/orgApi'
+import { useAuthStore } from '@/stores/authStore'
 import UnitCombobox from '@/components/app/UnitCombobox'
 import ModalOverlay from '@/components/app/ModalOverlay'
 import axios from 'axios'
@@ -356,6 +357,10 @@ export function ProductDetailModal({ productId, onClose }: { productId: string; 
   const [editFieldValue, setEditFieldValue] = useState('')
   const [savingField, setSavingField] = useState(false)
 
+  const { orgs, activeOrgId } = useAuthStore()
+  const activeOrg = orgs?.find((o) => o.org_id === activeOrgId)
+  const isAccountant = activeOrg?.role === 'owner' || activeOrg?.role === 'accountant'
+
   const load = useCallback(async () => {
     setLoading(true)
     try {
@@ -490,7 +495,7 @@ export function ProductDetailModal({ productId, onClose }: { productId: string; 
         ) : (
           <div className="px-4 md:px-6 py-5">
             {/* Infos résumées — éditables au clic */}
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">
+            <div className={`grid grid-cols-2 ${isAccountant ? 'sm:grid-cols-5' : 'sm:grid-cols-4'} gap-3 mb-5`}>
               <EditableInfoCard
                 label="Prix HT"
                 value={fmtPrice(product.unit_price)}
@@ -544,6 +549,7 @@ export function ProductDetailModal({ productId, onClose }: { productId: string; 
                 onSave={() => saveField('unit', editFieldValue || null)}
                 onCancel={() => setEditingField(null)}
               />
+              {isAccountant && (
               <EditableInfoCard
                 label="Compte"
                 value={product.account_code || '—'}
@@ -555,6 +561,7 @@ export function ProductDetailModal({ productId, onClose }: { productId: string; 
                 onSave={() => saveField('account_code', editFieldValue || null)}
                 onCancel={() => setEditingField(null)}
               />
+              )}
             </div>
 
             {/* Description editable */}

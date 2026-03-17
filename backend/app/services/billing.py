@@ -323,9 +323,11 @@ async def update_page_footer_options(
     row = result.fetchone()
     config = row[0] if row and row[0] and isinstance(row[0], dict) else {}
 
-    for key in ("show_phone", "show_email", "show_website", "show_footer_logo", "show_page_number"):
+    for key in ("show_phone", "show_email", "show_website", "show_page_number"):
         if key in data:
             config[f"footer_{key}"] = bool(data[key])
+    if "show_footer_logo" in data:
+        config["footer_show_logo"] = bool(data["show_footer_logo"])
 
     await db.execute(
         text("""

@@ -311,9 +311,9 @@ function PageFooterSection() {
               <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2 text-center">Apercu</p>
               <div className="flex items-center gap-3">
                 {/* Colonne gauche : logo */}
-                <div className="w-10 flex-shrink-0">
+                <div className="w-12 flex-shrink-0">
                   {showFooterLogo && logoSrc && (
-                    <img src={logoSrc} alt="Logo" className="max-h-5 max-w-[40px] object-contain" />
+                    <img src={logoSrc} alt="Logo" className="max-h-8 max-w-[50px] object-contain" />
                   )}
                 </div>
                 {/* Colonne centre : texte */}
