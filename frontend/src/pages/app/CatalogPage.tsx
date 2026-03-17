@@ -184,6 +184,7 @@ function ProductsList({ initialSelectedId }: { initialSelectedId?: string } = {}
                   <th className="px-4 py-3">D&eacute;signation</th>
                   <th className="px-4 py-3">Unit&eacute;</th>
                   <th className="px-4 py-3 text-right">Prix HT</th>
+                  <th className="px-4 py-3 text-right">Prix TTC</th>
                   <th className="px-4 py-3 text-right">TVA</th>
                   <th className="px-4 py-3 text-center">Mode</th>
                 </tr>
@@ -199,6 +200,7 @@ function ProductsList({ initialSelectedId }: { initialSelectedId?: string } = {}
                     </td>
                     <td className="px-4 py-3 text-gray-500 dark:text-gray-400">{p.unit || '\u2014'}</td>
                     <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">{fmtPrice(p.unit_price)}</td>
+                    <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">{p.unit_price != null ? fmtPrice(Math.round(p.unit_price * (1 + p.vat_rate / 100) * 100) / 100) : '\u2014'}</td>
                     <td className="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{Number(p.vat_rate)} %</td>
                     <td className="px-4 py-3 text-center">
                       {p.sale_price_mode === 'coefficient' ? (
@@ -224,7 +226,8 @@ function ProductsList({ initialSelectedId }: { initialSelectedId?: string } = {}
                   </div>
                   <div className="flex items-center justify-between mt-1.5">
                     <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">{p.reference || '—'}</span>
-                    <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">{fmtPrice(p.unit_price)}</span>
+                    <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">{fmtPrice(p.unit_price)} HT</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">{p.unit_price != null ? `${fmtPrice(Math.round(p.unit_price * (1 + p.vat_rate / 100) * 100) / 100)} TTC` : ''}</span>
                   </div>
                 </div>
               ))}
@@ -495,7 +498,7 @@ export function ProductDetailModal({ productId, onClose }: { productId: string; 
         ) : (
           <div className="px-4 md:px-6 py-5">
             {/* Infos résumées — éditables au clic */}
-            <div className={`grid grid-cols-2 ${isAccountant ? 'sm:grid-cols-5' : 'sm:grid-cols-4'} gap-3 mb-5`}>
+            <div className={`grid grid-cols-2 ${isAccountant ? 'sm:grid-cols-6' : 'sm:grid-cols-5'} gap-3 mb-5`}>
               <EditableInfoCard
                 label="Prix HT"
                 value={fmtPrice(product.unit_price)}
@@ -505,6 +508,26 @@ export function ProductDetailModal({ productId, onClose }: { productId: string; 
                 onStartEdit={() => { setEditingField('unit_price'); setEditFieldValue(product.unit_price != null ? String(product.unit_price) : '') }}
                 onChangeValue={setEditFieldValue}
                 onSave={() => saveField('unit_price', editFieldValue ? Number(editFieldValue) : null)}
+                onCancel={() => setEditingField(null)}
+                inputType="number"
+                inputStep="0.01"
+              />
+              <EditableInfoCard
+                label="Prix TTC"
+                value={product.unit_price != null ? fmtPrice(Math.round(product.unit_price * (1 + product.vat_rate / 100) * 100) / 100) : '—'}
+                editingField={editingField}
+                fieldKey="unit_price_ttc"
+                editFieldValue={editFieldValue}
+                onStartEdit={() => {
+                  setEditingField('unit_price_ttc')
+                  setEditFieldValue(product.unit_price != null ? String(Math.round(product.unit_price * (1 + product.vat_rate / 100) * 100) / 100) : '')
+                }}
+                onChangeValue={setEditFieldValue}
+                onSave={() => {
+                  const ttc = Number(editFieldValue) || 0
+                  const ht = Math.round(ttc / (1 + product.vat_rate / 100) * 100) / 100
+                  saveField('unit_price', ht)
+                }}
                 onCancel={() => setEditingField(null)}
                 inputType="number"
                 inputStep="0.01"

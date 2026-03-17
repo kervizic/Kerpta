@@ -141,6 +141,19 @@ function calcLineVAT(line: FormLine): number {
   return Math.round(ht * rate / 100 * 100) / 100
 }
 
+function calcLineTTC(line: FormLine): number {
+  return calcLineHT(line) + calcLineVAT(line)
+}
+
+function unitPriceFromTTC(ttc: number, line: FormLine): string {
+  const qty = parseFloat(line.quantity) || 1
+  const disc = (parseFloat(line.discount_percent) || 0) / 100
+  const rate = (parseFloat(line.vat_rate) || 0) / 100
+  const ht = ttc / (1 + rate)
+  const price = ht / (qty * (1 - disc))
+  return (Math.round(price * 100) / 100).toString()
+}
+
 function addDays(dateStr: string, days: number): string {
   const d = new Date(dateStr)
   d.setDate(d.getDate() + days)
@@ -677,6 +690,7 @@ function InvoiceDetailPanel({ invoiceId, onClose }: { invoiceId: string; onClose
                 <th className="px-4 py-3 text-right">PU HT</th>
                 <th className="px-4 py-3 text-right">TVA</th>
                 <th className="px-4 py-3 text-right">Total HT</th>
+                <th className="px-4 py-3 text-right">Total TTC</th>
               </tr>
             </thead>
             <tbody>
@@ -687,6 +701,7 @@ function InvoiceDetailPanel({ invoiceId, onClose }: { invoiceId: string; onClose
                   <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">{fmtCurrency(l.unit_price)}</td>
                   <td className="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{Number(l.vat_rate)}%</td>
                   <td className="px-4 py-3 text-right font-medium text-gray-900 dark:text-white">{fmtCurrency(l.total_ht)}</td>
+                  <td className="px-4 py-3 text-right font-medium text-gray-900 dark:text-white">{fmtCurrency(l.total_ht + (l.total_ht * l.vat_rate / 100))}</td>
                 </tr>
               ))}
             </tbody>
@@ -1167,12 +1182,14 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
                   {docColumns.vat_rate && <th className="px-2 py-2 w-20">TVA %</th>}
                   {docColumns.discount_percent && <th className="px-2 py-2 w-16">Rem. %</th>}
                   <th className="px-2 py-2 w-28 text-right">Total HT</th>
+                  {docColumns.total_ttc && <th className="px-2 py-2 w-28 text-right">Total TTC</th>}
                   <th className="px-2 py-2 w-16"></th>
                 </tr>
               </thead>
               <tbody>
                 {lines.map((line, i) => {
                   const lineHT = calcLineHT(line)
+                  const lineTTC = calcLineTTC(line)
                   return (
                     <tr key={line.key} className="border-b border-gray-50 dark:border-gray-700 align-middle">
                       {docColumns.reference && (
@@ -1230,6 +1247,20 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
                           {fmtCurrency(lineHT)}
                         </div>
                       </td>
+                      {docColumns.total_ttc && (
+                      <td className="px-1 py-1.5">
+                        <input
+                          type="number" step="0.01"
+                          value={Math.round(lineTTC * 100) / 100}
+                          onChange={(e) => {
+                            const newTTC = parseFloat(e.target.value) || 0
+                            updateLine(i, 'unit_price', unitPriceFromTTC(newTTC, line))
+                          }}
+                          disabled={isValidated}
+                          className={`${LINE_INPUT} text-right`}
+                        />
+                      </td>
+                      )}
                       {!isValidated && (
                         <td className="px-1 py-1.5">
                           <div className="flex gap-0.5">
@@ -1260,6 +1291,7 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
           <div className="md:hidden space-y-3">
             {lines.map((line, i) => {
               const lineHT = calcLineHT(line)
+              const lineTTC = calcLineTTC(line)
               return (
                 <div key={line.key} className="border border-gray-200 dark:border-gray-700 rounded-xl p-3 space-y-2.5">
                   {/* Désignation (pleine largeur) */}
@@ -1324,7 +1356,24 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
 
                   {/* Total + actions */}
                   <div className="flex items-center justify-between pt-1 border-t border-gray-100 dark:border-gray-700">
-                    <span className="text-sm font-semibold text-gray-900 dark:text-white">{fmtCurrency(lineHT)}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-semibold text-gray-900 dark:text-white">{fmtCurrency(lineHT)}</span>
+                      {docColumns.total_ttc && (
+                        <div className="flex items-center gap-1">
+                          <label className="text-[10px] text-gray-400 dark:text-gray-500">TTC</label>
+                          <input
+                            type="number" step="0.01"
+                            value={Math.round(lineTTC * 100) / 100}
+                            onChange={(e) => {
+                              const newTTC = parseFloat(e.target.value) || 0
+                              updateLine(i, 'unit_price', unitPriceFromTTC(newTTC, line))
+                            }}
+                            disabled={isValidated}
+                            className={`${INPUT} w-24 text-right text-sm`}
+                          />
+                        </div>
+                      )}
+                    </div>
                     {!isValidated && (
                       <div className="flex items-center gap-1 ml-auto">
                         {line.product_id && (
