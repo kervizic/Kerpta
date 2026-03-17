@@ -266,7 +266,8 @@ async def _get_client_info(client_id: str, org_id: uuid.UUID, db: AsyncSession) 
     """Récupère les informations du client."""
     result = await db.execute(
         text("""
-            SELECT name, siret, vat_number, billing_address
+            SELECT name, siret, vat_number, billing_address,
+                   email, company_siren, country_code
             FROM clients WHERE id = :cid AND organization_id = :org_id
         """),
         {"cid": client_id, "org_id": str(org_id)},
@@ -279,6 +280,9 @@ async def _get_client_info(client_id: str, org_id: uuid.UUID, db: AsyncSession) 
         "siret": row[1],
         "vat_number": row[2],
         "address": row[3] if isinstance(row[3], dict) else None,
+        "email": row[4],
+        "siren": row[5],  # company_siren (9 chiffres)
+        "country_code": row[6] or "FR",
     }
 
 
@@ -400,6 +404,40 @@ _PAYMENT_MEANS_CODE = {
     "espèces": "10",
 }
 
+# Mapping unites francaises -> codes UN/ECE Rec 20 pour Factur-X
+_UNIT_CODE_MAP = {
+    # Unites sans dimension
+    "u": "C62", "unite": "C62", "unité": "C62", "pce": "C62", "piece": "C62",
+    "pièce": "C62", "pc": "C62", "pcs": "C62", "lot": "C62",
+    # Temps
+    "h": "HUR", "heure": "HUR", "heures": "HUR", "hr": "HUR",
+    "j": "DAY", "jour": "DAY", "jours": "DAY", "journee": "DAY", "journée": "DAY",
+    "mois": "MON", "an": "ANN", "annee": "ANN", "année": "ANN",
+    "min": "MIN", "minute": "MIN", "minutes": "MIN",
+    # Longueur
+    "m": "MTR", "metre": "MTR", "mètre": "MTR", "ml": "MTR",
+    "km": "KMT", "cm": "CMT", "mm": "MMT",
+    # Surface
+    "m2": "MTK", "m²": "MTK",
+    # Volume
+    "m3": "MTQ", "m³": "MTQ", "l": "LTR", "litre": "LTR",
+    # Poids
+    "kg": "KGM", "t": "TNE", "tonne": "TNE", "g": "GRM",
+    # Forfait
+    "forfait": "C62", "ft": "C62", "ens": "C62", "ensemble": "C62",
+}
+
+
+def _unit_to_unece(unit: str | None) -> str:
+    """Convertit une unite libre en code UN/ECE Rec 20 pour Factur-X."""
+    if not unit:
+        return "C62"
+    unit_clean = unit.strip().lower()
+    # Si c'est deja un code UN/ECE (2-3 lettres majuscules), le garder
+    if unit.strip().isupper() and 2 <= len(unit.strip()) <= 3:
+        return unit.strip()
+    return _UNIT_CODE_MAP.get(unit_clean, "C62")
+
 
 def _dec(value, default: str = "0.00") -> str:
     """Normalise une valeur en string decimale pour le XML CII.
@@ -474,6 +512,24 @@ def _build_document_xml(
         issue_dt = _el(doc, "ram:IssueDateTime")
         _el(issue_dt, "udt:DateTimeString", str(issue_date).replace("-", ""), format="102")
 
+    # Notes obligatoires FR CTC (BR-FR-05) - penalites, recouvrement, escompte
+    _fr_notes = doc_data.get("legal_notes") or {}
+    # PMD - penalites de retard
+    note_pmd = _el(doc, "ram:IncludedNote")
+    _el(note_pmd, "ram:Content", _fr_notes.get("pmd") or
+        "En cas de retard de paiement, une penalite de 3 fois le taux d'interet legal sera appliquee.")
+    _el(note_pmd, "ram:SubjectCode", "PMD")
+    # PMT - frais de recouvrement
+    note_pmt = _el(doc, "ram:IncludedNote")
+    _el(note_pmt, "ram:Content", _fr_notes.get("pmt") or
+        "Indemnite forfaitaire pour frais de recouvrement : 40 euros.")
+    _el(note_pmt, "ram:SubjectCode", "PMT")
+    # AAB - escompte
+    note_aab = _el(doc, "ram:IncludedNote")
+    _el(note_aab, "ram:Content", _fr_notes.get("aab") or
+        "Pas d'escompte pour paiement anticipe.")
+    _el(note_aab, "ram:SubjectCode", "AAB")
+
     # ── SupplyChainTradeTransaction ──
     txn = _el(root, "rsm:SupplyChainTradeTransaction")
 
@@ -496,7 +552,8 @@ def _build_document_xml(
         _el(net_price, "ram:ChargeAmount", _dec(line.get("unit_price")))
 
         line_delivery = _el(item, "ram:SpecifiedLineTradeDelivery")
-        _el(line_delivery, "ram:BilledQuantity", _dec(line.get("quantity"), "1"), unitCode=line.get("unit") or "C62")
+        _el(line_delivery, "ram:BilledQuantity", _dec(line.get("quantity"), "1"),
+            unitCode=_unit_to_unece(line.get("unit")))
 
         line_settlement = _el(item, "ram:SpecifiedLineTradeSettlement")
         line_tax = _el(line_settlement, "ram:ApplicableTradeTax")
@@ -517,9 +574,13 @@ def _build_document_xml(
     # Vendeur
     seller_party = _el(agreement, "ram:SellerTradeParty")
     _el(seller_party, "ram:Name", seller.get("name") or "")
-    if seller.get("siret"):
+    # BT-30 : SIREN (9 chiffres) pas SIRET (14 chiffres) - BR-FR-10
+    seller_siren = seller.get("siren") or ""
+    if not seller_siren and seller.get("siret"):
+        seller_siren = seller["siret"][:9]
+    if seller_siren:
         seller_id = _el(seller_party, "ram:SpecifiedLegalOrganization")
-        _el(seller_id, "ram:ID", seller["siret"], schemeID="0002")
+        _el(seller_id, "ram:ID", seller_siren, schemeID="0002")
     seller_addr = seller.get("address") or {}
     # PostalTradeAddress obligatoire avec au minimum CountryID
     postal = _el(seller_party, "ram:PostalTradeAddress")
@@ -530,6 +591,11 @@ def _build_document_xml(
     if seller_addr.get("commune"):
         _el(postal, "ram:CityName", seller_addr["commune"])
     _el(postal, "ram:CountryID", "FR")
+    # BT-34 : adresse electronique du vendeur (BR-FR-13)
+    seller_email = seller.get("email") or ""
+    if seller_email:
+        seller_endpoint = _el(seller_party, "ram:URIUniversalCommunication")
+        _el(seller_endpoint, "ram:URIID", seller_email, schemeID="EM")
     if seller.get("vat_number"):
         seller_tax = _el(seller_party, "ram:SpecifiedTaxRegistration")
         _el(seller_tax, "ram:ID", seller["vat_number"], schemeID="VA")
@@ -537,9 +603,13 @@ def _build_document_xml(
     # Acheteur
     buyer_party = _el(agreement, "ram:BuyerTradeParty")
     _el(buyer_party, "ram:Name", client.get("name") or "")
-    if client.get("siret"):
+    # BT-47 : SIREN acheteur (9 chiffres)
+    buyer_siren = client.get("siren") or ""
+    if not buyer_siren and client.get("siret"):
+        buyer_siren = client["siret"][:9]
+    if buyer_siren:
         buyer_id = _el(buyer_party, "ram:SpecifiedLegalOrganization")
-        _el(buyer_id, "ram:ID", client["siret"], schemeID="0002")
+        _el(buyer_id, "ram:ID", buyer_siren, schemeID="0002")
     client_addr = client.get("address") or {}
     # PostalTradeAddress obligatoire avec au minimum CountryID
     postal = _el(buyer_party, "ram:PostalTradeAddress")
@@ -549,46 +619,48 @@ def _build_document_xml(
         _el(postal, "ram:LineOne", client_addr["voie"])
     if client_addr.get("commune"):
         _el(postal, "ram:CityName", client_addr["commune"])
-    _el(postal, "ram:CountryID", client_addr.get("pays") or "FR")
+    # Utiliser country_code du client (ISO 3166-1 alpha-2), pas le champ texte "pays"
+    _el(postal, "ram:CountryID", client.get("country_code") or "FR")
+    # BT-49 : adresse electronique de l'acheteur (BR-FR-12)
+    buyer_email = client.get("email") or ""
+    if buyer_email:
+        buyer_endpoint = _el(buyer_party, "ram:URIUniversalCommunication")
+        _el(buyer_endpoint, "ram:URIID", buyer_email, schemeID="EM")
     if client.get("vat_number"):
         buyer_tax = _el(buyer_party, "ram:SpecifiedTaxRegistration")
         _el(buyer_tax, "ram:ID", client["vat_number"], schemeID="VA")
 
-    # --- HeaderTradeDelivery ---
-    _el(txn, "ram:ApplicableHeaderTradeDelivery")
+    # --- HeaderTradeDelivery (ne doit pas etre vide - PEPPOL-EN16931-R008) ---
+    delivery = _el(txn, "ram:ApplicableHeaderTradeDelivery")
+    # Date de livraison = date d'emission par defaut
+    if issue_date:
+        del_event = _el(delivery, "ram:ActualDeliverySupplyChainEvent")
+        del_occ = _el(del_event, "ram:OccurrenceDateTime")
+        _el(del_occ, "udt:DateTimeString", str(issue_date).replace("-", ""), format="102")
 
     # --- HeaderTradeSettlement ---
     settlement = _el(txn, "ram:ApplicableHeaderTradeSettlement")
     _el(settlement, "ram:InvoiceCurrencyCode", "EUR")
 
-    # Moyen de paiement (optionnel - absent pour devis)
+    # Moyen de paiement (seulement si on a un IBAN - BR-CO-27)
     payment_method = doc_data.get("payment_method") or ""
-    if payment_method:
+    bank = doc_data.get("bank_details")
+    if isinstance(bank, str):
+        try:
+            bank = json.loads(bank)
+        except Exception:
+            bank = None
+    if payment_method and bank and bank.get("iban"):
         means = _el(settlement, "ram:SpecifiedTradeSettlementPaymentMeans")
         means_code = _PAYMENT_MEANS_CODE.get(payment_method.lower().strip(), "30")
         _el(means, "ram:TypeCode", means_code)
+        payee_account = _el(means, "ram:PayeePartyCreditorFinancialAccount")
+        _el(payee_account, "ram:IBANID", bank["iban"])
+        if bank.get("bic"):
+            payee_institution = _el(means, "ram:PayeeSpecifiedCreditorFinancialInstitution")
+            _el(payee_institution, "ram:BICID", bank["bic"])
 
-        # Compte bancaire
-        bank = doc_data.get("bank_details")
-        if isinstance(bank, str):
-            try:
-                bank = json.loads(bank)
-            except Exception:
-                bank = None
-        if bank and bank.get("iban"):
-            payee_account = _el(means, "ram:PayeePartyCreditorFinancialAccount")
-            _el(payee_account, "ram:IBANID", bank["iban"])
-            if bank.get("bic"):
-                payee_institution = _el(means, "ram:PayeeSpecifiedCreditorFinancialInstitution")
-                _el(payee_institution, "ram:BICID", bank["bic"])
-
-    # Conditions de paiement (optionnel)
-    if doc_data.get("due_date"):
-        terms = _el(settlement, "ram:SpecifiedTradePaymentTerms")
-        due_dt = _el(terms, "ram:DueDateDateTime")
-        _el(due_dt, "udt:DateTimeString", str(doc_data["due_date"]).replace("-", ""), format="102")
-
-    # Ventilation TVA
+    # Ventilation TVA (AVANT SpecifiedTradePaymentTerms dans le XSD)
     for vat_line in vat_breakdown:
         tax = _el(settlement, "ram:ApplicableTradeTax")
         _el(tax, "ram:CalculatedAmount", _dec(vat_line["amount"]))
@@ -596,6 +668,12 @@ def _build_document_xml(
         _el(tax, "ram:BasisAmount", _dec(vat_line.get("base")))
         _el(tax, "ram:CategoryCode", "S")
         _el(tax, "ram:RateApplicablePercent", _dec(vat_line["rate"], "0"))
+
+    # Conditions de paiement (APRES ApplicableTradeTax dans le XSD)
+    if doc_data.get("due_date"):
+        terms = _el(settlement, "ram:SpecifiedTradePaymentTerms")
+        due_dt = _el(terms, "ram:DueDateDateTime")
+        _el(due_dt, "udt:DateTimeString", str(doc_data["due_date"]).replace("-", ""), format="102")
 
     # Totaux
     summation = _el(settlement, "ram:SpecifiedTradeSettlementHeaderMonetarySummation")
