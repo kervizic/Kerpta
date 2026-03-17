@@ -331,7 +331,8 @@ async def _get_document_columns(
     row = result.fetchone()
     default_cols = {
         "reference": True, "description": True, "quantity": True, "unit": True,
-        "unit_price": True, "vat_rate": True, "discount_percent": True, "total_ht": True,
+        "unit_price": True, "vat_rate": True, "discount_percent": True,
+        "total_ht": True, "total_ttc": False,
     }
     if not row or not row[0]:
         return default_cols, True, True
@@ -342,21 +343,27 @@ async def _get_document_columns(
     show_logo = config.get("document_show_logo", True)
     show_company_name = config.get("document_show_company_name", True)
 
+    def _merge_cols(saved: dict) -> dict:
+        """Merge colonnes sauvegardees avec les defauts (nouvelles cles)."""
+        merged = dict(default_cols)
+        merged.update(saved)
+        return merged
+
     # Chercher les colonnes dans les types de documents si un type est spécifié
     if document_type:
         # Factures : colonnes uniques pour facture/avoir/proforma
         if document_type in ("facture", "avoir"):
             inv_cols = config.get("invoice_columns")
             if inv_cols:
-                return inv_cols, show_logo, show_company_name
+                return _merge_cols(inv_cols), show_logo, show_company_name
 
         # Devis : chercher dans les types de documents configurés
         doc_types = config.get("quote_document_types", [])
         for dt in doc_types:
             if dt.get("key") == document_type:
-                return dt.get("columns", default_cols), show_logo, show_company_name
+                return _merge_cols(dt.get("columns", default_cols)), show_logo, show_company_name
 
-    return config.get("document_columns", default_cols), show_logo, show_company_name
+    return _merge_cols(config.get("document_columns", default_cols)), show_logo, show_company_name
 
 
 def _compute_vat_breakdown(lines: list[dict]) -> list[dict]:
