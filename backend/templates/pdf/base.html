@@ -5,7 +5,7 @@
 <title>{{ title }}</title>
 <style>
 {% set fs = styling.font_sizes if styling is defined and styling.font_sizes is defined else {} %}
-{% set bl = styling.bold if styling is defined and styling.bold is defined else {} %}
+{% set fw = styling.font_weights if styling is defined and styling.font_weights is defined else {} %}
 {% set cl = styling.colors if styling is defined and styling.colors is defined else {} %}
 {% set lb = styling.column_labels if styling is defined and styling.column_labels is defined else {} %}
 {% set ss = styling.show_sections if styling is defined and styling.show_sections is defined else {} %}
@@ -60,28 +60,28 @@ table { border-collapse: collapse; width: 100%; }
 .header-left { float: left; width: 80mm; }
 .header-right { position: absolute; left: 107mm; top: 28mm; width: 67mm; text-align: left; }
 .logo { max-height: 45px; max-width: 160px; margin-bottom: 4px; }
-.seller-name { font-size: {{ fs.seller_name | default(13) }}pt; font-weight: {{ '600' if bl.seller_name | default(true) else '400' }}; color: {{ cl.labels | default('#555555') }}; margin-bottom: 4px; font-variation-settings: 'opsz' 28; text-transform: uppercase; }
-.seller-address { font-size: {{ fs.seller_address | default(9) }}pt; color: {{ cl.labels | default('#555555') }}; line-height: 1.4; }
-.client-name { font-size: {{ fs.client_name | default(11) }}pt; font-weight: {{ '600' if bl.client_name | default(true) else '400' }}; color: {{ cl.labels | default('#555555') }}; margin-bottom: 3px; font-variation-settings: 'opsz' 28; text-transform: uppercase; }
-.client-detail { font-size: {{ fs.client_address | default(9) }}pt; color: {{ cl.labels | default('#555555') }}; line-height: 1.4; }
+.seller-name { font-size: {{ fs.seller_name | default(13) }}pt; font-weight: {{ fw.seller_name | default(600) }}; color: {{ cl.labels | default('#555555') }}; margin-bottom: 4px; font-variation-settings: 'opsz' 28; text-transform: uppercase; }
+.seller-address { font-size: {{ fs.seller_address | default(9) }}pt; font-weight: {{ fw.seller_address | default(400) }}; color: {{ cl.labels | default('#555555') }}; line-height: 1.4; }
+.client-name { font-size: {{ fs.client_name | default(11) }}pt; font-weight: {{ fw.client_name | default(600) }}; color: {{ cl.labels | default('#555555') }}; margin-bottom: 3px; font-variation-settings: 'opsz' 28; text-transform: uppercase; }
+.client-detail { font-size: {{ fs.client_address | default(9) }}pt; font-weight: {{ fw.client_address | default(400) }}; color: {{ cl.labels | default('#555555') }}; line-height: 1.4; }
 
 /* Titre */
-.doc-title { font-size: {{ fs.doc_title | default(13) }}pt; font-weight: {{ '600' if bl.doc_title | default(true) else '400' }}; color: {{ cl.title | default('#555555') }}; margin: 24px 0 24px 0; font-variation-settings: 'opsz' 28; text-transform: uppercase; }
+.doc-title { font-size: {{ fs.doc_title | default(13) }}pt; font-weight: {{ fw.doc_title | default(600) }}; color: {{ cl.title | default('#555555') }}; margin: 24px 0 24px 0; font-variation-settings: 'opsz' 28; text-transform: uppercase; }
 
 /* Dates */
 .doc-dates { margin-bottom: 28px; }
 .date-item { float: left; margin-right: 40px; }
-.date-label { font-size: {{ fs.dates_refs | default(9) }}pt; font-weight: {{ '600' if bl.dates_label | default(true) else '400' }}; color: {{ cl.labels | default('#555555') }}; text-transform: uppercase; font-variation-settings: 'opsz' 28; }
-.date-value { font-size: {{ fs.dates_refs | default(9) }}pt; font-weight: {{ '600' if bl.dates_value | default(false) else '400' }}; color: {{ cl.values | default('#222222') }}; margin-top: 2px; }
+.date-label { font-size: {{ fs.dates_refs | default(9) }}pt; font-weight: {{ fw.dates_label | default(600) }}; color: {{ cl.labels | default('#555555') }}; text-transform: uppercase; font-variation-settings: 'opsz' 28; }
+.date-value { font-size: {{ fs.dates_refs | default(9) }}pt; font-weight: {{ fw.dates_value | default(400) }}; color: {{ cl.values | default('#222222') }}; margin-top: 2px; }
 
 /* Tableau */
 .lines-table { margin-bottom: 12px; }
 .lines-table th {
   padding: 4px 10px 4px 0;
-  font-size: {{ fs.table_header | default(9) }}pt; font-weight: {{ '600' if bl.table_header | default(true) else '400' }}; text-align: left; color: {{ cl.labels | default('#555555') }}; text-transform: uppercase; font-variation-settings: 'opsz' 28;
+  font-size: {{ fs.table_header | default(9) }}pt; font-weight: {{ fw.table_header | default(600) }}; text-align: left; color: {{ cl.labels | default('#555555') }}; text-transform: uppercase; font-variation-settings: 'opsz' 28;
 }
 .lines-table td {
-  padding: 4px 10px 4px 0; font-size: {{ fs.table_cell | default(9) }}pt; font-weight: {{ '600' if bl.table_cell | default(false) else '400' }}; color: {{ cl.values | default('#222222') }}; vertical-align: top;
+  padding: 4px 10px 4px 0; font-size: {{ fs.table_cell | default(9) }}pt; font-weight: {{ fw.table_cell | default(400) }}; color: {{ cl.values | default('#222222') }}; vertical-align: top;
 }
 .line-detail { font-size: {{ fs.line_detail | default(8) }}pt; color: {{ cl.values | default('#222222') }}; font-style: italic; padding-left: 8px; }
 .lines-table .col-num { text-align: right; }
@@ -91,9 +91,9 @@ table { border-collapse: collapse; width: 100%; }
 .totals-wrapper { margin-bottom: 24px; }
 .totals-table { width: auto; float: right; line-height: 1.1; }
 .totals-table td { padding: 4px 0; font-size: {{ fs.totals | default(9) }}pt; }
-.totals-label { text-align: left; color: {{ cl.labels | default('#555555') }}; font-weight: {{ '600' if bl.totals_label | default(true) else '400' }}; font-variation-settings: 'opsz' 28; text-transform: uppercase; }
+.totals-label { text-align: left; color: {{ cl.labels | default('#555555') }}; font-weight: {{ fw.totals_label | default(600) }}; font-variation-settings: 'opsz' 28; text-transform: uppercase; }
 .totals-spacer { width: 30px; }
-.totals-value { text-align: right; color: {{ cl.values | default('#222222') }}; font-weight: {{ '600' if bl.totals_value | default(false) else '400' }}; }
+.totals-value { text-align: right; color: {{ cl.values | default('#222222') }}; font-weight: {{ fw.totals_value | default(400) }}; }
 
 /* Infos bas de page (reglement, mentions, notes) */
 .bottom-info { margin-top: 28px; clear: both; }

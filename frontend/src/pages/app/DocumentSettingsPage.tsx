@@ -3,7 +3,7 @@
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
 import { useEffect, useState } from 'react'
-import { Plus, Loader2, Pencil, Trash2, FileText, Sparkles, Minus, Bold } from 'lucide-react'
+import { Plus, Loader2, Pencil, Trash2, FileText, Sparkles, Minus } from 'lucide-react'
 import { orgGet, orgPatch } from '@/lib/orgApi'
 import { INPUT, BTN_SM } from '@/lib/formStyles'
 
@@ -362,23 +362,30 @@ function PageFooterSection() {
 
 interface DocumentStyling {
   font_sizes: Record<string, number>
-  bold: Record<string, boolean>
+  font_weights: Record<string, number>
   colors: Record<string, string>
   column_labels: Record<string, string>
   show_sections: Record<string, boolean>
 }
 
 const FONT_SIZE_OPTIONS = [6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 18, 20]
+const FONT_WEIGHT_OPTIONS: { value: number; label: string }[] = [
+  { value: 300, label: 'Fin' },
+  { value: 400, label: 'Normal' },
+  { value: 500, label: 'Medium' },
+  { value: 600, label: 'Semi-gras' },
+  { value: 700, label: 'Gras' },
+]
 
-const FONT_SIZE_FIELDS: { key: string; label: string; boldKey?: string }[] = [
-  { key: 'seller_name', label: 'Nom emetteur', boldKey: 'seller_name' },
-  { key: 'seller_address', label: 'Adresse emetteur', boldKey: 'seller_address' },
-  { key: 'client_name', label: 'Nom client', boldKey: 'client_name' },
-  { key: 'client_address', label: 'Adresse client', boldKey: 'client_address' },
-  { key: 'doc_title', label: 'Titre du document', boldKey: 'doc_title' },
+const FONT_SIZE_FIELDS: { key: string; label: string; weightKey?: string }[] = [
+  { key: 'seller_name', label: 'Nom emetteur', weightKey: 'seller_name' },
+  { key: 'seller_address', label: 'Adresse emetteur', weightKey: 'seller_address' },
+  { key: 'client_name', label: 'Nom client', weightKey: 'client_name' },
+  { key: 'client_address', label: 'Adresse client', weightKey: 'client_address' },
+  { key: 'doc_title', label: 'Titre du document', weightKey: 'doc_title' },
   { key: 'dates_refs', label: 'Dates et references' },
-  { key: 'table_header', label: 'En-tetes tableau', boldKey: 'table_header' },
-  { key: 'table_cell', label: 'Cellules tableau', boldKey: 'table_cell' },
+  { key: 'table_header', label: 'En-tetes tableau', weightKey: 'table_header' },
+  { key: 'table_cell', label: 'Cellules tableau', weightKey: 'table_cell' },
   { key: 'line_detail', label: 'Detail des lignes' },
   { key: 'totals', label: 'Totaux' },
   { key: 'bottom_info', label: 'Conditions / Mentions' },
@@ -441,11 +448,11 @@ function DocumentStylingSection() {
     patch({ font_sizes: { [key]: value } })
   }
 
-  function toggleBold(key: string) {
+  function updateFontWeight(key: string, value: number) {
     if (!styling) return
-    const updated = { ...styling.bold, [key]: !styling.bold[key] }
-    setStyling({ ...styling, bold: updated })
-    patch({ bold: { [key]: !styling.bold[key] } })
+    const updated = { ...styling.font_weights, [key]: value }
+    setStyling({ ...styling, font_weights: updated })
+    patch({ font_weights: { [key]: value } })
   }
 
   function updateColor(key: string, value: string) {
@@ -516,19 +523,16 @@ function DocumentStylingSection() {
                         <option key={s} value={s}>{s}pt</option>
                       ))}
                     </select>
-                    {f.boldKey && (
-                      <button
-                        type="button"
-                        onClick={() => toggleBold(f.boldKey!)}
-                        title="Gras"
-                        className={`w-7 h-7 rounded flex items-center justify-center border transition ${
-                          styling.bold[f.boldKey]
-                            ? 'bg-kerpta-50 dark:bg-kerpta-900/30 border-kerpta-200 dark:border-kerpta-700 text-kerpta-700 dark:text-kerpta-400'
-                            : 'border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:border-gray-300'
-                        }`}
+                    {f.weightKey && (
+                      <select
+                        value={styling.font_weights[f.weightKey] ?? 400}
+                        onChange={(e) => updateFontWeight(f.weightKey!, parseInt(e.target.value))}
+                        className="h-[30px] px-2 py-0.5 text-xs border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded focus:outline-none focus:ring-1 focus:ring-kerpta-400 w-28"
                       >
-                        <Bold className="w-3.5 h-3.5" />
-                      </button>
+                        {FONT_WEIGHT_OPTIONS.map((w) => (
+                          <option key={w.value} value={w.value}>{w.label}</option>
+                        ))}
+                      </select>
                     )}
                   </div>
                 ))}

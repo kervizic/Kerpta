@@ -509,18 +509,18 @@ DEFAULT_DOCUMENT_STYLING = {
         "bottom_info": 9,
         "footer": 8,
     },
-    "bold": {
-        "seller_name": True,
-        "seller_address": False,
-        "client_name": True,
-        "client_address": False,
-        "doc_title": True,
-        "dates_label": True,
-        "dates_value": False,
-        "table_header": True,
-        "table_cell": False,
-        "totals_label": True,
-        "totals_value": False,
+    "font_weights": {
+        "seller_name": 600,
+        "seller_address": 400,
+        "client_name": 600,
+        "client_address": 400,
+        "doc_title": 600,
+        "dates_label": 600,
+        "dates_value": 400,
+        "table_header": 600,
+        "table_cell": 400,
+        "totals_label": 600,
+        "totals_value": 400,
     },
     "colors": {
         "title": "#555555",
@@ -596,12 +596,15 @@ async def update_document_styling(
                     422, f"font_sizes.{k} doit être un entier entre 6 et 20"
                 )
 
-    if "bold" in data and isinstance(data["bold"], dict):
-        for k, v in data["bold"].items():
-            if k not in DEFAULT_DOCUMENT_STYLING["bold"]:
-                raise HTTPException(422, f"Clé bold inconnue : {k}")
-            if not isinstance(v, bool):
-                raise HTTPException(422, f"bold.{k} doit être un booléen")
+    valid_weights = {300, 400, 500, 600, 700}
+    if "font_weights" in data and isinstance(data["font_weights"], dict):
+        for k, v in data["font_weights"].items():
+            if k not in DEFAULT_DOCUMENT_STYLING["font_weights"]:
+                raise HTTPException(422, f"Clé font_weights inconnue : {k}")
+            if not isinstance(v, int) or v not in valid_weights:
+                raise HTTPException(
+                    422, f"font_weights.{k} doit être 300, 400, 500, 600 ou 700"
+                )
 
     if "colors" in data and isinstance(data["colors"], dict):
         for k, v in data["colors"].items():
