@@ -7,14 +7,16 @@
 /* ── Reset + base ────────────────────────────────────────────────── */
 @page {
   size: A4;
-  margin: 18mm 18mm 20mm 18mm;
-  @bottom-center {
+  margin: 15mm 15mm 18mm 15mm;
+  @bottom-left {
     content: element(footerOther);
+    width: 100%;
   }
 }
 @page :first {
-  @bottom-center {
+  @bottom-left {
     content: element(footerFirst);
+    width: 100%;
   }
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
