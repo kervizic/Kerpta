@@ -455,15 +455,12 @@ function DocumentTypesSection({ endpoint, title, description }: { endpoint: stri
                     <div className="flex flex-wrap gap-2">
                       {ALL_COLUMNS.map((col) => {
                         const on = editColumns[col.key] !== false
-                        const locked = col.key === 'description' || col.key === 'unit_price' || col.key === 'total_ht'
                         return (
                           <button
                             key={col.key}
                             type="button"
-                            disabled={locked}
                             onClick={() => setEditColumns((prev) => ({ ...prev, [col.key]: !prev[col.key] }))}
-                            className={`px-2.5 py-1 text-xs rounded-full border transition ${
-                              locked ? 'bg-gray-100 dark:bg-gray-700 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 cursor-default' :
+                            className={`px-2.5 py-1 text-xs rounded-full border transition cursor-pointer ${
                               on ? 'bg-kerpta-50 dark:bg-kerpta-900/30 border-kerpta-200 dark:border-kerpta-700 text-kerpta-700 dark:text-kerpta-400' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:border-gray-300'
                             }`}
                           >
@@ -525,15 +522,12 @@ function DocumentTypesSection({ endpoint, title, description }: { endpoint: stri
                 <div className="flex flex-wrap gap-2">
                   {ALL_COLUMNS.map((col) => {
                     const on = editColumns[col.key] !== false
-                    const locked = col.key === 'description' || col.key === 'unit_price' || col.key === 'total_ht'
                     return (
                       <button
                         key={col.key}
                         type="button"
-                        disabled={locked}
                         onClick={() => setEditColumns((prev) => ({ ...prev, [col.key]: !prev[col.key] }))}
-                        className={`px-2.5 py-1 text-xs rounded-full border transition ${
-                          locked ? 'bg-gray-100 dark:bg-gray-700 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 cursor-default' :
+                        className={`px-2.5 py-1 text-xs rounded-full border transition cursor-pointer ${
                           on ? 'bg-kerpta-50 dark:bg-kerpta-900/30 border-kerpta-200 dark:border-kerpta-700 text-kerpta-700 dark:text-kerpta-400' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:border-gray-300'
                         }`}
                       >
@@ -596,25 +590,29 @@ function InvoiceColumnsSection() {
       {loading ? (
         <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-kerpta" /></div>
       ) : (
-        <div className="flex flex-wrap gap-2">
-          {ALL_COLUMNS.map((col) => {
-            const on = columns[col.key] !== false
-            const locked = col.key === 'description' || col.key === 'unit_price' || col.key === 'total_ht'
-            return (
-              <button
-                key={col.key}
-                type="button"
-                disabled={locked}
-                onClick={() => toggle(col.key)}
-                className={`px-2.5 py-1 text-xs rounded-full border transition ${
-                  locked ? 'bg-gray-100 dark:bg-gray-700 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 cursor-default' :
-                  on ? 'bg-kerpta-50 dark:bg-kerpta-900/30 border-kerpta-200 dark:border-kerpta-700 text-kerpta-700 dark:text-kerpta-400' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:border-gray-300'
-                }`}
-              >
-                {col.label}
-              </button>
-            )
-          })}
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-2">
+            {ALL_COLUMNS.map((col) => {
+              const on = columns[col.key] !== false
+              return (
+                <button
+                  key={col.key}
+                  type="button"
+                  onClick={() => toggle(col.key)}
+                  className={`px-2.5 py-1 text-xs rounded-full border transition cursor-pointer ${
+                    on ? 'bg-kerpta-50 dark:bg-kerpta-900/30 border-kerpta-200 dark:border-kerpta-700 text-kerpta-700 dark:text-kerpta-400' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:border-gray-300'
+                  }`}
+                >
+                  {col.label}
+                </button>
+              )
+            })}
+          </div>
+          {(columns.description === false || columns.unit_price === false || columns.total_ht === false) && (
+            <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2">
+              Attention : les colonnes Designation, Prix unitaire et Total HT sont obligatoires sur les factures (art. 242 nonies A du CGI). Les masquer peut rendre vos factures non conformes.
+            </p>
+          )}
         </div>
       )}
     </section>
