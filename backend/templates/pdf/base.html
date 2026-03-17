@@ -31,14 +31,14 @@ table { border-collapse: collapse; width: 100%; }
 .page-footer-first { position: running(footerFirst); }
 .page-footer-other { position: running(footerOther); }
 .page-footer-first, .page-footer-other {
-  font-size: 8pt; color: #888; line-height: 1.5;
+  font-size: 8pt; color: #555; line-height: 1.5;
   padding-top: 3px;
 }
 .footer-table { width: 100%; border-collapse: collapse; }
 .footer-table td { padding: 0; vertical-align: bottom; border: none; }
 .footer-col-left { width: 100px; text-align: left; vertical-align: bottom; }
 .footer-col-center { text-align: center; vertical-align: bottom; }
-.footer-col-right { width: 70px; text-align: right; vertical-align: bottom; font-size: 8pt; color: #888; }
+.footer-col-right { width: 70px; text-align: right; vertical-align: bottom; font-size: 8pt; color: #555; }
 {% if footer_options is not defined or footer_options.show_page_number is not defined or footer_options.show_page_number %}
 .footer-col-right::after {
   content: "Page " counter(page) " / " counter(pages);
@@ -62,20 +62,9 @@ table { border-collapse: collapse; width: 100%; }
       {% endif %}
     </td>
     <td class="footer-col-center">
-      <div class="footer-line">
-        {% set top_parts = [] %}
-        {% if seller.vat_number %}{% set _ = top_parts.append("TVA : " ~ seller.vat_number) %}{% endif %}
-        {% if footer_options is defined and footer_options.show_phone and seller.phone %}{% set _ = top_parts.append("Tel : " ~ seller.phone) %}{% endif %}
-        {% if footer_options is defined and footer_options.show_email and seller.email %}{% set _ = top_parts.append(seller.email) %}{% endif %}
-        {% if footer_options is defined and footer_options.show_website and seller.website %}{% set _ = top_parts.append(seller.website) %}{% endif %}
-        {{ top_parts | join(" - ") }}
-      </div>
-      <div class="footer-line">
-        {% if seller.legal_form %}{{ seller.legal_form }}{% endif %}
-        {% if seller.capital %} au capital de {{ seller.capital }} €{% endif %}
-        {% if seller.siren %} - SIREN : {{ seller.siren }}{% endif %}
-        {% if seller.rcs_city %} - R.C.S {{ seller.rcs_city }}{% endif %}
-      </div>
+      {% for line in footer_center_lines %}
+      <div class="footer-line">{{ line }}</div>
+      {% endfor %}
     </td>
     <td class="footer-col-right"></td>
   </tr>

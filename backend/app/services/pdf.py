@@ -389,6 +389,31 @@ def _compute_vat_breakdown(lines: list[dict]) -> list[dict]:
     ]
 
 
+def _balance_footer_lines(parts: list[str], separator: str = " - ") -> list[str]:
+    """Repartit les elements du footer sur 2 lignes equilibrees en longueur.
+
+    Si le total est court (<=60 car.), une seule ligne suffit.
+    Sinon, coupe au point ou la difference de longueur entre les
+    deux lignes est minimale.
+    """
+    if not parts:
+        return []
+    full = separator.join(parts)
+    if len(full) <= 60 or len(parts) <= 1:
+        return [full]
+
+    best_split = 1
+    best_diff = float("inf")
+    for i in range(1, len(parts)):
+        line1 = separator.join(parts[:i])
+        line2 = separator.join(parts[i:])
+        diff = abs(len(line1) - len(line2))
+        if diff < best_diff:
+            best_diff = diff
+            best_split = i
+    return [separator.join(parts[:best_split]), separator.join(parts[best_split:])]
+
+
 def _safe_filename(name: str) -> str:
     """Convertit un nom de fichier en ASCII pur (compatible Content-Disposition latin-1)."""
     import unicodedata
@@ -859,6 +884,29 @@ async def _build_common_context(
     else:
         payment_terms_label = None
 
+    # Construire les lignes du footer equilibrees
+    footer_parts: list[str] = []
+    if footer_options.get("show_phone") and seller.get("phone"):
+        footer_parts.append(f"Tel : {seller['phone']}")
+    if footer_options.get("show_email") and seller.get("email"):
+        footer_parts.append(seller["email"])
+    if footer_options.get("show_website") and seller.get("website"):
+        footer_parts.append(seller["website"])
+    if seller.get("vat_number"):
+        footer_parts.append(f"TVA : {seller['vat_number']}")
+    legal_form_capital = []
+    if seller.get("legal_form"):
+        legal_form_capital.append(seller["legal_form"])
+    if seller.get("capital"):
+        legal_form_capital.append(f"au capital de {seller['capital']} \u20ac")
+    if legal_form_capital:
+        footer_parts.append(" ".join(legal_form_capital))
+    if seller.get("siren"):
+        footer_parts.append(f"SIREN : {seller['siren']}")
+    if seller.get("rcs_city"):
+        footer_parts.append(f"R.C.S {seller['rcs_city']}")
+    footer_center_lines = _balance_footer_lines(footer_parts)
+
     context = {
         "title": f"{doc_type_label} {doc_number}",
         "doc_type_label": doc_type_label,
@@ -891,6 +939,7 @@ async def _build_common_context(
         "footer": footer,
         "payment_note": payment_note,
         "footer_options": footer_options,
+        "footer_center_lines": footer_center_lines,
     }
 
     return context, template_name

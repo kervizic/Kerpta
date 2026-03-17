@@ -256,24 +256,37 @@ function PageFooterSection() {
          : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:border-gray-300'
     }`
 
+  function balanceLines(parts: string[], sep = ' - '): string[] {
+    if (parts.length === 0) return []
+    const full = parts.join(sep)
+    if (full.length <= 60 || parts.length <= 1) return [full]
+    let bestSplit = 1
+    let bestDiff = Infinity
+    for (let i = 1; i < parts.length; i++) {
+      const l1 = parts.slice(0, i).join(sep).length
+      const l2 = parts.slice(i).join(sep).length
+      if (Math.abs(l1 - l2) < bestDiff) {
+        bestDiff = Math.abs(l1 - l2)
+        bestSplit = i
+      }
+    }
+    return [parts.slice(0, bestSplit).join(sep), parts.slice(bestSplit).join(sep)]
+  }
+
   function buildCenterLines(): string[] {
     if (!orgInfo) return []
-    const lines: string[] = []
-    // Ligne 1 : TVA + tel / email / site
-    const topParts: string[] = []
-    if (orgInfo.vat_number) topParts.push(`TVA : ${orgInfo.vat_number}`)
-    if (showPhone && orgInfo.phone) topParts.push(`Tel : ${orgInfo.phone}`)
-    if (showEmail && orgInfo.email) topParts.push(orgInfo.email)
-    if (showWebsite && orgInfo.website) topParts.push(orgInfo.website)
-    if (topParts.length > 0) lines.push(topParts.join(' - '))
-    // Ligne 2 : forme juridique, capital, SIREN, RCS
-    const legalParts: string[] = []
-    if (orgInfo.legal_form) legalParts.push(orgInfo.legal_form)
-    if (orgInfo.capital) legalParts.push(`au capital de ${orgInfo.capital} \u20ac`)
-    if (orgInfo.org_siren) legalParts.push(`SIREN : ${orgInfo.org_siren}`)
-    if (orgInfo.rcs_city) legalParts.push(`R.C.S ${orgInfo.rcs_city}`)
-    if (legalParts.length > 0) lines.push(legalParts.join(' - '))
-    return lines
+    const parts: string[] = []
+    if (showPhone && orgInfo.phone) parts.push(`Tel : ${orgInfo.phone}`)
+    if (showEmail && orgInfo.email) parts.push(orgInfo.email)
+    if (showWebsite && orgInfo.website) parts.push(orgInfo.website)
+    if (orgInfo.vat_number) parts.push(`TVA : ${orgInfo.vat_number}`)
+    const formCapital: string[] = []
+    if (orgInfo.legal_form) formCapital.push(orgInfo.legal_form)
+    if (orgInfo.capital) formCapital.push(`au capital de ${orgInfo.capital} \u20ac`)
+    if (formCapital.length > 0) parts.push(formCapital.join(' '))
+    if (orgInfo.org_siren) parts.push(`SIREN : ${orgInfo.org_siren}`)
+    if (orgInfo.rcs_city) parts.push(`R.C.S ${orgInfo.rcs_city}`)
+    return balanceLines(parts)
   }
 
   const centerLines = buildCenterLines()
