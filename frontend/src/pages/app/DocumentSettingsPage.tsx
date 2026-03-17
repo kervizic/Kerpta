@@ -455,7 +455,7 @@ function DocumentTypesSection({ endpoint, title, description }: { endpoint: stri
                     <div className="flex flex-wrap gap-2">
                       {ALL_COLUMNS.map((col) => {
                         const on = editColumns[col.key] !== false
-                        const locked = col.key === 'description' || col.key === 'unit_price'
+                        const locked = col.key === 'description' || col.key === 'unit_price' || col.key === 'total_ht'
                         return (
                           <button
                             key={col.key}
@@ -525,7 +525,7 @@ function DocumentTypesSection({ endpoint, title, description }: { endpoint: stri
                 <div className="flex flex-wrap gap-2">
                   {ALL_COLUMNS.map((col) => {
                     const on = editColumns[col.key] !== false
-                    const locked = col.key === 'description' || col.key === 'unit_price'
+                    const locked = col.key === 'description' || col.key === 'unit_price' || col.key === 'total_ht'
                     return (
                       <button
                         key={col.key}
@@ -599,7 +599,7 @@ function InvoiceColumnsSection() {
         <div className="flex flex-wrap gap-2">
           {ALL_COLUMNS.map((col) => {
             const on = columns[col.key] !== false
-            const locked = col.key === 'description' || col.key === 'unit_price'
+            const locked = col.key === 'description' || col.key === 'unit_price' || col.key === 'total_ht'
             return (
               <button
                 key={col.key}
