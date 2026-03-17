@@ -401,6 +401,20 @@ _PAYMENT_MEANS_CODE = {
 }
 
 
+def _dec(value, default: str = "0.00") -> str:
+    """Normalise une valeur en string decimale pour le XML CII.
+
+    Garantit le format "123.45" (point decimal, pas de separateur de milliers,
+    pas de symbole monétaire).
+    """
+    if value is None:
+        return default
+    try:
+        return str(Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+    except Exception:
+        return default
+
+
 def _el(parent: etree._Element, tag: str, text: str | None = None, **attrs) -> etree._Element:
     """Crée un sous-élément avec namespace résolu."""
     prefix, local = tag.split(":", 1)
@@ -473,29 +487,32 @@ def _build_document_xml(
         product = _el(item, "ram:SpecifiedTradeProduct")
         if line.get("reference"):
             _el(product, "ram:SellerAssignedID", line["reference"])
-        _el(product, "ram:Name", line.get("description") or "Article")
+        # Extraire le nom sans la description multi-ligne pour le XML
+        raw_desc = line.get("description") or "Article"
+        _el(product, "ram:Name", raw_desc.split("\n")[0])
 
         line_agreement = _el(item, "ram:SpecifiedLineTradeAgreement")
         net_price = _el(line_agreement, "ram:NetPriceProductTradePrice")
-        # Valeur brute decimale (pas le format affichage avec € et virgule)
-        _el(net_price, "ram:ChargeAmount", str(line.get("unit_price") or "0.00"))
+        _el(net_price, "ram:ChargeAmount", _dec(line.get("unit_price")))
 
         line_delivery = _el(item, "ram:SpecifiedLineTradeDelivery")
-        # Valeur brute decimale (pas le format affichage avec virgule)
-        _el(line_delivery, "ram:BilledQuantity", str(line.get("quantity") or "1"), unitCode=line.get("unit") or "C62")
+        _el(line_delivery, "ram:BilledQuantity", _dec(line.get("quantity"), "1"), unitCode=line.get("unit") or "C62")
 
         line_settlement = _el(item, "ram:SpecifiedLineTradeSettlement")
         line_tax = _el(line_settlement, "ram:ApplicableTradeTax")
         _el(line_tax, "ram:TypeCode", "VAT")
         _el(line_tax, "ram:CategoryCode", "S")
-        _el(line_tax, "ram:RateApplicablePercent", str(line.get("vat_rate") or "0"))
+        _el(line_tax, "ram:RateApplicablePercent", _dec(line.get("vat_rate"), "0"))
 
         line_summation = _el(line_settlement, "ram:SpecifiedTradeSettlementLineMonetarySummation")
-        # Valeur brute decimale (pas le format affichage avec € et virgule)
-        _el(line_summation, "ram:LineTotalAmount", str(line.get("total_ht") or "0.00"))
+        _el(line_summation, "ram:LineTotalAmount", _dec(line.get("total_ht")))
 
     # --- HeaderTradeAgreement (vendeur / acheteur) ---
     agreement = _el(txn, "ram:ApplicableHeaderTradeAgreement")
+
+    # Reference acheteur (doit etre AVANT SellerTradeParty dans le XSD)
+    if doc_data.get("customer_reference"):
+        _el(agreement, "ram:BuyerReference", doc_data["customer_reference"])
 
     # Vendeur
     seller_party = _el(agreement, "ram:SellerTradeParty")
@@ -504,12 +521,15 @@ def _build_document_xml(
         seller_id = _el(seller_party, "ram:SpecifiedLegalOrganization")
         _el(seller_id, "ram:ID", seller["siret"], schemeID="0002")
     seller_addr = seller.get("address") or {}
-    if seller_addr:
-        postal = _el(seller_party, "ram:PostalTradeAddress")
-        _el(postal, "ram:PostcodeCode", seller_addr.get("code_postal") or "")
-        _el(postal, "ram:LineOne", seller_addr.get("voie") or "")
-        _el(postal, "ram:CityName", seller_addr.get("commune") or "")
-        _el(postal, "ram:CountryID", "FR")
+    # PostalTradeAddress obligatoire avec au minimum CountryID
+    postal = _el(seller_party, "ram:PostalTradeAddress")
+    if seller_addr.get("code_postal"):
+        _el(postal, "ram:PostcodeCode", seller_addr["code_postal"])
+    if seller_addr.get("voie"):
+        _el(postal, "ram:LineOne", seller_addr["voie"])
+    if seller_addr.get("commune"):
+        _el(postal, "ram:CityName", seller_addr["commune"])
+    _el(postal, "ram:CountryID", "FR")
     if seller.get("vat_number"):
         seller_tax = _el(seller_party, "ram:SpecifiedTaxRegistration")
         _el(seller_tax, "ram:ID", seller["vat_number"], schemeID="VA")
@@ -521,19 +541,18 @@ def _build_document_xml(
         buyer_id = _el(buyer_party, "ram:SpecifiedLegalOrganization")
         _el(buyer_id, "ram:ID", client["siret"], schemeID="0002")
     client_addr = client.get("address") or {}
-    if client_addr:
-        postal = _el(buyer_party, "ram:PostalTradeAddress")
-        _el(postal, "ram:PostcodeCode", client_addr.get("code_postal") or "")
-        _el(postal, "ram:LineOne", client_addr.get("voie") or "")
-        _el(postal, "ram:CityName", client_addr.get("commune") or "")
-        _el(postal, "ram:CountryID", client_addr.get("pays") or "FR")
+    # PostalTradeAddress obligatoire avec au minimum CountryID
+    postal = _el(buyer_party, "ram:PostalTradeAddress")
+    if client_addr.get("code_postal"):
+        _el(postal, "ram:PostcodeCode", client_addr["code_postal"])
+    if client_addr.get("voie"):
+        _el(postal, "ram:LineOne", client_addr["voie"])
+    if client_addr.get("commune"):
+        _el(postal, "ram:CityName", client_addr["commune"])
+    _el(postal, "ram:CountryID", client_addr.get("pays") or "FR")
     if client.get("vat_number"):
         buyer_tax = _el(buyer_party, "ram:SpecifiedTaxRegistration")
         _el(buyer_tax, "ram:ID", client["vat_number"], schemeID="VA")
-
-    # Reference acheteur
-    if doc_data.get("customer_reference"):
-        _el(agreement, "ram:BuyerReference", doc_data["customer_reference"])
 
     # --- HeaderTradeDelivery ---
     _el(txn, "ram:ApplicableHeaderTradeDelivery")
@@ -572,30 +591,32 @@ def _build_document_xml(
     # Ventilation TVA
     for vat_line in vat_breakdown:
         tax = _el(settlement, "ram:ApplicableTradeTax")
-        _el(tax, "ram:CalculatedAmount", vat_line["amount"])
+        _el(tax, "ram:CalculatedAmount", _dec(vat_line["amount"]))
         _el(tax, "ram:TypeCode", "VAT")
-        _el(tax, "ram:BasisAmount", vat_line.get("base") or "0.00")
+        _el(tax, "ram:BasisAmount", _dec(vat_line.get("base")))
         _el(tax, "ram:CategoryCode", "S")
-        _el(tax, "ram:RateApplicablePercent", str(vat_line["rate"]))
+        _el(tax, "ram:RateApplicablePercent", _dec(vat_line["rate"], "0"))
 
     # Totaux
     summation = _el(settlement, "ram:SpecifiedTradeSettlementHeaderMonetarySummation")
-    _el(summation, "ram:LineTotalAmount", str(doc_data.get("subtotal_ht") or "0.00"))
-    _el(summation, "ram:TaxBasisTotalAmount", str(doc_data.get("subtotal_ht") or "0.00"))
-    tax_total = _el(summation, "ram:TaxTotalAmount", str(doc_data.get("total_vat") or "0.00"))
+    _el(summation, "ram:LineTotalAmount", _dec(doc_data.get("subtotal_ht")))
+    _el(summation, "ram:TaxBasisTotalAmount", _dec(doc_data.get("subtotal_ht")))
+    tax_total = _el(summation, "ram:TaxTotalAmount", _dec(doc_data.get("total_vat")))
     tax_total.set("currencyID", "EUR")
-    _el(summation, "ram:GrandTotalAmount", str(doc_data.get("total_ttc") or "0.00"))
-    _el(summation, "ram:DuePayableAmount", str(
+    _el(summation, "ram:GrandTotalAmount", _dec(doc_data.get("total_ttc")))
+    _el(summation, "ram:DuePayableAmount", _dec(
         Decimal(str(doc_data.get("total_ttc") or 0)) - Decimal(str(doc_data.get("amount_paid") or 0))
     ))
 
     return etree.tostring(root, xml_declaration=True, encoding="UTF-8", pretty_print=True)
 
 
-def _embed_facturx(pdf_bytes: bytes, xml_bytes: bytes) -> bytes:
+def _embed_facturx(pdf_bytes: bytes, xml_bytes: bytes, *, level: str = "en16931") -> bytes:
     """Embarque le XML Factur-X dans le PDF pour produire un PDF/A-3.
 
     Utilise la lib factur-x (generate_from_binary).
+    check_xsd=False car on controle la generation XML et les validateurs
+    externes (superepdp, Chorus Pro) feront la verification de conformite.
     """
     try:
         from facturx import generate_from_binary
@@ -603,12 +624,17 @@ def _embed_facturx(pdf_bytes: bytes, xml_bytes: bytes) -> bytes:
             pdf_bytes,
             xml_bytes,
             flavor="factur-x",
-            level="en16931",
+            level=level,
+            check_xsd=False,
         )
-        _log.info("Factur-X XML embarque dans le PDF")
+        _log.info("Factur-X XML embarque dans le PDF (level=%s, %d octets)", level, len(facturx_pdf))
         return facturx_pdf
-    except Exception:
-        _log.warning("Impossible d'embarquer le XML Factur-X, PDF brut retourne", exc_info=True)
+    except Exception as exc:
+        _log.error(
+            "Impossible d'embarquer le XML Factur-X : %s\nXML (500 premiers octets) : %s",
+            exc,
+            xml_bytes[:500].decode("utf-8", errors="replace"),
+        )
         return pdf_bytes
 
 
