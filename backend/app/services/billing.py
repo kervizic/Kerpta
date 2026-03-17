@@ -36,6 +36,7 @@ DEFAULT_DOCUMENT_COLUMNS = {
     "vat_rate": True,
     "discount_percent": True,
     "total_ht": True,
+    "total_ttc": False,
 }
 
 
@@ -445,7 +446,7 @@ async def update_quote_document_types(
 DEFAULT_INVOICE_COLUMNS = {
     "reference": True, "description": True, "quantity": True,
     "unit": True, "unit_price": True, "vat_rate": True,
-    "discount_percent": True, "total_ht": True,
+    "discount_percent": True, "total_ht": True, "total_ttc": False,
 }
 
 
@@ -474,8 +475,8 @@ async def update_invoice_columns(
     config = (row[0] if row and row[0] and isinstance(row[0], dict) else {})
 
     validated = {
-        k: bool(columns.get(k, True))
-        for k in DEFAULT_DOCUMENT_COLUMNS
+        k: bool(columns.get(k, DEFAULT_INVOICE_COLUMNS.get(k, True)))
+        for k in DEFAULT_INVOICE_COLUMNS
     }
 
     config["invoice_columns"] = validated
