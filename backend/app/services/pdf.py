@@ -248,6 +248,10 @@ def _format_lines(lines: list[dict], rounding: dict) -> list[dict]:
         line["quantity_fmt"] = _fmt_number(line.get("quantity", 0), qty_dec)
         line["unit_price_fmt"] = f"{_fmt_number(line.get('unit_price', 0), price_dec)}\u00a0€"
         line["total_ht_fmt"] = _fmt_currency(line.get("total_ht", 0))
+        # Total TTC par ligne = total_ht + total_vat
+        ht = Decimal(str(line.get("total_ht", 0)))
+        vat = Decimal(str(line.get("total_vat", 0)))
+        line["total_ttc_fmt"] = _fmt_currency(str((ht + vat).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)))
     return lines
 
 

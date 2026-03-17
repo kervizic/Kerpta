@@ -117,7 +117,8 @@ table { border-collapse: collapse; width: 100%; }
       {% if columns.unit_price %}<th class="col-desc">P.U.</th>{% endif %}
       {% if columns.vat_rate %}<th class="col-desc">TVA</th>{% endif %}
       {% if columns.discount_percent %}<th class="col-num">Rem.</th>{% endif %}
-      {% if columns.total_ht %}<th class="col-num col-last">Montant</th>{% endif %}
+      {% if columns.total_ht %}<th class="col-num {% if not columns.total_ttc %}col-last{% endif %}">Montant HT</th>{% endif %}
+      {% if columns.total_ttc %}<th class="col-num col-last">Montant TTC</th>{% endif %}
     </tr>
   </thead>
   <tbody>
@@ -129,7 +130,8 @@ table { border-collapse: collapse; width: 100%; }
       {% if columns.unit_price %}<td class="col-desc">{{ line.unit_price_fmt }}</td>{% endif %}
       {% if columns.vat_rate %}<td class="col-desc">{{ line.vat_rate }}%</td>{% endif %}
       {% if columns.discount_percent %}<td class="col-num">{% if line.discount_percent and line.discount_percent != '0' and line.discount_percent != '0.00' %}{{ line.discount_percent }}%{% endif %}</td>{% endif %}
-      {% if columns.total_ht %}<td class="col-num col-last">{{ line.total_ht_fmt }}</td>{% endif %}
+      {% if columns.total_ht %}<td class="col-num {% if not columns.total_ttc %}col-last{% endif %}">{{ line.total_ht_fmt }}</td>{% endif %}
+      {% if columns.total_ttc %}<td class="col-num col-last">{{ line.total_ttc_fmt }}</td>{% endif %}
     </tr>
     {% endfor %}
   </tbody>

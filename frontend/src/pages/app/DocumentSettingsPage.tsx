@@ -24,6 +24,7 @@ const ALL_COLUMNS: { key: string; label: string }[] = [
   { key: 'vat_rate', label: 'TVA %' },
   { key: 'discount_percent', label: 'Rem. %' },
   { key: 'total_ht', label: 'Total HT' },
+  { key: 'total_ttc', label: 'Total TTC' },
 ]
 
 // ── Section Style d'impression ──────────────────────────────────────────
@@ -309,7 +310,7 @@ function PageFooterSection() {
           {(centerLines.length > 0 || showFooterLogo || showPageNumber) && (
             <div className="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3">
               <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2 text-center">Apercu</p>
-              <div className="flex items-center gap-3">
+              <div className="flex items-end gap-3">
                 {/* Colonne gauche : logo */}
                 <div className="w-12 flex-shrink-0">
                   {showFooterLogo && logoSrc && (
