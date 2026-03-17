@@ -574,10 +574,8 @@ def _build_document_xml(
     # Vendeur
     seller_party = _el(agreement, "ram:SellerTradeParty")
     _el(seller_party, "ram:Name", seller.get("name") or "")
-    # BT-30 : SIREN (9 chiffres) pas SIRET (14 chiffres) - BR-FR-10
+    # BT-30 : SIREN (9 chiffres) - BR-FR-10
     seller_siren = seller.get("siren") or ""
-    if not seller_siren and seller.get("siret"):
-        seller_siren = seller["siret"][:9]
     if seller_siren:
         seller_id = _el(seller_party, "ram:SpecifiedLegalOrganization")
         _el(seller_id, "ram:ID", seller_siren, schemeID="0002")
@@ -592,10 +590,13 @@ def _build_document_xml(
         _el(postal, "ram:CityName", seller_addr["commune"])
     _el(postal, "ram:CountryID", "FR")
     # BT-34 : adresse electronique du vendeur (BR-FR-13)
+    # Priorite : email, sinon SIREN comme identifiant electronique
     seller_email = seller.get("email") or ""
+    seller_endpoint = _el(seller_party, "ram:URIUniversalCommunication")
     if seller_email:
-        seller_endpoint = _el(seller_party, "ram:URIUniversalCommunication")
         _el(seller_endpoint, "ram:URIID", seller_email, schemeID="EM")
+    elif seller_siren:
+        _el(seller_endpoint, "ram:URIID", seller_siren, schemeID="0002")
     if seller.get("vat_number"):
         seller_tax = _el(seller_party, "ram:SpecifiedTaxRegistration")
         _el(seller_tax, "ram:ID", seller["vat_number"], schemeID="VA")
@@ -603,10 +604,8 @@ def _build_document_xml(
     # Acheteur
     buyer_party = _el(agreement, "ram:BuyerTradeParty")
     _el(buyer_party, "ram:Name", client.get("name") or "")
-    # BT-47 : SIREN acheteur (9 chiffres)
+    # BT-47 : SIREN acheteur (si disponible - pas obligatoire pour particuliers/etrangers)
     buyer_siren = client.get("siren") or ""
-    if not buyer_siren and client.get("siret"):
-        buyer_siren = client["siret"][:9]
     if buyer_siren:
         buyer_id = _el(buyer_party, "ram:SpecifiedLegalOrganization")
         _el(buyer_id, "ram:ID", buyer_siren, schemeID="0002")
@@ -622,21 +621,32 @@ def _build_document_xml(
     # Utiliser country_code du client (ISO 3166-1 alpha-2), pas le champ texte "pays"
     _el(postal, "ram:CountryID", client.get("country_code") or "FR")
     # BT-49 : adresse electronique de l'acheteur (BR-FR-12)
+    # Priorite : email, sinon SIREN si disponible (particuliers/etrangers peuvent ne pas en avoir)
     buyer_email = client.get("email") or ""
-    if buyer_email:
+    if buyer_email or buyer_siren:
         buyer_endpoint = _el(buyer_party, "ram:URIUniversalCommunication")
-        _el(buyer_endpoint, "ram:URIID", buyer_email, schemeID="EM")
+        if buyer_email:
+            _el(buyer_endpoint, "ram:URIID", buyer_email, schemeID="EM")
+        else:
+            _el(buyer_endpoint, "ram:URIID", buyer_siren, schemeID="0002")
     if client.get("vat_number"):
         buyer_tax = _el(buyer_party, "ram:SpecifiedTaxRegistration")
         _el(buyer_tax, "ram:ID", client["vat_number"], schemeID="VA")
 
     # --- HeaderTradeDelivery (ne doit pas etre vide - PEPPOL-EN16931-R008) ---
     delivery = _el(txn, "ram:ApplicableHeaderTradeDelivery")
-    # Date de livraison = date d'emission par defaut
-    if issue_date:
+    # Date de livraison effective si disponible, sinon date d'emission comme fallback
+    # En Factur-X, l'element ActualDeliverySupplyChainEvent est obligatoire
+    # pour eviter PEPPOL-EN16931-R008 (element vide)
+    delivery_date = doc_data.get("delivery_date") or issue_date
+    if delivery_date:
         del_event = _el(delivery, "ram:ActualDeliverySupplyChainEvent")
         del_occ = _el(del_event, "ram:OccurrenceDateTime")
-        _el(del_occ, "udt:DateTimeString", str(issue_date).replace("-", ""), format="102")
+        _el(del_occ, "udt:DateTimeString", str(delivery_date).replace("-", ""), format="102")
+    else:
+        # Dernier recours : ShipToTradeParty vide est accepte par le XSD
+        # pour eviter un element delivery totalement vide
+        _el(delivery, "ram:ShipToTradeParty")
 
     # --- HeaderTradeSettlement ---
     settlement = _el(txn, "ram:ApplicableHeaderTradeSettlement")
