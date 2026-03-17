@@ -556,7 +556,7 @@ DEFAULT_DOCUMENT_STYLING = {
         "page_margin_bottom": 18,
         "page_margin_left": 15,
         "header_margin_bottom": 28,
-        "header_min_height": 45,
+        "header_min_height": 52,
         "header_left_width": 80,
         "header_right_left": 107,
         "header_right_width": 67,
