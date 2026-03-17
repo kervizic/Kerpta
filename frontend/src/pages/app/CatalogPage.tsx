@@ -490,7 +490,7 @@ export function ProductDetailModal({ productId, onClose }: { productId: string; 
         ) : (
           <div className="px-4 md:px-6 py-5">
             {/* Infos résumées — éditables au clic */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">
               <EditableInfoCard
                 label="Prix HT"
                 value={fmtPrice(product.unit_price)}
@@ -544,13 +544,47 @@ export function ProductDetailModal({ productId, onClose }: { productId: string; 
                 onSave={() => saveField('unit', editFieldValue || null)}
                 onCancel={() => setEditingField(null)}
               />
+              <EditableInfoCard
+                label="Compte"
+                value={product.account_code || '—'}
+                editingField={editingField}
+                fieldKey="account_code"
+                editFieldValue={editFieldValue}
+                onStartEdit={() => { setEditingField('account_code'); setEditFieldValue(product.account_code || '') }}
+                onChangeValue={setEditFieldValue}
+                onSave={() => saveField('account_code', editFieldValue || null)}
+                onCancel={() => setEditingField(null)}
+              />
             </div>
 
-            {product.description && (
-              <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3 mb-5">
-                <p className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-line">{product.description}</p>
+            {/* Description editable */}
+            <div
+              className={`border rounded-xl p-3 mb-5 transition cursor-pointer group ${
+                editingField === 'description'
+                  ? 'border-kerpta-300 bg-kerpta-50/30 dark:bg-kerpta-900/20'
+                  : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 hover:border-kerpta-200 dark:hover:border-kerpta-700'
+              }`}
+              onClick={() => { if (editingField !== 'description') { setEditingField('description'); setEditFieldValue(product.description || '') } }}
+            >
+              <div className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wide flex items-center justify-between mb-1">
+                Description
+                {editingField !== 'description' && <Pencil className="w-2.5 h-2.5 text-gray-300 dark:text-gray-600 opacity-0 group-hover:opacity-100 transition" />}
               </div>
-            )}
+              {editingField === 'description' ? (
+                <textarea
+                  autoFocus
+                  value={editFieldValue}
+                  onChange={(e) => setEditFieldValue(e.target.value)}
+                  onBlur={() => { saveField('description', editFieldValue.trim() || null); setEditingField(null) }}
+                  onKeyDown={(e) => { if (e.key === 'Escape') setEditingField(null) }}
+                  rows={3}
+                  placeholder="Description de l'article..."
+                  className="w-full text-sm text-gray-600 dark:text-gray-300 px-1 py-0.5 border border-kerpta-300 dark:bg-gray-900 rounded focus:outline-none focus:ring-1 focus:ring-kerpta-400 resize-y"
+                />
+              ) : (
+                <p className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-line">{product.description || 'Aucune description'}</p>
+              )}
+            </div>
 
             {/* Onglets */}
             <div className="border-b border-gray-200 dark:border-gray-700 mb-4">
