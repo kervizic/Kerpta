@@ -913,6 +913,19 @@ async def _build_common_context(
         footer_parts.append(f"R.C.S {seller['rcs_city']}")
     footer_center_lines = _balance_footer_lines(footer_parts)
 
+    # Sections visibles : configurable uniquement pour les devis.
+    # Pour les factures/avoirs, toutes les sections sont obligatoires (art. 242 nonies A CGI).
+    if doc_type_label == "Devis":
+        show_sections = document_styling.get("show_sections_quotes", {})
+    else:
+        show_sections = {
+            "payment_terms": True,
+            "payment_method": True,
+            "bank_details": True,
+            "legal_footer": True,
+            "notes": True,
+        }
+
     context = {
         "title": f"{doc_type_label} {doc_number}",
         "doc_type_label": doc_type_label,
@@ -947,6 +960,7 @@ async def _build_common_context(
         "footer_options": footer_options,
         "footer_center_lines": footer_center_lines,
         "styling": document_styling,
+        "show_sections": show_sections,
     }
 
     return context, template_name

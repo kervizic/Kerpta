@@ -365,7 +365,8 @@ interface DocumentStyling {
   font_weights: Record<string, number>
   colors: Record<string, string>
   column_labels: Record<string, string>
-  show_sections: Record<string, boolean>
+  show_sections_quotes: Record<string, boolean>
+  spacing: Record<string, number>
 }
 
 const FONT_SIZE_OPTIONS = [6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 18, 20]
@@ -383,13 +384,16 @@ const FONT_SIZE_FIELDS: { key: string; label: string; weightKey?: string }[] = [
   { key: 'client_name', label: 'Nom client', weightKey: 'client_name' },
   { key: 'client_address', label: 'Adresse client', weightKey: 'client_address' },
   { key: 'doc_title', label: 'Titre du document', weightKey: 'doc_title' },
-  { key: 'dates_refs', label: 'Dates et references' },
+  { key: 'dates_refs', label: 'Labels dates/refs', weightKey: 'dates_label' },
+  { key: 'dates_refs', label: 'Valeurs dates/refs', weightKey: 'dates_value' },
   { key: 'table_header', label: 'En-tetes tableau', weightKey: 'table_header' },
   { key: 'table_cell', label: 'Cellules tableau', weightKey: 'table_cell' },
-  { key: 'line_detail', label: 'Detail des lignes' },
-  { key: 'totals', label: 'Totaux' },
-  { key: 'bottom_info', label: 'Conditions / Mentions' },
-  { key: 'footer', label: 'Pied de page emetteur' },
+  { key: 'line_detail', label: 'Detail des lignes', weightKey: 'line_detail' },
+  { key: 'totals', label: 'Labels totaux', weightKey: 'totals_label' },
+  { key: 'totals', label: 'Valeurs totaux', weightKey: 'totals_value' },
+  { key: 'bottom_info', label: 'Texte conditions/mentions', weightKey: 'bottom_info' },
+  { key: 'bottom_info', label: 'Labels conditions/mentions', weightKey: 'bottom_info_label' },
+  { key: 'footer', label: 'Pied de page emetteur', weightKey: 'footer' },
 ]
 
 const COLOR_FIELDS: { key: string; label: string }[] = [
@@ -417,6 +421,67 @@ const SECTION_FIELDS: { key: string; label: string }[] = [
   { key: 'bank_details', label: 'Coordonnees bancaires (IBAN/BIC)' },
   { key: 'legal_footer', label: 'Mentions legales' },
   { key: 'notes', label: 'Notes' },
+]
+
+const SPACING_GROUPS: { group: string; fields: { key: string; label: string; unit: string; def: number }[] }[] = [
+  {
+    group: 'Marges de la page',
+    fields: [
+      { key: 'page_margin_top', label: 'Haut', unit: 'mm', def: 12 },
+      { key: 'page_margin_right', label: 'Droite', unit: 'mm', def: 15 },
+      { key: 'page_margin_bottom', label: 'Bas', unit: 'mm', def: 18 },
+      { key: 'page_margin_left', label: 'Gauche', unit: 'mm', def: 15 },
+    ],
+  },
+  {
+    group: 'En-tete',
+    fields: [
+      { key: 'header_margin_bottom', label: 'Marge basse en-tete', unit: 'px', def: 28 },
+      { key: 'header_min_height', label: 'Hauteur min. en-tete', unit: 'mm', def: 45 },
+      { key: 'header_left_width', label: 'Largeur bloc emetteur', unit: 'mm', def: 80 },
+      { key: 'header_right_left', label: 'Position bloc client (gauche)', unit: 'mm', def: 107 },
+      { key: 'header_right_width', label: 'Largeur bloc client', unit: 'mm', def: 67 },
+    ],
+  },
+  {
+    group: 'Logo en-tete',
+    fields: [
+      { key: 'logo_max_height', label: 'Hauteur max', unit: 'px', def: 45 },
+      { key: 'logo_max_width', label: 'Largeur max', unit: 'px', def: 160 },
+      { key: 'logo_margin_bottom', label: 'Marge basse', unit: 'px', def: 4 },
+    ],
+  },
+  {
+    group: 'Titre et dates',
+    fields: [
+      { key: 'doc_title_margin_top', label: 'Marge haute titre', unit: 'px', def: 24 },
+      { key: 'doc_title_margin_bottom', label: 'Marge basse titre', unit: 'px', def: 24 },
+      { key: 'doc_dates_margin_bottom', label: 'Marge basse dates', unit: 'px', def: 28 },
+      { key: 'date_item_margin_right', label: 'Espacement entre dates', unit: 'px', def: 40 },
+    ],
+  },
+  {
+    group: 'Tableau et totaux',
+    fields: [
+      { key: 'table_margin_bottom', label: 'Marge basse tableau', unit: 'px', def: 12 },
+      { key: 'table_cell_padding_v', label: 'Padding vertical cellules', unit: 'px', def: 4 },
+      { key: 'table_cell_padding_h', label: 'Padding horizontal cellules', unit: 'px', def: 10 },
+      { key: 'totals_margin_bottom', label: 'Marge basse totaux', unit: 'px', def: 24 },
+      { key: 'totals_spacer_width', label: 'Espace label/valeur totaux', unit: 'px', def: 30 },
+    ],
+  },
+  {
+    group: 'Bas de page et pied',
+    fields: [
+      { key: 'bottom_info_margin_top', label: 'Marge haute infos', unit: 'px', def: 28 },
+      { key: 'info_line_margin_bottom', label: 'Espacement lignes infos', unit: 'px', def: 6 },
+      { key: 'footer_padding_top', label: 'Padding haut pied de page', unit: 'px', def: 3 },
+      { key: 'footer_logo_max_height', label: 'Logo pied - hauteur max', unit: 'px', def: 60 },
+      { key: 'footer_logo_max_width', label: 'Logo pied - largeur max', unit: 'px', def: 100 },
+      { key: 'footer_col_left_width', label: 'Colonne logo pied', unit: 'px', def: 100 },
+      { key: 'footer_col_right_width', label: 'Colonne pagination pied', unit: 'px', def: 70 },
+    ],
+  },
 ]
 
 function DocumentStylingSection() {
@@ -469,11 +534,19 @@ function DocumentStylingSection() {
     patch({ column_labels: { [key]: value } })
   }
 
-  function toggleSection(key: string) {
+  function toggleSectionQuotes(key: string) {
     if (!styling) return
-    const updated = { ...styling.show_sections, [key]: !styling.show_sections[key] }
-    setStyling({ ...styling, show_sections: updated })
-    patch({ show_sections: { [key]: !styling.show_sections[key] } })
+    const updated = { ...styling.show_sections_quotes, [key]: !styling.show_sections_quotes[key] }
+    setStyling({ ...styling, show_sections_quotes: updated })
+    patch({ show_sections_quotes: { [key]: !styling.show_sections_quotes[key] } })
+  }
+
+
+  function updateSpacing(key: string, value: number) {
+    if (!styling) return
+    const updated = { ...styling.spacing, [key]: value }
+    setStyling({ ...styling, spacing: updated })
+    patch({ spacing: { [key]: value } })
   }
 
   const toggleStyle = (on: boolean) =>
@@ -512,7 +585,7 @@ function DocumentStylingSection() {
             {openSub === 'fonts' && (
               <div className="pb-4 space-y-2">
                 {FONT_SIZE_FIELDS.map((f) => (
-                  <div key={f.key} className="flex items-center gap-3">
+                  <div key={f.weightKey} className="flex items-center gap-3">
                     <span className="text-xs text-gray-600 dark:text-gray-400 w-44 flex-shrink-0">{f.label}</span>
                     <select
                       value={styling.font_sizes[f.key] ?? 9}
@@ -598,21 +671,57 @@ function DocumentStylingSection() {
             )}
           </div>
 
-          {/* Sections visibles */}
+          {/* Sections visibles (devis uniquement - les factures affichent tout par obligation legale) */}
           <div>
-            {subHeader('sections', 'Sections visibles')}
+            {subHeader('sections', 'Sections visibles (devis)')}
             {openSub === 'sections' && (
-              <div className="pb-4 flex flex-wrap gap-2">
-                {SECTION_FIELDS.map((s) => (
-                  <button
-                    key={s.key}
-                    type="button"
-                    onClick={() => toggleSection(s.key)}
-                    className={toggleStyle(styling.show_sections[s.key] !== false)}
-                  >
-                    {s.label}
-                  </button>
+              <div className="pb-4 space-y-3">
+                <p className="text-[10px] text-gray-400 dark:text-gray-500 italic">Les factures affichent toujours toutes les sections (obligation legale).</p>
+                <div className="flex flex-wrap gap-2">
+                  {SECTION_FIELDS.map((s) => (
+                    <button
+                      key={s.key}
+                      type="button"
+                      onClick={() => toggleSectionQuotes(s.key)}
+                      className={toggleStyle(styling.show_sections_quotes[s.key] !== false)}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Espacement et marges */}
+          <div>
+            {subHeader('spacing', 'Espacement et marges')}
+            {openSub === 'spacing' && (
+              <div className="pb-4 space-y-4">
+                {SPACING_GROUPS.map((g) => (
+                  <div key={g.group}>
+                    <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2">{g.group}</p>
+                    <div className="space-y-2">
+                      {g.fields.map((f) => (
+                        <div key={f.key} className="flex items-center gap-3">
+                          <span className="text-xs text-gray-600 dark:text-gray-400 w-52 flex-shrink-0">{f.label}</span>
+                          <input
+                            type="number"
+                            min={0}
+                            max={300}
+                            value={styling.spacing[f.key] ?? f.def}
+                            onChange={(e) => updateSpacing(f.key, parseInt(e.target.value) || f.def)}
+                            className="h-[30px] w-20 px-2 py-0.5 text-xs border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded focus:outline-none focus:ring-1 focus:ring-kerpta-400 text-right"
+                          />
+                          <span className="text-[10px] text-gray-400 dark:text-gray-500 w-6">{f.unit}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 ))}
+                <p className="text-xs text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2">
+                  La position verticale du bloc client (28mm) est fixe pour respecter la norme AFNOR NF Z 10-011 (fenetre d'enveloppe).
+                </p>
               </div>
             )}
           </div>
@@ -911,13 +1020,13 @@ export default function DocumentSettingsPage() {
         <PrintStyleSection />
         <DocumentHeaderSection />
         <PageFooterSection />
-        <DocumentStylingSection />
         <DocumentTypesSection
           endpoint="/billing/quote-document-types"
           title="Colonnes des devis"
           description="Modèles de mise en page disponibles lors de la création d'un devis, avec les colonnes affichées"
         />
         <InvoiceColumnsSection />
+        <DocumentStylingSection />
       </div>
     </div>
   )

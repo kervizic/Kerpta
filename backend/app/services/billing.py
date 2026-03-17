@@ -521,6 +521,10 @@ DEFAULT_DOCUMENT_STYLING = {
         "table_cell": 400,
         "totals_label": 600,
         "totals_value": 400,
+        "line_detail": 400,
+        "bottom_info": 400,
+        "bottom_info_label": 600,
+        "footer": 400,
     },
     "colors": {
         "title": "#555555",
@@ -539,12 +543,42 @@ DEFAULT_DOCUMENT_STYLING = {
         "total_ht": "Montant HT",
         "total_ttc": "Montant TTC",
     },
-    "show_sections": {
+    "show_sections_quotes": {
         "payment_terms": True,
         "payment_method": True,
         "bank_details": True,
         "legal_footer": True,
         "notes": True,
+    },
+    "spacing": {
+        "page_margin_top": 12,
+        "page_margin_right": 15,
+        "page_margin_bottom": 18,
+        "page_margin_left": 15,
+        "header_margin_bottom": 28,
+        "header_min_height": 45,
+        "header_left_width": 80,
+        "header_right_left": 107,
+        "header_right_width": 67,
+        "logo_max_height": 45,
+        "logo_max_width": 160,
+        "logo_margin_bottom": 4,
+        "doc_title_margin_top": 24,
+        "doc_title_margin_bottom": 24,
+        "doc_dates_margin_bottom": 28,
+        "date_item_margin_right": 40,
+        "table_margin_bottom": 12,
+        "table_cell_padding_v": 4,
+        "table_cell_padding_h": 10,
+        "totals_margin_bottom": 24,
+        "totals_spacer_width": 30,
+        "bottom_info_margin_top": 28,
+        "info_line_margin_bottom": 6,
+        "footer_padding_top": 3,
+        "footer_logo_max_height": 60,
+        "footer_logo_max_width": 100,
+        "footer_col_left_width": 100,
+        "footer_col_right_width": 70,
     },
 }
 
@@ -626,12 +660,21 @@ async def update_document_styling(
                     422, f"column_labels.{k} doit être une chaîne de 30 car. max"
                 )
 
-    if "show_sections" in data and isinstance(data["show_sections"], dict):
-        for k, v in data["show_sections"].items():
-            if k not in DEFAULT_DOCUMENT_STYLING["show_sections"]:
-                raise HTTPException(422, f"Clé show_sections inconnue : {k}")
+    if "show_sections_quotes" in data and isinstance(data["show_sections_quotes"], dict):
+        for k, v in data["show_sections_quotes"].items():
+            if k not in DEFAULT_DOCUMENT_STYLING["show_sections_quotes"]:
+                raise HTTPException(422, f"Clé show_sections_quotes inconnue : {k}")
             if not isinstance(v, bool):
-                raise HTTPException(422, f"show_sections.{k} doit être un booléen")
+                raise HTTPException(422, f"show_sections_quotes.{k} doit être un booléen")
+
+    # show_sections_invoices n'est plus utilisé (obligation légale : tout afficher)
+
+    if "spacing" in data and isinstance(data["spacing"], dict):
+        for k, v in data["spacing"].items():
+            if k not in DEFAULT_DOCUMENT_STYLING["spacing"]:
+                raise HTTPException(422, f"Cle spacing inconnue : {k}")
+            if not isinstance(v, int) or v < 0 or v > 300:
+                raise HTTPException(422, f"spacing.{k} doit etre un entier entre 0 et 300")
 
     # Read current config
     result = await db.execute(
