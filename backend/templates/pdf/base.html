@@ -62,18 +62,16 @@ table { border-collapse: collapse; width: 100%; }
       {% endif %}
     </td>
     <td class="footer-col-center">
-      {% if footer_options is defined and (footer_options.show_phone or footer_options.show_email or footer_options.show_website) %}
       <div class="footer-line">
-        {% set parts = [] %}
-        {% if footer_options.show_phone and seller.phone %}{% set _ = parts.append("Tel : " ~ seller.phone) %}{% endif %}
-        {% if footer_options.show_email and seller.email %}{% set _ = parts.append(seller.email) %}{% endif %}
-        {% if footer_options.show_website and seller.website %}{% set _ = parts.append(seller.website) %}{% endif %}
-        {{ parts | join(" - ") }}
+        {% set top_parts = [] %}
+        {% if seller.vat_number %}{% set _ = top_parts.append("TVA : " ~ seller.vat_number) %}{% endif %}
+        {% if footer_options is defined and footer_options.show_phone and seller.phone %}{% set _ = top_parts.append("Tel : " ~ seller.phone) %}{% endif %}
+        {% if footer_options is defined and footer_options.show_email and seller.email %}{% set _ = top_parts.append(seller.email) %}{% endif %}
+        {% if footer_options is defined and footer_options.show_website and seller.website %}{% set _ = top_parts.append(seller.website) %}{% endif %}
+        {{ top_parts | join(" - ") }}
       </div>
-      {% endif %}
       <div class="footer-line">
-        {% if seller.vat_number %}TVA : {{ seller.vat_number }}{% endif %}
-        {% if seller.legal_form %}{% if seller.vat_number %} - {% endif %}{{ seller.legal_form }}{% endif %}
+        {% if seller.legal_form %}{{ seller.legal_form }}{% endif %}
         {% if seller.capital %} au capital de {{ seller.capital }} €{% endif %}
         {% if seller.siren %} - SIREN : {{ seller.siren }}{% endif %}
         {% if seller.rcs_city %} - R.C.S {{ seller.rcs_city }}{% endif %}

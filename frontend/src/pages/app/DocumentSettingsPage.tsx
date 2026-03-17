@@ -259,17 +259,19 @@ function PageFooterSection() {
   function buildCenterLines(): string[] {
     if (!orgInfo) return []
     const lines: string[] = []
-    const optParts: string[] = []
-    if (showPhone && orgInfo.phone) optParts.push(`Tel : ${orgInfo.phone}`)
-    if (showEmail && orgInfo.email) optParts.push(orgInfo.email)
-    if (showWebsite && orgInfo.website) optParts.push(orgInfo.website)
-    if (optParts.length > 0) lines.push(optParts.join(' - '))
+    // Ligne 1 : TVA + tel / email / site
+    const topParts: string[] = []
+    if (orgInfo.vat_number) topParts.push(`TVA : ${orgInfo.vat_number}`)
+    if (showPhone && orgInfo.phone) topParts.push(`Tel : ${orgInfo.phone}`)
+    if (showEmail && orgInfo.email) topParts.push(orgInfo.email)
+    if (showWebsite && orgInfo.website) topParts.push(orgInfo.website)
+    if (topParts.length > 0) lines.push(topParts.join(' - '))
+    // Ligne 2 : forme juridique, capital, SIREN, RCS
     const legalParts: string[] = []
     if (orgInfo.legal_form) legalParts.push(orgInfo.legal_form)
     if (orgInfo.capital) legalParts.push(`au capital de ${orgInfo.capital} \u20ac`)
     if (orgInfo.org_siren) legalParts.push(`SIREN : ${orgInfo.org_siren}`)
     if (orgInfo.rcs_city) legalParts.push(`R.C.S ${orgInfo.rcs_city}`)
-    if (orgInfo.vat_number) legalParts.push(`TVA : ${orgInfo.vat_number}`)
     if (legalParts.length > 0) lines.push(legalParts.join(' - '))
     return lines
   }
