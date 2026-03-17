@@ -437,9 +437,8 @@ const SPACING_GROUPS: { group: string; fields: { key: string; label: string; uni
     group: 'En-tete',
     fields: [
       { key: 'header_margin_bottom', label: 'Marge basse en-tete', unit: 'px', def: 28 },
-      { key: 'header_min_height', label: 'Hauteur min. en-tete', unit: 'mm', def: 45 },
+      { key: 'header_min_height', label: 'Hauteur min. en-tete', unit: 'mm', def: 52 },
       { key: 'header_left_width', label: 'Largeur bloc emetteur', unit: 'mm', def: 80 },
-      { key: 'header_right_left', label: 'Position bloc client (gauche)', unit: 'mm', def: 107 },
       { key: 'header_right_width', label: 'Largeur bloc client', unit: 'mm', def: 67 },
     ],
   },
