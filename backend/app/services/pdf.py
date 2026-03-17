@@ -752,6 +752,137 @@ def _embed_facturx(pdf_bytes: bytes, xml_bytes: bytes, *, level: str = "en16931"
         return pdf_bytes
 
 
+# ── Contexte commun pour tous les documents PDF ──────────────────────────────
+
+
+async def _build_common_context(
+    org_id: uuid.UUID,
+    db: AsyncSession,
+    *,
+    doc_type_label: str,
+    doc_number: str,
+    doc_type_key: str,
+    seller: dict,
+    client: dict,
+    lines: list[dict],
+    issue_date,
+    due_date=None,
+    subtotal_ht,
+    total_vat,
+    total_ttc,
+    amount_paid=0,
+    discount_type: str | None = None,
+    discount_value=0,
+    customer_reference: str | None = None,
+    purchase_order_number: str | None = None,
+    payment_terms: int | None = None,
+    payment_method: str | None = None,
+    bank_details: dict | None = None,
+    notes: str | None = None,
+    footer_override: str | None = None,
+    profile_id: str | None = None,
+) -> tuple[dict, str]:
+    """Construit le contexte Jinja2 commun a tous les documents PDF.
+
+    Returns:
+        (context_dict, template_name)
+    """
+    # Logo + colonnes
+    logo_b64, logo_mime = await _get_org_logo(org_id, db)
+    columns, show_logo, show_company_name = await _get_document_columns(org_id, db, doc_type_key)
+
+    # Rounding + formatage des lignes
+    rounding = await _get_rounding_config(org_id, db)
+    lines = _format_lines(lines, rounding)
+
+    # Ventilation TVA
+    vat_breakdown = _compute_vat_breakdown(lines)
+
+    # Remise globale
+    discount_label = None
+    discount_amount = "0"
+    if discount_type and discount_type != "none" and Decimal(str(discount_value or 0)) > 0:
+        if discount_type == "percent":
+            discount_label = f"{discount_value}%"
+        else:
+            discount_label = "fixe"
+        discount_amount = str(
+            (Decimal(str(subtotal_ht)) * Decimal(str(discount_value)) / 100).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            ) if discount_type == "percent"
+            else Decimal(str(discount_value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        )
+
+    # Reste a payer
+    ttc = Decimal(str(total_ttc))
+    paid = Decimal(str(amount_paid or 0))
+    remaining = (ttc - paid).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+    # Infos bancaires - depuis le document, sinon depuis le profil
+    if not bank_details:
+        bank_details = await _get_bank_details_from_profile(org_id, db, profile_id)
+
+    # Conditions de reglement - depuis le document, sinon depuis le profil
+    if payment_terms is None and payment_method is None:
+        pay_config = await _get_payment_config_from_profile(org_id, db)
+        payment_terms = pay_config["payment_terms"]
+        payment_method = pay_config["payment_method"]
+
+    # Style + mentions legales + options pied de page
+    style, org_footer, footer_options = await _get_print_config(org_id, db)
+    template_name = f"pdf/{style}.html"
+
+    # Footer : priorite au footer du document, sinon footer org
+    footer = footer_override or org_footer
+
+    # Note de reglement depuis le profil de facturation
+    payment_note = await _get_payment_note_from_profile(org_id, db, profile_id)
+
+    # Label conditions de reglement
+    if payment_terms == 0:
+        payment_terms_label = "Comptant"
+    elif payment_terms:
+        payment_terms_label = f"{payment_terms} jours net"
+    else:
+        payment_terms_label = None
+
+    context = {
+        "title": f"{doc_type_label} {doc_number}",
+        "doc_type_label": doc_type_label,
+        "doc_number": doc_number,
+        "issue_date": issue_date.strftime("%d/%m/%Y") if issue_date else "",
+        "due_date": due_date.strftime("%d/%m/%Y") if due_date else None,
+        "customer_reference": customer_reference,
+        "purchase_order_number": purchase_order_number,
+        "seller": seller,
+        "client": client,
+        "client_label": "Destinataire",
+        "logo_b64": logo_b64,
+        "logo_mime": logo_mime,
+        "show_header_logo": show_logo,
+        "show_company_name": show_company_name,
+        "columns": columns,
+        "lines": lines,
+        "subtotal_ht": str(subtotal_ht),
+        "total_vat": str(total_vat),
+        "total_ttc": str(total_ttc),
+        "amount_paid": str(amount_paid or 0),
+        "remaining": str(remaining),
+        "discount_label": discount_label,
+        "discount_amount": discount_amount,
+        "vat_breakdown": vat_breakdown,
+        "payment_terms_label": payment_terms_label,
+        "payment_method": payment_method,
+        "bank_details": bank_details,
+        "notes": notes,
+        "footer": footer,
+        "payment_note": payment_note,
+        "footer_options": footer_options,
+    }
+
+    return context, template_name
+
+
 # ── API publique — Factures ────────────────────────────────────────────────────
 
 
@@ -767,7 +898,7 @@ async def generate_invoice_pdf(
     Returns:
         (pdf_bytes, filename)
     """
-    # Récupérer la facture
+    # Recuperer la facture
     inv_result = await db.execute(
         text("""
             SELECT i.id::text, i.number, i.proforma_number,
@@ -817,16 +948,15 @@ async def generate_invoice_pdf(
     if inv["is_situation"]:
         doc_type_label += f" de situation n°{inv['situation_number'] or ''}"
 
-    # Vendeur — snapshot si disponible, sinon org live
+    # Vendeur - snapshot si disponible, sinon org live
     if inv.get("seller_snapshot") and isinstance(inv["seller_snapshot"], dict):
         seller = inv["seller_snapshot"]
     else:
         seller = await _get_org_info(org_id, db)
 
-    # Client — snapshot si disponible, sinon client live
+    # Client - snapshot si disponible, sinon client live
     if inv.get("client_snapshot") and isinstance(inv["client_snapshot"], dict):
         client = inv["client_snapshot"]
-        # Completer les champs Factur-X manquants dans les anciens snapshots
         if "siren" not in client or "email" not in client:
             live_client = await _get_client_info(inv["client_id"], org_id, db)
             client.setdefault("siren", live_client.get("siren"))
@@ -836,100 +966,45 @@ async def generate_invoice_pdf(
     else:
         client = await _get_client_info(inv["client_id"], org_id, db)
 
-    # Logo + colonnes (per doc type pour factures)
-    logo_b64, logo_mime = await _get_org_logo(org_id, db)
-    doc_type_key = "avoir" if inv["is_credit_note"] else "facture"
-    columns, show_logo, show_company_name = await _get_document_columns(org_id, db, doc_type_key)
-
-    # Rounding + formatage des lignes
-    rounding = await _get_rounding_config(org_id, db)
-    lines = _format_lines(lines, rounding)
-
-    # Ventilation TVA
-    vat_breakdown = _compute_vat_breakdown(lines)
-
-    # Remise globale
-    discount_label = None
-    discount_amount = "0"
-    if inv["discount_type"] and inv["discount_type"] != "none" and Decimal(str(inv["discount_value"] or 0)) > 0:
-        if inv["discount_type"] == "percent":
-            discount_label = f'{inv["discount_value"]}%'
-        else:
-            discount_label = "fixe"
-        discount_amount = str(
-            (Decimal(str(inv["subtotal_ht"])) * Decimal(str(inv["discount_value"])) / 100).quantize(
-                Decimal("0.01"), rounding=ROUND_HALF_UP
-            ) if inv["discount_type"] == "percent"
-            else Decimal(str(inv["discount_value"])).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-        )
-
-    # Reste à payer
-    ttc = Decimal(str(inv["total_ttc"]))
-    paid = Decimal(str(inv["amount_paid"] or 0))
-    remaining = (ttc - paid).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
-    # Profil de facturation associé
-    profile_id = inv.get("billing_profile_id")
-
-    # Infos bancaires - depuis la facture, sinon depuis le profil
+    # Infos bancaires depuis la facture (peut etre un JSON string)
     bank_details = inv.get("bank_details")
     if isinstance(bank_details, str):
         try:
             bank_details = json.loads(bank_details)
         except Exception:
             bank_details = None
-    if not bank_details:
-        bank_details = await _get_bank_details_from_profile(org_id, db, profile_id)
 
-    # Style + mentions legales + options pied de page
-    style, org_footer, footer_options = await _get_print_config(org_id, db)
-    template_name = f"pdf/{style}.html"
+    doc_type_key = "avoir" if inv["is_credit_note"] else "facture"
 
-    # Footer : priorité au footer du document, sinon footer org
-    footer = inv.get("footer") or org_footer
-
-    # Note de règlement depuis le profil de facturation
-    payment_note = await _get_payment_note_from_profile(org_id, db, profile_id)
-
-    context = {
-        "title": f"{doc_type_label} {doc_number}",
-        "doc_type_label": doc_type_label,
-        "doc_number": doc_number,
-        "issue_date": inv["issue_date"].strftime("%d/%m/%Y") if inv["issue_date"] else "",
-        "due_date": inv["due_date"].strftime("%d/%m/%Y") if inv["due_date"] else None,
-        "customer_reference": inv.get("customer_reference"),
-        "purchase_order_number": inv.get("purchase_order_number"),
-        "seller": seller,
-        "client": client,
-        "client_label": "Destinataire",
-        "logo_b64": logo_b64,
-        "logo_mime": logo_mime,
-        "show_header_logo": show_logo,
-        "show_company_name": show_company_name,
-        "columns": columns,
-        "lines": lines,
-        "subtotal_ht": str(inv["subtotal_ht"]),
-        "total_vat": str(inv["total_vat"]),
-        "total_ttc": str(inv["total_ttc"]),
-        "amount_paid": str(inv["amount_paid"] or 0),
-        "remaining": str(remaining),
-        "discount_label": discount_label,
-        "discount_amount": discount_amount,
-        "vat_breakdown": vat_breakdown,
-        "payment_terms_label": "Comptant" if inv.get("payment_terms") == 0 else (f"{inv['payment_terms']} jours net" if inv.get("payment_terms") else None),
-        "payment_method": inv.get("payment_method"),
-        "bank_details": bank_details,
-        "notes": inv.get("notes"),
-        "footer": footer,
-        "payment_note": payment_note,
-        "footer_options": footer_options,
-    }
+    context, template_name = await _build_common_context(
+        org_id, db,
+        doc_type_label=doc_type_label,
+        doc_number=doc_number,
+        doc_type_key=doc_type_key,
+        seller=seller,
+        client=client,
+        lines=lines,
+        issue_date=inv["issue_date"],
+        due_date=inv["due_date"],
+        subtotal_ht=inv["subtotal_ht"],
+        total_vat=inv["total_vat"],
+        total_ttc=inv["total_ttc"],
+        amount_paid=inv["amount_paid"],
+        discount_type=inv["discount_type"],
+        discount_value=inv["discount_value"],
+        customer_reference=inv.get("customer_reference"),
+        purchase_order_number=inv.get("purchase_order_number"),
+        payment_terms=inv.get("payment_terms"),
+        payment_method=inv.get("payment_method"),
+        bank_details=bank_details,
+        notes=inv.get("notes"),
+        footer_override=inv.get("footer"),
+        profile_id=inv.get("billing_profile_id"),
+    )
 
     pdf_bytes = _render_pdf(template_name, context)
 
-    # XML CII embarque dans tous les PDF (structure uniforme pour parsing Doctext)
-    # - Factures/avoirs valides : Factur-X officiel (PDF/A-3, profil en16931)
-    # - Proformas/brouillons : meme structure XML, TypeCode 325
+    # XML CII embarque dans tous les PDF
     try:
         if inv["is_credit_note"]:
             xml_type_code = "381"  # avoir
@@ -938,7 +1013,7 @@ async def generate_invoice_pdf(
         else:
             xml_type_code = "380"  # facture
         xml_bytes = _build_document_xml(
-            inv, seller, client, lines, vat_breakdown,
+            inv, seller, client, lines, context["vat_breakdown"],
             type_code=xml_type_code,
         )
         pdf_bytes = _embed_facturx(pdf_bytes, xml_bytes)
@@ -947,7 +1022,7 @@ async def generate_invoice_pdf(
 
     filename = _safe_filename(f"{doc_type_label.replace(' ', '_')}_{doc_number.replace('/', '-')}.pdf")
 
-    # Backup automatique vers le stockage configuré (arborescence Kerpta)
+    # Backup automatique vers le stockage configure
     try:
         remote_path = await storage_svc.build_document_path(
             org_id, db,
@@ -982,7 +1057,7 @@ async def generate_quote_pdf(
     Returns:
         (pdf_bytes, filename)
     """
-    # Récupérer le devis
+    # Recuperer le devis
     q_result = await db.execute(
         text("""
             SELECT q.id::text, q.number, q.client_id::text,
@@ -1033,92 +1108,30 @@ async def generate_quote_pdf(
     else:
         client = {"name": quote.get("client_name") or "-"}
 
-    # Logo
-    logo_b64, logo_mime = await _get_org_logo(org_id, db)
-
-    # Colonnes + options d'en-tête (per document type)
-    columns, show_logo, show_company_name = await _get_document_columns(org_id, db, doc_type_raw)
-
-    # Rounding + formatage des lignes
-    rounding = await _get_rounding_config(org_id, db)
-    lines = _format_lines(lines, rounding)
-
-    # Ventilation TVA
-    vat_breakdown = _compute_vat_breakdown(lines)
-
-    # Remise globale
-    discount_label = None
-    discount_amount = "0"
-    if quote.get("discount_type") and quote["discount_type"] != "none" and Decimal(str(quote.get("discount_value", 0) or 0)) > 0:
-        if quote["discount_type"] == "percent":
-            discount_label = f'{quote["discount_value"]}%'
-        else:
-            discount_label = "fixe"
-        discount_amount = str(
-            (Decimal(str(quote["subtotal_ht"])) * Decimal(str(quote["discount_value"])) / 100).quantize(
-                Decimal("0.01"), rounding=ROUND_HALF_UP
-            ) if quote["discount_type"] == "percent"
-            else Decimal(str(quote["discount_value"])).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-        )
-
-    # Style + mentions legales + options pied de page
-    style, org_footer, footer_options = await _get_print_config(org_id, db)
-    template_name = f"pdf/{style}.html"
-
-    # Footer : priorité au footer du document, sinon footer org
-    footer = quote.get("footer") or org_footer
-
-    # Conditions de reglement + mode de paiement depuis le profil par defaut
-    pay_config = await _get_payment_config_from_profile(org_id, db)
-    pay_terms = pay_config["payment_terms"]
-    pay_method = pay_config["payment_method"]
-
-    # Infos bancaires depuis le profil par defaut
-    bank_details = await _get_bank_details_from_profile(org_id, db)
-
-    # Note de règlement depuis le profil de facturation
-    payment_note = await _get_payment_note_from_profile(org_id, db)
-
-    context = {
-        "title": f"{doc_type_label} {doc_number}",
-        "doc_type_label": doc_type_label,
-        "doc_number": doc_number,
-        "issue_date": quote["issue_date"].strftime("%d/%m/%Y") if quote.get("issue_date") else "",
-        "due_date": quote["expiry_date"].strftime("%d/%m/%Y") if quote.get("expiry_date") else None,
-        "customer_reference": None,
-        "purchase_order_number": None,
-        "seller": seller,
-        "client": client,
-        "client_label": "Destinataire",
-        "logo_b64": logo_b64,
-        "logo_mime": logo_mime,
-        "show_header_logo": show_logo,
-        "show_company_name": show_company_name,
-        "columns": columns,
-        "lines": lines,
-        "subtotal_ht": str(quote["subtotal_ht"]),
-        "total_vat": str(quote["total_vat"]),
-        "total_ttc": str(quote["total_ttc"]),
-        "amount_paid": "0",
-        "remaining": str(quote["total_ttc"]),
-        "discount_label": discount_label,
-        "discount_amount": discount_amount,
-        "vat_breakdown": vat_breakdown,
-        "payment_terms_label": "Comptant" if pay_terms == 0 else (f"{pay_terms} jours net" if pay_terms else None),
-        "payment_method": pay_method,
-        "bank_details": bank_details,
-        "notes": quote.get("notes"),
-        "footer": footer,
-        "payment_note": payment_note,
-        "footer_options": footer_options,
-    }
+    context, template_name = await _build_common_context(
+        org_id, db,
+        doc_type_label=doc_type_label,
+        doc_number=doc_number,
+        doc_type_key=doc_type_raw,
+        seller=seller,
+        client=client,
+        lines=lines,
+        issue_date=quote.get("issue_date"),
+        due_date=quote.get("expiry_date"),
+        subtotal_ht=quote["subtotal_ht"],
+        total_vat=quote["total_vat"],
+        total_ttc=quote["total_ttc"],
+        discount_type=quote.get("discount_type"),
+        discount_value=quote.get("discount_value", 0),
+        notes=quote.get("notes"),
+        footer_override=quote.get("footer"),
+    )
 
     pdf_bytes = _render_pdf(template_name, context)
 
-    # XML CII embarque (meme structure que Factur-X pour parsing uniforme Doctext)
+    # XML CII embarque
     try:
         xml_type_code = _DOCUMENT_TYPE_CODE.get(doc_type_raw, "310")
-        # Construire un dict compatible avec _build_document_xml
         quote_as_doc = {
             "number": quote["number"],
             "issue_date": quote.get("issue_date"),
@@ -1129,7 +1142,7 @@ async def generate_quote_pdf(
             "amount_paid": 0,
         }
         xml_bytes = _build_document_xml(
-            quote_as_doc, seller, client, lines, vat_breakdown,
+            quote_as_doc, seller, client, lines, context["vat_breakdown"],
             type_code=xml_type_code,
         )
         pdf_bytes = _embed_facturx(pdf_bytes, xml_bytes)
@@ -1138,7 +1151,7 @@ async def generate_quote_pdf(
 
     filename = _safe_filename(f"{doc_type_label.replace(' ', '_')}_{doc_number.replace('/', '-')}.pdf")
 
-    # Backup automatique vers le stockage configuré (arborescence Kerpta)
+    # Backup automatique vers le stockage configure
     try:
         remote_path = await storage_svc.build_document_path(
             org_id, db,
