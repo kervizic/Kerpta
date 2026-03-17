@@ -14,7 +14,7 @@ body {
   font-family: 'Inter', 'Liberation Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   font-size: 9pt;
   line-height: 1.45;
-  color: #333;
+  color: #222;
 }
 table { border-collapse: collapse; width: 100%; }
 .clearfix::after { content: ""; display: table; clear: both; }
@@ -144,11 +144,7 @@ table { border-collapse: collapse; width: 100%; }
     {% for vat_line in vat_breakdown %}
     <tr class="totals-row"><td class="totals-label">TVA {{ vat_line.rate }}%</td><td class="totals-spacer"></td><td class="totals-value">{{ vat_line.amount|fmt_currency }}</td></tr>
     {% endfor %}
-    <tr class="totals-total"><td class="totals-label">Total</td><td class="totals-spacer"></td><td class="totals-value">{{ total_ttc|fmt_currency }}</td></tr>
-    {% if amount_paid and amount_paid != '0' and amount_paid != '0.00' %}
-    <tr class="totals-row"><td class="totals-label">Déjà réglé</td><td class="totals-spacer"></td><td class="totals-value">{{ amount_paid|fmt_currency }}</td></tr>
-    <tr class="totals-due"><td class="totals-label">Reste à payer</td><td class="totals-spacer"></td><td class="totals-value">{{ remaining|fmt_currency }}</td></tr>
-    {% endif %}
+    <tr class="totals-row"><td class="totals-label">Total</td><td class="totals-spacer"></td><td class="totals-value">{{ total_ttc|fmt_currency }}</td></tr>
   </table>
 </div>
 
