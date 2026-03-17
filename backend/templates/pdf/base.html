@@ -58,10 +58,9 @@ table { border-collapse: collapse; width: 100%; }
 
 /* ── Styles communs (en-tete, titres, dates, tableau, totaux, infos) ── */
 /* En-tete */
-.header { margin-bottom: {{ sp.header_margin_bottom | default(28) }}px; min-height: {{ sp.header_min_height | default(52) }}mm; }
-.header::after { content: ""; display: table; clear: both; }
+.header { margin-bottom: {{ sp.header_margin_bottom | default(28) }}px; min-height: {{ sp.header_min_height | default(52) }}mm; position: relative; }
 .header-left { float: left; width: {{ sp.header_left_width | default(80) }}mm; }
-.header-right { float: right; margin-top: {{ 40 - (sp.page_margin_top | default(12)) }}mm; width: {{ sp.header_right_width | default(67) }}mm; text-align: left; }
+.header-right { position: absolute; top: {{ 40 - (sp.page_margin_top | default(12)) }}mm; left: {{ 105 - (sp.page_margin_left | default(15)) }}mm; width: {{ sp.header_right_width | default(67) }}mm; text-align: left; }
 .logo { max-height: {{ sp.logo_max_height | default(45) }}px; max-width: {{ sp.logo_max_width | default(160) }}px; margin-bottom: {{ sp.logo_margin_bottom | default(4) }}px; }
 .seller-name { font-size: {{ fs.seller_name | default(13) }}pt; font-weight: {{ fw.seller_name | default(600) }}; color: {{ cl.labels | default('#555555') }}; margin-bottom: 4px; font-variation-settings: 'opsz' 28; text-transform: uppercase; }
 .seller-address { font-size: {{ fs.seller_address | default(9) }}pt; font-weight: {{ fw.seller_address | default(400) }}; color: {{ cl.labels | default('#555555') }}; line-height: 1.4; }

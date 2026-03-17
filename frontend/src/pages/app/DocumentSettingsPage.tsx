@@ -428,10 +428,10 @@ const SPACING_GROUPS: { group: string; hint?: string; fields: { key: string; lab
     group: 'Marges de la page',
     hint: 'Marges entre le bord de la feuille A4 et la zone de contenu. Le bloc client reste a 40mm du haut (norme AFNOR) quelle que soit la marge haute.',
     fields: [
-      { key: 'page_margin_top', label: 'Haut', unit: 'mm', def: 12, hint: 'Espace entre le haut de la feuille et le debut du contenu (logo/emetteur)' },
+      { key: 'page_margin_top', label: 'Haut', unit: 'mm', def: 12, hint: 'Espace entre le haut de la feuille et le debut du contenu. Le bloc client reste a 40mm du haut (AFNOR)' },
       { key: 'page_margin_right', label: 'Droite', unit: 'mm', def: 15, hint: 'Espace entre le bord droit de la feuille et le contenu' },
       { key: 'page_margin_bottom', label: 'Bas', unit: 'mm', def: 18, hint: 'Espace entre le bas de la feuille et le pied de page' },
-      { key: 'page_margin_left', label: 'Gauche', unit: 'mm', def: 15, hint: 'Espace entre le bord gauche de la feuille et le contenu' },
+      { key: 'page_margin_left', label: 'Gauche', unit: 'mm', def: 15, hint: 'Espace entre le bord gauche de la feuille et le contenu. Le bloc client reste a 105mm du bord gauche (AFNOR)' },
     ],
   },
   {
@@ -739,7 +739,7 @@ function DocumentStylingSection() {
                   </div>
                 ))}
                 <p className="text-xs text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2">
-                  Le bloc client est toujours a 40mm du haut de la page (norme AFNOR NF Z 10-011, fenetre d'enveloppe). Cette position s'ajuste automatiquement lorsque vous modifiez la marge haute de la page.
+                  Norme AFNOR NF Z 10-011 : le bloc client est ancre a 40mm du haut et 105mm du bord gauche de la page (zone fenetre d'enveloppe). Ces positions s'ajustent automatiquement lorsque vous modifiez les marges de la page.
                 </p>
               </div>
             )}
