@@ -307,7 +307,7 @@ async def get_page_footer_options(org_id: uuid.UUID, db: AsyncSession) -> dict:
         "show_phone": config.get("footer_show_phone", False),
         "show_email": config.get("footer_show_email", False),
         "show_website": config.get("footer_show_website", False),
-        "show_footer_logo": config.get("footer_show_logo", False),
+        "show_footer_logo": config.get("footer_show_logo", True),
         "show_page_number": config.get("footer_show_page_number", True),
     }
 
@@ -341,7 +341,7 @@ async def update_page_footer_options(
         "show_phone": config.get("footer_show_phone", False),
         "show_email": config.get("footer_show_email", False),
         "show_website": config.get("footer_show_website", False),
-        "show_footer_logo": config.get("footer_show_logo", False),
+        "show_footer_logo": config.get("footer_show_logo", True),
         "show_page_number": config.get("footer_show_page_number", True),
     }
 

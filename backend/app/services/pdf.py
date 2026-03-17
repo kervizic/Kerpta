@@ -118,7 +118,7 @@ async def _get_print_config(org_id: uuid.UUID, db: AsyncSession) -> tuple[str, s
         "show_phone": config.get("footer_show_phone", False),
         "show_email": config.get("footer_show_email", False),
         "show_website": config.get("footer_show_website", False),
-        "show_footer_logo": config.get("footer_show_logo", False),
+        "show_footer_logo": config.get("footer_show_logo", True),
         "show_page_number": config.get("footer_show_page_number", True),
     }
     return style, footer, footer_options
