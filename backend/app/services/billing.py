@@ -303,11 +303,14 @@ async def get_page_footer_options(org_id: uuid.UUID, db: AsyncSession) -> dict:
     )
     row = result.fetchone()
     config = row[0] if row and row[0] and isinstance(row[0], dict) else {}
+    # Retrocompatibilite : si les nouvelles cles n'existent pas, utiliser l'ancien show_logo
+    legacy_logo = config.get("footer_show_logo", True)
     return {
         "show_phone": config.get("footer_show_phone", False),
         "show_email": config.get("footer_show_email", False),
         "show_website": config.get("footer_show_website", False),
-        "show_footer_logo": config.get("footer_show_logo", True),
+        "footer_logo_first_page": config.get("footer_logo_first_page", legacy_logo),
+        "footer_logo_other_pages": config.get("footer_logo_other_pages", legacy_logo),
         "show_page_number": config.get("footer_show_page_number", True),
     }
 
@@ -315,7 +318,7 @@ async def get_page_footer_options(org_id: uuid.UUID, db: AsyncSession) -> dict:
 async def update_page_footer_options(
     org_id: uuid.UUID, data: dict, db: AsyncSession
 ) -> dict:
-    """Met à jour les options d'affichage du pied de page PDF."""
+    """Met a jour les options d'affichage du pied de page PDF."""
     result = await db.execute(
         text("SELECT module_config FROM organizations WHERE id = :org_id"),
         {"org_id": str(org_id)},
@@ -326,8 +329,9 @@ async def update_page_footer_options(
     for key in ("show_phone", "show_email", "show_website", "show_page_number"):
         if key in data:
             config[f"footer_{key}"] = bool(data[key])
-    if "show_footer_logo" in data:
-        config["footer_show_logo"] = bool(data["show_footer_logo"])
+    for key in ("footer_logo_first_page", "footer_logo_other_pages"):
+        if key in data:
+            config[key] = bool(data[key])
 
     await db.execute(
         text("""
@@ -337,11 +341,13 @@ async def update_page_footer_options(
         {"org_id": str(org_id), "config": json.dumps(config)},
     )
     await db.commit()
+    legacy_logo = config.get("footer_show_logo", True)
     return {
         "show_phone": config.get("footer_show_phone", False),
         "show_email": config.get("footer_show_email", False),
         "show_website": config.get("footer_show_website", False),
-        "show_footer_logo": config.get("footer_show_logo", True),
+        "footer_logo_first_page": config.get("footer_logo_first_page", legacy_logo),
+        "footer_logo_other_pages": config.get("footer_logo_other_pages", legacy_logo),
         "show_page_number": config.get("footer_show_page_number", True),
     }
 

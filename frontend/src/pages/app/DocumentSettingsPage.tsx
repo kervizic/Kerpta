@@ -201,7 +201,8 @@ function PageFooterSection() {
   const [showPhone, setShowPhone] = useState(false)
   const [showEmail, setShowEmail] = useState(false)
   const [showWebsite, setShowWebsite] = useState(false)
-  const [showFooterLogo, setShowFooterLogo] = useState(false)
+  const [logoFirstPage, setLogoFirstPage] = useState(true)
+  const [logoOtherPages, setLogoOtherPages] = useState(true)
   const [showPageNumber, setShowPageNumber] = useState(true)
   const [orgInfo, setOrgInfo] = useState<OrgInfo | null>(null)
   const [logoSrc, setLogoSrc] = useState<string | null>(null)
@@ -211,10 +212,9 @@ function PageFooterSection() {
   useEffect(() => {
     const orgId = localStorage.getItem('kerpta_active_org')
     const promises: Promise<unknown>[] = [
-      orgGet<{ show_phone: boolean; show_email: boolean; show_website: boolean; show_footer_logo: boolean; show_page_number: boolean }>('/billing/page-footer-options'),
+      orgGet<Record<string, boolean>>('/billing/page-footer-options'),
       orgId ? orgGet<OrgInfo>(`/organizations/${orgId}`) : Promise.resolve(null),
     ]
-    // Charger le logo
     if (orgId) {
       promises.push(
         orgGet<{ logo_b64: string }>(`/organizations/${orgId}/logo`)
@@ -223,11 +223,12 @@ function PageFooterSection() {
       )
     }
     Promise.all(promises).then(([opts, org, logo]) => {
-      const o = opts as { show_phone: boolean; show_email: boolean; show_website: boolean; show_footer_logo: boolean; show_page_number: boolean }
+      const o = opts as Record<string, boolean>
       setShowPhone(o.show_phone ?? false)
       setShowEmail(o.show_email ?? false)
       setShowWebsite(o.show_website ?? false)
-      setShowFooterLogo(o.show_footer_logo ?? true)
+      setLogoFirstPage(o.footer_logo_first_page ?? true)
+      setLogoOtherPages(o.footer_logo_other_pages ?? true)
       setShowPageNumber(o.show_page_number ?? true)
       if (org) setOrgInfo(org as OrgInfo)
       if (logo) setLogoSrc(logo as string)
@@ -235,12 +236,13 @@ function PageFooterSection() {
       .finally(() => setLoading(false))
   }, [])
 
-  async function toggle(key: 'show_phone' | 'show_email' | 'show_website' | 'show_footer_logo' | 'show_page_number', value: boolean) {
+  async function toggle(key: string, value: boolean) {
     if (key === 'show_phone') setShowPhone(value)
     else if (key === 'show_email') setShowEmail(value)
-    else if (key === 'show_footer_logo') setShowFooterLogo(value)
+    else if (key === 'show_website') setShowWebsite(value)
+    else if (key === 'footer_logo_first_page') setLogoFirstPage(value)
+    else if (key === 'footer_logo_other_pages') setLogoOtherPages(value)
     else if (key === 'show_page_number') setShowPageNumber(value)
-    else setShowWebsite(value)
     setSaving(true)
     try {
       await orgPatch('/billing/page-footer-options', { [key]: value })
@@ -254,20 +256,17 @@ function PageFooterSection() {
          : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:border-gray-300'
     }`
 
-  // Construire l'aperçu du pied de page (lignes centrales)
   function buildCenterLines(): string[] {
     if (!orgInfo) return []
     const lines: string[] = []
-    // Ligne optionnelle : tel / email / site
     const optParts: string[] = []
     if (showPhone && orgInfo.phone) optParts.push(`Tel : ${orgInfo.phone}`)
     if (showEmail && orgInfo.email) optParts.push(orgInfo.email)
     if (showWebsite && orgInfo.website) optParts.push(orgInfo.website)
     if (optParts.length > 0) lines.push(optParts.join(' - '))
-    // Ligne obligatoire : forme juridique, capital, SIREN, RCS, TVA
     const legalParts: string[] = []
     if (orgInfo.legal_form) legalParts.push(orgInfo.legal_form)
-    if (orgInfo.capital) legalParts.push(`au capital de ${orgInfo.capital} €`)
+    if (orgInfo.capital) legalParts.push(`au capital de ${orgInfo.capital} \u20ac`)
     if (orgInfo.org_siren) legalParts.push(`SIREN : ${orgInfo.org_siren}`)
     if (orgInfo.rcs_city) legalParts.push(`R.C.S ${orgInfo.rcs_city}`)
     if (orgInfo.vat_number) legalParts.push(`TVA : ${orgInfo.vat_number}`)
@@ -276,6 +275,7 @@ function PageFooterSection() {
   }
 
   const centerLines = buildCenterLines()
+  const showAnyLogo = logoFirstPage || logoOtherPages
 
   return (
     <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
@@ -300,20 +300,23 @@ function PageFooterSection() {
             <button type="button" onClick={() => toggle('show_website', !showWebsite)} className={toggleStyle(showWebsite)}>
               Site web
             </button>
-            <button type="button" onClick={() => toggle('show_footer_logo', !showFooterLogo)} className={toggleStyle(showFooterLogo)}>
-              Logo
+            <button type="button" onClick={() => toggle('footer_logo_first_page', !logoFirstPage)} className={toggleStyle(logoFirstPage)}>
+              Logo 1ere page
+            </button>
+            <button type="button" onClick={() => toggle('footer_logo_other_pages', !logoOtherPages)} className={toggleStyle(logoOtherPages)}>
+              Logo pages suivantes
             </button>
             <button type="button" onClick={() => toggle('show_page_number', !showPageNumber)} className={toggleStyle(showPageNumber)}>
               Page X/X
             </button>
           </div>
-          {(centerLines.length > 0 || showFooterLogo || showPageNumber) && (
+          {(centerLines.length > 0 || showAnyLogo || showPageNumber) && (
             <div className="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 px-4 py-3">
               <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2 text-center">Apercu</p>
               <div className="flex items-end gap-3">
                 {/* Colonne gauche : logo */}
                 <div className="w-12 flex-shrink-0">
-                  {showFooterLogo && logoSrc && (
+                  {showAnyLogo && logoSrc && (
                     <img src={logoSrc} alt="Logo" className="max-h-8 max-w-[50px] object-contain" />
                   )}
                 </div>

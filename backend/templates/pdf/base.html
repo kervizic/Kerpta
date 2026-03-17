@@ -7,7 +7,15 @@
 /* ── Reset + base ────────────────────────────────────────────────── */
 @page {
   size: A4;
-  margin: 18mm 18mm 16mm 18mm;
+  margin: 18mm 18mm 20mm 18mm;
+  @bottom-center {
+    content: element(footerOther);
+  }
+}
+@page :first {
+  @bottom-center {
+    content: element(footerFirst);
+  }
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
@@ -19,17 +27,17 @@ body {
 table { border-collapse: collapse; width: 100%; }
 .clearfix::after { content: ""; display: table; clear: both; }
 
-/* Footer layout */
-.page-footer {
-  position: fixed; bottom: 0; left: 0; right: 0;
+/* Footer layout - running elements */
+.page-footer-first { position: running(footerFirst); }
+.page-footer-other { position: running(footerOther); }
+.page-footer-first, .page-footer-other {
   font-size: 7pt; color: #888; line-height: 1.5;
   padding-top: 3px;
 }
 .footer-table { width: 100%; border-collapse: collapse; }
 .footer-table td { padding: 0; vertical-align: bottom; border: none; }
-.footer-col-left { width: 60px; text-align: left; }
+.footer-col-left { width: 60px; text-align: left; vertical-align: bottom; }
 .footer-col-center { text-align: center; vertical-align: bottom; }
-.footer-col-left { vertical-align: bottom; }
 .footer-col-right { width: 70px; text-align: right; vertical-align: bottom; font-size: 7pt; color: #888; }
 {% if footer_options is not defined or footer_options.show_page_number is not defined or footer_options.show_page_number %}
 .footer-col-right::after {
@@ -43,6 +51,44 @@ table { border-collapse: collapse; width: 100%; }
 </style>
 </head>
 <body>
+
+<!-- ── Pieds de page (running elements - doivent etre avant le contenu) ── -->
+{% macro footer_body(show_logo) %}
+<table class="footer-table">
+  <tr>
+    <td class="footer-col-left">
+      {% if show_logo and logo_b64 %}
+      <img src="data:{{ logo_mime }};base64,{{ logo_b64 }}" class="footer-logo">
+      {% endif %}
+    </td>
+    <td class="footer-col-center">
+      {% if footer_options is defined and (footer_options.show_phone or footer_options.show_email or footer_options.show_website) %}
+      <div class="footer-line">
+        {% set parts = [] %}
+        {% if footer_options.show_phone and seller.phone %}{% set _ = parts.append("Tel : " ~ seller.phone) %}{% endif %}
+        {% if footer_options.show_email and seller.email %}{% set _ = parts.append(seller.email) %}{% endif %}
+        {% if footer_options.show_website and seller.website %}{% set _ = parts.append(seller.website) %}{% endif %}
+        {{ parts | join(" - ") }}
+      </div>
+      {% endif %}
+      <div class="footer-line">
+        {% if seller.legal_form %}{{ seller.legal_form }}{% endif %}
+        {% if seller.capital %} au capital de {{ seller.capital }} €{% endif %}
+        {% if seller.siren %} - SIREN : {{ seller.siren }}{% endif %}
+        {% if seller.rcs_city %} - R.C.S {{ seller.rcs_city }}{% endif %}
+        {% if seller.vat_number %} - TVA : {{ seller.vat_number }}{% endif %}
+      </div>
+    </td>
+    <td class="footer-col-right"></td>
+  </tr>
+</table>
+{% endmacro %}
+
+{% set logo_first = footer_options.footer_logo_first_page if footer_options is defined and footer_options.footer_logo_first_page is defined else (footer_options.show_footer_logo if footer_options is defined and footer_options.show_footer_logo is defined else true) %}
+{% set logo_other = footer_options.footer_logo_other_pages if footer_options is defined and footer_options.footer_logo_other_pages is defined else (footer_options.show_footer_logo if footer_options is defined and footer_options.show_footer_logo is defined else true) %}
+
+<div class="page-footer-first">{{ footer_body(logo_first) }}</div>
+<div class="page-footer-other">{{ footer_body(logo_other) }}</div>
 
 {% block content %}
 <!-- ── En-tete : emetteur a gauche ──────────────────────────────── -->
@@ -178,37 +224,6 @@ table { border-collapse: collapse; width: 100%; }
 </div>
 {% endif %}
 
-<!-- ── Pied de page emetteur ──────────────────────────────────────── -->
-<div class="page-footer">
-  <table class="footer-table">
-    <tr>
-      <td class="footer-col-left">
-        {% if footer_options is defined and footer_options.show_footer_logo and logo_b64 %}
-        <img src="data:{{ logo_mime }};base64,{{ logo_b64 }}" class="footer-logo">
-        {% endif %}
-      </td>
-      <td class="footer-col-center">
-        {% if footer_options is defined and (footer_options.show_phone or footer_options.show_email or footer_options.show_website) %}
-        <div class="footer-line">
-          {% set parts = [] %}
-          {% if footer_options.show_phone and seller.phone %}{% set _ = parts.append("Tel : " ~ seller.phone) %}{% endif %}
-          {% if footer_options.show_email and seller.email %}{% set _ = parts.append(seller.email) %}{% endif %}
-          {% if footer_options.show_website and seller.website %}{% set _ = parts.append(seller.website) %}{% endif %}
-          {{ parts | join(" - ") }}
-        </div>
-        {% endif %}
-        <div class="footer-line">
-          {% if seller.legal_form %}{{ seller.legal_form }}{% endif %}
-          {% if seller.capital %} au capital de {{ seller.capital }} €{% endif %}
-          {% if seller.siren %} - SIREN : {{ seller.siren }}{% endif %}
-          {% if seller.rcs_city %} - R.C.S {{ seller.rcs_city }}{% endif %}
-          {% if seller.vat_number %} - TVA : {{ seller.vat_number }}{% endif %}
-        </div>
-      </td>
-      <td class="footer-col-right"></td>
-    </tr>
-  </table>
-</div>
 {% endblock %}
 
 </body>
