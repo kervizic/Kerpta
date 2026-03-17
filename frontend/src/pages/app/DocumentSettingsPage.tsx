@@ -308,7 +308,7 @@ function PageFooterSection() {
             </button>
           </div>
           {(centerLines.length > 0 || showFooterLogo || showPageNumber) && (
-            <div className="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3 overflow-visible">
+            <div className="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 px-4 py-3">
               <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2 text-center">Apercu</p>
               <div className="flex items-end gap-3">
                 {/* Colonne gauche : logo */}
