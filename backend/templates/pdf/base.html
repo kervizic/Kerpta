@@ -7,7 +7,7 @@
 /* ── Reset + base ────────────────────────────────────────────────── */
 @page {
   size: A4;
-  margin: 18mm 18mm 20mm 18mm;
+  margin: 18mm 18mm 16mm 18mm;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
@@ -29,7 +29,7 @@ table { border-collapse: collapse; width: 100%; }
 .footer-table td { padding: 0; vertical-align: middle; border: none; }
 .footer-col-left { width: 40px; text-align: left; }
 .footer-col-center { text-align: center; }
-.footer-col-right { width: 70px; text-align: right; font-size: 7pt; color: #888; }
+.footer-col-right { width: 70px; text-align: right; font-size: 7pt; color: #888; vertical-align: bottom; }
 {% if footer_options is not defined or footer_options.show_page_number is not defined or footer_options.show_page_number %}
 .footer-col-right::after {
   content: "Page " counter(page) " / " counter(pages);
