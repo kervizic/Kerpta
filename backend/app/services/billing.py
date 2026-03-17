@@ -308,6 +308,7 @@ async def get_page_footer_options(org_id: uuid.UUID, db: AsyncSession) -> dict:
         "show_email": config.get("footer_show_email", False),
         "show_website": config.get("footer_show_website", False),
         "show_footer_logo": config.get("footer_show_logo", False),
+        "show_page_number": config.get("footer_show_page_number", True),
     }
 
 
@@ -322,7 +323,7 @@ async def update_page_footer_options(
     row = result.fetchone()
     config = row[0] if row and row[0] and isinstance(row[0], dict) else {}
 
-    for key in ("show_phone", "show_email", "show_website", "show_footer_logo"):
+    for key in ("show_phone", "show_email", "show_website", "show_footer_logo", "show_page_number"):
         if key in data:
             config[f"footer_{key}"] = bool(data[key])
 
@@ -339,6 +340,7 @@ async def update_page_footer_options(
         "show_email": config.get("footer_show_email", False),
         "show_website": config.get("footer_show_website", False),
         "show_footer_logo": config.get("footer_show_logo", False),
+        "show_page_number": config.get("footer_show_page_number", True),
     }
 
 

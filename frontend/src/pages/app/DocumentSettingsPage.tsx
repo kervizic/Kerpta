@@ -201,29 +201,44 @@ function PageFooterSection() {
   const [showEmail, setShowEmail] = useState(false)
   const [showWebsite, setShowWebsite] = useState(false)
   const [showFooterLogo, setShowFooterLogo] = useState(false)
+  const [showPageNumber, setShowPageNumber] = useState(true)
   const [orgInfo, setOrgInfo] = useState<OrgInfo | null>(null)
+  const [logoSrc, setLogoSrc] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     const orgId = localStorage.getItem('kerpta_active_org')
-    Promise.all([
-      orgGet<{ show_phone: boolean; show_email: boolean; show_website: boolean; show_footer_logo: boolean }>('/billing/page-footer-options'),
+    const promises: Promise<unknown>[] = [
+      orgGet<{ show_phone: boolean; show_email: boolean; show_website: boolean; show_footer_logo: boolean; show_page_number: boolean }>('/billing/page-footer-options'),
       orgId ? orgGet<OrgInfo>(`/organizations/${orgId}`) : Promise.resolve(null),
-    ]).then(([opts, org]) => {
-      setShowPhone(opts.show_phone ?? false)
-      setShowEmail(opts.show_email ?? false)
-      setShowWebsite(opts.show_website ?? false)
-      setShowFooterLogo(opts.show_footer_logo ?? false)
-      if (org) setOrgInfo(org)
+    ]
+    // Charger le logo
+    if (orgId) {
+      promises.push(
+        orgGet<{ logo_b64: string }>(`/organizations/${orgId}/logo`)
+          .then((data) => data?.logo_b64 || null)
+          .catch(() => null)
+      )
+    }
+    Promise.all(promises).then(([opts, org, logo]) => {
+      const o = opts as { show_phone: boolean; show_email: boolean; show_website: boolean; show_footer_logo: boolean; show_page_number: boolean }
+      setShowPhone(o.show_phone ?? false)
+      setShowEmail(o.show_email ?? false)
+      setShowWebsite(o.show_website ?? false)
+      setShowFooterLogo(o.show_footer_logo ?? false)
+      setShowPageNumber(o.show_page_number ?? true)
+      if (org) setOrgInfo(org as OrgInfo)
+      if (logo) setLogoSrc(logo as string)
     }).catch(() => {})
       .finally(() => setLoading(false))
   }, [])
 
-  async function toggle(key: 'show_phone' | 'show_email' | 'show_website' | 'show_footer_logo', value: boolean) {
+  async function toggle(key: 'show_phone' | 'show_email' | 'show_website' | 'show_footer_logo' | 'show_page_number', value: boolean) {
     if (key === 'show_phone') setShowPhone(value)
     else if (key === 'show_email') setShowEmail(value)
     else if (key === 'show_footer_logo') setShowFooterLogo(value)
+    else if (key === 'show_page_number') setShowPageNumber(value)
     else setShowWebsite(value)
     setSaving(true)
     try {
@@ -238,16 +253,16 @@ function PageFooterSection() {
          : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:border-gray-300'
     }`
 
-  // Construire l'aperçu du pied de page
-  function buildPreview(): string[] {
+  // Construire l'aperçu du pied de page (lignes centrales)
+  function buildCenterLines(): string[] {
     if (!orgInfo) return []
     const lines: string[] = []
     // Ligne optionnelle : tel / email / site
     const optParts: string[] = []
-    if (showPhone && orgInfo.phone) optParts.push(`Tél : ${orgInfo.phone}`)
+    if (showPhone && orgInfo.phone) optParts.push(`Tel : ${orgInfo.phone}`)
     if (showEmail && orgInfo.email) optParts.push(orgInfo.email)
     if (showWebsite && orgInfo.website) optParts.push(orgInfo.website)
-    if (optParts.length > 0) lines.push(optParts.join(' · '))
+    if (optParts.length > 0) lines.push(optParts.join(' - '))
     // Ligne obligatoire : forme juridique, capital, SIREN, RCS, TVA
     const legalParts: string[] = []
     if (orgInfo.legal_form) legalParts.push(orgInfo.legal_form)
@@ -259,7 +274,7 @@ function PageFooterSection() {
     return lines
   }
 
-  const preview = buildPreview()
+  const centerLines = buildCenterLines()
 
   return (
     <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
@@ -287,13 +302,33 @@ function PageFooterSection() {
             <button type="button" onClick={() => toggle('show_footer_logo', !showFooterLogo)} className={toggleStyle(showFooterLogo)}>
               Logo
             </button>
+            <button type="button" onClick={() => toggle('show_page_number', !showPageNumber)} className={toggleStyle(showPageNumber)}>
+              Page X/X
+            </button>
           </div>
-          {preview.length > 0 && (
-            <div className="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3 text-center">
-              <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1.5">Aperçu</p>
-              {preview.map((line, i) => (
-                <p key={i} className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">{line}</p>
-              ))}
+          {(centerLines.length > 0 || showFooterLogo || showPageNumber) && (
+            <div className="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3">
+              <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2 text-center">Apercu</p>
+              <div className="flex items-center gap-3">
+                {/* Colonne gauche : logo */}
+                <div className="w-10 flex-shrink-0">
+                  {showFooterLogo && logoSrc && (
+                    <img src={logoSrc} alt="Logo" className="max-h-5 max-w-[40px] object-contain" />
+                  )}
+                </div>
+                {/* Colonne centre : texte */}
+                <div className="flex-1 text-center">
+                  {centerLines.map((line, i) => (
+                    <p key={i} className="text-[10px] text-gray-500 dark:text-gray-400 leading-relaxed">{line}</p>
+                  ))}
+                </div>
+                {/* Colonne droite : page */}
+                <div className="w-14 flex-shrink-0 text-right">
+                  {showPageNumber && (
+                    <span className="text-[10px] text-gray-400 dark:text-gray-500">Page 1 / 1</span>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>

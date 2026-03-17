@@ -8,12 +8,14 @@
 @page {
   size: A4;
   margin: 18mm 18mm 20mm 18mm;
+  {% if footer_options is not defined or footer_options.show_page_number is not defined or footer_options.show_page_number %}
   @bottom-right {
     content: "Page " counter(page) " / " counter(pages);
     font-size: 7pt;
     color: #888;
     font-family: 'Inter', 'Liberation Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   }
+  {% endif %}
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
