@@ -7,10 +7,10 @@
 /* ── Reset + base ────────────────────────────────────────────────── */
 @page {
   size: A4;
-  margin: 18mm 18mm 12mm 18mm;
-  @bottom-center {
+  margin: 18mm 18mm 20mm 18mm;
+  @bottom-right {
     content: "Page " counter(page) " / " counter(pages);
-    font-size: 7.5pt;
+    font-size: 7pt;
     color: #888;
     font-family: 'Inter', 'Liberation Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   }
@@ -24,6 +24,20 @@ body {
 }
 table { border-collapse: collapse; width: 100%; }
 .clearfix::after { content: ""; display: table; clear: both; }
+
+/* Footer layout */
+.page-footer {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  font-size: 7pt; color: #888; line-height: 1.5;
+  padding-top: 3px;
+}
+.footer-table { width: 100%; border-collapse: collapse; }
+.footer-table td { padding: 0; vertical-align: middle; border: none; }
+.footer-col-left { width: 40px; text-align: left; }
+.footer-col-center { text-align: center; }
+.footer-col-right { width: 60px; text-align: right; font-size: 7pt; color: #888; }
+.footer-logo { max-height: 22px; max-width: 40px; }
+.footer-line { margin-bottom: 0; }
 
 {% block style %}{% endblock %}
 </style>
@@ -168,22 +182,34 @@ table { border-collapse: collapse; width: 100%; }
 
 <!-- ── Pied de page emetteur ──────────────────────────────────────── -->
 <div class="page-footer">
-  {% if footer_options is defined and (footer_options.show_phone or footer_options.show_email or footer_options.show_website) %}
-  <div class="footer-line">
-    {% set parts = [] %}
-    {% if footer_options.show_phone and seller.phone %}{% set _ = parts.append("Tel : " ~ seller.phone) %}{% endif %}
-    {% if footer_options.show_email and seller.email %}{% set _ = parts.append(seller.email) %}{% endif %}
-    {% if footer_options.show_website and seller.website %}{% set _ = parts.append(seller.website) %}{% endif %}
-    {{ parts | join(" - ") }}
-  </div>
-  {% endif %}
-  <div class="footer-line">
-    {% if seller.legal_form %}{{ seller.legal_form }}{% endif %}
-    {% if seller.capital %} au capital de {{ seller.capital }} €{% endif %}
-    {% if seller.siren %} - SIREN : {{ seller.siren }}{% endif %}
-    {% if seller.rcs_city %} - R.C.S {{ seller.rcs_city }}{% endif %}
-    {% if seller.vat_number %} - TVA : {{ seller.vat_number }}{% endif %}
-  </div>
+  <table class="footer-table">
+    <tr>
+      <td class="footer-col-left">
+        {% if footer_options is defined and footer_options.show_footer_logo and logo_b64 %}
+        <img src="data:{{ logo_mime }};base64,{{ logo_b64 }}" class="footer-logo">
+        {% endif %}
+      </td>
+      <td class="footer-col-center">
+        {% if footer_options is defined and (footer_options.show_phone or footer_options.show_email or footer_options.show_website) %}
+        <div class="footer-line">
+          {% set parts = [] %}
+          {% if footer_options.show_phone and seller.phone %}{% set _ = parts.append("Tel : " ~ seller.phone) %}{% endif %}
+          {% if footer_options.show_email and seller.email %}{% set _ = parts.append(seller.email) %}{% endif %}
+          {% if footer_options.show_website and seller.website %}{% set _ = parts.append(seller.website) %}{% endif %}
+          {{ parts | join(" - ") }}
+        </div>
+        {% endif %}
+        <div class="footer-line">
+          {% if seller.legal_form %}{{ seller.legal_form }}{% endif %}
+          {% if seller.capital %} au capital de {{ seller.capital }} €{% endif %}
+          {% if seller.siren %} - SIREN : {{ seller.siren }}{% endif %}
+          {% if seller.rcs_city %} - R.C.S {{ seller.rcs_city }}{% endif %}
+          {% if seller.vat_number %} - TVA : {{ seller.vat_number }}{% endif %}
+        </div>
+      </td>
+      <td class="footer-col-right"></td>
+    </tr>
+  </table>
 </div>
 {% endblock %}
 

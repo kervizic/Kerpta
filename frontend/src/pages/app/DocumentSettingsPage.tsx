@@ -200,6 +200,7 @@ function PageFooterSection() {
   const [showPhone, setShowPhone] = useState(false)
   const [showEmail, setShowEmail] = useState(false)
   const [showWebsite, setShowWebsite] = useState(false)
+  const [showFooterLogo, setShowFooterLogo] = useState(false)
   const [orgInfo, setOrgInfo] = useState<OrgInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -207,20 +208,22 @@ function PageFooterSection() {
   useEffect(() => {
     const orgId = localStorage.getItem('kerpta_active_org')
     Promise.all([
-      orgGet<{ show_phone: boolean; show_email: boolean; show_website: boolean }>('/billing/page-footer-options'),
+      orgGet<{ show_phone: boolean; show_email: boolean; show_website: boolean; show_footer_logo: boolean }>('/billing/page-footer-options'),
       orgId ? orgGet<OrgInfo>(`/organizations/${orgId}`) : Promise.resolve(null),
     ]).then(([opts, org]) => {
       setShowPhone(opts.show_phone ?? false)
       setShowEmail(opts.show_email ?? false)
       setShowWebsite(opts.show_website ?? false)
+      setShowFooterLogo(opts.show_footer_logo ?? false)
       if (org) setOrgInfo(org)
     }).catch(() => {})
       .finally(() => setLoading(false))
   }, [])
 
-  async function toggle(key: 'show_phone' | 'show_email' | 'show_website', value: boolean) {
+  async function toggle(key: 'show_phone' | 'show_email' | 'show_website' | 'show_footer_logo', value: boolean) {
     if (key === 'show_phone') setShowPhone(value)
     else if (key === 'show_email') setShowEmail(value)
+    else if (key === 'show_footer_logo') setShowFooterLogo(value)
     else setShowWebsite(value)
     setSaving(true)
     try {
@@ -280,6 +283,9 @@ function PageFooterSection() {
             </button>
             <button type="button" onClick={() => toggle('show_website', !showWebsite)} className={toggleStyle(showWebsite)}>
               Site web
+            </button>
+            <button type="button" onClick={() => toggle('show_footer_logo', !showFooterLogo)} className={toggleStyle(showFooterLogo)}>
+              Logo
             </button>
           </div>
           {preview.length > 0 && (
