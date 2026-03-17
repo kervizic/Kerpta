@@ -447,7 +447,8 @@ async def _build_snapshots(
     # Snapshot client
     client_result = await db.execute(
         text("""
-            SELECT c.name, c.siret, c.vat_number, c.billing_address
+            SELECT c.name, c.siret, c.vat_number, c.billing_address,
+                   c.email, c.company_siren, c.country_code
             FROM invoices i
             JOIN clients c ON c.id = i.client_id
             WHERE i.id = :iid AND i.organization_id = :org_id
@@ -462,6 +463,9 @@ async def _build_snapshots(
             "siret": c_row[1],
             "vat_number": c_row[2],
             "address": c_row[3],
+            "email": c_row[4],
+            "siren": c_row[5],
+            "country_code": c_row[6] or "FR",
         })
 
     # Snapshot vendeur (organisation)

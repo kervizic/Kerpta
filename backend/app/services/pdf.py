@@ -806,6 +806,13 @@ async def generate_invoice_pdf(
     # Client — snapshot si disponible, sinon client live
     if inv.get("client_snapshot") and isinstance(inv["client_snapshot"], dict):
         client = inv["client_snapshot"]
+        # Completer les champs Factur-X manquants dans les anciens snapshots
+        if "siren" not in client or "email" not in client:
+            live_client = await _get_client_info(inv["client_id"], org_id, db)
+            client.setdefault("siren", live_client.get("siren"))
+            client.setdefault("email", live_client.get("email"))
+            client.setdefault("country_code", live_client.get("country_code", "FR"))
+            client.setdefault("siret", live_client.get("siret"))
     else:
         client = await _get_client_info(inv["client_id"], org_id, db)
 
