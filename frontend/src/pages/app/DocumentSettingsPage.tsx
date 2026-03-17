@@ -3,7 +3,7 @@
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
 import { useEffect, useState } from 'react'
-import { Plus, Loader2, Pencil, Trash2, FileText, Sparkles, Minus } from 'lucide-react'
+import { Plus, Loader2, Pencil, Trash2, FileText, Sparkles, Minus, Info } from 'lucide-react'
 import { orgGet, orgPatch } from '@/lib/orgApi'
 import { INPUT, BTN_SM } from '@/lib/formStyles'
 
@@ -423,62 +423,68 @@ const SECTION_FIELDS: { key: string; label: string }[] = [
   { key: 'notes', label: 'Notes' },
 ]
 
-const SPACING_GROUPS: { group: string; fields: { key: string; label: string; unit: string; def: number }[] }[] = [
+const SPACING_GROUPS: { group: string; hint?: string; fields: { key: string; label: string; unit: string; def: number; hint: string }[] }[] = [
   {
     group: 'Marges de la page',
+    hint: 'Marges entre le bord de la feuille A4 et la zone de contenu. Le bloc client reste a 40mm du haut (norme AFNOR) quelle que soit la marge haute.',
     fields: [
-      { key: 'page_margin_top', label: 'Haut', unit: 'mm', def: 12 },
-      { key: 'page_margin_right', label: 'Droite', unit: 'mm', def: 15 },
-      { key: 'page_margin_bottom', label: 'Bas', unit: 'mm', def: 18 },
-      { key: 'page_margin_left', label: 'Gauche', unit: 'mm', def: 15 },
+      { key: 'page_margin_top', label: 'Haut', unit: 'mm', def: 12, hint: 'Espace entre le haut de la feuille et le debut du contenu (logo/emetteur)' },
+      { key: 'page_margin_right', label: 'Droite', unit: 'mm', def: 15, hint: 'Espace entre le bord droit de la feuille et le contenu' },
+      { key: 'page_margin_bottom', label: 'Bas', unit: 'mm', def: 18, hint: 'Espace entre le bas de la feuille et le pied de page' },
+      { key: 'page_margin_left', label: 'Gauche', unit: 'mm', def: 15, hint: 'Espace entre le bord gauche de la feuille et le contenu' },
     ],
   },
   {
     group: 'En-tete',
+    hint: 'Zone contenant le logo, l\'emetteur (gauche) et le client (droite). Le client est positionne a 40mm du haut de page (norme AFNOR fenetre d\'enveloppe).',
     fields: [
-      { key: 'header_margin_bottom', label: 'Marge basse en-tete', unit: 'px', def: 28 },
-      { key: 'header_min_height', label: 'Hauteur min. en-tete', unit: 'mm', def: 52 },
-      { key: 'header_left_width', label: 'Largeur bloc emetteur', unit: 'mm', def: 80 },
-      { key: 'header_right_width', label: 'Largeur bloc client', unit: 'mm', def: 67 },
+      { key: 'header_margin_bottom', label: 'Marge basse en-tete', unit: 'px', def: 28, hint: 'Espace entre le bas du bloc en-tete (emetteur/client) et le titre du document' },
+      { key: 'header_min_height', label: 'Hauteur min. en-tete', unit: 'mm', def: 52, hint: 'Hauteur minimale du bloc en-tete. Augmenter si le titre chevauche le bloc client' },
+      { key: 'header_left_width', label: 'Largeur bloc emetteur', unit: 'mm', def: 80, hint: 'Largeur du bloc emetteur (logo + nom + adresse) a gauche' },
+      { key: 'header_right_width', label: 'Largeur bloc client', unit: 'mm', def: 67, hint: 'Largeur du bloc client (nom + adresse + TVA) a droite' },
     ],
   },
   {
     group: 'Logo en-tete',
+    hint: 'Dimensions du logo de l\'emetteur en haut a gauche du document.',
     fields: [
-      { key: 'logo_max_height', label: 'Hauteur max', unit: 'px', def: 45 },
-      { key: 'logo_max_width', label: 'Largeur max', unit: 'px', def: 160 },
-      { key: 'logo_margin_bottom', label: 'Marge basse', unit: 'px', def: 4 },
+      { key: 'logo_max_height', label: 'Hauteur max', unit: 'px', def: 45, hint: 'Hauteur maximale du logo en-tete (redimensionne proportionnellement)' },
+      { key: 'logo_max_width', label: 'Largeur max', unit: 'px', def: 160, hint: 'Largeur maximale du logo en-tete (redimensionne proportionnellement)' },
+      { key: 'logo_margin_bottom', label: 'Marge basse', unit: 'px', def: 4, hint: 'Espace entre le logo et le nom de l\'emetteur en dessous' },
     ],
   },
   {
     group: 'Titre et dates',
+    hint: 'Zone du titre (ex: "FACTURE FA-2026-0001") et de la ligne de dates/references juste en dessous.',
     fields: [
-      { key: 'doc_title_margin_top', label: 'Marge haute titre', unit: 'px', def: 24 },
-      { key: 'doc_title_margin_bottom', label: 'Marge basse titre', unit: 'px', def: 24 },
-      { key: 'doc_dates_margin_bottom', label: 'Marge basse dates', unit: 'px', def: 28 },
-      { key: 'date_item_margin_right', label: 'Espacement entre dates', unit: 'px', def: 40 },
+      { key: 'doc_title_margin_top', label: 'Marge haute titre', unit: 'px', def: 24, hint: 'Espace au-dessus du titre (entre le bas de l\'en-tete et "FACTURE FA-...")' },
+      { key: 'doc_title_margin_bottom', label: 'Marge basse titre', unit: 'px', def: 24, hint: 'Espace entre le titre et la ligne de dates/echeance/reference' },
+      { key: 'doc_dates_margin_bottom', label: 'Marge basse dates', unit: 'px', def: 28, hint: 'Espace entre la ligne de dates et le tableau des lignes' },
+      { key: 'date_item_margin_right', label: 'Espacement entre dates', unit: 'px', def: 40, hint: 'Espace horizontal entre chaque bloc de date (emission, echeance, ref, n. commande)' },
     ],
   },
   {
     group: 'Tableau et totaux',
+    hint: 'Tableau des lignes de produits/services et bloc des totaux (HT, TVA, TTC) a droite.',
     fields: [
-      { key: 'table_margin_bottom', label: 'Marge basse tableau', unit: 'px', def: 12 },
-      { key: 'table_cell_padding_v', label: 'Padding vertical cellules', unit: 'px', def: 4 },
-      { key: 'table_cell_padding_h', label: 'Padding horizontal cellules', unit: 'px', def: 10 },
-      { key: 'totals_margin_bottom', label: 'Marge basse totaux', unit: 'px', def: 24 },
-      { key: 'totals_spacer_width', label: 'Espace label/valeur totaux', unit: 'px', def: 30 },
+      { key: 'table_margin_bottom', label: 'Marge basse tableau', unit: 'px', def: 12, hint: 'Espace entre le bas du tableau de lignes et le bloc des totaux' },
+      { key: 'table_cell_padding_v', label: 'Padding vertical cellules', unit: 'px', def: 4, hint: 'Espace interieur haut/bas dans chaque cellule du tableau' },
+      { key: 'table_cell_padding_h', label: 'Padding horizontal cellules', unit: 'px', def: 10, hint: 'Espace interieur gauche/droite dans chaque cellule du tableau' },
+      { key: 'totals_margin_bottom', label: 'Marge basse totaux', unit: 'px', def: 24, hint: 'Espace entre le bloc des totaux et les informations de paiement' },
+      { key: 'totals_spacer_width', label: 'Espace label/valeur totaux', unit: 'px', def: 30, hint: 'Espace entre les labels (TOTAL HT, TVA...) et les montants dans le bloc totaux' },
     ],
   },
   {
     group: 'Bas de page et pied',
+    hint: 'Zone des conditions de reglement, mentions legales, notes (bas de page) et pied de page repete (contact, pagination).',
     fields: [
-      { key: 'bottom_info_margin_top', label: 'Marge haute infos', unit: 'px', def: 28 },
-      { key: 'info_line_margin_bottom', label: 'Espacement lignes infos', unit: 'px', def: 6 },
-      { key: 'footer_padding_top', label: 'Padding haut pied de page', unit: 'px', def: 3 },
-      { key: 'footer_logo_max_height', label: 'Logo pied - hauteur max', unit: 'px', def: 60 },
-      { key: 'footer_logo_max_width', label: 'Logo pied - largeur max', unit: 'px', def: 100 },
-      { key: 'footer_col_left_width', label: 'Colonne logo pied', unit: 'px', def: 100 },
-      { key: 'footer_col_right_width', label: 'Colonne pagination pied', unit: 'px', def: 70 },
+      { key: 'bottom_info_margin_top', label: 'Marge haute infos', unit: 'px', def: 28, hint: 'Espace entre le bloc totaux et les conditions de reglement' },
+      { key: 'info_line_margin_bottom', label: 'Espacement lignes infos', unit: 'px', def: 6, hint: 'Espace entre chaque bloc d\'info (conditions, mode, IBAN, mentions, notes)' },
+      { key: 'footer_padding_top', label: 'Padding haut pied de page', unit: 'px', def: 3, hint: 'Espace au-dessus du pied de page (ligne contact/SIREN/pagination)' },
+      { key: 'footer_logo_max_height', label: 'Logo pied - hauteur max', unit: 'px', def: 60, hint: 'Hauteur max du logo dans le pied de page (si active)' },
+      { key: 'footer_logo_max_width', label: 'Logo pied - largeur max', unit: 'px', def: 100, hint: 'Largeur max du logo dans le pied de page (si active)' },
+      { key: 'footer_col_left_width', label: 'Colonne logo pied', unit: 'px', def: 100, hint: 'Largeur de la colonne gauche du pied (logo)' },
+      { key: 'footer_col_right_width', label: 'Colonne pagination pied', unit: 'px', def: 70, hint: 'Largeur de la colonne droite du pied (Page 1/1)' },
     ],
   },
 ]
@@ -699,11 +705,25 @@ function DocumentStylingSection() {
               <div className="pb-4 space-y-4">
                 {SPACING_GROUPS.map((g) => (
                   <div key={g.group}>
-                    <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2">{g.group}</p>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wide">{g.group}</p>
+                      {g.hint && (
+                        <span className="group relative">
+                          <Info className="w-3 h-3 text-gray-400 dark:text-gray-500 cursor-help" />
+                          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block w-64 text-[10px] text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 shadow-lg z-50 normal-case tracking-normal">{g.hint}</span>
+                        </span>
+                      )}
+                    </div>
                     <div className="space-y-2">
                       {g.fields.map((f) => (
                         <div key={f.key} className="flex items-center gap-3">
-                          <span className="text-xs text-gray-600 dark:text-gray-400 w-52 flex-shrink-0">{f.label}</span>
+                          <span className="text-xs text-gray-600 dark:text-gray-400 w-52 flex-shrink-0 flex items-center gap-1">
+                            {f.label}
+                            <span className="group relative">
+                              <Info className="w-3 h-3 text-gray-400 dark:text-gray-500 cursor-help flex-shrink-0" />
+                              <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block w-56 text-[10px] text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 shadow-lg z-50">{f.hint}</span>
+                            </span>
+                          </span>
                           <input
                             type="number"
                             min={0}
@@ -719,7 +739,7 @@ function DocumentStylingSection() {
                   </div>
                 ))}
                 <p className="text-xs text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2">
-                  La position verticale du bloc client (28mm) est fixe pour respecter la norme AFNOR NF Z 10-011 (fenetre d'enveloppe).
+                  Le bloc client est toujours a 40mm du haut de la page (norme AFNOR NF Z 10-011, fenetre d'enveloppe). Cette position s'ajuste automatiquement lorsque vous modifiez la marge haute de la page.
                 </p>
               </div>
             )}
