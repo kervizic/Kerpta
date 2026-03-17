@@ -404,15 +404,27 @@ const COLOR_FIELDS: { key: string; label: string }[] = [
   { key: 'footer_text', label: 'Pied de page' },
 ]
 
-const COLUMN_LABEL_FIELDS: { key: string; defaultLabel: string }[] = [
-  { key: 'reference', defaultLabel: 'Ref.' },
-  { key: 'description', defaultLabel: 'Designation' },
-  { key: 'quantity', defaultLabel: 'Qte.' },
-  { key: 'unit_price', defaultLabel: 'P.U.' },
-  { key: 'vat_rate', defaultLabel: 'TVA' },
-  { key: 'discount_percent', defaultLabel: 'Rem.' },
-  { key: 'total_ht', defaultLabel: 'Montant HT' },
-  { key: 'total_ttc', defaultLabel: 'Montant TTC' },
+const COLUMN_LABEL_FIELDS: { key: string; defaultLabel: string; group: string }[] = [
+  { key: 'date_invoice', defaultLabel: 'Date de facture', group: 'Dates et references' },
+  { key: 'date_quote', defaultLabel: 'Date du devis', group: 'Dates et references' },
+  { key: 'date_credit_note', defaultLabel: "Date de l'avoir", group: 'Dates et references' },
+  { key: 'due_date', defaultLabel: "Date d'echeance", group: 'Dates et references' },
+  { key: 'customer_reference', defaultLabel: 'Reference', group: 'Dates et references' },
+  { key: 'purchase_order_number', defaultLabel: 'N. commande', group: 'Dates et references' },
+  { key: 'reference', defaultLabel: 'Ref.', group: 'Colonnes du tableau' },
+  { key: 'description', defaultLabel: 'Designation', group: 'Colonnes du tableau' },
+  { key: 'quantity', defaultLabel: 'Qte.', group: 'Colonnes du tableau' },
+  { key: 'unit_price', defaultLabel: 'P.U.', group: 'Colonnes du tableau' },
+  { key: 'vat_rate', defaultLabel: 'TVA', group: 'Colonnes du tableau' },
+  { key: 'discount_percent', defaultLabel: 'Rem.', group: 'Colonnes du tableau' },
+  { key: 'total_ht', defaultLabel: 'Montant HT', group: 'Colonnes du tableau' },
+  { key: 'total_ttc', defaultLabel: 'Montant TTC', group: 'Colonnes du tableau' },
+  { key: 'payment_terms', defaultLabel: 'Conditions de reglement', group: 'Sections du bas' },
+  { key: 'payment_method', defaultLabel: 'Mode de reglement', group: 'Sections du bas' },
+  { key: 'iban', defaultLabel: 'IBAN', group: 'Sections du bas' },
+  { key: 'bic', defaultLabel: 'BIC', group: 'Sections du bas' },
+  { key: 'legal_footer', defaultLabel: 'Mentions legales', group: 'Sections du bas' },
+  { key: 'notes', defaultLabel: 'Notes', group: 'Sections du bas' },
 ]
 
 const SECTION_FIELDS: { key: string; label: string }[] = [
@@ -655,22 +667,40 @@ function DocumentStylingSection() {
             )}
           </div>
 
-          {/* Libelles des colonnes */}
+          {/* Libelles */}
           <div>
-            {subHeader('labels', 'Libelles des colonnes')}
+            {subHeader('labels', 'Libelles')}
             {openSub === 'labels' && (
-              <div className="pb-4 grid grid-cols-2 gap-2">
-                {COLUMN_LABEL_FIELDS.map((f) => (
-                  <div key={f.key}>
-                    <label className="text-[10px] text-gray-400 dark:text-gray-500 mb-0.5 block">{f.defaultLabel}</label>
-                    <input
-                      type="text"
-                      value={styling.column_labels[f.key] ?? f.defaultLabel}
-                      onChange={(e) => updateLabel(f.key, e.target.value)}
-                      placeholder={f.defaultLabel}
-                      maxLength={30}
-                      className="h-[30px] w-full px-2 py-0.5 text-xs border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded focus:outline-none focus:ring-1 focus:ring-kerpta-400"
-                    />
+              <div className="pb-4 space-y-4">
+                {['Dates et references', 'Colonnes du tableau', 'Sections du bas'].map((groupName) => (
+                  <div key={groupName}>
+                    <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2">{groupName}</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {COLUMN_LABEL_FIELDS.filter((f) => f.group === groupName).map((f) => (
+                        <div key={f.key}>
+                          <label className="text-[10px] text-gray-400 dark:text-gray-500 mb-0.5 block">{f.defaultLabel}</label>
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="text"
+                              value={styling.column_labels[f.key] ?? f.defaultLabel}
+                              onChange={(e) => updateLabel(f.key, e.target.value)}
+                              placeholder={f.defaultLabel}
+                              maxLength={30}
+                              className="h-[30px] w-full px-2 py-0.5 text-xs border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded focus:outline-none focus:ring-1 focus:ring-kerpta-400"
+                            />
+                            {(styling.column_labels[f.key] ?? '') !== '' && styling.column_labels[f.key] !== f.defaultLabel && (
+                              <button
+                                onClick={() => updateLabel(f.key, f.defaultLabel)}
+                                className="flex-shrink-0 p-1 text-gray-400 hover:text-kerpta-500 dark:text-gray-500 dark:hover:text-kerpta-400"
+                                title="Reinitialiser"
+                              >
+                                <Minus className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
