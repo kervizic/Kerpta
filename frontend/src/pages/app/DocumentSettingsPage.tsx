@@ -360,10 +360,15 @@ function PageFooterSection() {
 
 // ── Section Style du document (tailles, gras, couleurs, labels, sections) ──
 
-interface DocumentStyling {
+interface ThemeVisuals {
   font_sizes: Record<string, number>
   font_weights: Record<string, number>
   colors: Record<string, string>
+  borders: Record<string, string | number>
+}
+
+interface DocumentStyling {
+  themes: Record<string, ThemeVisuals>
   column_labels: Record<string, string>
   show_sections_quotes: Record<string, boolean>
   spacing: Record<string, number>
@@ -400,9 +405,35 @@ const COLOR_FIELDS: { key: string; label: string }[] = [
   { key: 'title', label: 'Titre du document' },
   { key: 'labels', label: 'Labels (dates, totaux, en-tetes)' },
   { key: 'values', label: 'Valeurs (texte, montants)' },
-  { key: 'separator', label: 'Traits / separateurs' },
   { key: 'footer_text', label: 'Pied de page' },
 ]
+
+const BORDER_FIELDS: { key: string; label: string; type: 'color' | 'width' | 'toggle'; def_classique: string | number; def_moderne: string | number; def_minimaliste: string | number }[] = [
+  { key: 'client_block_color', label: 'Bordure bloc client - couleur', type: 'color', def_classique: '#d0d0d0', def_moderne: '', def_minimaliste: '' },
+  { key: 'client_block_width', label: 'Bordure bloc client - epaisseur', type: 'width', def_classique: 1, def_moderne: 0, def_minimaliste: 0 },
+  { key: 'th_bg', label: 'Fond en-tetes tableau', type: 'color', def_classique: '#f5f5f5', def_moderne: '', def_minimaliste: '' },
+  { key: 'th_border_color', label: 'Trait sous en-tetes - couleur', type: 'color', def_classique: '#cccccc', def_moderne: '#eeeeee', def_minimaliste: '' },
+  { key: 'th_border_width', label: 'Trait sous en-tetes - epaisseur', type: 'width', def_classique: 1, def_moderne: 1, def_minimaliste: 0 },
+  { key: 'td_border_color', label: 'Trait entre lignes - couleur', type: 'color', def_classique: '#e8e8e8', def_moderne: '#eeeeee', def_minimaliste: '' },
+  { key: 'td_border_width', label: 'Trait entre lignes - epaisseur', type: 'width', def_classique: 1, def_moderne: 1, def_minimaliste: 0 },
+  { key: 'td_last_border', label: 'Trait sous derniere ligne', type: 'toggle', def_classique: 1, def_moderne: 0, def_minimaliste: 0 },
+  { key: 'zebra_enabled', label: 'Lignes zebrees (alternance fond)', type: 'toggle', def_classique: 1, def_moderne: 0, def_minimaliste: 0 },
+  { key: 'zebra_color', label: 'Couleur fond zebree', type: 'color', def_classique: '#fafafa', def_moderne: '', def_minimaliste: '' },
+  { key: 'totals_ht_border_color', label: 'Trait au-dessus Total HT - couleur', type: 'color', def_classique: '', def_moderne: '#eeeeee', def_minimaliste: '' },
+  { key: 'totals_ht_border_width', label: 'Trait au-dessus Total HT - epaisseur', type: 'width', def_classique: 0, def_moderne: 1, def_minimaliste: 0 },
+  { key: 'totals_mid_border_color', label: 'Trait entre HT et TTC - couleur', type: 'color', def_classique: '', def_moderne: '#eeeeee', def_minimaliste: '' },
+  { key: 'totals_mid_border_width', label: 'Trait entre HT et TTC - epaisseur', type: 'width', def_classique: 0, def_moderne: 1, def_minimaliste: 0 },
+  { key: 'totals_ttc_border_color', label: 'Trait au-dessus Total TTC - couleur', type: 'color', def_classique: '', def_moderne: '#eeeeee', def_minimaliste: '' },
+  { key: 'totals_ttc_border_width', label: 'Trait au-dessus Total TTC - epaisseur', type: 'width', def_classique: 0, def_moderne: 1, def_minimaliste: 0 },
+  { key: 'footer_border_color', label: 'Trait pied de page - couleur', type: 'color', def_classique: '#cccccc', def_moderne: '#e0e0e0', def_minimaliste: '' },
+  { key: 'footer_border_width', label: 'Trait pied de page - epaisseur', type: 'width', def_classique: 1, def_moderne: 1, def_minimaliste: 0 },
+]
+
+const THEME_LABELS: Record<string, string> = {
+  classique: 'Classique',
+  moderne: 'Moderne',
+  minimaliste: 'Minimaliste',
+}
 
 const COLUMN_LABEL_FIELDS: { key: string; defaultLabel: string; group: string }[] = [
   { key: 'date_invoice', defaultLabel: 'Date de facture', group: 'Dates et references' },
@@ -504,18 +535,24 @@ const SPACING_GROUPS: { group: string; hint?: string; fields: { key: string; lab
 
 function DocumentStylingSection() {
   const [styling, setStyling] = useState<DocumentStyling | null>(null)
+  const [activeTheme, setActiveTheme] = useState<string>('classique')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [openSub, setOpenSub] = useState<string | null>(null)
 
   useEffect(() => {
-    orgGet<DocumentStyling>('/billing/document-styling')
-      .then(setStyling)
-      .catch(() => {})
+    Promise.all([
+      orgGet<DocumentStyling>('/billing/document-styling'),
+      orgGet<{ style: string }>('/billing/print-style'),
+    ]).then(([stylingData, styleData]) => {
+      setStyling(stylingData)
+      setActiveTheme(styleData.style || 'classique')
+    }).catch(() => {})
       .finally(() => setLoading(false))
   }, [])
 
-  async function patch(partial: Partial<DocumentStyling>) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async function patch(partial: any) {
     setSaving(true)
     try {
       const result = await orgPatch('/billing/document-styling', partial)
@@ -526,23 +563,34 @@ function DocumentStylingSection() {
 
   function updateFontSize(key: string, value: number) {
     if (!styling) return
-    const updated = { ...styling.font_sizes, [key]: value }
-    setStyling({ ...styling, font_sizes: updated })
-    patch({ font_sizes: { [key]: value } })
+    const theme = styling.themes[activeTheme] || {} as ThemeVisuals
+    const updated = { ...theme.font_sizes, [key]: value }
+    setStyling({ ...styling, themes: { ...styling.themes, [activeTheme]: { ...theme, font_sizes: updated } } })
+    patch({ themes: { [activeTheme]: { font_sizes: { [key]: value } } } })
   }
 
   function updateFontWeight(key: string, value: number) {
     if (!styling) return
-    const updated = { ...styling.font_weights, [key]: value }
-    setStyling({ ...styling, font_weights: updated })
-    patch({ font_weights: { [key]: value } })
+    const theme = styling.themes[activeTheme] || {} as ThemeVisuals
+    const updated = { ...theme.font_weights, [key]: value }
+    setStyling({ ...styling, themes: { ...styling.themes, [activeTheme]: { ...theme, font_weights: updated } } })
+    patch({ themes: { [activeTheme]: { font_weights: { [key]: value } } } })
   }
 
   function updateColor(key: string, value: string) {
     if (!styling) return
-    const updated = { ...styling.colors, [key]: value }
-    setStyling({ ...styling, colors: updated })
-    patch({ colors: { [key]: value } })
+    const theme = styling.themes[activeTheme] || {} as ThemeVisuals
+    const updated = { ...theme.colors, [key]: value }
+    setStyling({ ...styling, themes: { ...styling.themes, [activeTheme]: { ...theme, colors: updated } } })
+    patch({ themes: { [activeTheme]: { colors: { [key]: value } } } })
+  }
+
+  function updateBorder(key: string, value: string | number) {
+    if (!styling) return
+    const theme = styling.themes[activeTheme] || {} as ThemeVisuals
+    const updated = { ...theme.borders, [key]: value }
+    setStyling({ ...styling, themes: { ...styling.themes, [activeTheme]: { ...theme, borders: updated } } })
+    patch({ themes: { [activeTheme]: { borders: { [key]: value } } } })
   }
 
   function updateLabel(key: string, value: string) {
@@ -558,7 +606,6 @@ function DocumentStylingSection() {
     setStyling({ ...styling, show_sections_quotes: updated })
     patch({ show_sections_quotes: { [key]: !styling.show_sections_quotes[key] } })
   }
-
 
   function updateSpacing(key: string, value: number) {
     if (!styling) return
@@ -588,8 +635,8 @@ function DocumentStylingSection() {
     <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Style du document</h2>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Tailles de texte, gras, couleurs, libelles et sections visibles sur les PDF</p>
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Style du document : {THEME_LABELS[activeTheme] || activeTheme}</h2>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Tailles de texte, gras, couleurs, bordures, libelles et sections visibles sur les PDF</p>
         </div>
         {saving && <Loader2 className="w-4 h-4 animate-spin text-kerpta" />}
       </div>
@@ -602,31 +649,34 @@ function DocumentStylingSection() {
             {subHeader('fonts', 'Tailles de texte et gras')}
             {openSub === 'fonts' && (
               <div className="pb-4 space-y-2">
-                {FONT_SIZE_FIELDS.map((f) => (
-                  <div key={f.weightKey} className="flex items-center gap-3">
-                    <span className="text-xs text-gray-600 dark:text-gray-400 w-44 flex-shrink-0">{f.label}</span>
-                    <select
-                      value={styling.font_sizes[f.key] ?? 9}
-                      onChange={(e) => updateFontSize(f.key, parseInt(e.target.value))}
-                      className="h-[30px] px-2 py-0.5 text-xs border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded focus:outline-none focus:ring-1 focus:ring-kerpta-400 w-16"
-                    >
-                      {FONT_SIZE_OPTIONS.map((s) => (
-                        <option key={s} value={s}>{s}pt</option>
-                      ))}
-                    </select>
-                    {f.weightKey && (
+                {FONT_SIZE_FIELDS.map((f) => {
+                  const themeData = styling.themes[activeTheme] || {} as ThemeVisuals
+                  return (
+                    <div key={f.weightKey} className="flex items-center gap-3">
+                      <span className="text-xs text-gray-600 dark:text-gray-400 w-44 flex-shrink-0">{f.label}</span>
                       <select
-                        value={styling.font_weights[f.weightKey] ?? 400}
-                        onChange={(e) => updateFontWeight(f.weightKey!, parseInt(e.target.value))}
-                        className="h-[30px] px-2 py-0.5 text-xs border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded focus:outline-none focus:ring-1 focus:ring-kerpta-400 w-28"
+                        value={themeData.font_sizes?.[f.key] ?? 9}
+                        onChange={(e) => updateFontSize(f.key, parseInt(e.target.value))}
+                        className="h-[30px] px-2 py-0.5 text-xs border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded focus:outline-none focus:ring-1 focus:ring-kerpta-400 w-16"
                       >
-                        {FONT_WEIGHT_OPTIONS.map((w) => (
-                          <option key={w.value} value={w.value}>{w.label}</option>
+                        {FONT_SIZE_OPTIONS.map((s) => (
+                          <option key={s} value={s}>{s}pt</option>
                         ))}
                       </select>
-                    )}
-                  </div>
-                ))}
+                      {f.weightKey && (
+                        <select
+                          value={themeData.font_weights?.[f.weightKey] ?? 400}
+                          onChange={(e) => updateFontWeight(f.weightKey!, parseInt(e.target.value))}
+                          className="h-[30px] px-2 py-0.5 text-xs border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded focus:outline-none focus:ring-1 focus:ring-kerpta-400 w-28"
+                        >
+                          {FONT_WEIGHT_OPTIONS.map((w) => (
+                            <option key={w.value} value={w.value}>{w.label}</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
@@ -636,33 +686,71 @@ function DocumentStylingSection() {
             {subHeader('colors', 'Couleurs')}
             {openSub === 'colors' && (
               <div className="pb-4 space-y-2">
-                {COLOR_FIELDS.map((c) => (
-                  <div key={c.key} className="flex items-center gap-3">
-                    <span className="text-xs text-gray-600 dark:text-gray-400 w-44 flex-shrink-0">{c.label}</span>
-                    <input
-                      type="color"
-                      value={styling.colors[c.key] || '#555555'}
-                      onChange={(e) => updateColor(c.key, e.target.value)}
-                      className="w-8 h-8 rounded border border-gray-200 dark:border-gray-600 cursor-pointer"
-                    />
-                    <input
-                      type="text"
-                      value={styling.colors[c.key] || ''}
-                      onChange={(e) => updateColor(c.key, e.target.value)}
-                      placeholder={c.key === 'separator' ? 'Defaut du theme' : '#555555'}
-                      className="h-[30px] w-24 px-2 py-0.5 text-xs font-mono border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded focus:outline-none focus:ring-1 focus:ring-kerpta-400"
-                    />
-                    {c.key === 'separator' && styling.colors[c.key] && (
-                      <button
-                        type="button"
-                        onClick={() => updateColor('separator', '')}
-                        className="text-[10px] text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
-                      >
-                        Reinitialiser
-                      </button>
-                    )}
-                  </div>
-                ))}
+                {COLOR_FIELDS.map((c) => {
+                  const themeData = styling.themes[activeTheme] || {} as ThemeVisuals
+                  return (
+                    <div key={c.key} className="flex items-center gap-3">
+                      <span className="text-xs text-gray-600 dark:text-gray-400 w-44 flex-shrink-0">{c.label}</span>
+                      <input
+                        type="color"
+                        value={themeData.colors?.[c.key] || '#555555'}
+                        onChange={(e) => updateColor(c.key, e.target.value)}
+                        className="w-8 h-8 rounded border border-gray-200 dark:border-gray-600 cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={themeData.colors?.[c.key] || ''}
+                        onChange={(e) => updateColor(c.key, e.target.value)}
+                        placeholder="#555555"
+                        className="h-[30px] w-24 px-2 py-0.5 text-xs font-mono border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded focus:outline-none focus:ring-1 focus:ring-kerpta-400"
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Bordures et traits */}
+          <div>
+            {subHeader('borders', 'Bordures et traits')}
+            {openSub === 'borders' && (
+              <div className="pb-4 space-y-2">
+                {BORDER_FIELDS.map((f) => {
+                  const themeData = styling.themes[activeTheme] || {} as ThemeVisuals
+                  const borders = themeData.borders || {}
+                  const defKey = `def_${activeTheme}` as keyof typeof f
+                  const defVal = f[defKey]
+                  const currentVal = borders[f.key] ?? defVal
+
+                  if (f.type === 'color') {
+                    return (
+                      <div key={f.key} className="flex items-center gap-3">
+                        <span className="text-xs text-gray-600 dark:text-gray-400 w-52 flex-shrink-0">{f.label}</span>
+                        <input className="w-8 h-8 rounded border border-gray-200 dark:border-gray-600 cursor-pointer" type="color" value={(currentVal as string) || '#ffffff'} onChange={(e) => updateBorder(f.key, e.target.value)} />
+                        <input placeholder="Aucun" className="h-[30px] w-24 px-2 py-0.5 text-xs font-mono border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded focus:outline-none focus:ring-1 focus:ring-kerpta-400" type="text" value={currentVal as string} onChange={(e) => updateBorder(f.key, e.target.value)} />
+                      </div>
+                    )
+                  } else if (f.type === 'width') {
+                    return (
+                      <div key={f.key} className="flex items-center gap-3">
+                        <span className="text-xs text-gray-600 dark:text-gray-400 w-52 flex-shrink-0">{f.label}</span>
+                        <select value={currentVal as number} onChange={(e) => updateBorder(f.key, parseInt(e.target.value))} className="h-[30px] px-2 py-0.5 text-xs border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded focus:outline-none focus:ring-1 focus:ring-kerpta-400 w-20">
+                          {[0, 1, 2, 3, 4, 5].map((w) => <option key={w} value={w}>{w === 0 ? 'Aucun' : `${w}px`}</option>)}
+                        </select>
+                      </div>
+                    )
+                  } else {
+                    return (
+                      <div key={f.key} className="flex items-center gap-3">
+                        <span className="text-xs text-gray-600 dark:text-gray-400 w-52 flex-shrink-0">{f.label}</span>
+                        <button onClick={() => updateBorder(f.key, currentVal ? 0 : 1)} className={`px-3 py-1.5 text-xs rounded-full border transition cursor-pointer ${currentVal ? 'bg-kerpta-50 dark:bg-kerpta-900/30 border-kerpta-200 dark:border-kerpta-700 text-kerpta-700 dark:text-kerpta-400' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:border-gray-300'}`}>
+                          {currentVal ? 'Oui' : 'Non'}
+                        </button>
+                      </div>
+                    )
+                  }
+                })}
               </div>
             )}
           </div>

@@ -494,44 +494,130 @@ async def update_invoice_columns(
 
 # ── Style des documents ──────────────────────────────────────────────────
 
+_DEFAULT_FONT_SIZES = {
+    "seller_name": 13,
+    "seller_address": 9,
+    "client_name": 11,
+    "client_address": 9,
+    "doc_title": 13,
+    "dates_refs": 9,
+    "table_header": 9,
+    "table_cell": 9,
+    "line_detail": 8,
+    "totals": 9,
+    "bottom_info": 9,
+    "footer": 8,
+}
+
+_DEFAULT_FONT_WEIGHTS = {
+    "seller_name": 600,
+    "seller_address": 400,
+    "client_name": 600,
+    "client_address": 400,
+    "doc_title": 600,
+    "dates_label": 600,
+    "dates_value": 400,
+    "table_header": 600,
+    "table_cell": 400,
+    "totals_label": 600,
+    "totals_value": 400,
+    "line_detail": 400,
+    "bottom_info": 400,
+    "bottom_info_label": 600,
+    "footer": 400,
+}
+
+_DEFAULT_COLORS = {
+    "title": "#606060",
+    "labels": "#606060",
+    "values": "#222222",
+    "separator": "",
+    "footer_text": "#606060",
+}
+
+_DEFAULT_BORDERS_CLASSIQUE = {
+    "client_block_color": "#d0d0d0",
+    "client_block_width": 1,
+    "th_bg": "#f5f5f5",
+    "th_border_color": "#cccccc",
+    "th_border_width": 1,
+    "td_border_color": "#e8e8e8",
+    "td_border_width": 1,
+    "td_last_border": 1,
+    "zebra_color": "#fafafa",
+    "zebra_enabled": 1,
+    "totals_ht_border_color": "",
+    "totals_ht_border_width": 0,
+    "totals_mid_border_color": "",
+    "totals_mid_border_width": 0,
+    "totals_ttc_border_color": "",
+    "totals_ttc_border_width": 0,
+    "footer_border_color": "#cccccc",
+    "footer_border_width": 1,
+}
+
+_DEFAULT_BORDERS_MODERNE = {
+    "client_block_color": "",
+    "client_block_width": 0,
+    "th_bg": "",
+    "th_border_color": "#eeeeee",
+    "th_border_width": 1,
+    "td_border_color": "#eeeeee",
+    "td_border_width": 1,
+    "td_last_border": 0,
+    "zebra_color": "",
+    "zebra_enabled": 0,
+    "totals_ht_border_color": "#eeeeee",
+    "totals_ht_border_width": 1,
+    "totals_mid_border_color": "#eeeeee",
+    "totals_mid_border_width": 1,
+    "totals_ttc_border_color": "#eeeeee",
+    "totals_ttc_border_width": 1,
+    "footer_border_color": "#e0e0e0",
+    "footer_border_width": 1,
+}
+
+_DEFAULT_BORDERS_MINIMALISTE = {
+    "client_block_color": "",
+    "client_block_width": 0,
+    "th_bg": "",
+    "th_border_color": "",
+    "th_border_width": 0,
+    "td_border_color": "",
+    "td_border_width": 0,
+    "td_last_border": 0,
+    "zebra_color": "",
+    "zebra_enabled": 0,
+    "totals_ht_border_color": "",
+    "totals_ht_border_width": 0,
+    "totals_mid_border_color": "",
+    "totals_mid_border_width": 0,
+    "totals_ttc_border_color": "",
+    "totals_ttc_border_width": 0,
+    "footer_border_color": "",
+    "footer_border_width": 0,
+}
+
 DEFAULT_DOCUMENT_STYLING = {
-    "font_sizes": {
-        "seller_name": 13,
-        "seller_address": 9,
-        "client_name": 11,
-        "client_address": 9,
-        "doc_title": 13,
-        "dates_refs": 9,
-        "table_header": 9,
-        "table_cell": 9,
-        "line_detail": 8,
-        "totals": 9,
-        "bottom_info": 9,
-        "footer": 8,
-    },
-    "font_weights": {
-        "seller_name": 600,
-        "seller_address": 400,
-        "client_name": 600,
-        "client_address": 400,
-        "doc_title": 600,
-        "dates_label": 600,
-        "dates_value": 400,
-        "table_header": 600,
-        "table_cell": 400,
-        "totals_label": 600,
-        "totals_value": 400,
-        "line_detail": 400,
-        "bottom_info": 400,
-        "bottom_info_label": 600,
-        "footer": 400,
-    },
-    "colors": {
-        "title": "#606060",
-        "labels": "#606060",
-        "values": "#222222",
-        "separator": "",
-        "footer_text": "#606060",
+    "themes": {
+        "classique": {
+            "font_sizes": {**_DEFAULT_FONT_SIZES},
+            "font_weights": {**_DEFAULT_FONT_WEIGHTS},
+            "colors": {**_DEFAULT_COLORS},
+            "borders": {**_DEFAULT_BORDERS_CLASSIQUE},
+        },
+        "moderne": {
+            "font_sizes": {**_DEFAULT_FONT_SIZES},
+            "font_weights": {**_DEFAULT_FONT_WEIGHTS},
+            "colors": {**_DEFAULT_COLORS},
+            "borders": {**_DEFAULT_BORDERS_MODERNE},
+        },
+        "minimaliste": {
+            "font_sizes": {**_DEFAULT_FONT_SIZES},
+            "font_weights": {**_DEFAULT_FONT_WEIGHTS},
+            "colors": {**_DEFAULT_COLORS},
+            "borders": {**_DEFAULT_BORDERS_MINIMALISTE},
+        },
     },
     "column_labels": {
         "reference": "Réf.",
@@ -598,14 +684,40 @@ _COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 
 def _deep_merge_styling(defaults: dict, saved: dict) -> dict:
-    """Deep-merge saved styling into defaults (2 levels max)."""
+    """Deep-merge saved styling into defaults (up to 3 levels for themes)."""
     merged = {}
     for key, default_val in defaults.items():
         if isinstance(default_val, dict):
             saved_sub = saved.get(key, {})
             if not isinstance(saved_sub, dict):
                 saved_sub = {}
-            merged[key] = {**default_val, **saved_sub}
+            # Check if any value is itself a dict (3-level: themes)
+            if any(isinstance(v, dict) for v in default_val.values()):
+                inner = {}
+                for k2, v2 in default_val.items():
+                    if isinstance(v2, dict):
+                        s2 = saved_sub.get(k2, {})
+                        if not isinstance(s2, dict):
+                            s2 = {}
+                        # v2 may contain sub-dicts (theme -> font_sizes, etc.)
+                        if any(isinstance(vv, dict) for vv in v2.values()):
+                            inner2 = {}
+                            for k3, v3 in v2.items():
+                                if isinstance(v3, dict):
+                                    s3 = s2.get(k3, {})
+                                    if not isinstance(s3, dict):
+                                        s3 = {}
+                                    inner2[k3] = {**v3, **s3}
+                                else:
+                                    inner2[k3] = s2.get(k3, v3)
+                            inner[k2] = inner2
+                        else:
+                            inner[k2] = {**v2, **s2}
+                    else:
+                        inner[k2] = saved_sub.get(k2, v2)
+                merged[key] = inner
+            else:
+                merged[key] = {**default_val, **saved_sub}
         else:
             merged[key] = saved.get(key, default_val)
     return merged
@@ -631,55 +743,87 @@ async def get_document_styling(org_id: uuid.UUID, db: AsyncSession) -> dict:
 async def update_document_styling(
     org_id: uuid.UUID, data: dict, db: AsyncSession
 ) -> dict:
-    """Met à jour le style des documents dans module_config.document_styling."""
-    # Validate incoming data
-    if "font_sizes" in data and isinstance(data["font_sizes"], dict):
-        for k, v in data["font_sizes"].items():
-            if k not in DEFAULT_DOCUMENT_STYLING["font_sizes"]:
-                raise HTTPException(422, f"Clé font_sizes inconnue : {k}")
-            if not isinstance(v, int) or v < 6 or v > 20:
-                raise HTTPException(
-                    422, f"font_sizes.{k} doit être un entier entre 6 et 20"
-                )
-
+    """Met a jour le style des documents dans module_config.document_styling."""
     valid_weights = {300, 400, 500, 600, 700}
-    if "font_weights" in data and isinstance(data["font_weights"], dict):
-        for k, v in data["font_weights"].items():
-            if k not in DEFAULT_DOCUMENT_STYLING["font_weights"]:
-                raise HTTPException(422, f"Clé font_weights inconnue : {k}")
-            if not isinstance(v, int) or v not in valid_weights:
-                raise HTTPException(
-                    422, f"font_weights.{k} doit être 300, 400, 500, 600 ou 700"
-                )
+    _valid_themes = {"classique", "moderne", "minimaliste"}
+    _valid_theme_sub = {"font_sizes", "font_weights", "colors", "borders"}
 
-    if "colors" in data and isinstance(data["colors"], dict):
-        for k, v in data["colors"].items():
-            if k not in DEFAULT_DOCUMENT_STYLING["colors"]:
-                raise HTTPException(422, f"Clé colors inconnue : {k}")
-            if not isinstance(v, str):
-                raise HTTPException(422, f"colors.{k} doit être une chaîne")
-            if v != "" and not _COLOR_RE.match(v):
-                raise HTTPException(
-                    422, f"colors.{k} doit être au format #RRGGBB ou vide"
-                )
+    # ── Validate themes (per-theme visual config) ────────────────────────
+    if "themes" in data and isinstance(data["themes"], dict):
+        for theme_name, theme_data in data["themes"].items():
+            if theme_name not in _valid_themes:
+                raise HTTPException(422, f"Theme inconnu : {theme_name}")
+            if not isinstance(theme_data, dict):
+                continue
+            for sub_key, sub_data in theme_data.items():
+                if sub_key not in _valid_theme_sub:
+                    raise HTTPException(422, f"Cle theme inconnue : {sub_key}")
+                if not isinstance(sub_data, dict):
+                    continue
+                if sub_key == "font_sizes":
+                    for k, v in sub_data.items():
+                        if k not in _DEFAULT_FONT_SIZES:
+                            raise HTTPException(422, f"Cle font_sizes inconnue : {k}")
+                        if not isinstance(v, int) or v < 6 or v > 20:
+                            raise HTTPException(422, f"font_sizes.{k} doit etre un entier entre 6 et 20")
+                elif sub_key == "font_weights":
+                    for k, v in sub_data.items():
+                        if k not in _DEFAULT_FONT_WEIGHTS:
+                            raise HTTPException(422, f"Cle font_weights inconnue : {k}")
+                        if not isinstance(v, int) or v not in valid_weights:
+                            raise HTTPException(422, f"font_weights.{k} doit etre 300, 400, 500, 600 ou 700")
+                elif sub_key == "colors":
+                    for k, v in sub_data.items():
+                        if k not in _DEFAULT_COLORS:
+                            raise HTTPException(422, f"Cle colors inconnue : {k}")
+                        if not isinstance(v, str):
+                            raise HTTPException(422, f"colors.{k} doit etre une chaine")
+                        if v != "" and not _COLOR_RE.match(v):
+                            raise HTTPException(422, f"colors.{k} doit etre au format #RRGGBB ou vide")
+                elif sub_key == "borders":
+                    _border_color_keys = {
+                        "client_block_color", "th_bg", "th_border_color",
+                        "td_border_color", "zebra_color",
+                        "totals_ht_border_color", "totals_mid_border_color",
+                        "totals_ttc_border_color", "footer_border_color",
+                    }
+                    _border_width_keys = {
+                        "client_block_width", "th_border_width",
+                        "td_border_width", "totals_ht_border_width",
+                        "totals_mid_border_width", "totals_ttc_border_width",
+                        "footer_border_width",
+                    }
+                    _border_toggle_keys = {"td_last_border", "zebra_enabled"}
+                    _all_border_keys = _border_color_keys | _border_width_keys | _border_toggle_keys
+                    for k, v in sub_data.items():
+                        if k not in _all_border_keys:
+                            raise HTTPException(422, f"Cle borders inconnue : {k}")
+                        if k in _border_color_keys:
+                            if not isinstance(v, str):
+                                raise HTTPException(422, f"borders.{k} doit etre une chaine")
+                            if v != "" and not _COLOR_RE.match(v):
+                                raise HTTPException(422, f"borders.{k} doit etre au format #RRGGBB ou vide")
+                        elif k in _border_width_keys:
+                            if not isinstance(v, int) or v < 0 or v > 5:
+                                raise HTTPException(422, f"borders.{k} doit etre un entier entre 0 et 5")
+                        elif k in _border_toggle_keys:
+                            if not isinstance(v, int) or v not in (0, 1):
+                                raise HTTPException(422, f"borders.{k} doit etre 0 ou 1")
 
+    # ── Validate shared keys ─────────────────────────────────────────────
     if "column_labels" in data and isinstance(data["column_labels"], dict):
         for k, v in data["column_labels"].items():
             if k not in DEFAULT_DOCUMENT_STYLING["column_labels"]:
-                raise HTTPException(422, f"Clé column_labels inconnue : {k}")
+                raise HTTPException(422, f"Cle column_labels inconnue : {k}")
             if not isinstance(v, str) or len(v) > 30:
-                raise HTTPException(
-                    422, f"column_labels.{k} doit être une chaîne de 30 car. max"
-                )
+                raise HTTPException(422, f"column_labels.{k} doit etre une chaine de 30 car. max")
 
     if "show_sections_quotes" in data and isinstance(data["show_sections_quotes"], dict):
         for k, v in data["show_sections_quotes"].items():
             if k not in DEFAULT_DOCUMENT_STYLING["show_sections_quotes"]:
-                raise HTTPException(422, f"Clé show_sections_quotes inconnue : {k}")
+                raise HTTPException(422, f"Cle show_sections_quotes inconnue : {k}")
             if not isinstance(v, bool):
-                raise HTTPException(422, f"show_sections_quotes.{k} doit être un booléen")
-
-    # show_sections_invoices n'est plus utilisé (obligation légale : tout afficher)
+                raise HTTPException(422, f"show_sections_quotes.{k} doit etre un booleen")
 
     if "spacing" in data and isinstance(data["spacing"], dict):
         for k, v in data["spacing"].items():
@@ -688,7 +832,7 @@ async def update_document_styling(
             if not isinstance(v, int) or v < 0 or v > 300:
                 raise HTTPException(422, f"spacing.{k} doit etre un entier entre 0 et 300")
 
-    # Read current config
+    # ── Read current config ──────────────────────────────────────────────
     result = await db.execute(
         text("SELECT module_config FROM organizations WHERE id = :org_id"),
         {"org_id": str(org_id)},
@@ -701,10 +845,30 @@ async def update_document_styling(
     if not isinstance(existing, dict):
         existing = {}
 
-    # Merge each sub-dict from the incoming data into existing
-    for key in DEFAULT_DOCUMENT_STYLING:
+    # For the themes key, do 3-level merge
+    if "themes" in data and isinstance(data["themes"], dict):
+        if "themes" not in existing or not isinstance(existing.get("themes"), dict):
+            existing["themes"] = {}
+        for theme_name, theme_data in data["themes"].items():
+            if theme_name not in _valid_themes:
+                continue
+            if not isinstance(theme_data, dict):
+                continue
+            if theme_name not in existing["themes"] or not isinstance(existing["themes"].get(theme_name), dict):
+                existing["themes"][theme_name] = {}
+            for sub_key, sub_data in theme_data.items():
+                if sub_key not in _valid_theme_sub:
+                    continue
+                if not isinstance(sub_data, dict):
+                    continue
+                if sub_key not in existing["themes"][theme_name] or not isinstance(existing["themes"][theme_name].get(sub_key), dict):
+                    existing["themes"][theme_name][sub_key] = {}
+                existing["themes"][theme_name][sub_key].update(sub_data)
+
+    # Merge shared keys (column_labels, show_sections_quotes, spacing)
+    for key in ("column_labels", "show_sections_quotes", "spacing"):
         if key in data and isinstance(data[key], dict):
-            if key not in existing or not isinstance(existing[key], dict):
+            if key not in existing or not isinstance(existing.get(key), dict):
                 existing[key] = {}
             existing[key].update(data[key])
 

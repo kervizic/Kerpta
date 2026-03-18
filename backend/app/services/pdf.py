@@ -90,6 +90,19 @@ _jinja_env.filters["nl2br"] = _nl2br
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 
+def _build_template_styling(document_styling: dict, style: str) -> dict:
+    """Build a template-friendly styling dict combining theme-specific + shared config."""
+    theme_config = document_styling.get("themes", {}).get(style, {})
+    return {
+        "font_sizes": theme_config.get("font_sizes", {}),
+        "font_weights": theme_config.get("font_weights", {}),
+        "colors": theme_config.get("colors", {}),
+        "borders": theme_config.get("borders", {}),
+        "column_labels": document_styling.get("column_labels", {}),
+        "spacing": document_styling.get("spacing", {}),
+    }
+
+
 async def _get_print_config(org_id: uuid.UUID, db: AsyncSession) -> tuple[str, str, dict, dict]:
     """Récupère le style d'impression, les mentions légales, les options de pied de page
     et la configuration de style du document.
@@ -959,7 +972,7 @@ async def _build_common_context(
         "payment_note": payment_note,
         "footer_options": footer_options,
         "footer_center_lines": footer_center_lines,
-        "styling": document_styling,
+        "styling": _build_template_styling(document_styling, style),
         "show_sections": show_sections,
     }
 

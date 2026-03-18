@@ -1,19 +1,2 @@
 {% extends "pdf/base.html" %}
-{% block style %}
-/* ═══════════════════════════════════════════════════════════════════
-   Style CLASSIQUE - Factures professionnelles traditionnelles
-   Cadre client, fond gris en-tetes, lignes zebrees, bordures visibles
-   ═══════════════════════════════════════════════════════════════════ */
-{% set sep = cl.separator if cl is defined and cl.separator is defined and cl.separator else '' %}
-
-/* Cadre autour du bloc client */
-.header-right { border: 1px solid #d0d0d0; padding: 10px 12px; border-radius: 2px; }
-
-/* Tableau : fond gris en-tetes, bordures, lignes zebrees */
-.lines-table th { background: #f5f5f5; border-bottom: 1px solid {{ sep if sep else '#ccc' }}; }
-.lines-table td { border-bottom: 1px solid {{ sep if sep else '#e8e8e8' }}; }
-.lines-table tr:nth-child(even) td { background: #fafafa; }
-
-/* Pied de page emetteur */
-.page-footer-first, .page-footer-other { border-top: 1px solid {{ sep if sep else '#ccc' }}; }
-{% endblock %}
+{% block style %}{% endblock %}
