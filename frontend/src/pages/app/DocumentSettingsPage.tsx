@@ -399,18 +399,18 @@ const BORDER_FIELDS: { key: string; label: string; type: 'color' | 'width' | 'to
   { key: 'client_block_color', label: 'Bordure bloc client - couleur', type: 'color', def_classique: '#d0d0d0', def_moderne: '', def_minimaliste: '' },
   { key: 'client_block_width', label: 'Bordure bloc client - epaisseur', type: 'width', def_classique: 1, def_moderne: 0, def_minimaliste: 0 },
   { key: 'th_bg', label: 'Fond en-tetes tableau', type: 'color', def_classique: '#f5f5f5', def_moderne: '', def_minimaliste: '' },
-  { key: 'th_border_color', label: 'Trait sous en-tetes - couleur', type: 'color', def_classique: '#cccccc', def_moderne: '#eeeeee', def_minimaliste: '' },
+  { key: 'th_border_color', label: 'Trait sous en-tetes - couleur', type: 'color', def_classique: '#cccccc', def_moderne: '#e0e0e0', def_minimaliste: '' },
   { key: 'th_border_width', label: 'Trait sous en-tetes - epaisseur', type: 'width', def_classique: 1, def_moderne: 1, def_minimaliste: 0 },
-  { key: 'td_border_color', label: 'Trait entre lignes - couleur', type: 'color', def_classique: '#e8e8e8', def_moderne: '#eeeeee', def_minimaliste: '' },
+  { key: 'td_border_color', label: 'Trait entre lignes - couleur', type: 'color', def_classique: '#e8e8e8', def_moderne: '#e0e0e0', def_minimaliste: '' },
   { key: 'td_border_width', label: 'Trait entre lignes - epaisseur', type: 'width', def_classique: 0.5, def_moderne: 0.5, def_minimaliste: 0 },
   { key: 'td_last_border', label: 'Trait sous derniere ligne', type: 'toggle', def_classique: 1, def_moderne: 0, def_minimaliste: 0 },
   { key: 'zebra_enabled', label: 'Lignes zebrees (alternance fond)', type: 'toggle', def_classique: 1, def_moderne: 0, def_minimaliste: 0 },
   { key: 'zebra_color', label: 'Couleur fond zebree', type: 'color', def_classique: '#fafafa', def_moderne: '', def_minimaliste: '' },
-  { key: 'totals_ht_border_color', label: 'Trait au-dessus Total HT - couleur', type: 'color', def_classique: '', def_moderne: '#eeeeee', def_minimaliste: '' },
+  { key: 'totals_ht_border_color', label: 'Trait au-dessus Total HT - couleur', type: 'color', def_classique: '', def_moderne: '#e0e0e0', def_minimaliste: '' },
   { key: 'totals_ht_border_width', label: 'Trait au-dessus Total HT - epaisseur', type: 'width', def_classique: 0, def_moderne: 1, def_minimaliste: 0 },
-  { key: 'totals_mid_border_color', label: 'Trait entre HT et TTC - couleur', type: 'color', def_classique: '', def_moderne: '#eeeeee', def_minimaliste: '' },
+  { key: 'totals_mid_border_color', label: 'Trait entre HT et TTC - couleur', type: 'color', def_classique: '', def_moderne: '#e0e0e0', def_minimaliste: '' },
   { key: 'totals_mid_border_width', label: 'Trait entre HT et TTC - epaisseur', type: 'width', def_classique: 0, def_moderne: 0.5, def_minimaliste: 0 },
-  { key: 'totals_ttc_border_color', label: 'Trait au-dessus Total TTC - couleur', type: 'color', def_classique: '', def_moderne: '#eeeeee', def_minimaliste: '' },
+  { key: 'totals_ttc_border_color', label: 'Trait au-dessus Total TTC - couleur', type: 'color', def_classique: '', def_moderne: '#e0e0e0', def_minimaliste: '' },
   { key: 'totals_ttc_border_width', label: 'Trait au-dessus Total TTC - epaisseur', type: 'width', def_classique: 0, def_moderne: 1, def_minimaliste: 0 },
   { key: 'footer_border_color', label: 'Trait pied de page - couleur', type: 'color', def_classique: '#cccccc', def_moderne: '#e0e0e0', def_minimaliste: '' },
   { key: 'footer_border_width', label: 'Trait pied de page - epaisseur', type: 'width', def_classique: 1, def_moderne: 0.5, def_minimaliste: 0 },
@@ -670,6 +670,7 @@ function DocumentStylingSection({ activeTheme }: { activeTheme: string }) {
               <div className="pb-4 space-y-2">
                 {COLOR_FIELDS.map((c) => {
                   const themeData = styling.themes[activeTheme] || {} as ThemeVisuals
+                  const colorVal = themeData.colors?.[c.key] || ''
                   return (
                     <div key={c.key} className="flex items-center gap-3">
                       <span className="text-xs text-gray-600 dark:text-gray-400 w-44 flex-shrink-0">{c.label}</span>
@@ -681,11 +682,16 @@ function DocumentStylingSection({ activeTheme }: { activeTheme: string }) {
                       />
                       <input
                         type="text"
-                        value={themeData.colors?.[c.key] || ''}
+                        value={colorVal}
                         onChange={(e) => updateColor(c.key, e.target.value)}
-                        placeholder="#555555"
+                        placeholder="Defaut du theme"
                         className="h-[30px] w-24 px-2 py-0.5 text-xs font-mono border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded focus:outline-none focus:ring-1 focus:ring-kerpta-400"
                       />
+                      {colorVal && (
+                        <button onClick={() => updateColor(c.key, '')} className="flex-shrink-0 p-1 text-gray-400 hover:text-kerpta-500 dark:text-gray-500 dark:hover:text-kerpta-400" title="Reinitialiser">
+                          <Minus className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   )
                 })}
@@ -705,12 +711,20 @@ function DocumentStylingSection({ activeTheme }: { activeTheme: string }) {
                   const defVal = f[defKey]
                   const currentVal = borders[f.key] ?? defVal
 
+                  const isModified = borders[f.key] !== undefined && borders[f.key] !== defVal
+                  const resetBtn = isModified ? (
+                    <button onClick={() => updateBorder(f.key, defVal)} className="flex-shrink-0 p-1 text-gray-400 hover:text-kerpta-500 dark:text-gray-500 dark:hover:text-kerpta-400" title="Reinitialiser">
+                      <Minus className="w-3.5 h-3.5" />
+                    </button>
+                  ) : null
+
                   if (f.type === 'color') {
                     return (
                       <div key={f.key} className="flex items-center gap-3">
                         <span className="text-xs text-gray-600 dark:text-gray-400 w-52 flex-shrink-0">{f.label}</span>
                         <input className="w-8 h-8 rounded border border-gray-200 dark:border-gray-600 cursor-pointer" type="color" value={(currentVal as string) || '#ffffff'} onChange={(e) => updateBorder(f.key, e.target.value)} />
                         <input placeholder="Aucun" className="h-[30px] w-24 px-2 py-0.5 text-xs font-mono border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded focus:outline-none focus:ring-1 focus:ring-kerpta-400" type="text" value={currentVal as string} onChange={(e) => updateBorder(f.key, e.target.value)} />
+                        {resetBtn}
                       </div>
                     )
                   } else if (f.type === 'width') {
@@ -720,6 +734,7 @@ function DocumentStylingSection({ activeTheme }: { activeTheme: string }) {
                         <select value={currentVal as number} onChange={(e) => updateBorder(f.key, parseFloat(e.target.value))} className="h-[30px] px-2 py-0.5 text-xs border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded focus:outline-none focus:ring-1 focus:ring-kerpta-400 w-20">
                           {[0, 0.5, 1, 1.5, 2, 3, 4, 5].map((w) => <option key={w} value={w}>{w === 0 ? 'Aucun' : `${w}px`}</option>)}
                         </select>
+                        {resetBtn}
                       </div>
                     )
                   } else {
@@ -729,6 +744,7 @@ function DocumentStylingSection({ activeTheme }: { activeTheme: string }) {
                         <button onClick={() => updateBorder(f.key, currentVal ? 0 : 1)} className={`px-3 py-1.5 text-xs rounded-full border transition cursor-pointer ${currentVal ? 'bg-kerpta-50 dark:bg-kerpta-900/30 border-kerpta-200 dark:border-kerpta-700 text-kerpta-700 dark:text-kerpta-400' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:border-gray-300'}`}>
                           {currentVal ? 'Oui' : 'Non'}
                         </button>
+                        {resetBtn}
                       </div>
                     )
                   }
