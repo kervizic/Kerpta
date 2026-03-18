@@ -527,11 +527,11 @@ DEFAULT_DOCUMENT_STYLING = {
         "footer": 400,
     },
     "colors": {
-        "title": "#555555",
-        "labels": "#555555",
+        "title": "#606060",
+        "labels": "#606060",
         "values": "#222222",
         "separator": "",
-        "footer_text": "#555555",
+        "footer_text": "#606060",
     },
     "column_labels": {
         "reference": "Réf.",
