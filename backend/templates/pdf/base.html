@@ -228,14 +228,14 @@ table { border-collapse: collapse; width: 100%; }
 <!-- ── Totaux ────────────────────────────────────────────────────── -->
 <div class="totals-wrapper clearfix">
   <table class="totals-table">
-    <tr class="totals-row"><td class="totals-label">Total HT</td><td class="totals-spacer"></td><td class="totals-value">{{ subtotal_ht|fmt_currency }}</td></tr>
+    <tr class="totals-row totals-row-ht"><td class="totals-label">Total HT</td><td class="totals-spacer"></td><td class="totals-value">{{ subtotal_ht|fmt_currency }}</td></tr>
     {% if discount_label %}
-    <tr class="totals-row"><td class="totals-label">Remise {{ discount_label }}</td><td class="totals-spacer"></td><td class="totals-value">-{{ discount_amount|fmt_currency }}</td></tr>
+    <tr class="totals-row totals-row-mid"><td class="totals-label">Remise {{ discount_label }}</td><td class="totals-spacer"></td><td class="totals-value">-{{ discount_amount|fmt_currency }}</td></tr>
     {% endif %}
     {% for vat_line in vat_breakdown %}
-    <tr class="totals-row"><td class="totals-label">TVA {{ vat_line.rate }}%</td><td class="totals-spacer"></td><td class="totals-value">{{ vat_line.amount|fmt_currency }}</td></tr>
+    <tr class="totals-row totals-row-mid"><td class="totals-label">TVA {{ vat_line.rate }}%</td><td class="totals-spacer"></td><td class="totals-value">{{ vat_line.amount|fmt_currency }}</td></tr>
     {% endfor %}
-    <tr class="totals-row"><td class="totals-label">Total TTC</td><td class="totals-spacer"></td><td class="totals-value">{{ total_ttc|fmt_currency }}</td></tr>
+    <tr class="totals-row totals-row-ttc"><td class="totals-label">Total TTC</td><td class="totals-spacer"></td><td class="totals-value">{{ total_ttc|fmt_currency }}</td></tr>
   </table>
 </div>
 
