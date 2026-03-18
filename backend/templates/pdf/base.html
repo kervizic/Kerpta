@@ -135,7 +135,8 @@ table { border-collapse: collapse; width: 100%; }
 .totals-row-ht td { border-top: {{ bd.totals_ht_border_width | default(1) }}px solid {{ bd.totals_ht_border_color | default('#eeeeee') }}; padding-top: 8px; }
 {% endif %}
 {% if bd.totals_mid_border_width | default(0) > 0 %}
-.totals-row-mid td { border-bottom: {{ bd.totals_mid_border_width | default(1) }}px solid {{ bd.totals_mid_border_color | default('#eeeeee') }}; }
+.totals-row-ht td { border-bottom: {{ bd.totals_mid_border_width | default(0.5) }}px solid {{ bd.totals_mid_border_color | default('#eeeeee') }}; padding-bottom: 6px; }
+.totals-row-mid td { border-bottom: {{ bd.totals_mid_border_width | default(0.5) }}px solid {{ bd.totals_mid_border_color | default('#eeeeee') }}; }
 {% endif %}
 {% if bd.totals_ttc_border_width | default(0) > 0 %}
 .totals-row-ttc td { border-top: {{ bd.totals_ttc_border_width | default(1) }}px solid {{ bd.totals_ttc_border_color | default('#eeeeee') }}; padding-top: 8px; }
