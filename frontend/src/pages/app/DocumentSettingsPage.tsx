@@ -3,7 +3,7 @@
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
 import { useEffect, useState } from 'react'
-import { Plus, Loader2, Pencil, Trash2, FileText, Sparkles, Minus, Info } from 'lucide-react'
+import { Plus, Loader2, Pencil, Trash2, FileText, Sparkles, Minus, Info, RotateCcw } from 'lucide-react'
 import { orgGet, orgPatch } from '@/lib/orgApi'
 import { INPUT, BTN_SM } from '@/lib/formStyles'
 
@@ -633,11 +633,14 @@ function DocumentStylingSection({ activeTheme }: { activeTheme: string }) {
               <div className="pb-4 space-y-2">
                 {FONT_SIZE_FIELDS.map((f) => {
                   const themeData = styling.themes[activeTheme] || {} as ThemeVisuals
+                  const sizeVal = themeData.font_sizes?.[f.key]
+                  const weightVal = f.weightKey ? themeData.font_weights?.[f.weightKey] : undefined
+                  const isModified = sizeVal !== undefined || weightVal !== undefined
                   return (
                     <div key={f.weightKey} className="flex items-center gap-3">
                       <span className="text-xs text-gray-600 dark:text-gray-400 w-44 flex-shrink-0">{f.label}</span>
                       <select
-                        value={themeData.font_sizes?.[f.key] ?? 9}
+                        value={sizeVal ?? 9}
                         onChange={(e) => updateFontSize(f.key, parseInt(e.target.value))}
                         className="h-[30px] px-2 py-0.5 text-xs border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded focus:outline-none focus:ring-1 focus:ring-kerpta-400 w-16"
                       >
@@ -647,7 +650,7 @@ function DocumentStylingSection({ activeTheme }: { activeTheme: string }) {
                       </select>
                       {f.weightKey && (
                         <select
-                          value={themeData.font_weights?.[f.weightKey] ?? 400}
+                          value={weightVal ?? 400}
                           onChange={(e) => updateFontWeight(f.weightKey!, parseInt(e.target.value))}
                           className="h-[30px] px-2 py-0.5 text-xs border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded focus:outline-none focus:ring-1 focus:ring-kerpta-400 w-28"
                         >
@@ -656,6 +659,17 @@ function DocumentStylingSection({ activeTheme }: { activeTheme: string }) {
                           ))}
                         </select>
                       )}
+                      <button
+                        onClick={() => {
+                          updateFontSize(f.key, 9)
+                          if (f.weightKey) updateFontWeight(f.weightKey, 400)
+                        }}
+                        className={`flex-shrink-0 p-1 transition ${isModified ? 'text-kerpta-500 dark:text-kerpta-400 hover:text-kerpta-600' : 'text-gray-300 dark:text-gray-600 cursor-default'}`}
+                        title="Reinitialiser"
+                        disabled={!isModified}
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                      </button>
                     </div>
                   )
                 })}
@@ -687,11 +701,9 @@ function DocumentStylingSection({ activeTheme }: { activeTheme: string }) {
                         placeholder="Defaut du theme"
                         className="h-[30px] w-24 px-2 py-0.5 text-xs font-mono border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded focus:outline-none focus:ring-1 focus:ring-kerpta-400"
                       />
-                      {colorVal && (
-                        <button onClick={() => updateColor(c.key, '')} className="flex-shrink-0 p-1 text-gray-400 hover:text-kerpta-500 dark:text-gray-500 dark:hover:text-kerpta-400" title="Reinitialiser">
-                          <Minus className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                      <button onClick={() => updateColor(c.key, '')} className={`flex-shrink-0 p-1 transition ${colorVal ? 'text-kerpta-500 dark:text-kerpta-400 hover:text-kerpta-600' : 'text-gray-300 dark:text-gray-600 cursor-default'}`} title="Reinitialiser" disabled={!colorVal}>
+                        <RotateCcw className="w-3 h-3" />
+                      </button>
                     </div>
                   )
                 })}
@@ -712,11 +724,11 @@ function DocumentStylingSection({ activeTheme }: { activeTheme: string }) {
                   const currentVal = borders[f.key] ?? defVal
 
                   const isModified = borders[f.key] !== undefined && borders[f.key] !== defVal
-                  const resetBtn = isModified ? (
-                    <button onClick={() => updateBorder(f.key, defVal)} className="flex-shrink-0 p-1 text-gray-400 hover:text-kerpta-500 dark:text-gray-500 dark:hover:text-kerpta-400" title="Reinitialiser">
-                      <Minus className="w-3.5 h-3.5" />
+                  const resetBtn = (
+                    <button onClick={() => updateBorder(f.key, defVal)} className={`flex-shrink-0 p-1 transition ${isModified ? 'text-kerpta-500 dark:text-kerpta-400 hover:text-kerpta-600' : 'text-gray-300 dark:text-gray-600 cursor-default'}`} title="Reinitialiser" disabled={!isModified}>
+                      <RotateCcw className="w-3 h-3" />
                     </button>
-                  ) : null
+                  )
 
                   if (f.type === 'color') {
                     return (
@@ -774,15 +786,19 @@ function DocumentStylingSection({ activeTheme }: { activeTheme: string }) {
                               maxLength={30}
                               className="h-[30px] w-full px-2 py-0.5 text-xs border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded focus:outline-none focus:ring-1 focus:ring-kerpta-400"
                             />
-                            {(styling.column_labels[f.key] ?? '') !== '' && styling.column_labels[f.key] !== f.defaultLabel && (
-                              <button
-                                onClick={() => updateLabel(f.key, f.defaultLabel)}
-                                className="flex-shrink-0 p-1 text-gray-400 hover:text-kerpta-500 dark:text-gray-500 dark:hover:text-kerpta-400"
-                                title="Reinitialiser"
-                              >
-                                <Minus className="w-3.5 h-3.5" />
-                              </button>
-                            )}
+                            {(() => {
+                              const labelModified = (styling.column_labels[f.key] ?? '') !== '' && styling.column_labels[f.key] !== f.defaultLabel
+                              return (
+                                <button
+                                  onClick={() => updateLabel(f.key, f.defaultLabel)}
+                                  className={`flex-shrink-0 p-1 transition ${labelModified ? 'text-kerpta-500 dark:text-kerpta-400 hover:text-kerpta-600' : 'text-gray-300 dark:text-gray-600 cursor-default'}`}
+                                  title="Reinitialiser"
+                                  disabled={!labelModified}
+                                >
+                                  <RotateCcw className="w-3 h-3" />
+                                </button>
+                              )
+                            })()}
                           </div>
                         </div>
                       ))}
@@ -832,26 +848,33 @@ function DocumentStylingSection({ activeTheme }: { activeTheme: string }) {
                       )}
                     </div>
                     <div className="space-y-2">
-                      {g.fields.map((f) => (
-                        <div key={f.key} className="flex items-center gap-3">
-                          <span className="text-xs text-gray-600 dark:text-gray-400 w-52 flex-shrink-0 flex items-center gap-1">
-                            {f.label}
-                            <span className="group relative">
-                              <Info className="w-3 h-3 text-gray-400 dark:text-gray-500 cursor-help flex-shrink-0" />
-                              <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block w-56 text-[10px] text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 shadow-lg z-50">{f.hint}</span>
+                      {g.fields.map((f) => {
+                        const spacingVal = styling.spacing[f.key]
+                        const isModified = spacingVal !== undefined && spacingVal !== f.def
+                        return (
+                          <div key={f.key} className="flex items-center gap-3">
+                            <span className="text-xs text-gray-600 dark:text-gray-400 w-52 flex-shrink-0 flex items-center gap-1">
+                              {f.label}
+                              <span className="group relative">
+                                <Info className="w-3 h-3 text-gray-400 dark:text-gray-500 cursor-help flex-shrink-0" />
+                                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block w-56 text-[10px] text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 shadow-lg z-50">{f.hint}</span>
+                              </span>
                             </span>
-                          </span>
-                          <input
-                            type="number"
-                            min={0}
-                            max={300}
-                            value={styling.spacing[f.key] ?? f.def}
-                            onChange={(e) => updateSpacing(f.key, parseInt(e.target.value) || f.def)}
-                            className="h-[30px] w-20 px-2 py-0.5 text-xs border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded focus:outline-none focus:ring-1 focus:ring-kerpta-400 text-right"
-                          />
-                          <span className="text-[10px] text-gray-400 dark:text-gray-500 w-6">{f.unit}</span>
-                        </div>
-                      ))}
+                            <input
+                              type="number"
+                              min={0}
+                              max={300}
+                              value={spacingVal ?? f.def}
+                              onChange={(e) => updateSpacing(f.key, parseInt(e.target.value) || f.def)}
+                              className="h-[30px] w-20 px-2 py-0.5 text-xs border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded focus:outline-none focus:ring-1 focus:ring-kerpta-400 text-right"
+                            />
+                            <span className="text-[10px] text-gray-400 dark:text-gray-500 w-6">{f.unit}</span>
+                            <button onClick={() => updateSpacing(f.key, f.def)} className={`flex-shrink-0 p-1 transition ${isModified ? 'text-kerpta-500 dark:text-kerpta-400 hover:text-kerpta-600' : 'text-gray-300 dark:text-gray-600 cursor-default'}`} title="Reinitialiser" disabled={!isModified}>
+                              <RotateCcw className="w-3 h-3" />
+                            </button>
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
                 ))}
