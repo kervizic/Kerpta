@@ -415,18 +415,18 @@ const BORDER_FIELDS: { key: string; label: string; type: 'color' | 'width' | 'to
   { key: 'th_border_color', label: 'Trait sous en-tetes - couleur', type: 'color', def_classique: '#cccccc', def_moderne: '#eeeeee', def_minimaliste: '' },
   { key: 'th_border_width', label: 'Trait sous en-tetes - epaisseur', type: 'width', def_classique: 1, def_moderne: 1, def_minimaliste: 0 },
   { key: 'td_border_color', label: 'Trait entre lignes - couleur', type: 'color', def_classique: '#e8e8e8', def_moderne: '#eeeeee', def_minimaliste: '' },
-  { key: 'td_border_width', label: 'Trait entre lignes - epaisseur', type: 'width', def_classique: 1, def_moderne: 1, def_minimaliste: 0 },
+  { key: 'td_border_width', label: 'Trait entre lignes - epaisseur', type: 'width', def_classique: 0.5, def_moderne: 0.5, def_minimaliste: 0 },
   { key: 'td_last_border', label: 'Trait sous derniere ligne', type: 'toggle', def_classique: 1, def_moderne: 0, def_minimaliste: 0 },
   { key: 'zebra_enabled', label: 'Lignes zebrees (alternance fond)', type: 'toggle', def_classique: 1, def_moderne: 0, def_minimaliste: 0 },
   { key: 'zebra_color', label: 'Couleur fond zebree', type: 'color', def_classique: '#fafafa', def_moderne: '', def_minimaliste: '' },
   { key: 'totals_ht_border_color', label: 'Trait au-dessus Total HT - couleur', type: 'color', def_classique: '', def_moderne: '#eeeeee', def_minimaliste: '' },
   { key: 'totals_ht_border_width', label: 'Trait au-dessus Total HT - epaisseur', type: 'width', def_classique: 0, def_moderne: 1, def_minimaliste: 0 },
   { key: 'totals_mid_border_color', label: 'Trait entre HT et TTC - couleur', type: 'color', def_classique: '', def_moderne: '#eeeeee', def_minimaliste: '' },
-  { key: 'totals_mid_border_width', label: 'Trait entre HT et TTC - epaisseur', type: 'width', def_classique: 0, def_moderne: 1, def_minimaliste: 0 },
+  { key: 'totals_mid_border_width', label: 'Trait entre HT et TTC - epaisseur', type: 'width', def_classique: 0, def_moderne: 0.5, def_minimaliste: 0 },
   { key: 'totals_ttc_border_color', label: 'Trait au-dessus Total TTC - couleur', type: 'color', def_classique: '', def_moderne: '#eeeeee', def_minimaliste: '' },
   { key: 'totals_ttc_border_width', label: 'Trait au-dessus Total TTC - epaisseur', type: 'width', def_classique: 0, def_moderne: 1, def_minimaliste: 0 },
   { key: 'footer_border_color', label: 'Trait pied de page - couleur', type: 'color', def_classique: '#cccccc', def_moderne: '#e0e0e0', def_minimaliste: '' },
-  { key: 'footer_border_width', label: 'Trait pied de page - epaisseur', type: 'width', def_classique: 1, def_moderne: 1, def_minimaliste: 0 },
+  { key: 'footer_border_width', label: 'Trait pied de page - epaisseur', type: 'width', def_classique: 1, def_moderne: 0.5, def_minimaliste: 0 },
 ]
 
 const THEME_LABELS: Record<string, string> = {
@@ -735,8 +735,8 @@ function DocumentStylingSection() {
                     return (
                       <div key={f.key} className="flex items-center gap-3">
                         <span className="text-xs text-gray-600 dark:text-gray-400 w-52 flex-shrink-0">{f.label}</span>
-                        <select value={currentVal as number} onChange={(e) => updateBorder(f.key, parseInt(e.target.value))} className="h-[30px] px-2 py-0.5 text-xs border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded focus:outline-none focus:ring-1 focus:ring-kerpta-400 w-20">
-                          {[0, 1, 2, 3, 4, 5].map((w) => <option key={w} value={w}>{w === 0 ? 'Aucun' : `${w}px`}</option>)}
+                        <select value={currentVal as number} onChange={(e) => updateBorder(f.key, parseFloat(e.target.value))} className="h-[30px] px-2 py-0.5 text-xs border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded focus:outline-none focus:ring-1 focus:ring-kerpta-400 w-20">
+                          {[0, 0.5, 1, 1.5, 2, 3, 4, 5].map((w) => <option key={w} value={w}>{w === 0 ? 'Aucun' : `${w}px`}</option>)}
                         </select>
                       </div>
                     )

@@ -542,7 +542,7 @@ _DEFAULT_BORDERS_CLASSIQUE = {
     "th_border_color": "#cccccc",
     "th_border_width": 1,
     "td_border_color": "#e8e8e8",
-    "td_border_width": 1,
+    "td_border_width": 0.5,
     "td_last_border": 1,
     "zebra_color": "#fafafa",
     "zebra_enabled": 1,
@@ -563,18 +563,18 @@ _DEFAULT_BORDERS_MODERNE = {
     "th_border_color": "#eeeeee",
     "th_border_width": 1,
     "td_border_color": "#eeeeee",
-    "td_border_width": 1,
+    "td_border_width": 0.5,
     "td_last_border": 0,
     "zebra_color": "",
     "zebra_enabled": 0,
     "totals_ht_border_color": "#eeeeee",
     "totals_ht_border_width": 1,
     "totals_mid_border_color": "#eeeeee",
-    "totals_mid_border_width": 1,
+    "totals_mid_border_width": 0.5,
     "totals_ttc_border_color": "#eeeeee",
     "totals_ttc_border_width": 1,
     "footer_border_color": "#e0e0e0",
-    "footer_border_width": 1,
+    "footer_border_width": 0.5,
 }
 
 _DEFAULT_BORDERS_MINIMALISTE = {
@@ -804,8 +804,8 @@ async def update_document_styling(
                             if v != "" and not _COLOR_RE.match(v):
                                 raise HTTPException(422, f"borders.{k} doit etre au format #RRGGBB ou vide")
                         elif k in _border_width_keys:
-                            if not isinstance(v, int) or v < 0 or v > 5:
-                                raise HTTPException(422, f"borders.{k} doit etre un entier entre 0 et 5")
+                            if not isinstance(v, (int, float)) or v < 0 or v > 5:
+                                raise HTTPException(422, f"borders.{k} doit etre un nombre entre 0 et 5")
                         elif k in _border_toggle_keys:
                             if not isinstance(v, int) or v not in (0, 1):
                                 raise HTTPException(422, f"borders.{k} doit etre 0 ou 1")
