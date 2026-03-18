@@ -7,15 +7,15 @@
 {% set sep = cl.separator if cl is defined and cl.separator is defined and cl.separator else '' %}
 
 /* Tableau : bordure noire sous en-tetes, bordures fines entre lignes */
-.lines-table th { border-bottom: 1px solid {{ sep if sep else '#222222' }}; }
+.lines-table th { border-bottom: 1px solid {{ sep if sep else '#eeeeee' }}; }
 .lines-table td { border-bottom: 1px solid {{ sep if sep else '#eeeeee' }}; }
 /* Pas de trait sous la derniere ligne du tableau */
 .lines-table tbody tr:last-child td { border-bottom: none; }
 
-/* Totaux : trait fort au-dessus de HT et TTC, trait fin entre */
-.totals-row-ht td { border-top: 1px solid {{ sep if sep else '#222222' }}; padding-top: 8px; }
+/* Totaux : trait au-dessus de HT et TTC, trait fin entre */
+.totals-row-ht td { border-top: 1px solid {{ sep if sep else '#eeeeee' }}; padding-top: 8px; }
 .totals-row-mid td { border-bottom: 1px solid {{ sep if sep else '#eeeeee' }}; }
-.totals-row-ttc td { border-top: 1px solid {{ sep if sep else '#222222' }}; padding-top: 8px; }
+.totals-row-ttc td { border-top: 1px solid {{ sep if sep else '#eeeeee' }}; padding-top: 8px; }
 
 /* Pied de page emetteur */
 .page-footer-first, .page-footer-other { border-top: 1px solid {{ sep if sep else '#e0e0e0' }}; }
