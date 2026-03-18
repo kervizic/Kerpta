@@ -57,21 +57,12 @@ const PRINT_STYLES: PrintStyleOption[] = [
   },
 ]
 
-function PrintStyleSection() {
-  const [style, setStyle] = useState('classique')
-  const [loading, setLoading] = useState(true)
+function PrintStyleSection({ style, onStyleChange }: { style: string; onStyleChange: (key: string) => void }) {
   const [saving, setSaving] = useState(false)
-
-  useEffect(() => {
-    orgGet<{ style: string }>('/billing/print-style')
-      .then((data) => setStyle(data.style || 'classique'))
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
 
   async function handleSelect(key: string) {
     if (key === style) return
-    setStyle(key)
+    onStyleChange(key)
     setSaving(true)
     try {
       await orgPatch('/billing/print-style', { style: key })
@@ -88,42 +79,38 @@ function PrintStyleSection() {
         </div>
         {saving && <Loader2 className="w-4 h-4 animate-spin text-kerpta" />}
       </div>
-      {loading ? (
-        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-kerpta" /></div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {PRINT_STYLES.map((s) => {
-            const selected = style === s.key
-            const Icon = s.icon
-            return (
-              <button
-                key={s.key}
-                type="button"
-                onClick={() => handleSelect(s.key)}
-                className={`flex flex-col items-start gap-2 p-4 rounded-xl border-2 transition-all text-left ${
-                  selected
-                    ? 'border-kerpta bg-kerpta-50 dark:bg-kerpta-900/30 dark:border-kerpta-600'
-                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                    selected ? 'bg-kerpta text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500'
-                  }`}>
-                    <Icon className="w-4 h-4" />
-                  </div>
-                  <span className={`text-sm font-semibold ${selected ? 'text-kerpta-700 dark:text-kerpta-400' : 'text-gray-700 dark:text-gray-200'}`}>
-                    {s.label}
-                  </span>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {PRINT_STYLES.map((s) => {
+          const selected = style === s.key
+          const Icon = s.icon
+          return (
+            <button
+              key={s.key}
+              type="button"
+              onClick={() => handleSelect(s.key)}
+              className={`flex flex-col items-start gap-2 p-4 rounded-xl border-2 transition-all text-left ${
+                selected
+                  ? 'border-kerpta bg-kerpta-50 dark:bg-kerpta-900/30 dark:border-kerpta-600'
+                  : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                  selected ? 'bg-kerpta text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500'
+                }`}>
+                  <Icon className="w-4 h-4" />
                 </div>
-                <p className={`text-xs leading-relaxed ${selected ? 'text-kerpta-600 dark:text-kerpta-400/80' : 'text-gray-400 dark:text-gray-500'}`}>
-                  {s.description}
-                </p>
-              </button>
-            )
-          })}
-        </div>
-      )}
+                <span className={`text-sm font-semibold ${selected ? 'text-kerpta-700 dark:text-kerpta-400' : 'text-gray-700 dark:text-gray-200'}`}>
+                  {s.label}
+                </span>
+              </div>
+              <p className={`text-xs leading-relaxed ${selected ? 'text-kerpta-600 dark:text-kerpta-400/80' : 'text-gray-400 dark:text-gray-500'}`}>
+                {s.description}
+              </p>
+            </button>
+          )
+        })}
+      </div>
     </section>
   )
 }
@@ -533,21 +520,16 @@ const SPACING_GROUPS: { group: string; hint?: string; fields: { key: string; lab
   },
 ]
 
-function DocumentStylingSection() {
+function DocumentStylingSection({ activeTheme }: { activeTheme: string }) {
   const [styling, setStyling] = useState<DocumentStyling | null>(null)
-  const [activeTheme, setActiveTheme] = useState<string>('classique')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [openSub, setOpenSub] = useState<string | null>(null)
 
   useEffect(() => {
-    Promise.all([
-      orgGet<DocumentStyling>('/billing/document-styling'),
-      orgGet<{ style: string }>('/billing/print-style'),
-    ]).then(([stylingData, styleData]) => {
-      setStyling(stylingData)
-      setActiveTheme(styleData.style || 'classique')
-    }).catch(() => {})
+    orgGet<DocumentStyling>('/billing/document-styling')
+      .then((data) => setStyling(data))
+      .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
 
@@ -1151,20 +1133,36 @@ function InvoiceColumnsSection() {
 // ── Page principale ──────────────────────────────────────────────────────
 
 export default function DocumentSettingsPage() {
+  const [activeTheme, setActiveTheme] = useState('classique')
+  const [themeLoading, setThemeLoading] = useState(true)
+
+  useEffect(() => {
+    orgGet<{ style: string }>('/billing/print-style')
+      .then((data) => setActiveTheme(data.style || 'classique'))
+      .catch(() => {})
+      .finally(() => setThemeLoading(false))
+  }, [])
+
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
         <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Documents</h1>
-        <PrintStyleSection />
-        <DocumentHeaderSection />
-        <PageFooterSection />
-        <DocumentTypesSection
-          endpoint="/billing/quote-document-types"
-          title="Colonnes des devis"
-          description="Modèles de mise en page disponibles lors de la création d'un devis, avec les colonnes affichées"
-        />
-        <InvoiceColumnsSection />
-        <DocumentStylingSection />
+        {themeLoading ? (
+          <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-kerpta" /></div>
+        ) : (
+          <>
+            <PrintStyleSection style={activeTheme} onStyleChange={setActiveTheme} />
+            <DocumentHeaderSection />
+            <PageFooterSection />
+            <DocumentTypesSection
+              endpoint="/billing/quote-document-types"
+              title="Colonnes des devis"
+              description="Modèles de mise en page disponibles lors de la création d'un devis, avec les colonnes affichées"
+            />
+            <InvoiceColumnsSection />
+            <DocumentStylingSection activeTheme={activeTheme} />
+          </>
+        )}
       </div>
     </div>
   )
