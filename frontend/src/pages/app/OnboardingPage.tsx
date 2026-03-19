@@ -3,6 +3,9 @@
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
 import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { Building2, Users, ArrowLeft, Search, CheckCircle2, Loader2 } from 'lucide-react'
 import { apiClient } from '@/lib/api'
 import { useAuthStore } from '@/stores/authStore'
@@ -54,6 +57,18 @@ interface OrgSearchResult {
   org_siret: string | null
   org_siren: string | null
 }
+
+// ── Schéma Zod pour le formulaire de création ────────────────────────────────
+
+const createOrgSchema = z.object({
+  name: z.string().min(1, 'Le nom est obligatoire'),
+  legalForm: z.string(),
+  vatRegime: z.string(),
+  email: z.string().email('Email invalide').or(z.literal('')),
+  phone: z.string(),
+})
+
+type CreateOrgForm = z.infer<typeof createOrgSchema>
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -203,15 +218,21 @@ function CreateStep({
   const [lookupResult, setLookupResult] = useState<CompanyLookup | null>(null)
   const [searchError, setSearchError] = useState('')
 
-  const [name, setName] = useState('')
-  const [legalForm, setLegalForm] = useState('')
-  const [vatRegime, setVatRegime] = useState('')
-  const [accountingRegime] = useState('')
-  const [email, setEmail] = useState('')
-  const [phone, setPhone] = useState('')
-
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
+
+  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<CreateOrgForm>({
+    resolver: zodResolver(createOrgSchema),
+    defaultValues: {
+      name: '',
+      legalForm: '',
+      vatRegime: '',
+      email: '',
+      phone: '',
+    },
+  })
+
+  const legalForm = watch('legalForm')
 
   async function lookupSiret() {
     const clean = siret.replace(/\s/g, '')
@@ -230,13 +251,13 @@ function CreateStep({
       }
       const c = data[0]
       setLookupResult(c)
-      setName(c.denomination ?? c.sigle ?? '')
+      setValue('name', c.denomination ?? c.sigle ?? '')
       // Pré-remplir la forme juridique si reconnue dans le dropdown
       const mappedForm = LEGAL_FORM_DROPDOWN[c.categorie_juridique_libelle ?? ''] ?? ''
-      setLegalForm(mappedForm)
-      // Pré-remplir franchise de base si CA ≤ 36 800 € (seuil prestations de services)
+      setValue('legalForm', mappedForm)
+      // Pré-remplir franchise de base si CA <= 36 800 (seuil prestations de services)
       if (c.ca !== null && c.ca > 0 && c.ca <= 36800) {
-        setVatRegime('none')
+        setValue('vatRegime', 'none')
       }
     } catch (err) {
       setSearchError(httpError(err, 'Erreur lors de la recherche'))
@@ -245,8 +266,7 @@ function CreateStep({
     }
   }
 
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault()
+  async function onSubmit(formData: CreateOrgForm) {
     if (!lookupResult) return
     setSaving(true)
     setSaveError('')
@@ -262,14 +282,14 @@ function CreateStep({
           }
         : undefined
       await apiClient.post('/organizations', {
-        name: name.trim(),
+        name: formData.name.trim(),
         siret: siret14 ?? null,
         siren: siren9 ?? null,
-        legal_form: legalForm || null,
-        vat_regime: vatRegime || null,
-        accounting_regime: accountingRegime || null,
-        email: email || null,
-        phone: phone || null,
+        legal_form: formData.legalForm || null,
+        vat_regime: formData.vatRegime || null,
+        accounting_regime: null,
+        email: formData.email || null,
+        phone: formData.phone || null,
         ape_code: lookupResult?.activite_principale ?? null,
         address: address ?? null,
       })
@@ -352,17 +372,16 @@ function CreateStep({
 
       {/* Formulaire complémentaire — affiché seulement après lookup réussi */}
       {lookupResult ? (
-        <form onSubmit={(e) => void handleCreate(e)} className="space-y-4">
+        <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-4">
           <div>
             <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
               Régime TVA
             </label>
             <select
-              value={vatRegime}
-              onChange={(e) => setVatRegime(e.target.value)}
+              {...register('vatRegime')}
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-400 focus:border-transparent bg-white"
             >
-              <option value="">— Sélectionner —</option>
+              <option value="">- Sélectionner -</option>
               <option value="none">Franchise de base (sans TVA)</option>
               <option value="quarterly">Trimestrielle</option>
               <option value="monthly">Mensuelle</option>
@@ -377,10 +396,10 @@ function CreateStep({
               </label>
               <input
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                {...register('email')}
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-400 focus:border-transparent"
               />
+              {errors.email && <p className="text-xs text-red-600 mt-1">{errors.email.message}</p>}
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
@@ -388,8 +407,7 @@ function CreateStep({
               </label>
               <input
                 type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                {...register('phone')}
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-400 focus:border-transparent"
               />
             </div>

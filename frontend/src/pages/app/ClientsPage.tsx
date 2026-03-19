@@ -3,6 +3,9 @@
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
 import { useEffect, useState, useRef } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Plus, Search, Loader2, Users,
@@ -98,6 +101,25 @@ function httpError(err: unknown, fallback: string): string {
 }
 
 import { INPUT, SELECT, BTN, OVERLAY_BACKDROP, OVERLAY_PANEL } from '@/lib/formStyles'
+
+// -- Schema Zod pour le formulaire de creation client -------------------------
+
+const clientSchema = z.object({
+  type: z.enum(['company', 'individual']),
+  name: z.string().min(1, 'Le nom est requis'),
+  siren: z.string(),
+  siret: z.string(),
+  vatNumber: z.string(),
+  contactLastName: z.string(),
+  contactFirstName: z.string(),
+  contactJobTitle: z.string(),
+  contactEmail: z.string(),
+  contactPhone: z.string(),
+  billingProfileId: z.string(),
+  notes: z.string(),
+})
+
+type ClientFormValues = z.infer<typeof clientSchema>
 
 function formatAddress(a: Record<string, string | null> | null | undefined): string {
   if (!a) return '—'
@@ -234,8 +256,20 @@ function ClientsList() {
 // ── Formulaire de création ───────────────────────────────────────────────────
 
 export function CreateClientForm({ onClose, onCreated }: { onClose?: () => void; onCreated?: (id: string) => void } = {}) {
-  // Type
-  const [type, setType] = useState<'company' | 'individual'>('company')
+  const { register, handleSubmit: rhfSubmit, watch, setValue, formState: { isSubmitting } } = useForm<ClientFormValues>({
+    resolver: zodResolver(clientSchema),
+    defaultValues: {
+      type: 'company', name: '', siren: '', siret: '', vatNumber: '',
+      contactLastName: '', contactFirstName: '', contactJobTitle: '',
+      contactEmail: '', contactPhone: '', billingProfileId: '', notes: '',
+    },
+  })
+
+  const type = watch('type')
+  const siren = watch('siren')
+  const siret = watch('siret')
+  const vatNumber = watch('vatNumber')
+  const name = watch('name')
 
   // Pays
   const [countryCode, setCountryCode] = useState('FR')
@@ -243,37 +277,19 @@ export function CreateClientForm({ onClose, onCreated }: { onClose?: () => void;
   const [showCountryDropdown, setShowCountryDropdown] = useState(false)
   const countryRef = useRef<HTMLDivElement>(null)
 
-  // Identification
-  const [siren, setSiren] = useState('')
-  const [siret, setSiret] = useState('')
-  const [vatNumber, setVatNumber] = useState('')
-
-  // Nom
-  const [name, setName] = useState('')
-
   // Adresse
   const [billingAddress, setBillingAddress] = useState({ voie: '', complement: '', code_postal: '', commune: '', pays: 'France' })
   const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([])
   const addressTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
-  // Résultats recherche
+  // Resultats recherche
   const [companyDetails, setCompanyDetails] = useState<CompanyDetails | null>(null)
   const [searchResults, setSearchResults] = useState<CompanySearchResult[]>([])
   const [selectedEtab, setSelectedEtab] = useState<string | null>(null)
   const [searching, setSearching] = useState(false)
 
-  // Contact
-  const [contactLastName, setContactLastName] = useState('')
-  const [contactFirstName, setContactFirstName] = useState('')
-  const [contactJobTitle, setContactJobTitle] = useState('')
-  const [contactEmail, setContactEmail] = useState('')
-  const [contactPhone, setContactPhone] = useState('')
-
-  // Divers
-  const [billingProfileId, setBillingProfileId] = useState<string | null>(null)
+  // Reference data
   const [billingProfiles, setBillingProfiles] = useState<BillingProfileShort[]>([])
-  const [notes, setNotes] = useState('')
-  const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   const mode = type === 'company' ? getCountryMode(countryCode) : 'world'
@@ -298,7 +314,7 @@ export function CreateClientForm({ onClose, onCreated }: { onClose?: () => void;
         setBillingProfiles(profiles)
         // Sélectionner le profil par défaut
         const defaultProfile = profiles.find((p: BillingProfileShort) => p.is_default)
-        if (defaultProfile) setBillingProfileId(defaultProfile.id)
+        if (defaultProfile) setValue('billingProfileId', defaultProfile.id)
       } catch {
         // Pas critique
       }
@@ -328,10 +344,10 @@ export function CreateClientForm({ onClose, onCreated }: { onClose?: () => void;
 
       if (data.length > 0) {
         const first = data[0]
-        if (first.denomination) setName(first.denomination)
-        if (first.tva_intracom) setVatNumber(first.tva_intracom)
-        if (first.siren) setSiren(first.siren)
-        if (first.siret_siege) setSiret(first.siret_siege)
+        if (first.denomination) setValue('name', first.denomination)
+        if (first.tva_intracom) setValue('vatNumber', first.tva_intracom)
+        if (first.siren) setValue('siren', first.siren)
+        if (first.siret_siege) setValue('siret', first.siret_siege)
 
         // Pour un SIREN français, récupérer les établissements
         if (first.siren && first.siren.length === 9) {
@@ -350,7 +366,7 @@ export function CreateClientForm({ onClose, onCreated }: { onClose?: () => void;
 
   function handleSelectEtab(etab: Etablissement) {
     setSelectedEtab(etab.siret)
-    setSiret(etab.siret)
+    setValue('siret', etab.siret)
     setBillingAddress({
       voie: etab.adresse.voie ?? '',
       complement: etab.adresse.complement ?? '',
@@ -394,36 +410,32 @@ export function CreateClientForm({ onClose, onCreated }: { onClose?: () => void;
 
   // ── Soumission ──────────────────────────────────────────────────────────
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setSaving(true)
+  async function onSubmit(data: ClientFormValues) {
     setError('')
-
     try {
-      const cleanSiren = siren.replace(/\s/g, '')
+      const cleanSiren = data.siren.replace(/\s/g, '')
       const result = await orgPost<{ id: string }>('/clients', {
-        type,
-        name,
-        country_code: type === 'company' ? countryCode : 'FR',
-        siret: siret.replace(/\s/g, '') || undefined,
+        type: data.type,
+        name: data.name,
+        country_code: data.type === 'company' ? countryCode : 'FR',
+        siret: data.siret.replace(/\s/g, '') || undefined,
         company_siren: cleanSiren.length === 9 ? cleanSiren : undefined,
-        vat_number: vatNumber || undefined,
-        email: contactEmail || undefined,
-        phone: contactPhone || undefined,
+        vat_number: data.vatNumber || undefined,
+        email: data.contactEmail || undefined,
+        phone: data.contactPhone || undefined,
         billing_address: billingAddress.voie ? billingAddress : undefined,
-        billing_profile_id: billingProfileId || undefined,
-        notes: notes || undefined,
+        billing_profile_id: data.billingProfileId || undefined,
+        notes: data.notes || undefined,
       })
 
-      // Créer le contact si au moins un champ rempli
-      const hasContact = contactLastName || contactFirstName || contactEmail || contactPhone || contactJobTitle
+      const hasContact = data.contactLastName || data.contactFirstName || data.contactEmail || data.contactPhone || data.contactJobTitle
       if (hasContact) {
         await orgPost(`/clients/${result.id}/contacts`, {
-          last_name: contactLastName || undefined,
-          first_name: contactFirstName || undefined,
-          email: contactEmail || undefined,
-          phone: contactPhone || undefined,
-          job_title: contactJobTitle || undefined,
+          last_name: data.contactLastName || undefined,
+          first_name: data.contactFirstName || undefined,
+          email: data.contactEmail || undefined,
+          phone: data.contactPhone || undefined,
+          job_title: data.contactJobTitle || undefined,
           is_primary: true,
         })
       }
@@ -431,9 +443,8 @@ export function CreateClientForm({ onClose, onCreated }: { onClose?: () => void;
       if (onCreated) onCreated(result.id)
       else onClose?.()
     } catch (err) {
-      setError(httpError(err, 'Erreur lors de la création'))
+      setError(httpError(err, 'Erreur lors de la cr\u00e9ation'))
     }
-    setSaving(false)
   }
 
   const formBody = (
@@ -444,14 +455,13 @@ export function CreateClientForm({ onClose, onCreated }: { onClose?: () => void;
           <div className="p-3 mb-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg text-sm text-red-700 dark:text-red-400">{error}</div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={rhfSubmit(onSubmit)} className="space-y-6">
 
           {/* ── Type ─────────────────────────────────────────────────────── */}
           <section>
             <label className="block text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1.5">Type</label>
             <select
-              value={type}
-              onChange={(e) => setType(e.target.value as 'company' | 'individual')}
+              {...register('type')}
               className={SELECT}
             >
               <option value="company">Entreprise</option>
@@ -488,9 +498,9 @@ export function CreateClientForm({ onClose, onCreated }: { onClose?: () => void;
                             setSearchResults([])
                             setCompanyDetails(null)
                             setSelectedEtab(null)
-                            setSiren('')
-                            setSiret('')
-                            setVatNumber('')
+                            setValue('siren', '')
+                            setValue('siret', '')
+                            setValue('vatNumber', '')
                           }}
                           className={`w-full text-left px-3 py-2 text-sm hover:bg-kerpta-50 dark:hover:bg-kerpta-900/30 transition ${
                             c.code === countryCode ? 'bg-kerpta-50 dark:bg-kerpta-900/30 text-kerpta-600 dark:text-kerpta-400 font-medium' : 'text-gray-700 dark:text-gray-200'
@@ -514,19 +524,19 @@ export function CreateClientForm({ onClose, onCreated }: { onClose?: () => void;
               {mode === 'france' && (
                 <>
                   <div className="flex gap-2">
-                    <input type="text" value={siren} onChange={(e) => setSiren(e.target.value)} placeholder="SIREN (9 chiffres)" maxLength={11} className={`${INPUT} flex-1`} />
+                    <input type="text" {...register('siren')} placeholder="SIREN (9 chiffres)" maxLength={11} className={`${INPUT} flex-1`} />
                     <button type="button" onClick={() => handleSearch(siren)} disabled={searching || siren.replace(/\s/g, '').length < 9} className="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition disabled:opacity-50">
                       {searching ? <Loader2 className="w-4 h-4 animate-spin text-gray-500" /> : <Search className="w-4 h-4 text-gray-500" />}
                     </button>
                   </div>
                   <div className="flex gap-2">
-                    <input type="text" value={siret} onChange={(e) => setSiret(e.target.value)} placeholder="SIRET (14 chiffres)" maxLength={17} className={`${INPUT} flex-1`} />
+                    <input type="text" {...register('siret')} placeholder="SIRET (14 chiffres)" maxLength={17} className={`${INPUT} flex-1`} />
                     <button type="button" onClick={() => handleSearch(siret)} disabled={searching || siret.replace(/\s/g, '').length < 14} className="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition disabled:opacity-50">
                       <Search className="w-4 h-4 text-gray-500" />
                     </button>
                   </div>
                   <div className="flex gap-2">
-                    <input type="text" value={vatNumber} onChange={(e) => setVatNumber(e.target.value)} placeholder="TVA intracommunautaire" className={`${INPUT} flex-1`} />
+                    <input type="text" {...register('vatNumber')} placeholder="TVA intracommunautaire" className={`${INPUT} flex-1`} />
                     <button type="button" onClick={() => handleSearch(vatNumber)} disabled={searching || vatNumber.length < 4} className="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition disabled:opacity-50">
                       <Search className="w-4 h-4 text-gray-500" />
                     </button>
@@ -536,7 +546,7 @@ export function CreateClientForm({ onClose, onCreated }: { onClose?: () => void;
 
               {mode === 'eu' && (
                 <div className="flex gap-2">
-                  <input type="text" value={vatNumber} onChange={(e) => setVatNumber(e.target.value)} placeholder="N° TVA intracommunautaire" className={`${INPUT} flex-1`} />
+                  <input type="text" {...register('vatNumber')} placeholder="N° TVA intracommunautaire" className={`${INPUT} flex-1`} />
                   <button type="button" onClick={() => handleSearch(vatNumber)} disabled={searching || vatNumber.length < 4} className="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition disabled:opacity-50">
                     {searching ? <Loader2 className="w-4 h-4 animate-spin text-gray-500" /> : <Search className="w-4 h-4 text-gray-500" />}
                   </button>
@@ -544,7 +554,7 @@ export function CreateClientForm({ onClose, onCreated }: { onClose?: () => void;
               )}
 
               {mode === 'world' && (
-                <input type="text" value={vatNumber} onChange={(e) => setVatNumber(e.target.value)} placeholder="N° TVA" className={INPUT} />
+                <input type="text" {...register('vatNumber')} placeholder="N° TVA" className={INPUT} />
               )}
             </section>
           )}
@@ -554,7 +564,7 @@ export function CreateClientForm({ onClose, onCreated }: { onClose?: () => void;
             <label className="block text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1.5">
               {type === 'company' ? 'Raison sociale' : 'Nom'}
             </label>
-            <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={type === 'company' ? 'Raison sociale' : 'Nom du client'} required className={INPUT} />
+            <input type="text" {...register('name')} placeholder={type === 'company' ? 'Raison sociale' : 'Nom du client'} required className={INPUT} />
           </section>
 
           {/* ── Adresse de facturation ────────────────────────────────────── */}
@@ -667,13 +677,13 @@ export function CreateClientForm({ onClose, onCreated }: { onClose?: () => void;
             <label className="block text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1.5">Contact (optionnel)</label>
             <div className="space-y-2">
               <div className="grid grid-cols-2 gap-2">
-                <input type="text" value={contactLastName} onChange={(e) => setContactLastName(e.target.value)} placeholder="Nom" className={INPUT} />
-                <input type="text" value={contactFirstName} onChange={(e) => setContactFirstName(e.target.value)} placeholder="Prénom" className={INPUT} />
+                <input type="text" {...register('contactLastName')} placeholder="Nom" className={INPUT} />
+                <input type="text" {...register('contactFirstName')} placeholder="Pr\u00e9nom" className={INPUT} />
               </div>
-              <input type="text" value={contactJobTitle} onChange={(e) => setContactJobTitle(e.target.value)} placeholder="Poste" className={INPUT} />
+              <input type="text" {...register('contactJobTitle')} placeholder="Poste" className={INPUT} />
               <div className="grid grid-cols-2 gap-2">
-                <input type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="Email" className={INPUT} />
-                <input type="tel" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="Téléphone" className={INPUT} />
+                <input type="email" {...register('contactEmail')} placeholder="Email" className={INPUT} />
+                <input type="tel" {...register('contactPhone')} placeholder="T\u00e9l\u00e9phone" className={INPUT} />
               </div>
             </div>
           </section>
@@ -683,8 +693,7 @@ export function CreateClientForm({ onClose, onCreated }: { onClose?: () => void;
             <label className="block text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1.5">Profil de facturation</label>
             {billingProfiles.length > 0 ? (
               <select
-                value={billingProfileId ?? ''}
-                onChange={(e) => setBillingProfileId(e.target.value || null)}
+                {...register('billingProfileId')}
                 className={SELECT}
               >
                 <option value="">Aucun profil</option>
@@ -705,14 +714,14 @@ export function CreateClientForm({ onClose, onCreated }: { onClose?: () => void;
           {/* ── Notes ────────────────────────────────────────────────────── */}
           <section>
             <label className="block text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1.5">Notes</label>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="Notes internes..." className={INPUT} />
+            <textarea {...register('notes')} rows={3} placeholder="Notes internes..." className={INPUT} />
           </section>
 
           {/* ── Boutons ──────────────────────────────────────────────────── */}
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={() => onClose?.()} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">Annuler</button>
-            <button type="submit" disabled={saving || !name} className={BTN}>
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Créer'}
+            <button type="submit" disabled={isSubmitting || !name} className={BTN}>
+              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Cr\u00e9er'}
             </button>
           </div>
         </form>

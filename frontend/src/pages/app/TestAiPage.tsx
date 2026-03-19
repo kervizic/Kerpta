@@ -3,6 +3,9 @@
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
 import { useState, useRef } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { apiClient } from '@/lib/api'
 import { useAuthStore } from '@/stores/authStore'
 import {
@@ -50,6 +53,19 @@ interface ChatMessage {
   content: string
 }
 
+const categorizeSchema = z.object({
+  label: z.string().min(1, 'Le libelle est requis'),
+  amount: z.string().min(1, 'Le montant est requis').refine(v => !isNaN(parseFloat(v)), 'Montant invalide'),
+  supplier: z.string().optional(),
+})
+type CategorizeForm = z.infer<typeof categorizeSchema>
+
+const chatSchema = z.object({
+  message: z.string().min(1, 'Le message est requis'),
+  useThinking: z.boolean(),
+})
+type ChatForm = z.infer<typeof chatSchema>
+
 export default function TestAiPage() {
   const { activeOrgId } = useAuthStore()
   const [tab, setTab] = useState<Tab>('ocr')
@@ -65,19 +81,20 @@ export default function TestAiPage() {
   const fileRef = useRef<HTMLInputElement>(null)
 
   // Categorize state
-  const [catLabel, setCatLabel] = useState('')
-  const [catAmount, setCatAmount] = useState('')
-  const [catSupplier, setCatSupplier] = useState('')
+  const catForm = useForm<CategorizeForm>({
+    resolver: zodResolver(categorizeSchema),
+    defaultValues: { label: '', amount: '', supplier: '' },
+  })
   const [catResult, setCatResult] = useState<Record<string, unknown> | null>(null)
-  const [catLoading, setCatLoading] = useState(false)
   const [catError, setCatError] = useState('')
 
   // Chat state
+  const chatForm = useForm<ChatForm>({
+    resolver: zodResolver(chatSchema),
+    defaultValues: { message: '', useThinking: false },
+  })
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
-  const [chatInput, setChatInput] = useState('')
-  const [chatLoading, setChatLoading] = useState(false)
   const [chatError, setChatError] = useState('')
-  const [useThinking, setUseThinking] = useState(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
 
   const [copied, setCopied] = useState(false)
@@ -133,17 +150,16 @@ export default function TestAiPage() {
 
   // ── Categorize ──────────────────────────────────────────────────────────
 
-  async function runCategorize() {
-    if (!catLabel || !catAmount || !activeOrgId) return
-    setCatLoading(true)
+  async function runCategorize(data: CategorizeForm) {
+    if (!activeOrgId) return
     setCatError('')
     setCatResult(null)
 
     try {
       const resp = await apiClient.post('/ai/categorize', {
-        label: catLabel,
-        amount: parseFloat(catAmount),
-        supplier_name: catSupplier || undefined,
+        label: data.label,
+        amount: parseFloat(data.amount),
+        supplier_name: data.supplier || undefined,
       }, {
         headers: { 'X-Organization-Id': activeOrgId },
       })
@@ -151,26 +167,23 @@ export default function TestAiPage() {
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Erreur categorisation'
       setCatError(String(msg))
-    } finally {
-      setCatLoading(false)
     }
   }
 
   // ── Chat ────────────────────────────────────────────────────────────────
 
-  async function sendChat() {
-    if (!chatInput.trim() || !activeOrgId) return
-    const userMsg: ChatMessage = { role: 'user', content: chatInput.trim() }
+  async function sendChat(data: ChatForm) {
+    if (!activeOrgId) return
+    const userMsg: ChatMessage = { role: 'user', content: data.message.trim() }
     const newMessages = [...chatMessages, userMsg]
     setChatMessages(newMessages)
-    setChatInput('')
-    setChatLoading(true)
+    chatForm.setValue('message', '')
     setChatError('')
 
     try {
       const resp = await apiClient.post('/ai/chat', {
         messages: newMessages.map(m => ({ role: m.role, content: m.content })),
-        use_thinking: useThinking,
+        use_thinking: data.useThinking,
       }, {
         headers: { 'X-Organization-Id': activeOrgId },
       })
@@ -179,8 +192,6 @@ export default function TestAiPage() {
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Erreur chat'
       setChatError(String(msg))
-    } finally {
-      setChatLoading(false)
     }
   }
 
@@ -356,16 +367,18 @@ export default function TestAiPage() {
       {/* ── Tab Categorize ─────────────────────────────────────────────────── */}
       {tab === 'categorize' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className={CARD + ' p-6 space-y-4'}>
+          <form onSubmit={catForm.handleSubmit(runCategorize)} className={CARD + ' p-6 space-y-4'}>
             <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Ecriture a categoriser</h2>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Libelle *</label>
               <input
                 className={INPUT}
                 placeholder="Ex: Fournitures de bureau - Amazon"
-                value={catLabel}
-                onChange={e => setCatLabel(e.target.value)}
+                {...catForm.register('label')}
               />
+              {catForm.formState.errors.label && (
+                <p className="text-xs text-red-500 mt-1">{catForm.formState.errors.label.message}</p>
+              )}
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Montant (EUR) *</label>
@@ -374,33 +387,34 @@ export default function TestAiPage() {
                 type="number"
                 step="0.01"
                 placeholder="Ex: 125.50"
-                value={catAmount}
-                onChange={e => setCatAmount(e.target.value)}
+                {...catForm.register('amount')}
               />
+              {catForm.formState.errors.amount && (
+                <p className="text-xs text-red-500 mt-1">{catForm.formState.errors.amount.message}</p>
+              )}
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Fournisseur (optionnel)</label>
               <input
                 className={INPUT}
                 placeholder="Ex: Amazon"
-                value={catSupplier}
-                onChange={e => setCatSupplier(e.target.value)}
+                {...catForm.register('supplier')}
               />
             </div>
             <button
-              onClick={runCategorize}
-              disabled={catLoading || !catLabel || !catAmount}
+              type="submit"
+              disabled={catForm.formState.isSubmitting}
               className={BTN + ' w-full'}
             >
-              {catLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <BookOpen className="w-4 h-4" />}
-              {catLoading ? 'Analyse...' : 'Suggerer un compte PCG'}
+              {catForm.formState.isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <BookOpen className="w-4 h-4" />}
+              {catForm.formState.isSubmitting ? 'Analyse...' : 'Suggerer un compte PCG'}
             </button>
             {catError && (
               <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-600 dark:text-red-400">
                 {catError}
               </div>
             )}
-          </div>
+          </form>
 
           <div className={CARD + ' p-6 space-y-4'}>
             <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Suggestion PCG</h2>
@@ -448,8 +462,7 @@ export default function TestAiPage() {
             <label className="flex items-center gap-2 text-xs text-gray-500">
               <input
                 type="checkbox"
-                checked={useThinking}
-                onChange={e => setUseThinking(e.target.checked)}
+                {...chatForm.register('useThinking')}
                 className="rounded border-gray-300"
               />
               Mode Thinking
@@ -475,7 +488,7 @@ export default function TestAiPage() {
                 </div>
               </div>
             ))}
-            {chatLoading && (
+            {chatForm.formState.isSubmitting && (
               <div className="flex justify-start">
                 <div className="bg-gray-100 dark:bg-gray-800 rounded-xl px-4 py-2.5">
                   <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
@@ -492,18 +505,17 @@ export default function TestAiPage() {
           )}
 
           {/* Input */}
-          <div className="flex gap-2">
+          <form onSubmit={chatForm.handleSubmit(sendChat)} className="flex gap-2">
             <input
               className={INPUT + ' flex-1'}
               placeholder="Ex: Quelle est la difference entre le compte 601 et 602 ?"
-              value={chatInput}
-              onChange={e => setChatInput(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat() } }}
+              {...chatForm.register('message')}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); chatForm.handleSubmit(sendChat)() } }}
             />
-            <button onClick={sendChat} disabled={chatLoading || !chatInput.trim()} className={BTN}>
+            <button type="submit" disabled={chatForm.formState.isSubmitting} className={BTN}>
               <Send className="w-4 h-4" />
             </button>
-          </div>
+          </form>
         </div>
       )}
     </PageLayout>

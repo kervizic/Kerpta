@@ -3,6 +3,9 @@
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
 import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { HardDrive, Cloud, Server, CheckCircle2, XCircle, Loader2, Trash2, ExternalLink } from 'lucide-react'
 import { orgGet, orgPost, orgDelete } from '@/lib/orgApi'
@@ -22,14 +25,16 @@ interface StorageConnection {
   account_email?: string
 }
 
-interface FtpFormData {
-  host: string
-  port: string
-  username: string
-  password: string
-  path: string
-  use_sftp: boolean
-}
+const ftpSchema = z.object({
+  host: z.string().min(1, "L'h\u00f4te est requis"),
+  port: z.string().min(1, 'Le port est requis'),
+  username: z.string().min(1, "L'identifiant est requis"),
+  password: z.string().min(1, 'Le mot de passe est requis'),
+  path: z.string(),
+  use_sftp: z.boolean(),
+})
+
+type FtpFormData = z.infer<typeof ftpSchema>
 
 interface ProviderInfo {
   key: ProviderKey
@@ -193,107 +198,62 @@ function FtpModal({
   onSubmit: (data: FtpFormData) => void
   loading: boolean
 }) {
-  const [form, setForm] = useState<FtpFormData>({
-    host: '',
-    port: '21',
-    username: '',
-    password: '',
-    path: '/',
-    use_sftp: false,
+  const { register, handleSubmit, watch, setValue } = useForm<FtpFormData>({
+    resolver: zodResolver(ftpSchema),
+    defaultValues: { host: '', port: '21', username: '', password: '', path: '/', use_sftp: false },
   })
 
-  if (!open) return null
+  const useSftp = watch('use_sftp')
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    onSubmit(form)
-  }
+  if (!open) return null
 
   const inputCls =
     'block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-kerpta-400 focus:border-kerpta-400 outline-none transition'
 
   return (
     <ModalOverlay onClose={onClose} size="md" title="Connexion FTP / SFTP">
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Hôte</label>
-              <input
-                type="text"
-                required
-                value={form.host}
-                onChange={(e) => setForm({ ...form, host: e.target.value })}
-                placeholder="ftp.exemple.com"
-                className={inputCls}
-              />
+              <label className="block text-xs font-medium text-gray-700 mb-1">H\u00f4te</label>
+              <input type="text" required {...register('host')} placeholder="ftp.exemple.com" className={inputCls} />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Port</label>
-              <input
-                type="number"
-                required
-                value={form.port}
-                onChange={(e) => setForm({ ...form, port: e.target.value })}
-                className={inputCls}
-              />
+              <input type="number" required {...register('port')} className={inputCls} />
             </div>
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Identifiant</label>
-            <input
-              type="text"
-              required
-              value={form.username}
-              onChange={(e) => setForm({ ...form, username: e.target.value })}
-              className={inputCls}
-            />
+            <input type="text" required {...register('username')} className={inputCls} />
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Mot de passe</label>
-            <input
-              type="password"
-              required
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              className={inputCls}
-            />
+            <input type="password" required {...register('password')} className={inputCls} />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Répertoire distant</label>
-            <input
-              type="text"
-              value={form.path}
-              onChange={(e) => setForm({ ...form, path: e.target.value })}
-              placeholder="/kerpta/"
-              className={inputCls}
-            />
+            <label className="block text-xs font-medium text-gray-700 mb-1">R\u00e9pertoire distant</label>
+            <input type="text" {...register('path')} placeholder="/kerpta/" className={inputCls} />
           </div>
           <label className="flex items-center gap-2 cursor-pointer pt-1">
             <input
               type="checkbox"
-              checked={form.use_sftp}
-              onChange={(e) =>
-                setForm({ ...form, use_sftp: e.target.checked, port: e.target.checked ? '22' : '21' })
-              }
+              {...register('use_sftp')}
+              onChange={(e) => {
+                setValue('use_sftp', e.target.checked)
+                setValue('port', e.target.checked ? '22' : '21')
+              }}
+              checked={useSftp}
               className="w-4 h-4 rounded border-gray-300 text-kerpta focus:ring-kerpta-400"
             />
-            <span className="text-sm text-gray-700">Utiliser SFTP (recommandé)</span>
+            <span className="text-sm text-gray-700">Utiliser SFTP (recommand\u00e9)</span>
           </label>
 
-          {/* Footer */}
           <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition"
-            >
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition">
               Annuler
             </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className={`${BTN} gap-2`}
-            >
+            <button type="submit" disabled={loading} className={`${BTN} gap-2`}>
               {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               Connecter
             </button>
