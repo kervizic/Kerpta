@@ -140,15 +140,16 @@ async def _log_usage(
 async def _ocr_with_paddleocr(
     file_bytes: bytes,
     content_type: str,
-    server_url: str,
-    api_key: str | None = None,
+    litellm_url: str,
+    litellm_key: str,
+    model_name: str,
 ) -> str:
     """Utilise la lib PaddleOCR pour parser un document (image ou PDF).
 
     PaddleOCR gere nativement :
     - PDF multi-pages (conversion + OCR page par page)
     - Layout detection (texte, tableaux, formules)
-    - Envoi au serveur llama.cpp via l'API OpenAI-compatible
+    - Envoi via LiteLLM (API OpenAI-compatible)
 
     Retourne le contenu en Markdown structure.
     """
@@ -164,10 +165,16 @@ async def _ocr_with_paddleocr(
         tmp_path = tmp.name
 
     try:
+        # On pointe vers LiteLLM qui route vers le bon provider
+        litellm_v1 = litellm_url.rstrip("/")
+        if not litellm_v1.endswith("/v1"):
+            litellm_v1 += "/v1"
+
         pipeline = PaddleOCRVL(
             vl_rec_backend="llama-cpp-server",
-            vl_rec_server_url=server_url,
-            vl_rec_api_key=api_key or "no-key-required",
+            vl_rec_server_url=litellm_v1,
+            vl_rec_api_key=litellm_key or "no-key-required",
+            vl_rec_api_model_name=model_name,
             device="cpu",
         )
 
@@ -209,16 +216,12 @@ async def ocr(
 
     start = time.monotonic()
 
-    # Etape 1 : PaddleOCR-VL extrait le texte/tableaux en Markdown
-    server_url = model_vl.get("base_url", "").rstrip("/")
-    if not server_url:
-        raise HTTPException(503, "URL du serveur PaddleOCR-VL non configuree")
-    if not server_url.endswith("/v1"):
-        server_url += "/v1"
-
+    # Etape 1 : PaddleOCR-VL extrait le texte/tableaux en Markdown (via LiteLLM)
     try:
         markdown_content = await _ocr_with_paddleocr(
-            file_bytes, content_type, server_url, model_vl.get("api_key"),
+            file_bytes, content_type,
+            config["litellm_url"], config["litellm_key"],
+            model_vl["litellm_name"],
         )
     except ImportError:
         _log.warning("paddleocr non installe, fallback sur OCR via LiteLLM")
