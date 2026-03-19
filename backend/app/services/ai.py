@@ -4,8 +4,8 @@
 
 """Service central IA : OCR, categorisation, chat, generation.
 
-Communique avec LiteLLM via l'API OpenAI-compatible.
-Chaque appel est logue dans ai_usage_logs.
+Appelle les fournisseurs IA directement via leur API OpenAI-compatible,
+ou via le proxy LiteLLM si configure. Chaque appel est logue dans ai_usage_logs.
 """
 
 import base64
@@ -74,21 +74,48 @@ async def _resolve_model(db: AsyncSession, model_uuid: uuid.UUID | None) -> dict
     }
 
 
-async def _call_litellm(
-    litellm_url: str,
-    litellm_key: str,
-    model_name: str,
+async def _call_model(
+    model: dict,
     messages: list[dict],
     max_tokens: int = 4096,
+    litellm_url: str | None = None,
+    litellm_key: str | None = None,
 ) -> dict:
-    """Appelle LiteLLM en format OpenAI chat completions."""
-    url = f"{litellm_url.rstrip('/')}/v1/chat/completions"
-    body = {
-        "model": model_name,
-        "messages": messages,
-        "max_tokens": max_tokens,
-    }
-    headers = {"Authorization": f"Bearer {litellm_key}"}
+    """Appelle un modele IA via son API OpenAI-compatible.
+
+    Strategie :
+    1. Si le provider a une base_url directe -> appel direct (pas besoin de LiteLLM)
+    2. Sinon si LiteLLM est configure -> appel via le proxy
+    3. Sinon -> erreur
+    """
+    provider_type = model.get("provider_type", "")
+    base_url = model.get("base_url")
+    api_key = model.get("api_key", "")
+    model_id = model.get("model_id", "")
+
+    # Types qui supportent l'API OpenAI-compatible en direct
+    direct_types = {"openai", "openai_compatible", "ollama", "vllm", "mistral"}
+
+    if base_url and provider_type in direct_types:
+        # Appel direct au provider
+        url = f"{base_url.rstrip('/')}/v1/chat/completions"
+        headers: dict[str, str] = {}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+        body = {"model": model_id, "messages": messages, "max_tokens": max_tokens}
+        label = f"provider direct ({provider_type})"
+    elif litellm_url:
+        # Fallback : proxy LiteLLM
+        url = f"{litellm_url.rstrip('/')}/v1/chat/completions"
+        headers = {"Authorization": f"Bearer {litellm_key}"} if litellm_key else {}
+        body = {"model": f"{provider_type}/{model_id}", "messages": messages, "max_tokens": max_tokens}
+        label = "LiteLLM proxy"
+    else:
+        raise HTTPException(
+            503,
+            f"Aucun moyen de joindre le modele {model_id} - "
+            "configurez l'URL du fournisseur ou activez LiteLLM",
+        )
 
     try:
         async with httpx.AsyncClient(timeout=120.0) as client:
@@ -96,12 +123,12 @@ async def _call_litellm(
             resp.raise_for_status()
             return resp.json()
     except httpx.ConnectError:
-        raise HTTPException(503, "LiteLLM non joignable - verifiez la configuration")
+        raise HTTPException(503, f"{label} non joignable pour {model_id} - verifiez l'URL")
     except httpx.TimeoutException:
-        raise HTTPException(504, "LiteLLM timeout - le modele met trop de temps a repondre")
+        raise HTTPException(504, f"Timeout {label} - le modele {model_id} met trop de temps")
     except httpx.HTTPStatusError as exc:
-        _log.warning("LiteLLM erreur %s: %s", exc.response.status_code, exc.response.text[:300])
-        raise HTTPException(502, f"Erreur LiteLLM : {exc.response.status_code}")
+        _log.warning("%s erreur %s: %s", label, exc.response.status_code, exc.response.text[:300])
+        raise HTTPException(502, f"Erreur {label} : {exc.response.status_code}")
 
 
 async def _log_usage(
@@ -176,7 +203,7 @@ async def ocr(
     ]
 
     start = time.monotonic()
-    resp = await _call_litellm(config["litellm_url"], config["litellm_key"], model["litellm_name"], messages)
+    resp = await _call_model(model, messages, litellm_url=config["litellm_url"], litellm_key=config["litellm_key"])
     duration = int((time.monotonic() - start) * 1000)
 
     usage = resp.get("usage", {})
@@ -253,7 +280,7 @@ async def categorize(
     ]
 
     start = time.monotonic()
-    resp = await _call_litellm(config["litellm_url"], config["litellm_key"], model["litellm_name"], messages, max_tokens=512)
+    resp = await _call_model(model, messages, max_tokens=512, litellm_url=config["litellm_url"], litellm_key=config["litellm_key"])
     duration = int((time.monotonic() - start) * 1000)
 
     usage = resp.get("usage", {})
@@ -307,7 +334,7 @@ async def chat(
     full_messages = [system_msg] + messages
 
     start = time.monotonic()
-    resp = await _call_litellm(config["litellm_url"], config["litellm_key"], model["litellm_name"], full_messages)
+    resp = await _call_model(model, full_messages, litellm_url=config["litellm_url"], litellm_key=config["litellm_key"])
     duration = int((time.monotonic() - start) * 1000)
 
     usage = resp.get("usage", {})
@@ -355,7 +382,7 @@ async def generate(
     messages.append({"role": "user", "content": prompt})
 
     start = time.monotonic()
-    resp = await _call_litellm(config["litellm_url"], config["litellm_key"], model["litellm_name"], messages)
+    resp = await _call_model(model, messages, litellm_url=config["litellm_url"], litellm_key=config["litellm_key"])
     duration = int((time.monotonic() - start) * 1000)
 
     usage = resp.get("usage", {})
