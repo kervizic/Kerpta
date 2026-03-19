@@ -157,8 +157,7 @@ export default function ConfigAiPage() {
   })
   const aiEnabled = configForm.watch('aiEnabled')
 
-  // Features form state (dynamic record - stays as useState)
-  const [features, setFeatures] = useState<Record<string, boolean>>({})
+  // Features - lu depuis config, sauvegarde auto au clic
 
   // Provider modal
   const [showProviderModal, setShowProviderModal] = useState(false)
@@ -210,7 +209,6 @@ export default function ConfigAiPage() {
       litellmUrl: config.ai_litellm_base_url || 'http://litellm:4000',
       litellmKey: '',
     })
-    setFeatures(config.ai_features || {})
   }, [config])
 
   if (isAdmin === null) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-kerpta" /></div>
@@ -229,7 +227,6 @@ export default function ConfigAiPage() {
         ai_enabled: vals.aiEnabled,
         ai_litellm_base_url: vals.litellmUrl || null,
         ai_litellm_master_key: vals.litellmKey || undefined,
-        ai_features: features,
       })
       showToast('success', 'Configuration sauvegardee')
       invalidate()
@@ -237,6 +234,17 @@ export default function ConfigAiPage() {
       showToast('error', 'Erreur lors de la sauvegarde')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function toggleFeature(key: string, newValue: boolean) {
+    try {
+      const updated = { ...(config?.ai_features || {}), [key]: newValue }
+      await adminClient.put('/ai/config', { ai_features: updated })
+      showToast('success', `${key} ${newValue ? 'active' : 'desactive'}`)
+      invalidate()
+    } catch {
+      showToast('error', 'Erreur lors de la sauvegarde')
     }
   }
 
@@ -506,7 +514,7 @@ export default function ConfigAiPage() {
         )}
       </section>
 
-      {/* Section 5 - Fonctionnalites */}
+      {/* Section 5 - Fonctionnalites (sauvegarde auto au clic) */}
       <section className={CARD + ' p-5'}>
         {sectionHeader('features', 'Fonctionnalites', <Settings2 className="w-4 h-4 text-gray-400" />)}
         {openSections.features && (
@@ -516,7 +524,8 @@ export default function ConfigAiPage() {
               const roleInstruct = config?.roles?.instruct?.id
               const roleThinking = config?.roles?.thinking?.id
               const roleAssigned = f.role === 'vl' ? !!roleVl : f.role === 'thinking' ? !!roleThinking : !!roleInstruct
-              const enabled = features[f.key] !== false && roleAssigned
+              const feats = config?.ai_features || {}
+              const enabled = feats[f.key] !== false && roleAssigned
               return (
                 <div key={f.key} className={`flex items-center justify-between px-3 py-2 rounded-lg ${!roleAssigned ? 'opacity-50' : ''}`}>
                   <div>
@@ -524,7 +533,7 @@ export default function ConfigAiPage() {
                     <p className="text-[10px] text-gray-400">{f.desc} - requiert : {f.role.toUpperCase()}</p>
                   </div>
                   <button
-                    onClick={() => { if (roleAssigned) setFeatures({ ...features, [f.key]: !enabled }) }}
+                    onClick={() => { if (roleAssigned) toggleFeature(f.key, !enabled) }}
                     disabled={!roleAssigned}
                     className={`px-3 py-1.5 text-xs rounded-full border transition ${enabled ? 'bg-kerpta-50 dark:bg-kerpta-900/30 border-kerpta-200 dark:border-kerpta-700 text-kerpta-700 dark:text-kerpta-400' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400'}`}
                   >
@@ -533,9 +542,6 @@ export default function ConfigAiPage() {
                 </div>
               )
             })}
-            <button onClick={saveConfig} className={BTN_SM} disabled={saving}>
-              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Sauvegarder
-            </button>
           </div>
         )}
       </section>
