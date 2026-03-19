@@ -454,7 +454,7 @@ async def test_roles(
         try:
             start = time.monotonic()
             messages = [{"role": "user", "content": "Reponds 'OK' en un seul mot."}]
-            await ai_svc._call_model(model, messages, max_tokens=10, litellm_url=config["litellm_url"], litellm_key=config["litellm_key"])
+            await ai_svc._call_litellm(config["litellm_url"], config["litellm_key"], model["litellm_name"], messages, max_tokens=10)
             duration = int((time.monotonic() - start) * 1000)
             results.append(AiRoleTestResult(role=role, success=True, message=f"{model['display_name']} OK", duration_ms=duration))
         except Exception as exc:
