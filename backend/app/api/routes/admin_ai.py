@@ -427,12 +427,18 @@ async def get_config(
     )
     row = result.fetchone()
     if not row:
-        return AiConfigResponse(ai_enabled=False, ai_litellm_base_url=None, has_master_key=False, ai_features=None, roles=AiRolesResponse())
+        return AiConfigResponse(
+            ai_enabled=False,
+            ai_litellm_base_url="http://litellm:4000",
+            has_master_key=False,
+            ai_features=None,
+            roles=AiRolesResponse(),
+        )
 
     roles = await get_roles(_admin=_admin, db=db)
     return AiConfigResponse(
         ai_enabled=row[0],
-        ai_litellm_base_url=row[1],
+        ai_litellm_base_url=row[1] or "http://litellm:4000",
         has_master_key=bool(row[2]),
         ai_features=row[3],
         roles=roles,
