@@ -26,7 +26,7 @@ interface StorageConnection {
 }
 
 const ftpSchema = z.object({
-  host: z.string().min(1, "L'h\u00f4te est requis"),
+  host: z.string().min(1, "L'hôte est requis"),
   port: z.string().min(1, 'Le port est requis'),
   username: z.string().min(1, "L'identifiant est requis"),
   password: z.string().min(1, 'Le mot de passe est requis'),
@@ -215,7 +215,7 @@ function FtpModal({
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
-              <label className="block text-xs font-medium text-gray-700 mb-1">H\u00f4te</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Hôte</label>
               <input type="text" required {...register('host')} placeholder="ftp.exemple.com" className={inputCls} />
             </div>
             <div>
@@ -232,7 +232,7 @@ function FtpModal({
             <input type="password" required {...register('password')} className={inputCls} />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">R\u00e9pertoire distant</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Répertoire distant</label>
             <input type="text" {...register('path')} placeholder="/kerpta/" className={inputCls} />
           </div>
           <label className="flex items-center gap-2 cursor-pointer pt-1">
@@ -246,7 +246,7 @@ function FtpModal({
               checked={useSftp}
               className="w-4 h-4 rounded border-gray-300 text-kerpta focus:ring-kerpta-400"
             />
-            <span className="text-sm text-gray-700">Utiliser SFTP (recommand\u00e9)</span>
+            <span className="text-sm text-gray-700">Utiliser SFTP (recommandé)</span>
           </label>
 
           <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">

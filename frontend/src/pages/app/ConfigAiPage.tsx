@@ -340,7 +340,7 @@ export default function ConfigAiPage() {
             </div>
             <div className="flex items-center gap-3">
               <span className="text-sm text-gray-700 dark:text-gray-300 w-40">Master Key</span>
-              <input className={INPUT + ' flex-1'} type="password" {...configForm.register('litellmKey')} placeholder={config?.has_master_key ? '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022' : 'Non configur\u00e9e'} />
+              <input className={INPUT + ' flex-1'} type="password" {...configForm.register('litellmKey')} placeholder={config?.has_master_key ? '••••••••' : 'Non configurée'} />
             </div>
             <div className="flex gap-2">
               <button onClick={testLitellm} className={BTN_SM} disabled={!configForm.watch('litellmUrl')}>
@@ -443,8 +443,8 @@ export default function ConfigAiPage() {
           <div className="space-y-4 pt-2">
             {([
               { label: 'VL (Vision)', field: 'roleVl' as const, desc: 'OCR, lecture documents' },
-              { label: 'Instruct', field: 'roleInstruct' as const, desc: 'Categorisation, chat, r\u00e9daction' },
-              { label: 'Thinking', field: 'roleThinking' as const, desc: 'Analyse financi\u00e8re complexe' },
+              { label: 'Instruct', field: 'roleInstruct' as const, desc: 'Categorisation, chat, rédaction' },
+              { label: 'Thinking', field: 'roleThinking' as const, desc: 'Analyse financière complexe' },
             ]).map((r) => (
               <div key={r.label} className="flex items-center gap-3">
                 <div className="w-40">
@@ -452,7 +452,7 @@ export default function ConfigAiPage() {
                   <p className="text-[10px] text-gray-400">{r.desc}</p>
                 </div>
                 <select className={SELECT + ' flex-1'} {...rolesForm.register(r.field)}>
-                  <option value="">Non configur\u00e9</option>
+                  <option value="">Non configuré</option>
                   {activeModels.map((m) => (
                     <option key={m.id} value={m.id}>{m.display_name} ({m.provider_name})</option>
                   ))}
@@ -594,7 +594,7 @@ export default function ConfigAiPage() {
               )}
               {provType !== 'ollama' && provType !== 'vllm' && (
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Cl\u00e9 API</label>
+                  <label className="text-xs text-gray-500 mb-1 block">Clé API</label>
                   <input className={INPUT} type="password" {...providerForm.register('api_key')} placeholder="sk-..." />
                 </div>
               )}

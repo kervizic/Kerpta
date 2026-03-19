@@ -49,7 +49,7 @@ function Modal({ title, onClose, children, wide }: { title: string; onClose: () 
 // ── Section Comptes bancaires ────────────────────────────────────────────────
 
 const bankAccountSchema = z.object({
-  label: z.string().min(1, 'Le libell\u00e9 est requis'),
+  label: z.string().min(1, 'Le libellé est requis'),
   bankName: z.string(),
   iban: z.string().min(1, "L'IBAN est requis"),
   bic: z.string(),
@@ -173,13 +173,13 @@ function BankAccountsSection() {
       {modal !== null && (
         <Modal title={modal === 'new' ? 'Nouveau compte bancaire' : 'Modifier le compte'} onClose={() => setModal(null)}>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-            <input type="text" {...register('label')} placeholder="Libell\u00e9 *" required className={INPUT} />
+            <input type="text" {...register('label')} placeholder="Libellé *" required className={INPUT} />
             <input type="text" {...register('bankName')} placeholder="Nom de la banque" className={INPUT} />
             <input type="text" {...register('iban')} placeholder="IBAN *" required className={INPUT} />
             <input type="text" {...register('bic')} placeholder="BIC" className={INPUT} />
             <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
               <input type="checkbox" {...register('isDefault')} className="rounded border-gray-300 text-kerpta focus:ring-kerpta-400" />
-              Compte par d\u00e9faut
+              Compte par défaut
             </label>
             <div className="flex justify-end gap-2 pt-2">
               <button type="button" onClick={() => setModal(null)} className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">Annuler</button>

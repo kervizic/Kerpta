@@ -433,7 +433,7 @@ export function CreateClientForm({ onClose, onCreated }: { onClose?: () => void;
       if (onCreated) onCreated(result.id)
       else onClose?.()
     } catch (err) {
-      setError(httpError(err, 'Erreur lors de la cr\u00e9ation'))
+      setError(httpError(err, 'Erreur lors de la création'))
     }
   }
 
@@ -668,12 +668,12 @@ export function CreateClientForm({ onClose, onCreated }: { onClose?: () => void;
             <div className="space-y-2">
               <div className="grid grid-cols-2 gap-2">
                 <input type="text" {...register('contactLastName')} placeholder="Nom" className={INPUT} />
-                <input type="text" {...register('contactFirstName')} placeholder="Pr\u00e9nom" className={INPUT} />
+                <input type="text" {...register('contactFirstName')} placeholder="Prénom" className={INPUT} />
               </div>
               <input type="text" {...register('contactJobTitle')} placeholder="Poste" className={INPUT} />
               <div className="grid grid-cols-2 gap-2">
                 <input type="email" {...register('contactEmail')} placeholder="Email" className={INPUT} />
-                <input type="tel" {...register('contactPhone')} placeholder="T\u00e9l\u00e9phone" className={INPUT} />
+                <input type="tel" {...register('contactPhone')} placeholder="Téléphone" className={INPUT} />
               </div>
             </div>
           </section>
@@ -711,7 +711,7 @@ export function CreateClientForm({ onClose, onCreated }: { onClose?: () => void;
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={() => onClose?.()} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">Annuler</button>
             <button type="submit" disabled={isSubmitting || !name} className={BTN}>
-              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Cr\u00e9er'}
+              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Créer'}
             </button>
           </div>
         </form>

@@ -760,7 +760,7 @@ function VariantsTab({ productId }: { productId: string }) {
                       v.price_mode === 'inherit' ? 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400' :
                       v.price_mode === 'coefficient' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400' : 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
                     }`}>
-                      {v.price_mode === 'inherit' ? 'H\u00e9rit\u00e9' : v.price_mode === 'coefficient' ? `${v.coefficient_name} \u00d7${Number(v.coefficient_value)}` : 'Fixe'}
+                      {v.price_mode === 'inherit' ? 'Hérité' : v.price_mode === 'coefficient' ? `${v.coefficient_name} ×${Number(v.coefficient_value)}` : 'Fixe'}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">{v.price_mode === 'fixed' ? fmtPrice(v.unit_price) : '\u2014'}</td>
@@ -911,7 +911,7 @@ function PurchaseLinksTab({ productId }: { productId: string }) {
                     <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
                       l.sale_price_mode === 'coefficient' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400' : 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
                     }`}>
-                      {l.sale_price_mode === 'coefficient' ? `${l.coefficient_name} \u00d7${Number(l.coefficient_value)}` : 'Fixe'}
+                      {l.sale_price_mode === 'coefficient' ? `${l.coefficient_name} ×${Number(l.coefficient_value)}` : 'Fixe'}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">

@@ -61,11 +61,11 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>
 
-// -- Mentions l\u00e9gales auto ----------------------------------------------------
+// -- Mentions légales auto ----------------------------------------------------
 
 const VAT_LABELS: Record<string, string> = {
-  encaissements: 'TVA acquitt\u00e9e sur les encaissements.',
-  debits: 'TVA acquitt\u00e9e sur les d\u00e9bits.',
+  encaissements: 'TVA acquittée sur les encaissements.',
+  debits: 'TVA acquittée sur les débits.',
   non_assujetti: 'TVA non applicable, art. 293 B du CGI.',
   franchise: 'TVA non applicable, art. 293 B du CGI.',
 }
@@ -82,26 +82,26 @@ function buildLegalMentions(opts: {
   const penalty = parseFloat(opts.latePenaltyRate)
   if (penalty > 0) {
     lines.push(
-      `En cas de retard de paiement, une p\u00e9nalit\u00e9 de ${penalty.toFixed(2)} % annuel sera exigible ` +
-      `\u00e0 compter du jour suivant la date d'\u00e9ch\u00e9ance (art. L.441-10 du Code de Commerce).`
+      `En cas de retard de paiement, une pénalité de ${penalty.toFixed(2)} % annuel sera exigible ` +
+      `à compter du jour suivant la date d'échéance (art. L.441-10 du Code de Commerce).`
     )
   } else {
     lines.push(
-      `En cas de retard de paiement, une p\u00e9nalit\u00e9 \u00e9gale \u00e0 3 fois le taux d'int\u00e9r\u00eat l\u00e9gal en vigueur sera exigible ` +
-      `\u00e0 compter du jour suivant la date d'\u00e9ch\u00e9ance (art. L.441-10 du Code de Commerce).`
+      `En cas de retard de paiement, une pénalité égale à 3 fois le taux d'intérêt légal en vigueur sera exigible ` +
+      `à compter du jour suivant la date d'échéance (art. L.441-10 du Code de Commerce).`
     )
   }
   const fee = parseFloat(opts.recoveryFee)
   if (fee > 0) {
     lines.push(
-      `Conform\u00e9ment \u00e0 l'article D.441-5 du Code de Commerce, tout retard de paiement entra\u00eene de plein droit ` +
-      `une indemnit\u00e9 forfaitaire pour frais de recouvrement de ${fee.toFixed(2)} \u20ac.`
+      `Conformément à l'article D.441-5 du Code de Commerce, tout retard de paiement entraîne de plein droit ` +
+      `une indemnité forfaitaire pour frais de recouvrement de ${fee.toFixed(2)} €.`
     )
   }
   if (opts.earlyDiscount && parseFloat(opts.discountRate) > 0) {
-    lines.push(`Escompte pour paiement anticip\u00e9 : ${parseFloat(opts.discountRate).toFixed(2)} %.`)
+    lines.push(`Escompte pour paiement anticipé : ${parseFloat(opts.discountRate).toFixed(2)} %.`)
   } else {
-    lines.push(`Pas d'escompte pour paiement anticip\u00e9.`)
+    lines.push(`Pas d'escompte pour paiement anticipé.`)
   }
   return lines.join('\n')
 }
@@ -258,11 +258,11 @@ export default function BillingProfileModal({ profile, onClose, onSaved }: Props
                 <legend className="text-xs font-semibold text-gray-500 uppercase px-1">Conditions de paiement</legend>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xs text-gray-500 mb-1 block">D\u00e9lai (jours)</label>
+                    <label className="text-xs text-gray-500 mb-1 block">Délai (jours)</label>
                     <input type="number" {...register('paymentTerms')} className={INPUT} />
                   </div>
                   <div>
-                    <label className="text-xs text-gray-500 mb-1 block">Type de d\u00e9lai</label>
+                    <label className="text-xs text-gray-500 mb-1 block">Type de délai</label>
                     <select {...register('paymentTermType')} className={SELECT}>
                       <option value="net">Net (date de facture + jours)</option>
                       <option value="end_of_month">Fin de mois</option>
@@ -277,7 +277,7 @@ export default function BillingProfileModal({ profile, onClose, onSaved }: Props
                   </div>
                 )}
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Mode de r\u00e8glement</label>
+                  <label className="text-xs text-gray-500 mb-1 block">Mode de règlement</label>
                   <select {...register('paymentMethod')} className={SELECT}>
                     <option value="">-</option>
                     {paymentMethods.map((m) => <option key={m.id} value={m.label}>{m.label}</option>)}
@@ -286,7 +286,7 @@ export default function BillingProfileModal({ profile, onClose, onSaved }: Props
               </fieldset>
 
               <fieldset className="border border-gray-200 rounded-xl p-4 space-y-3">
-                <legend className="text-xs font-semibold text-gray-500 uppercase px-1">Mentions l\u00e9gales</legend>
+                <legend className="text-xs font-semibold text-gray-500 uppercase px-1">Mentions légales</legend>
 
                 <div className="flex items-center justify-between">
                   <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
@@ -304,18 +304,18 @@ export default function BillingProfileModal({ profile, onClose, onSaved }: Props
                     className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition"
                   >
                     {showPreview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                    {showPreview ? 'Masquer' : 'Aper\u00e7u'}
+                    {showPreview ? 'Masquer' : 'Aperçu'}
                   </button>
                 </div>
 
                 <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg text-xs text-gray-600">
                   <Info className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                   <span>
-                    R\u00e9gime TVA : <strong>{
+                    Régime TVA : <strong>{
                       orgVatRegime === 'none'
                         ? 'Franchise en base (art. 293 B du CGI)'
                         : orgVatExigibility === 'debits'
-                          ? 'TVA sur les d\u00e9bits'
+                          ? 'TVA sur les débits'
                           : 'TVA sur les encaissements'
                     }</strong>
                     <span className="text-gray-400"> - modifiable dans </span>
@@ -327,15 +327,15 @@ export default function BillingProfileModal({ profile, onClose, onSaved }: Props
                   <>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-xs text-gray-500 mb-1 block">Indemnit\u00e9 de recouvrement</label>
+                        <label className="text-xs text-gray-500 mb-1 block">Indemnité de recouvrement</label>
                         <div className="relative">
                           <input type="number" step="0.01" {...register('recoveryFee')} className={INPUT} />
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">{'\u20ac'}</span>
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">{'€'}</span>
                         </div>
                       </div>
                       <div>
-                        <label className="text-xs text-gray-500 mb-1 block">P\u00e9nalit\u00e9s de retard (% annuel)</label>
-                        <input type="number" step="0.01" {...register('latePenaltyRate')} placeholder="Vide = 3x taux l\u00e9gal" className={INPUT} />
+                        <label className="text-xs text-gray-500 mb-1 block">Pénalités de retard (% annuel)</label>
+                        <input type="number" step="0.01" {...register('latePenaltyRate')} placeholder="Vide = 3x taux légal" className={INPUT} />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
@@ -350,13 +350,13 @@ export default function BillingProfileModal({ profile, onClose, onSaved }: Props
                             {...register('earlyPaymentDiscount')}
                             className="rounded border-gray-300 text-kerpta focus:ring-kerpta-400"
                           />
-                          Escompte pour paiement anticip\u00e9
+                          Escompte pour paiement anticipé
                         </label>
                       </div>
                     </div>
                     {showPreview && (
                       <div className="mt-2 p-3 rounded-lg bg-gray-50 border border-gray-200">
-                        <p className="text-[10px] font-semibold text-gray-400 uppercase mb-1">Aper\u00e7u des mentions g\u00e9n\u00e9r\u00e9es</p>
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase mb-1">Aperçu des mentions générées</p>
                         <p className="text-xs text-gray-600 whitespace-pre-line leading-relaxed">{autoText}</p>
                       </div>
                     )}
@@ -364,26 +364,26 @@ export default function BillingProfileModal({ profile, onClose, onSaved }: Props
                 ) : (
                   <>
                     <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                      Mode manuel : vous pouvez modifier librement le texte ci-dessous. Repassez en automatique pour r\u00e9g\u00e9n\u00e9rer.
+                      Mode manuel : vous pouvez modifier librement le texte ci-dessous. Repassez en automatique pour régénérer.
                     </p>
                     <textarea
                       {...register('legalMentions')}
                       rows={6}
                       className={TEXTAREA}
-                      placeholder="Saisissez vos mentions l\u00e9gales personnalis\u00e9es..."
+                      placeholder="Saisissez vos mentions légales personnalisées..."
                     />
                   </>
                 )}
               </fieldset>
 
               <div>
-                <label className="text-xs text-gray-500 mb-1 block">Note de r\u00e8glement (ex: affacturage, coordonn\u00e9es factor...)</label>
-                <textarea {...register('paymentNote')} rows={5} className={TEXTAREA} placeholder="Pour \u00eatre lib\u00e9ratoire, votre r\u00e8glement doit \u00eatre effectu\u00e9 \u00e0 l'ordre de..." />
+                <label className="text-xs text-gray-500 mb-1 block">Note de règlement (ex: affacturage, coordonnées factor...)</label>
+                <textarea {...register('paymentNote')} rows={5} className={TEXTAREA} placeholder="Pour être libératoire, votre règlement doit être effectué à l'ordre de..." />
               </div>
 
               <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
                 <input type="checkbox" {...register('isDefault')} className="rounded border-gray-300 text-kerpta focus:ring-kerpta-400" />
-                Profil par d\u00e9faut
+                Profil par défaut
               </label>
 
               <div className="flex justify-end gap-2 pt-2">
