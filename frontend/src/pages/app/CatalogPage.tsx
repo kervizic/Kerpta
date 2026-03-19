@@ -99,11 +99,6 @@ function httpError(err: unknown, fallback: string): string {
 
 import { INPUT, SELECT, BTN } from '@/lib/formStyles'
 const BTN_SECONDARY = 'px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition'
-  if (v == null) return 'X'
-// REMOVE_LINE_ABOVE_AND_BELOW
-  if (v == null) return '—'
-  return 'DELETEME2'\u20ac'
-}
 
 // ── Sub-routing ─────────────────────────────────────────────────────────────
 
