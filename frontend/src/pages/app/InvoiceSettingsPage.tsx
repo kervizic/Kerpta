@@ -3,6 +3,9 @@
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
 import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Loader2, Pencil, Trash2, Star, Upload, ExternalLink, X, Settings } from 'lucide-react'
 import { orgGet, orgPost, orgPatch, orgDelete } from '@/lib/orgApi'
@@ -45,6 +48,16 @@ function Modal({ title, onClose, children, wide }: { title: string; onClose: () 
 
 // ── Section Comptes bancaires ────────────────────────────────────────────────
 
+const bankAccountSchema = z.object({
+  label: z.string().min(1, 'Le libell\u00e9 est requis'),
+  bankName: z.string(),
+  iban: z.string().min(1, "L'IBAN est requis"),
+  bic: z.string(),
+  isDefault: z.boolean(),
+})
+
+type BankAccountForm = z.infer<typeof bankAccountSchema>
+
 function BankAccountsSection() {
   const qc = useQueryClient()
   const { data: items = [], isLoading: loading } = useQuery({
@@ -52,38 +65,31 @@ function BankAccountsSection() {
     queryFn: () => orgGet<BankAccount[]>('/billing/bank-accounts'),
   })
   const [modal, setModal] = useState<BankAccount | 'new' | null>(null)
-  const [saving, setSaving] = useState(false)
 
-  // form state
-  const [label, setLabel] = useState('')
-  const [bankName, setBankName] = useState('')
-  const [iban, setIban] = useState('')
-  const [bic, setBic] = useState('')
-  const [isDefault, setIsDefault] = useState(false)
+  const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm<BankAccountForm>({
+    resolver: zodResolver(bankAccountSchema),
+  })
 
   function openModal(item: BankAccount | 'new') {
     if (item === 'new') {
-      setLabel(''); setBankName(''); setIban(''); setBic(''); setIsDefault(false)
+      reset({ label: '', bankName: '', iban: '', bic: '', isDefault: false })
     } else {
-      setLabel(item.label); setBankName(item.bank_name || ''); setIban(item.iban); setBic(item.bic || ''); setIsDefault(item.is_default)
+      reset({ label: item.label, bankName: item.bank_name || '', iban: item.iban, bic: item.bic || '', isDefault: item.is_default })
     }
     setModal(item)
   }
 
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault()
-    setSaving(true)
-    const body = { label, bank_name: bankName || null, iban, bic: bic || null, is_default: isDefault }
+  async function onSubmit(data: BankAccountForm) {
+    const body = { label: data.label, bank_name: data.bankName || null, iban: data.iban, bic: data.bic || null, is_default: data.isDefault }
     try {
       if (modal === 'new') {
         await orgPost('/billing/bank-accounts', body)
       } else if (modal) {
-        await orgPatch(`/billing/bank-accounts/${modal.id}`, body)
+        await orgPatch(`/billing/bank-accounts/${(modal as BankAccount).id}`, body)
       }
       setModal(null)
       await qc.invalidateQueries({ queryKey: ['bank-accounts'] })
     } catch { /* */ }
-    setSaving(false)
   }
 
   async function handleDelete(id: string) {
@@ -172,19 +178,19 @@ function BankAccountsSection() {
 
       {modal !== null && (
         <Modal title={modal === 'new' ? 'Nouveau compte bancaire' : 'Modifier le compte'} onClose={() => setModal(null)}>
-          <form onSubmit={handleSave} className="space-y-3">
-            <input type="text" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Libellé *" required className={INPUT} />
-            <input type="text" value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="Nom de la banque" className={INPUT} />
-            <input type="text" value={iban} onChange={(e) => setIban(e.target.value)} placeholder="IBAN *" required className={INPUT} />
-            <input type="text" value={bic} onChange={(e) => setBic(e.target.value)} placeholder="BIC" className={INPUT} />
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+            <input type="text" {...register('label')} placeholder="Libell\u00e9 *" required className={INPUT} />
+            <input type="text" {...register('bankName')} placeholder="Nom de la banque" className={INPUT} />
+            <input type="text" {...register('iban')} placeholder="IBAN *" required className={INPUT} />
+            <input type="text" {...register('bic')} placeholder="BIC" className={INPUT} />
             <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-              <input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} className="rounded border-gray-300 text-kerpta focus:ring-kerpta-400" />
-              Compte par défaut
+              <input type="checkbox" {...register('isDefault')} className="rounded border-gray-300 text-kerpta focus:ring-kerpta-400" />
+              Compte par d\u00e9faut
             </label>
             <div className="flex justify-end gap-2 pt-2">
               <button type="button" onClick={() => setModal(null)} className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">Annuler</button>
-              <button type="submit" disabled={saving} className={BTN}>
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
+              <button type="submit" disabled={isSubmitting} className={BTN}>
+                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
               </button>
             </div>
           </form>
