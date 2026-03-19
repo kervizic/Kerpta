@@ -637,8 +637,8 @@ export default function ConfigAiPage() {
               )}
               {provType !== 'ollama' && provType !== 'vllm' && (
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Cle API</label>
-                  <input className={INPUT} type="password" {...providerForm.register('api_key')} placeholder="sk-..." />
+                  <label className="text-xs text-gray-500 mb-1 block">Cle API {provType === 'openai_compatible' && <span className="text-gray-400">(optionnel pour serveurs locaux)</span>}</label>
+                  <input className={INPUT} type="password" {...providerForm.register('api_key')} placeholder={provType === 'openai_compatible' ? 'Laisser vide si non requise' : 'sk-...'} />
                 </div>
               )}
               <p className="text-[10px] text-gray-400">La connexion sera testee et les modeles synchronises automatiquement.</p>
