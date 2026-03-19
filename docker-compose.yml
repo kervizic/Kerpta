@@ -180,8 +180,9 @@ services:
     restart: unless-stopped
     <<: *kerpta-base
     environment:
-      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-kerpta-dev}
-      DATABASE_URL:       postgresql://postgres:${POSTGRES_PASSWORD:-kerpta_dev}@postgres:5432/litellm
+      LITELLM_MASTER_KEY:  ${LITELLM_MASTER_KEY:-sk-kerpta-dev}
+      DATABASE_URL:        postgresql://postgres:${POSTGRES_PASSWORD:-kerpta_dev}@postgres:5432/litellm
+      STORE_MODEL_IN_DB:   "True"
     ports:
       - "4000:4000"
     depends_on:
