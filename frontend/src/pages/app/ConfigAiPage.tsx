@@ -4,6 +4,9 @@
 
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { adminClient } from '@/lib/api'
 import { useAuthStore } from '@/stores/authStore'
 import {
@@ -87,6 +90,30 @@ const FEATURES = [
   { key: 'analysis', label: 'Analyse financiere', role: 'thinking', desc: 'Questions complexes sur le bilan' },
 ]
 
+// ── Schemas Zod ─────────────────────────────────────────────────────────────
+
+const configSchema = z.object({
+  litellmUrl: z.string(),
+  litellmKey: z.string(),
+  aiEnabled: z.boolean(),
+})
+type ConfigFormValues = z.infer<typeof configSchema>
+
+const rolesSchema = z.object({
+  roleVl: z.string(),
+  roleInstruct: z.string(),
+  roleThinking: z.string(),
+})
+type RolesFormValues = z.infer<typeof rolesSchema>
+
+const providerSchema = z.object({
+  name: z.string().min(1, 'Le nom est requis'),
+  type: z.string(),
+  base_url: z.string(),
+  api_key: z.string(),
+})
+type ProviderFormValues = z.infer<typeof providerSchema>
+
 // ── Page principale ──────────────────────────────────────────────────────────
 
 export default function ConfigAiPage() {
@@ -94,23 +121,33 @@ export default function ConfigAiPage() {
   const qc = useQueryClient()
   const [saving, setSaving] = useState(false)
 
-  // Config form state
-  const [litellmUrl, setLitellmUrl] = useState('')
-  const [litellmKey, setLitellmKey] = useState('')
-  const [aiEnabled, setAiEnabled] = useState(false)
+  // Config form (useForm)
+  const configForm = useForm<ConfigFormValues>({
+    resolver: zodResolver(configSchema),
+    defaultValues: { litellmUrl: '', litellmKey: '', aiEnabled: false },
+  })
+  const aiEnabled = configForm.watch('aiEnabled')
 
-  // Roles form state
-  const [roleVl, setRoleVl] = useState<string>('')
-  const [roleInstruct, setRoleInstruct] = useState<string>('')
-  const [roleThinking, setRoleThinking] = useState<string>('')
+  // Roles form (useForm)
+  const rolesForm = useForm<RolesFormValues>({
+    resolver: zodResolver(rolesSchema),
+    defaultValues: { roleVl: '', roleInstruct: '', roleThinking: '' },
+  })
+  const roleVl = rolesForm.watch('roleVl')
+  const roleInstruct = rolesForm.watch('roleInstruct')
+  const roleThinking = rolesForm.watch('roleThinking')
 
-  // Features form state
+  // Features form state (dynamic record - stays as useState)
   const [features, setFeatures] = useState<Record<string, boolean>>({})
 
   // Provider modal
   const [showProviderModal, setShowProviderModal] = useState(false)
   const [editProvider, setEditProvider] = useState<AiProvider | null>(null)
-  const [provForm, setProvForm] = useState({ name: '', type: 'ollama', base_url: '', api_key: '' })
+  const providerForm = useForm<ProviderFormValues>({
+    resolver: zodResolver(providerSchema),
+    defaultValues: { name: '', type: 'ollama', base_url: '', api_key: '' },
+  })
+  const provType = providerForm.watch('type')
 
   // Sections ouvertes/fermees
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
@@ -147,11 +184,16 @@ export default function ConfigAiPage() {
 
   useEffect(() => {
     if (!config) return
-    setAiEnabled(config.ai_enabled)
-    setLitellmUrl(config.ai_litellm_base_url || 'http://litellm:4000')
-    setRoleVl(config.roles?.vl?.id || '')
-    setRoleInstruct(config.roles?.instruct?.id || '')
-    setRoleThinking(config.roles?.thinking?.id || '')
+    configForm.reset({
+      aiEnabled: config.ai_enabled,
+      litellmUrl: config.ai_litellm_base_url || 'http://litellm:4000',
+      litellmKey: '',
+    })
+    rolesForm.reset({
+      roleVl: config.roles?.vl?.id || '',
+      roleInstruct: config.roles?.instruct?.id || '',
+      roleThinking: config.roles?.thinking?.id || '',
+    })
     setFeatures(config.ai_features || {})
   }, [config])
 
@@ -166,10 +208,11 @@ export default function ConfigAiPage() {
   async function saveConfig() {
     setSaving(true)
     try {
+      const vals = configForm.getValues()
       await adminClient.put('/ai/config', {
-        ai_enabled: aiEnabled,
-        ai_litellm_base_url: litellmUrl || null,
-        ai_litellm_master_key: litellmKey || undefined,
+        ai_enabled: vals.aiEnabled,
+        ai_litellm_base_url: vals.litellmUrl || null,
+        ai_litellm_master_key: vals.litellmKey || undefined,
         ai_features: features,
       })
     } finally {
@@ -180,10 +223,11 @@ export default function ConfigAiPage() {
   async function saveRoles() {
     setSaving(true)
     try {
+      const vals = rolesForm.getValues()
       await adminClient.put('/ai/roles', {
-        vl: roleVl || null,
-        instruct: roleInstruct || null,
-        thinking: roleThinking || null,
+        vl: vals.roleVl || null,
+        instruct: vals.roleInstruct || null,
+        thinking: vals.roleThinking || null,
       })
     } finally {
       setSaving(false)
@@ -191,6 +235,7 @@ export default function ConfigAiPage() {
   }
 
   async function testLitellm() {
+    const { litellmUrl, litellmKey } = configForm.getValues()
     if (!litellmUrl) return
     try {
       const resp = await fetch(litellmUrl.replace(/\/$/, '') + '/health', {
@@ -220,16 +265,16 @@ export default function ConfigAiPage() {
     invalidate()
   }
 
-  async function saveProvider() {
+  const saveProvider = providerForm.handleSubmit(async (data) => {
     if (editProvider) {
-      await adminClient.put(`/ai/providers/${editProvider.id}`, provForm)
+      await adminClient.put(`/ai/providers/${editProvider.id}`, data)
     } else {
-      await adminClient.post('/ai/providers', provForm)
+      await adminClient.post('/ai/providers', data)
     }
     setShowProviderModal(false)
     setEditProvider(null)
     invalidate()
-  }
+  })
 
   async function toggleModel(id: string, active: boolean) {
     await adminClient.put(`/ai/models/${id}`, { is_active: !active })
@@ -283,7 +328,7 @@ export default function ConfigAiPage() {
             <div className="flex items-center gap-3">
               <span className="text-sm text-gray-700 dark:text-gray-300 w-40">Module IA</span>
               <button
-                onClick={() => { setAiEnabled(!aiEnabled); }}
+                onClick={() => { configForm.setValue('aiEnabled', !aiEnabled) }}
                 className={`px-3 py-1.5 text-xs rounded-full border transition cursor-pointer ${aiEnabled ? 'bg-kerpta-50 dark:bg-kerpta-900/30 border-kerpta-200 dark:border-kerpta-700 text-kerpta-700 dark:text-kerpta-400' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400'}`}
               >
                 {aiEnabled ? 'Active' : 'Desactive'}
@@ -291,14 +336,14 @@ export default function ConfigAiPage() {
             </div>
             <div className="flex items-center gap-3">
               <span className="text-sm text-gray-700 dark:text-gray-300 w-40">LiteLLM URL</span>
-              <input className={INPUT + ' flex-1'} value={litellmUrl} onChange={(e) => setLitellmUrl(e.target.value)} placeholder="http://litellm:4000" />
+              <input className={INPUT + ' flex-1'} {...configForm.register('litellmUrl')} placeholder="http://litellm:4000" />
             </div>
             <div className="flex items-center gap-3">
               <span className="text-sm text-gray-700 dark:text-gray-300 w-40">Master Key</span>
-              <input className={INPUT + ' flex-1'} type="password" value={litellmKey} onChange={(e) => setLitellmKey(e.target.value)} placeholder={config?.has_master_key ? '••••••••' : 'Non configuree'} />
+              <input className={INPUT + ' flex-1'} type="password" {...configForm.register('litellmKey')} placeholder={config?.has_master_key ? '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022' : 'Non configur\u00e9e'} />
             </div>
             <div className="flex gap-2">
-              <button onClick={testLitellm} className={BTN_SM} disabled={!litellmUrl}>
+              <button onClick={testLitellm} className={BTN_SM} disabled={!configForm.watch('litellmUrl')}>
                 <Zap className="w-3.5 h-3.5" /> Tester la connexion
               </button>
               <button onClick={saveConfig} className={BTN_SM} disabled={saving}>
@@ -331,7 +376,7 @@ export default function ConfigAiPage() {
                   <button onClick={() => testProvider(p.id)} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition" title="Tester">
                     <Zap className="w-3.5 h-3.5 text-gray-400" />
                   </button>
-                  <button onClick={() => { setEditProvider(p); setProvForm({ name: p.name, type: p.type, base_url: p.base_url || '', api_key: '' }); setShowProviderModal(true) }} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition" title="Editer">
+                  <button onClick={() => { setEditProvider(p); providerForm.reset({ name: p.name, type: p.type, base_url: p.base_url || '', api_key: '' }); setShowProviderModal(true) }} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition" title="Editer">
                     <Pencil className="w-3.5 h-3.5 text-gray-400" />
                   </button>
                   <button onClick={() => deleteProvider(p.id)} className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/30 transition" title="Supprimer">
@@ -341,7 +386,7 @@ export default function ConfigAiPage() {
               </div>
             ))}
             <button
-              onClick={() => { setEditProvider(null); setProvForm({ name: '', type: 'ollama', base_url: '', api_key: '' }); setShowProviderModal(true) }}
+              onClick={() => { setEditProvider(null); providerForm.reset({ name: '', type: 'ollama', base_url: '', api_key: '' }); setShowProviderModal(true) }}
               className={BTN_SM}
             >
               <Plus className="w-3.5 h-3.5" /> Ajouter un fournisseur
@@ -396,18 +441,18 @@ export default function ConfigAiPage() {
         {sectionHeader('roles', 'Roles', <Eye className="w-4 h-4 text-gray-400" />)}
         {openSections.roles && (
           <div className="space-y-4 pt-2">
-            {[
-              { label: 'VL (Vision)', value: roleVl, set: setRoleVl, desc: 'OCR, lecture documents' },
-              { label: 'Instruct', value: roleInstruct, set: setRoleInstruct, desc: 'Categorisation, chat, redaction' },
-              { label: 'Thinking', value: roleThinking, set: setRoleThinking, desc: 'Analyse financiere complexe' },
-            ].map((r) => (
+            {([
+              { label: 'VL (Vision)', field: 'roleVl' as const, desc: 'OCR, lecture documents' },
+              { label: 'Instruct', field: 'roleInstruct' as const, desc: 'Categorisation, chat, r\u00e9daction' },
+              { label: 'Thinking', field: 'roleThinking' as const, desc: 'Analyse financi\u00e8re complexe' },
+            ]).map((r) => (
               <div key={r.label} className="flex items-center gap-3">
                 <div className="w-40">
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{r.label}</span>
                   <p className="text-[10px] text-gray-400">{r.desc}</p>
                 </div>
-                <select className={SELECT + ' flex-1'} value={r.value} onChange={(e) => r.set(e.target.value)}>
-                  <option value="">Non configure</option>
+                <select className={SELECT + ' flex-1'} {...rolesForm.register(r.field)}>
+                  <option value="">Non configur\u00e9</option>
                   {activeModels.map((m) => (
                     <option key={m.id} value={m.id}>{m.display_name} ({m.provider_name})</option>
                   ))}
@@ -530,36 +575,36 @@ export default function ConfigAiPage() {
               <h3 className="text-sm font-semibold">{editProvider ? 'Modifier le fournisseur' : 'Ajouter un fournisseur'}</h3>
               <button onClick={() => setShowProviderModal(false)}><X className="w-4 h-4 text-gray-400" /></button>
             </div>
-            <div className="p-4 space-y-3">
+            <form onSubmit={saveProvider} className="p-4 space-y-3">
               <div>
                 <label className="text-xs text-gray-500 mb-1 block">Nom</label>
-                <input className={INPUT} value={provForm.name} onChange={(e) => setProvForm({ ...provForm, name: e.target.value })} placeholder="Mon Ollama" />
+                <input className={INPUT} {...providerForm.register('name')} placeholder="Mon Ollama" />
               </div>
               <div>
                 <label className="text-xs text-gray-500 mb-1 block">Type</label>
-                <select className={SELECT} value={provForm.type} onChange={(e) => setProvForm({ ...provForm, type: e.target.value })}>
+                <select className={SELECT} {...providerForm.register('type')}>
                   {PROVIDER_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
                 </select>
               </div>
-              {!['openai', 'anthropic', 'mistral', 'google'].includes(provForm.type) && (
+              {!['openai', 'anthropic', 'mistral', 'google'].includes(provType) && (
                 <div>
                   <label className="text-xs text-gray-500 mb-1 block">URL</label>
-                  <input className={INPUT} value={provForm.base_url} onChange={(e) => setProvForm({ ...provForm, base_url: e.target.value })} placeholder="http://ollama:11434" />
+                  <input className={INPUT} {...providerForm.register('base_url')} placeholder="http://ollama:11434" />
                 </div>
               )}
-              {provForm.type !== 'ollama' && provForm.type !== 'vllm' && (
+              {provType !== 'ollama' && provType !== 'vllm' && (
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Cle API</label>
-                  <input className={INPUT} type="password" value={provForm.api_key} onChange={(e) => setProvForm({ ...provForm, api_key: e.target.value })} placeholder="sk-..." />
+                  <label className="text-xs text-gray-500 mb-1 block">Cl\u00e9 API</label>
+                  <input className={INPUT} type="password" {...providerForm.register('api_key')} placeholder="sk-..." />
                 </div>
               )}
               <div className="flex justify-end gap-2 pt-2">
-                <button onClick={() => setShowProviderModal(false)} className={BTN_SECONDARY}>Annuler</button>
-                <button onClick={saveProvider} className={BTN_SM} disabled={!provForm.name}>
-                  <Check className="w-3.5 h-3.5" /> {editProvider ? 'Modifier' : 'Ajouter'}
+                <button type="button" onClick={() => setShowProviderModal(false)} className={BTN_SECONDARY}>Annuler</button>
+                <button type="submit" className={BTN_SM} disabled={!providerForm.watch('name') || providerForm.formState.isSubmitting}>
+                  {providerForm.formState.isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} {editProvider ? 'Modifier' : 'Ajouter'}
                 </button>
               </div>
-            </div>
+            </form>
           </div>
         </div>
       )}
