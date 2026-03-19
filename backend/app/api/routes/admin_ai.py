@@ -494,8 +494,11 @@ async def test_litellm_connection(
         async with httpx.AsyncClient(timeout=10.0) as client:
             headers = {"Authorization": f"Bearer {key}"} if key else {}
             resp = await client.get(f"{url.rstrip('/')}/health", headers=headers)
-            if resp.status_code == 200:
-                return {"ok": True, "message": "LiteLLM OK"}
+            if resp.status_code in (200, 500):
+                # 500 "Model list not initialized" = connexion OK, aucun modele configure
+                return {"ok": True, "message": "LiteLLM connecte"}
+            if resp.status_code == 401:
+                return {"ok": False, "message": "Cle d'authentification invalide"}
             return {"ok": False, "message": f"Erreur HTTP {resp.status_code}"}
     except Exception as exc:
         return {"ok": False, "message": f"Impossible de joindre LiteLLM : {exc}"}
