@@ -5,6 +5,9 @@
 // Sections : Providers OAuth + APIs externes (INPI)
 
 import { useEffect, useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { apiClient } from '@/lib/api'
 import { useAuthStore } from '@/stores/authStore'
 import {
@@ -33,25 +36,29 @@ interface ProviderCfg {
   client_secret: string
 }
 
-interface InpiCfg {
-  username: string
-  password: string
-}
-
-interface S3Cfg {
-  endpoint: string
-  access_key: string
-  secret_key: string
-  bucket: string
-  region: string
-  base_path: string
-}
-
 interface ApiKeysData {
   auth_url: string
   oauth_config: Record<string, ProviderCfg>
   api_keys: Record<string, Record<string, string>>
 }
+
+// ── Zod Schemas ─────────────────────────────────────────────────────────────
+
+const inpiSchema = z.object({
+  username: z.string().min(1, 'Identifiant requis'),
+  password: z.string().min(1, 'Mot de passe requis'),
+})
+type InpiFormData = z.infer<typeof inpiSchema>
+
+const s3Schema = z.object({
+  endpoint: z.string().min(1, 'Endpoint requis'),
+  access_key: z.string().min(1, 'Access Key requis'),
+  secret_key: z.string(),
+  bucket: z.string().min(1, 'Bucket requis'),
+  region: z.string(),
+  base_path: z.string(),
+})
+type S3FormData = z.infer<typeof s3Schema>
 
 // Lien vers la console développeur de chaque provider
 const PROVIDER_CONSOLE: Record<string, { url: string; label: string; hint: string }> = {
@@ -138,23 +145,32 @@ function InputField({
   onChange,
   type = 'text',
   placeholder,
+  registration,
+  error,
 }: {
   label: string
-  value: string
-  onChange: (v: string) => void
+  value?: string
+  onChange?: (v: string) => void
   type?: string
   placeholder?: string
+  registration?: ReturnType<ReturnType<typeof useForm>['register']>
+  error?: string
 }) {
   return (
     <div>
       <label className="block text-xs font-medium text-gray-600 mb-1.5">{label}</label>
       <input
         type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-kerpta-400 focus:ring-1 focus:ring-kerpta-400/20 transition"
+        className={`w-full px-3 py-2 rounded-lg bg-gray-50 border text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:border-kerpta-400 focus:ring-1 focus:ring-kerpta-400/20 transition ${
+          error ? 'border-red-300' : 'border-gray-200'
+        }`}
+        {...(registration
+          ? registration
+          : { value: value ?? '', onChange: (e: React.ChangeEvent<HTMLInputElement>) => onChange?.(e.target.value) }
+        )}
       />
+      {error && <p className="text-[10px] text-red-500 mt-0.5">{error}</p>}
     </div>
   )
 }
@@ -296,15 +312,19 @@ export default function ConfigApiKeysPage() {
   const [oauthStatus, setOauthStatus] = useState<{ ok: boolean; msg: string } | null>(null)
   const [restarting, setRestarting] = useState(false)
 
-  // État local INPI
-  const [inpi, setInpi] = useState<InpiCfg>({ username: '', password: '' })
-  const [inpiSaving, setInpiSaving] = useState(false)
+  // État local INPI (react-hook-form + Zod)
+  const inpiForm = useForm<InpiFormData>({
+    resolver: zodResolver(inpiSchema),
+    defaultValues: { username: '', password: '' },
+  })
   const [inpiStatus, setInpiStatus] = useState<{ ok: boolean; msg: string } | null>(null)
   const [showInpiHelp, setShowInpiHelp] = useState(false)
 
-  // État local S3
-  const [s3, setS3] = useState<S3Cfg>({ endpoint: '', access_key: '', secret_key: '', bucket: '', region: '', base_path: '' })
-  const [s3Saving, setS3Saving] = useState(false)
+  // État local S3 (react-hook-form + Zod)
+  const s3Form = useForm<S3FormData>({
+    resolver: zodResolver(s3Schema),
+    defaultValues: { endpoint: '', access_key: '', secret_key: '', bucket: '', region: '', base_path: '' },
+  })
   const [s3Status, setS3Status] = useState<{ ok: boolean; msg: string } | null>(null)
 
   useEffect(() => {
@@ -326,7 +346,7 @@ export default function ConfigApiKeysPage() {
         // Charger les identifiants INPI existants
         const inpiData = d.api_keys?.inpi
         if (inpiData) {
-          setInpi({
+          inpiForm.reset({
             username: inpiData.username || '',
             password: '', // Le mot de passe est masqué côté serveur
           })
@@ -334,7 +354,7 @@ export default function ConfigApiKeysPage() {
         // Charger la config S3 existante
         const s3Data = d.api_keys?.s3
         if (s3Data) {
-          setS3({
+          s3Form.reset({
             endpoint: s3Data.endpoint || '',
             access_key: s3Data.access_key || '',
             secret_key: '', // Le secret est masqué côté serveur
@@ -365,39 +385,25 @@ export default function ConfigApiKeysPage() {
     }
   }
 
-  async function saveInpi() {
-    if (!inpi.username || !inpi.password) {
-      setInpiStatus({ ok: false, msg: 'Identifiant et mot de passe requis' })
-      return
-    }
-    setInpiSaving(true)
+  async function saveInpi(values: InpiFormData) {
     setInpiStatus(null)
     try {
       await apiClient.put('/config/external-keys', {
-        inpi: { username: inpi.username, password: inpi.password },
+        inpi: { username: values.username, password: values.password },
       })
       setInpiStatus({ ok: true, msg: 'Identifiants INPI enregistrés' })
     } catch {
       setInpiStatus({ ok: false, msg: "Erreur lors de l'enregistrement" })
-    } finally {
-      setInpiSaving(false)
     }
   }
 
-  async function saveS3() {
-    if (!s3.endpoint || !s3.access_key || !s3.bucket) {
-      setS3Status({ ok: false, msg: 'Endpoint, Access Key et Bucket sont requis' })
-      return
-    }
-    setS3Saving(true)
+  async function saveS3(values: S3FormData) {
     setS3Status(null)
     try {
-      await apiClient.put('/config/external-keys', { s3 })
+      await apiClient.put('/config/external-keys', { s3: values })
       setS3Status({ ok: true, msg: 'Configuration S3 enregistrée' })
     } catch {
       setS3Status({ ok: false, msg: "Erreur lors de l'enregistrement" })
-    } finally {
-      setS3Saving(false)
     }
   }
 
@@ -531,18 +537,18 @@ export default function ConfigApiKeysPage() {
           )}
 
           {/* Champs identifiants INPI */}
-          <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
+          <form onSubmit={inpiForm.handleSubmit(saveInpi)} className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <InputField
                 label="Email du compte INPI"
-                value={inpi.username}
-                onChange={(v) => setInpi((prev) => ({ ...prev, username: v }))}
+                registration={inpiForm.register('username')}
+                error={inpiForm.formState.errors.username?.message}
                 placeholder="contact@example.fr"
               />
               <InputField
                 label="Mot de passe INPI"
-                value={inpi.password}
-                onChange={(v) => setInpi((prev) => ({ ...prev, password: v }))}
+                registration={inpiForm.register('password')}
+                error={inpiForm.formState.errors.password?.message}
                 type="password"
                 placeholder="Mot de passe du compte"
               />
@@ -550,16 +556,16 @@ export default function ConfigApiKeysPage() {
 
             <div className="flex items-center gap-3">
               <button
-                onClick={saveInpi}
-                disabled={inpiSaving}
+                type="submit"
+                disabled={inpiForm.formState.isSubmitting}
                 className={`${BTN} px-5 py-2.5 rounded-xl`}
               >
-                {inpiSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+                {inpiForm.formState.isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
                 Enregistrer
               </button>
               {inpiStatus && <StatusBadge ok={inpiStatus.ok} message={inpiStatus.msg} />}
             </div>
-          </div>
+          </form>
         </section>
 
         {/* ── Section S3 — Stockage plateforme ────────────────────────────── */}
@@ -581,12 +587,12 @@ export default function ConfigApiKeysPage() {
             (factures, devis, pièces jointes, RIB…). Compatible OVH Object Storage, AWS S3, Scaleway, Backblaze B2.
           </p>
 
-          <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
+          <form onSubmit={s3Form.handleSubmit(saveS3)} className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
             <div>
               <InputField
                 label="Endpoint URL *"
-                value={s3.endpoint}
-                onChange={(v) => setS3((prev) => ({ ...prev, endpoint: v }))}
+                registration={s3Form.register('endpoint')}
+                error={s3Form.formState.errors.endpoint?.message}
                 placeholder="https://s3.gra.io.cloud.ovh.net"
               />
               <p className="text-[10px] text-gray-400 mt-0.5">URL du service S3 (OVH, AWS, Scaleway…)</p>
@@ -595,14 +601,13 @@ export default function ConfigApiKeysPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <InputField
                 label="Access Key *"
-                value={s3.access_key}
-                onChange={(v) => setS3((prev) => ({ ...prev, access_key: v }))}
+                registration={s3Form.register('access_key')}
+                error={s3Form.formState.errors.access_key?.message}
                 placeholder="AKIAIOSFODNN7EXAMPLE"
               />
               <InputField
                 label="Secret Key *"
-                value={s3.secret_key}
-                onChange={(v) => setS3((prev) => ({ ...prev, secret_key: v }))}
+                registration={s3Form.register('secret_key')}
                 type="password"
                 placeholder="wJalrXUtnFEMI/K7MDENG..."
               />
@@ -611,14 +616,13 @@ export default function ConfigApiKeysPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <InputField
                 label="Bucket *"
-                value={s3.bucket}
-                onChange={(v) => setS3((prev) => ({ ...prev, bucket: v }))}
+                registration={s3Form.register('bucket')}
+                error={s3Form.formState.errors.bucket?.message}
                 placeholder="kerpta-documents"
               />
               <InputField
                 label="Région"
-                value={s3.region}
-                onChange={(v) => setS3((prev) => ({ ...prev, region: v }))}
+                registration={s3Form.register('region')}
                 placeholder="gra (optionnel)"
               />
             </div>
@@ -626,8 +630,7 @@ export default function ConfigApiKeysPage() {
             <div>
               <InputField
                 label="Chemin de base"
-                value={s3.base_path}
-                onChange={(v) => setS3((prev) => ({ ...prev, base_path: v }))}
+                registration={s3Form.register('base_path')}
                 placeholder="kerpta/ (optionnel)"
               />
               <p className="text-[10px] text-gray-400 mt-0.5">Préfixe des fichiers dans le bucket</p>
@@ -635,16 +638,16 @@ export default function ConfigApiKeysPage() {
 
             <div className="flex items-center gap-3">
               <button
-                onClick={saveS3}
-                disabled={s3Saving}
+                type="submit"
+                disabled={s3Form.formState.isSubmitting}
                 className={`${BTN} px-5 py-2.5 rounded-xl`}
               >
-                {s3Saving && <Loader2 className="w-4 h-4 animate-spin" />}
+                {s3Form.formState.isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
                 Enregistrer
               </button>
               {s3Status && <StatusBadge ok={s3Status.ok} message={s3Status.msg} />}
             </div>
-          </div>
+          </form>
         </section>
 
         {/* ── Section OAuth ─────────────────────────────────────────────────── */}
