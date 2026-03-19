@@ -24,6 +24,7 @@ import {
   Eye,
 } from 'lucide-react'
 import { BTN_SM, BTN_SECONDARY, INPUT, SELECT, CARD, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER } from '@/lib/formStyles'
+import PageLayout from '@/components/app/PageLayout'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -265,18 +266,12 @@ export default function ConfigAiPage() {
   // ── Rendu ──────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex-1 overflow-y-auto p-8">
-      <div className="max-w-2xl mx-auto space-y-6">
-      {/* En-tete */}
-      <div className="flex items-center gap-3 mb-8">
-        <div className="w-10 h-10 rounded-xl bg-kerpta-50 border border-kerpta-200 flex items-center justify-center">
-          <BrainCircuit className="w-5 h-5 text-kerpta" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Intelligence Artificielle</h1>
-          <p className="text-sm text-gray-500">Configuration du proxy LiteLLM, fournisseurs et modeles</p>
-        </div>
-      </div>
+    <PageLayout
+      icon={<BrainCircuit className="w-5 h-5 text-kerpta" />}
+      title="Intelligence Artificielle"
+      subtitle="Configuration du proxy LiteLLM, fournisseurs et modeles"
+    >
+      <div className="space-y-6">
 
       {/* Section 1 - General */}
       <section className={CARD + ' p-5'}>
@@ -567,6 +562,6 @@ export default function ConfigAiPage() {
         </div>
       )}
     </div>
-    </div>
+    </PageLayout>
   )
 }

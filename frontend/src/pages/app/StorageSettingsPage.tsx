@@ -7,6 +7,7 @@ import { HardDrive, Cloud, Server, CheckCircle2, XCircle, Loader2, Trash2, Exter
 import { orgGet, orgPost, orgDelete } from '@/lib/orgApi'
 import ModalOverlay from '@/components/app/ModalOverlay'
 import { BTN } from '@/lib/formStyles'
+import PageLayout from '@/components/app/PageLayout'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -377,20 +378,11 @@ export default function StorageSettingsPage() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="max-w-3xl mx-auto px-6 py-8">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-xl bg-kerpta-50 border border-kerpta-200 flex items-center justify-center">
-            <HardDrive className="w-5 h-5 text-kerpta-600" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">Stockage externe</h1>
-            <p className="text-sm text-gray-500">
-              Connectez un service de stockage pour sauvegarder automatiquement vos documents.
-            </p>
-          </div>
-        </div>
+    <PageLayout
+      icon={<HardDrive className="w-5 h-5 text-kerpta" />}
+      title="Stockage externe"
+      subtitle="Connectez un service de stockage pour sauvegarder automatiquement vos documents."
+    >
 
         {/* Info */}
         <div className="mt-6 mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200">
@@ -447,6 +439,6 @@ export default function StorageSettingsPage() {
         loading={actionLoading === 'ftp'}
       />
 
-    </div>
+    </PageLayout>
   )
 }

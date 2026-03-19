@@ -2,9 +2,10 @@
 // Copyright (C) 2026 Emmanuel Kervizic
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
-import { Loader2 } from 'lucide-react'
+import { LayoutGrid, Loader2 } from 'lucide-react'
 import { MODULE_DEFINITIONS, useModuleStore } from '@/stores/moduleStore'
 import { useAuthStore } from '@/stores/authStore'
+import PageLayout from '@/components/app/PageLayout'
 
 export default function ModulesPage() {
   const { orgs, activeOrgId } = useAuthStore()
@@ -35,12 +36,11 @@ export default function ModulesPage() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="max-w-2xl mx-auto px-6 py-8">
-        <h1 className="text-xl font-semibold text-gray-900 mb-1">Modules</h1>
-        <p className="text-sm text-gray-400 mb-6">
-          Activez ou désactivez les modules visibles dans la navigation.
-        </p>
+    <PageLayout
+      icon={<LayoutGrid className="w-5 h-5 text-kerpta" />}
+      title="Modules"
+      subtitle="Activez ou desactivez les modules visibles dans la navigation."
+    >
 
         <div className="space-y-4">
           {MODULE_DEFINITIONS.map((section) => {
@@ -73,8 +73,7 @@ export default function ModulesPage() {
             )
           })}
         </div>
-      </div>
-    </div>
+    </PageLayout>
   )
 }
 

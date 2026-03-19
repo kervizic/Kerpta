@@ -29,6 +29,7 @@ import { useAuthStore } from '@/stores/authStore'
 import CompanyInfoCard from '@/components/app/CompanyInfoCard'
 import { InfoHint } from '@/components/ui/InfoHint'
 import { BTN_SM } from '@/lib/formStyles'
+import PageLayout from '@/components/app/PageLayout'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -688,19 +689,12 @@ export default function OrgSettingsPage() {
   const displayedLogoSrc = logoPreview ?? currentLogo?.logo_b64 ?? null
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="max-w-2xl mx-auto px-6 py-8 space-y-8">
-
-        {/* En-tête */}
-        <div>
-          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <Building className="w-5 h-5 text-kerpta" />
-            Ma structure
-          </h1>
-          <p className="text-sm text-gray-400 mt-1">
-            Informations légales et paramètres de facturation
-          </p>
-        </div>
+    <PageLayout
+      icon={<Building className="w-5 h-5 text-kerpta" />}
+      title="Ma structure"
+      subtitle="Informations legales et parametres de facturation"
+    >
+      <div className="space-y-8">
 
         {/* Logo */}
         <section className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
@@ -1789,6 +1783,6 @@ export default function OrgSettingsPage() {
         )}
 
       </div>
-    </div>
+    </PageLayout>
   )
 }

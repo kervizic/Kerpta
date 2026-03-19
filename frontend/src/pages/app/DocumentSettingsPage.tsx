@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react'
 import { Plus, Loader2, Pencil, Trash2, FileText, Sparkles, Minus, Info, RotateCcw } from 'lucide-react'
 import { orgGet, orgPatch } from '@/lib/orgApi'
+import PageLayout from '@/components/app/PageLayout'
 import { INPUT, BTN_SM } from '@/lib/formStyles'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -1183,26 +1184,27 @@ export default function DocumentSettingsPage() {
   }, [])
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
-        <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Documents</h1>
-        {themeLoading ? (
-          <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-kerpta" /></div>
-        ) : (
-          <>
-            <PrintStyleSection style={activeTheme} onStyleChange={setActiveTheme} />
-            <DocumentHeaderSection />
-            <PageFooterSection />
-            <DocumentTypesSection
-              endpoint="/billing/quote-document-types"
-              title="Colonnes des devis"
-              description="Modèles de mise en page disponibles lors de la création d'un devis, avec les colonnes affichées"
-            />
-            <InvoiceColumnsSection />
-            <DocumentStylingSection activeTheme={activeTheme} />
-          </>
-        )}
-      </div>
-    </div>
+    <PageLayout
+      icon={<FileText className="w-5 h-5 text-kerpta" />}
+      title="Documents"
+      size="md"
+    >
+      {themeLoading ? (
+        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-kerpta" /></div>
+      ) : (
+        <div className="space-y-6">
+          <PrintStyleSection style={activeTheme} onStyleChange={setActiveTheme} />
+          <DocumentHeaderSection />
+          <PageFooterSection />
+          <DocumentTypesSection
+            endpoint="/billing/quote-document-types"
+            title="Colonnes des devis"
+            description="Modèles de mise en page disponibles lors de la création d'un devis, avec les colonnes affichées"
+          />
+          <InvoiceColumnsSection />
+          <DocumentStylingSection activeTheme={activeTheme} />
+        </div>
+      )}
+    </PageLayout>
   )
 }

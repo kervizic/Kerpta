@@ -7,6 +7,7 @@ import { Plus, Loader2, BarChart3, Info, Filter } from 'lucide-react'
 import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
 import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
 import MobileFilterPanel from '@/components/app/MobileFilterPanel'
+import PageLayout from '@/components/app/PageLayout'
 import { BTN, OVERLAY_BACKDROP, OVERLAY_PANEL, CARD } from '@/lib/formStyles'
 
 interface Contract {
@@ -157,34 +158,28 @@ function ContractsList() {
   ).length
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 md:py-8">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Contrats & Commandes</h1>
-            <div className="relative group hidden md:block">
-              <Info className="w-4 h-4 text-gray-300 hover:text-gray-500 transition cursor-help" />
-              <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 px-3 py-2 bg-gray-800 text-white text-[11px] rounded-lg shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition z-50">
-                Cliquez sur les en-têtes de colonnes pour filtrer
-              </div>
-            </div>
+    <PageLayout
+      icon={<BarChart3 className="w-5 h-5 text-kerpta" />}
+      title="Contrats & Commandes"
+      size="lg"
+      actions={<>
             {activeFilterCount > 0 && (
               <span className="text-[10px] bg-kerpta-100 text-kerpta-700 dark:bg-kerpta-900/40 dark:text-kerpta-400 px-2 py-0.5 rounded-full font-medium">
                 {activeFilterCount} filtre{activeFilterCount > 1 ? 's' : ''}
               </span>
             )}
-          </div>
-          <button
-            onClick={() => setShowMobileFilters(true)}
-            className="md:hidden flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 text-sm font-medium rounded-lg transition"
-          >
-            <Filter className="w-4 h-4" />
-            Filtres
-            {activeFilterCount > 0 && (
-              <span className="text-[10px] bg-kerpta text-white px-1.5 py-0.5 rounded-full font-medium leading-none">{activeFilterCount}</span>
-            )}
-          </button>
-        </div>
+            <button
+              onClick={() => setShowMobileFilters(true)}
+              className="md:hidden flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 text-sm font-medium rounded-lg transition"
+            >
+              <Filter className="w-4 h-4" />
+              Filtres
+              {activeFilterCount > 0 && (
+                <span className="text-[10px] bg-kerpta text-white px-1.5 py-0.5 rounded-full font-medium leading-none">{activeFilterCount}</span>
+              )}
+            </button>
+      </>}
+    >
 
         <div className="hidden md:block bg-white border border-gray-200 dark:bg-gray-800 dark:border-gray-700 rounded-2xl overflow-hidden">
           <table className="w-full text-sm">
@@ -273,8 +268,7 @@ function ContractsList() {
             onClose={() => setShowMobileFilters(false)}
           />
         )}
-      </div>
-    </div>
+    </PageLayout>
   )
 }
 

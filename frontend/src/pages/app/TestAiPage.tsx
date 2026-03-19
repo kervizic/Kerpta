@@ -19,6 +19,7 @@ import {
   BookOpen,
 } from 'lucide-react'
 import { BTN, BTN_SM, BTN_SECONDARY, CARD, INPUT } from '@/lib/formStyles'
+import PageLayout from '@/components/app/PageLayout'
 
 type Tab = 'ocr' | 'categorize' | 'chat'
 
@@ -200,16 +201,12 @@ export default function TestAiPage() {
   ]
 
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <BrainCircuit className="w-6 h-6 text-kerpta" />
-        <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Test IA</h1>
-          <p className="text-sm text-gray-500">Module de test temporaire - a supprimer apres validation</p>
-        </div>
-      </div>
-
+    <PageLayout
+      icon={<BrainCircuit className="w-5 h-5 text-kerpta" />}
+      title="Test IA"
+      subtitle="Module de test temporaire - a supprimer apres validation"
+      size="lg"
+    >
       {/* Tabs */}
       <div className="flex gap-1 border-b border-gray-200 dark:border-gray-700">
         {tabs.map(t => (
@@ -419,7 +416,7 @@ export default function TestAiPage() {
                     </div>
                   )}
                 </div>
-                {catResult.alternatives && Array.isArray(catResult.alternatives) && (catResult.alternatives as Array<{ account: string; label: string }>).length > 0 && (
+                {Array.isArray(catResult.alternatives) && (catResult.alternatives as Array<{ account: string; label: string }>).length > 0 && (
                   <div>
                     <h3 className="text-xs font-semibold text-gray-500 mb-2 uppercase">Alternatives</h3>
                     {(catResult.alternatives as Array<{ account: string; label: string }>).map((alt, i) => (
@@ -510,6 +507,6 @@ export default function TestAiPage() {
           </div>
         </div>
       )}
-    </div>
+    </PageLayout>
   )
 }

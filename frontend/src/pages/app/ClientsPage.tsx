@@ -4,11 +4,12 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import {
-  Plus, Search, Loader2,
+  Plus, Search, Loader2, Users,
   Building2, MapPin, CheckCircle2,
 } from 'lucide-react'
 import { orgGet, orgPost } from '@/lib/orgApi'
 import { apiClient } from '@/lib/api'
+import PageLayout from '@/components/app/PageLayout'
 import ClientPanel from '@/components/app/ClientPanel'
 import { COUNTRIES, getCountryMode } from '@/data/countries'
 import axios from 'axios'
@@ -131,17 +132,19 @@ function ClientsList() {
   useEffect(() => { void load() }, [load])
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="max-w-5xl mx-auto px-6 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Clients</h1>
-          <button
-            onClick={() => setShowCreate(true)}
-            className={BTN}
-          >
-            <Plus className="w-4 h-4" /> Nouveau client
-          </button>
-        </div>
+    <PageLayout
+      icon={<Users className="w-5 h-5 text-kerpta" />}
+      title="Clients"
+      size="lg"
+      actions={
+        <button
+          onClick={() => setShowCreate(true)}
+          className={BTN}
+        >
+          <Plus className="w-4 h-4" /> Nouveau client
+        </button>
+      }
+    >
 
         {/* Barre de recherche */}
         <div className="relative mb-4">
@@ -215,8 +218,6 @@ function ClientsList() {
             </button>
           </div>
         )}
-      </div>
-
       {/* ── Modal fiche client ────────────────────────────────────── */}
       {selectedId && (
         <ClientPanel
@@ -231,7 +232,7 @@ function ClientsList() {
           onClose={() => { setShowCreate(false); void load() }}
         />
       )}
-    </div>
+    </PageLayout>
   )
 }
 

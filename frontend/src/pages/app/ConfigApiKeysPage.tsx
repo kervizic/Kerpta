@@ -23,6 +23,7 @@ import {
   X,
 } from 'lucide-react'
 import { BTN } from '@/lib/formStyles'
+import PageLayout from '@/components/app/PageLayout'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -429,18 +430,11 @@ export default function ConfigApiKeysPage() {
   const hasInpiConfigured = !!(data?.api_keys?.inpi?.username)
 
   return (
-    <div className="flex-1 overflow-y-auto p-8">
-      <div className="max-w-2xl mx-auto">
-        {/* En-tête */}
-        <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-kerpta-50 border border-kerpta-200 flex items-center justify-center">
-            <KeyRound className="w-5 h-5 text-kerpta" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">Clés API</h1>
-            <p className="text-sm text-gray-500">Providers OAuth et connexions aux APIs externes</p>
-          </div>
-        </div>
+    <PageLayout
+      icon={<KeyRound className="w-5 h-5 text-kerpta" />}
+      title="Cles API"
+      subtitle="Providers OAuth et connexions aux APIs externes"
+    >
 
         {/* ── Section INPI / RNE ──────────────────────────────────────────────── */}
         <section className="mb-10">
@@ -713,7 +707,6 @@ export default function ConfigApiKeysPage() {
           </div>
         </section>
 
-      </div>
-    </div>
+    </PageLayout>
   )
 }

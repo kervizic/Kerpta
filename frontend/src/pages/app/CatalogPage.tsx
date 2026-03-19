@@ -8,6 +8,7 @@ import {
   Layers, ShoppingCart, Users, BarChart3, X,
 } from 'lucide-react'
 import { orgGet, orgPost, orgPatch, orgDelete } from '@/lib/orgApi'
+import PageLayout from '@/components/app/PageLayout'
 import { useAuthStore } from '@/stores/authStore'
 import UnitCombobox from '@/components/app/UnitCombobox'
 import ModalOverlay from '@/components/app/ModalOverlay'
@@ -139,11 +140,11 @@ function ProductsList({ initialSelectedId }: { initialSelectedId?: string } = {}
   useEffect(() => { void load() }, [load])
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 md:py-8">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Catalogue</h1>
-          <div className="flex items-center gap-2">
+    <PageLayout
+      icon={<Layers className="w-5 h-5 text-kerpta" />}
+      title="Catalogue"
+      size="lg"
+      actions={<>
             <button
               onClick={() => { setShowArchived(!showArchived); setPage(1) }}
               className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border transition ${
@@ -157,8 +158,8 @@ function ProductsList({ initialSelectedId }: { initialSelectedId?: string } = {}
             <button onClick={() => setShowNewModal(true)} className={`flex items-center gap-1.5 ${BTN}`}>
               <Plus className="w-4 h-4" /> Nouvel article
             </button>
-          </div>
-        </div>
+      </>}
+    >
 
         <div className="relative mb-4">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
@@ -258,8 +259,7 @@ function ProductsList({ initialSelectedId }: { initialSelectedId?: string } = {}
             onCreated={(id) => { setShowNewModal(false); setSelectedId(id); void load() }}
           />
         )}
-      </div>
-    </div>
+    </PageLayout>
   )
 }
 

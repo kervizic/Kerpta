@@ -3,9 +3,10 @@
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, Loader2, Pencil, Trash2, Star, Upload, ExternalLink, X } from 'lucide-react'
+import { Plus, Loader2, Pencil, Trash2, Star, Upload, ExternalLink, X, Settings } from 'lucide-react'
 import { orgGet, orgPost, orgPatch, orgDelete } from '@/lib/orgApi'
 import { apiClient } from '@/lib/api'
+import PageLayout from '@/components/app/PageLayout'
 import BillingProfileModal, { type BillingProfileData } from '@/components/app/BillingProfileModal'
 import ModalOverlay from '@/components/app/ModalOverlay'
 
@@ -660,9 +661,12 @@ function RoundingSection() {
 
 export default function InvoiceSettingsPage() {
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
-        <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Paramètres de vente</h1>
+    <PageLayout
+      icon={<Settings className="w-5 h-5 text-kerpta" />}
+      title="Paramètres de vente"
+      size="md"
+    >
+      <div className="space-y-6">
         <BankAccountsSection />
         <BillingProfilesSection />
         <PaymentMethodsSection />
@@ -670,6 +674,6 @@ export default function InvoiceSettingsPage() {
         <UnitsSection />
         <RoundingSection />
       </div>
-    </div>
+    </PageLayout>
   )
 }

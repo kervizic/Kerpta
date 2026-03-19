@@ -18,6 +18,7 @@ import { ProductDetailModal } from '@/pages/app/CatalogPage'
 import DatePicker from '@/components/app/DatePicker'
 import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
 import MobileFilterPanel from '@/components/app/MobileFilterPanel'
+import PageLayout from '@/components/app/PageLayout'
 import { INPUT, SELECT, LINE_INPUT, LINE_SELECT, BTN, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER, BADGE_COUNT, CARD } from '@/lib/formStyles'
 import axios from 'axios'
 
@@ -311,24 +312,16 @@ function InvoicesList() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 md:py-8">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Factures</h1>
-            <div className="relative group hidden md:block">
-              <Info className="w-4 h-4 text-gray-300 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400 transition cursor-help" />
-              <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 px-3 py-2 bg-gray-800 text-white text-[11px] rounded-lg shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition z-50">
-                Cliquez sur les en-têtes de colonnes pour filtrer
-              </div>
-            </div>
+    <PageLayout
+      icon={<FileText className="w-5 h-5 text-kerpta" />}
+      title="Factures"
+      size="lg"
+      actions={<>
             {activeFilterCount > 0 && (
               <span className="text-[10px] bg-kerpta-100 text-kerpta-700 dark:bg-kerpta-900/40 dark:text-kerpta-400 px-2 py-0.5 rounded-full font-medium">
                 {activeFilterCount} filtre{activeFilterCount > 1 ? 's' : ''}
               </span>
             )}
-          </div>
-          <div className="flex items-center gap-2">
             {/* Barre d'actions (sélection active) */}
             {selected.size > 0 && (
               <div className="flex items-center gap-2 mr-2">
@@ -384,8 +377,8 @@ function InvoicesList() {
             >
               <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Nouvelle facture</span>
             </button>
-          </div>
-        </div>
+      </>}
+    >
 
         {/* Desktop : tableau */}
         <div className="hidden md:block bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden">
@@ -548,8 +541,7 @@ function InvoicesList() {
             onClose={() => setShowMobileFilters(false)}
           />
         )}
-      </div>
-    </div>
+    </PageLayout>
   )
 }
 
