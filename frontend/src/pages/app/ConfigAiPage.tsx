@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Emmanuel Kervizic
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -26,6 +26,8 @@ import {
   Settings2,
   Cpu,
   Eye,
+  AlertCircle,
+  CheckCircle2,
 } from 'lucide-react'
 import { BTN_SM, BTN_SECONDARY, INPUT, SELECT, CARD, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER } from '@/lib/formStyles'
 import PageLayout from '@/components/app/PageLayout'
@@ -72,6 +74,11 @@ interface UsageStats {
   top_organizations: { name: string; tokens: number }[] | null
 }
 
+interface Toast {
+  type: 'success' | 'error' | 'info'
+  message: string
+}
+
 const PROVIDER_TYPES = [
   { value: 'ollama', label: 'Ollama (local)' },
   { value: 'vllm', label: 'vLLM (local GPU)' },
@@ -99,13 +106,6 @@ const configSchema = z.object({
 })
 type ConfigFormValues = z.infer<typeof configSchema>
 
-const rolesSchema = z.object({
-  roleVl: z.string(),
-  roleInstruct: z.string(),
-  roleThinking: z.string(),
-})
-type RolesFormValues = z.infer<typeof rolesSchema>
-
 const providerSchema = z.object({
   name: z.string().min(1, 'Le nom est requis'),
   type: z.string(),
@@ -114,12 +114,41 @@ const providerSchema = z.object({
 })
 type ProviderFormValues = z.infer<typeof providerSchema>
 
+// ── Toast component ─────────────────────────────────────────────────────────
+
+function ToastBanner({ toast, onClose }: { toast: Toast; onClose: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onClose, 4000)
+    return () => clearTimeout(t)
+  }, [onClose])
+
+  const colors = {
+    success: 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700 text-green-700 dark:text-green-400',
+    error: 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-700 text-red-700 dark:text-red-400',
+    info: 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-400',
+  }
+  const Icon = toast.type === 'success' ? CheckCircle2 : toast.type === 'error' ? AlertCircle : AlertCircle
+
+  return (
+    <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg border text-sm shadow-lg ${colors[toast.type]}`}>
+      <Icon className="w-4 h-4 shrink-0" />
+      <span>{toast.message}</span>
+      <button onClick={onClose} className="ml-2"><X className="w-3.5 h-3.5" /></button>
+    </div>
+  )
+}
+
 // ── Page principale ──────────────────────────────────────────────────────────
 
 export default function ConfigAiPage() {
   const { isAdmin } = useAuthStore()
   const qc = useQueryClient()
   const [saving, setSaving] = useState(false)
+  const [toast, setToast] = useState<Toast | null>(null)
+
+  const showToast = useCallback((type: Toast['type'], message: string) => {
+    setToast({ type, message })
+  }, [])
 
   // Config form (useForm)
   const configForm = useForm<ConfigFormValues>({
@@ -128,21 +157,13 @@ export default function ConfigAiPage() {
   })
   const aiEnabled = configForm.watch('aiEnabled')
 
-  // Roles form (useForm)
-  const rolesForm = useForm<RolesFormValues>({
-    resolver: zodResolver(rolesSchema),
-    defaultValues: { roleVl: '', roleInstruct: '', roleThinking: '' },
-  })
-  const roleVl = rolesForm.watch('roleVl')
-  const roleInstruct = rolesForm.watch('roleInstruct')
-  const roleThinking = rolesForm.watch('roleThinking')
-
   // Features form state (dynamic record - stays as useState)
   const [features, setFeatures] = useState<Record<string, boolean>>({})
 
   // Provider modal
   const [showProviderModal, setShowProviderModal] = useState(false)
   const [editProvider, setEditProvider] = useState<AiProvider | null>(null)
+  const [providerSaving, setProviderSaving] = useState(false)
   const providerForm = useForm<ProviderFormValues>({
     resolver: zodResolver(providerSchema),
     defaultValues: { name: '', type: 'ollama', base_url: '', api_key: '' },
@@ -189,11 +210,6 @@ export default function ConfigAiPage() {
       litellmUrl: config.ai_litellm_base_url || 'http://litellm:4000',
       litellmKey: '',
     })
-    rolesForm.reset({
-      roleVl: config.roles?.vl?.id || '',
-      roleInstruct: config.roles?.instruct?.id || '',
-      roleThinking: config.roles?.thinking?.id || '',
-    })
     setFeatures(config.ai_features || {})
   }, [config])
 
@@ -215,61 +231,93 @@ export default function ConfigAiPage() {
         ai_litellm_master_key: vals.litellmKey || undefined,
         ai_features: features,
       })
+      showToast('success', 'Configuration sauvegardee')
+      invalidate()
+    } catch {
+      showToast('error', 'Erreur lors de la sauvegarde')
     } finally {
       setSaving(false)
     }
   }
 
-  async function saveRoles() {
-    setSaving(true)
+  async function saveRole(field: string, modelId: string) {
     try {
-      const vals = rolesForm.getValues()
-      await adminClient.put('/ai/roles', {
-        vl: vals.roleVl || null,
-        instruct: vals.roleInstruct || null,
-        thinking: vals.roleThinking || null,
-      })
-    } finally {
-      setSaving(false)
+      const payload: Record<string, string | null> = {
+        vl: config?.roles?.vl?.id || null,
+        instruct: config?.roles?.instruct?.id || null,
+        thinking: config?.roles?.thinking?.id || null,
+      }
+      payload[field] = modelId || null
+      await adminClient.put('/ai/roles', payload)
+      showToast('success', `Role ${field.toUpperCase()} mis a jour`)
+      invalidate()
+    } catch {
+      showToast('error', 'Erreur lors de la sauvegarde du role')
     }
   }
 
   async function testLitellm() {
     try {
       const res = await adminClient.post<{ ok: boolean; message: string }>('/ai/config/test')
-      alert(res.ok ? 'LiteLLM OK !' : res.message)
+      if (res.ok) {
+        showToast('success', res.message)
+      } else {
+        showToast('error', res.message)
+      }
     } catch {
-      alert('Impossible de joindre LiteLLM')
+      showToast('error', 'Erreur de communication avec le serveur')
     }
   }
 
-  async function testProvider(id: string) {
-    const res = await adminClient.post<{ message: string }>(`/ai/providers/${id}/test`)
-    alert(res.message)
-    invalidate()
-  }
-
   async function syncProvider(id: string) {
-    const res = await adminClient.post<{ message: string }>(`/ai/providers/${id}/sync`)
-    alert(res.message)
-    invalidate()
+    try {
+      const res = await adminClient.post<{ message: string }>(`/ai/providers/${id}/sync`)
+      showToast('success', res.message)
+      invalidate()
+    } catch {
+      showToast('error', 'Erreur lors de la synchronisation')
+    }
   }
 
   async function deleteProvider(id: string) {
     if (!confirm('Supprimer ce fournisseur et tous ses modeles ?')) return
-    await adminClient.delete(`/ai/providers/${id}`)
-    invalidate()
+    try {
+      await adminClient.delete(`/ai/providers/${id}`)
+      showToast('success', 'Fournisseur supprime')
+      invalidate()
+    } catch {
+      showToast('error', 'Erreur lors de la suppression')
+    }
   }
 
   const saveProvider = providerForm.handleSubmit(async (data) => {
-    if (editProvider) {
-      await adminClient.put(`/ai/providers/${editProvider.id}`, data)
-    } else {
-      await adminClient.post('/ai/providers', data)
+    setProviderSaving(true)
+    try {
+      if (editProvider) {
+        const res = await adminClient.put<{ ok: boolean; test: { success: boolean; message: string }; synced: number }>(`/ai/providers/${editProvider.id}`, data)
+        setShowProviderModal(false)
+        setEditProvider(null)
+        if (res.test?.success) {
+          showToast('success', `Fournisseur modifie - ${res.synced} modeles synchronises`)
+        } else {
+          showToast('error', `Fournisseur modifie mais connexion echouee : ${res.test?.message || 'erreur inconnue'}`)
+        }
+      } else {
+        const res = await adminClient.post<{ id: string; test: { success: boolean; message: string }; synced: number }>('/ai/providers', data)
+        setShowProviderModal(false)
+        setEditProvider(null)
+        if (res.test?.success) {
+          showToast('success', `Fournisseur ajoute - ${res.synced} modeles synchronises`)
+        } else {
+          showToast('error', `Fournisseur ajoute mais connexion echouee : ${res.test?.message || 'erreur inconnue'}`)
+        }
+      }
+      invalidate()
+    } catch {
+      showToast('error', 'Erreur lors de la sauvegarde du fournisseur')
+    } finally {
+      setProviderSaving(false)
     }
-    setShowProviderModal(false)
-    setEditProvider(null)
-    invalidate()
   })
 
   async function toggleModel(id: string, active: boolean) {
@@ -281,14 +329,6 @@ export default function ConfigAiPage() {
     if (!confirm('Supprimer ce modele ?')) return
     await adminClient.delete(`/ai/models/${id}`)
     invalidate()
-  }
-
-  async function testRoles() {
-    const res = await adminClient.post<{ role: string; success: boolean; message: string }[]>('/ai/roles/test')
-    const msgs = res.map((r: { role: string; success: boolean; message: string }) =>
-      `${r.role.toUpperCase()}: ${r.success ? '✓' : '✗'} ${r.message}`
-    ).join('\n')
-    alert(msgs)
   }
 
   function sectionHeader(key: string, title: string, icon: React.ReactNode) {
@@ -314,6 +354,8 @@ export default function ConfigAiPage() {
       title="Intelligence Artificielle"
       subtitle="Configuration du proxy LiteLLM, fournisseurs et modeles"
     >
+      {toast && <ToastBanner toast={toast} onClose={() => setToast(null)} />}
+
       <div className="space-y-6">
 
       {/* Section 1 - General */}
@@ -336,7 +378,7 @@ export default function ConfigAiPage() {
             </div>
             <div className="flex items-center gap-3">
               <span className="text-sm text-gray-700 dark:text-gray-300 w-40">Master Key</span>
-              <input className={INPUT + ' flex-1'} type="password" {...configForm.register('litellmKey')} placeholder={config?.has_master_key ? '••••••••' : 'Non configurée'} />
+              <input className={INPUT + ' flex-1'} type="password" {...configForm.register('litellmKey')} placeholder={config?.has_master_key ? '••••••••' : 'Non configuree'} />
             </div>
             <div className="flex gap-2">
               <button onClick={testLitellm} className={BTN_SM} disabled={!configForm.watch('litellmUrl')}>
@@ -366,11 +408,8 @@ export default function ConfigAiPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => syncProvider(p.id)} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition" title="Synchroniser">
+                  <button onClick={() => syncProvider(p.id)} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition" title="Synchroniser les modeles">
                     <RefreshCw className="w-3.5 h-3.5 text-gray-400" />
-                  </button>
-                  <button onClick={() => testProvider(p.id)} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition" title="Tester">
-                    <Zap className="w-3.5 h-3.5 text-gray-400" />
                   </button>
                   <button onClick={() => { setEditProvider(p); providerForm.reset({ name: p.name, type: p.type, base_url: p.base_url || '', api_key: '' }); setShowProviderModal(true) }} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition" title="Editer">
                     <Pencil className="w-3.5 h-3.5 text-gray-400" />
@@ -432,35 +471,37 @@ export default function ConfigAiPage() {
         )}
       </section>
 
-      {/* Section 4 - Roles */}
+      {/* Section 4 - Roles (sauvegarde auto au changement) */}
       <section className={CARD + ' p-5'}>
         {sectionHeader('roles', 'Roles', <Eye className="w-4 h-4 text-gray-400" />)}
         {openSections.roles && (
           <div className="space-y-4 pt-2">
             {([
-              { label: 'VL (Vision)', field: 'roleVl' as const, desc: 'OCR, lecture documents' },
-              { label: 'Instruct', field: 'roleInstruct' as const, desc: 'Categorisation, chat, rédaction' },
-              { label: 'Thinking', field: 'roleThinking' as const, desc: 'Analyse financière complexe' },
+              { label: 'VL (Vision)', field: 'vl', desc: 'OCR, lecture documents' },
+              { label: 'Instruct', field: 'instruct', desc: 'Categorisation, chat, redaction' },
+              { label: 'Thinking', field: 'thinking', desc: 'Analyse financiere complexe' },
             ]).map((r) => (
               <div key={r.label} className="flex items-center gap-3">
                 <div className="w-40">
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{r.label}</span>
                   <p className="text-[10px] text-gray-400">{r.desc}</p>
                 </div>
-                <select className={SELECT + ' flex-1'} {...rolesForm.register(r.field)}>
-                  <option value="">Non configuré</option>
+                <select
+                  className={SELECT + ' flex-1'}
+                  value={
+                    r.field === 'vl' ? (config?.roles?.vl?.id || '') :
+                    r.field === 'instruct' ? (config?.roles?.instruct?.id || '') :
+                    (config?.roles?.thinking?.id || '')
+                  }
+                  onChange={(e) => saveRole(r.field, e.target.value)}
+                >
+                  <option value="">Non configure</option>
                   {activeModels.map((m) => (
                     <option key={m.id} value={m.id}>{m.display_name} ({m.provider_name})</option>
                   ))}
                 </select>
               </div>
             ))}
-            <div className="flex gap-2">
-              <button onClick={testRoles} className={BTN_SM}><Zap className="w-3.5 h-3.5" /> Tester les roles</button>
-              <button onClick={saveRoles} className={BTN_SM} disabled={saving}>
-                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Sauvegarder
-              </button>
-            </div>
           </div>
         )}
       </section>
@@ -471,6 +512,9 @@ export default function ConfigAiPage() {
         {openSections.features && (
           <div className="space-y-3 pt-2">
             {FEATURES.map((f) => {
+              const roleVl = config?.roles?.vl?.id
+              const roleInstruct = config?.roles?.instruct?.id
+              const roleThinking = config?.roles?.thinking?.id
               const roleAssigned = f.role === 'vl' ? !!roleVl : f.role === 'thinking' ? !!roleThinking : !!roleInstruct
               const enabled = features[f.key] !== false && roleAssigned
               return (
@@ -590,14 +634,15 @@ export default function ConfigAiPage() {
               )}
               {provType !== 'ollama' && provType !== 'vllm' && (
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Clé API</label>
+                  <label className="text-xs text-gray-500 mb-1 block">Cle API</label>
                   <input className={INPUT} type="password" {...providerForm.register('api_key')} placeholder="sk-..." />
                 </div>
               )}
+              <p className="text-[10px] text-gray-400">La connexion sera testee et les modeles synchronises automatiquement.</p>
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setShowProviderModal(false)} className={BTN_SECONDARY}>Annuler</button>
-                <button type="submit" className={BTN_SM} disabled={!providerForm.watch('name') || providerForm.formState.isSubmitting}>
-                  {providerForm.formState.isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} {editProvider ? 'Modifier' : 'Ajouter'}
+                <button type="submit" className={BTN_SM} disabled={!providerForm.watch('name') || providerSaving}>
+                  {providerSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} {editProvider ? 'Modifier' : 'Ajouter'}
                 </button>
               </div>
             </form>

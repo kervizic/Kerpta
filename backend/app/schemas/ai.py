@@ -44,8 +44,8 @@ class AiProviderResponse(BaseModel):
     last_check_at: datetime | None
     last_check_ok: bool | None
     model_count: int = 0
-    created_at: datetime
-    updated_at: datetime
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class AiProviderTestResult(BaseModel):
@@ -84,8 +84,8 @@ class AiModelResponse(BaseModel):
     capabilities: list[str] | None
     context_window: int | None
     is_active: bool
-    created_at: datetime
-    updated_at: datetime
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 # ── Roles ─────────────────────────────────────────────────────────────────────

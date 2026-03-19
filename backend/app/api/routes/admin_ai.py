@@ -62,7 +62,7 @@ async def list_providers(
     ]
 
 
-@router.post("/providers", response_model=AiProviderResponse, status_code=201)
+@router.post("/providers", status_code=201)
 async def create_provider(
     body: AiProviderCreate,
     _admin: uuid_mod.UUID = Depends(require_platform_admin),
@@ -83,11 +83,27 @@ async def create_provider(
         },
     )
     await db.commit()
-    return AiProviderResponse(
-        id=new_id, name=body.name, type=body.type, base_url=body.base_url,
-        is_active=True, last_check_at=None, last_check_ok=None,
-        model_count=0, created_at=None, updated_at=None,
-    )
+
+    # Auto-test connexion + sync modeles
+    test_result = await providers_svc.test_connection(body.type, body.base_url, body.api_key)
+    synced = 0
+    if test_result["success"]:
+        try:
+            synced = await providers_svc.sync_models(db, new_id, body.type, body.base_url, body.api_key)
+        except Exception:
+            pass
+    else:
+        await db.execute(
+            text("UPDATE ai_providers SET last_check_at = now(), last_check_ok = false, updated_at = now() WHERE id = :id"),
+            {"id": str(new_id)},
+        )
+        await db.commit()
+
+    return {
+        "id": str(new_id),
+        "test": test_result,
+        "synced": synced,
+    }
 
 
 @router.put("/providers/{provider_id}", response_model=dict)
@@ -119,7 +135,30 @@ async def update_provider(
     sets.append("updated_at = now()")
     await db.execute(text(f"UPDATE ai_providers SET {', '.join(sets)} WHERE id = :id"), params)
     await db.commit()
-    return {"ok": True}
+
+    # Auto-test + resync apres modification
+    row = await db.execute(
+        text("SELECT type, base_url, api_key FROM ai_providers WHERE id = :id"),
+        {"id": str(provider_id)},
+    )
+    prov = row.fetchone()
+    test_result = {"success": False, "message": "Fournisseur introuvable"}
+    synced = 0
+    if prov:
+        test_result = await providers_svc.test_connection(prov[0], prov[1], prov[2])
+        if test_result["success"]:
+            try:
+                synced = await providers_svc.sync_models(db, provider_id, prov[0], prov[1], prov[2])
+            except Exception:
+                pass
+        else:
+            await db.execute(
+                text("UPDATE ai_providers SET last_check_at = now(), last_check_ok = false, updated_at = now() WHERE id = :id"),
+                {"id": str(provider_id)},
+            )
+            await db.commit()
+
+    return {"ok": True, "test": test_result, "synced": synced}
 
 
 @router.delete("/providers/{provider_id}", status_code=204)
