@@ -30,8 +30,9 @@ export class ApiError extends Error {
 }
 
 async function request<T>(base: string, url: string, options: RequestInit = {}): Promise<T> {
+  const isFormData = options.body instanceof FormData;
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
+    ...(isFormData ? {} : { "Content-Type": "application/json" }),
     ...authHeaders(),
     ...(options.headers as Record<string, string> ?? {}),
   };
@@ -48,6 +49,12 @@ async function request<T>(base: string, url: string, options: RequestInit = {}):
   return response.json();
 }
 
+function toBody(body: unknown): BodyInit | undefined {
+  if (body == null) return undefined;
+  if (body instanceof FormData) return body;
+  return JSON.stringify(body);
+}
+
 export const apiClient = {
   get: <T = unknown>(url: string, params?: Record<string, unknown>) => {
     const query = params ? "?" + new URLSearchParams(
@@ -58,11 +65,11 @@ export const apiClient = {
     return request<T>(API_BASE, url + query);
   },
   post: <T = unknown>(url: string, body?: unknown) =>
-    request<T>(API_BASE, url, { method: "POST", body: body != null ? JSON.stringify(body) : undefined }),
+    request<T>(API_BASE, url, { method: "POST", body: toBody(body) }),
   put: <T = unknown>(url: string, body?: unknown) =>
-    request<T>(API_BASE, url, { method: "PUT", body: body != null ? JSON.stringify(body) : undefined }),
+    request<T>(API_BASE, url, { method: "PUT", body: toBody(body) }),
   patch: <T = unknown>(url: string, body?: unknown) =>
-    request<T>(API_BASE, url, { method: "PATCH", body: body != null ? JSON.stringify(body) : undefined }),
+    request<T>(API_BASE, url, { method: "PATCH", body: toBody(body) }),
   delete: <T = unknown>(url: string) =>
     request<T>(API_BASE, url, { method: "DELETE" }),
 };
@@ -88,11 +95,11 @@ export const adminClient = {
     return request<T>(ADMIN_BASE, url + query);
   },
   post: <T = unknown>(url: string, body?: unknown) =>
-    request<T>(ADMIN_BASE, url, { method: "POST", body: body != null ? JSON.stringify(body) : undefined }),
+    request<T>(ADMIN_BASE, url, { method: "POST", body: toBody(body) }),
   put: <T = unknown>(url: string, body?: unknown) =>
-    request<T>(ADMIN_BASE, url, { method: "PUT", body: body != null ? JSON.stringify(body) : undefined }),
+    request<T>(ADMIN_BASE, url, { method: "PUT", body: toBody(body) }),
   patch: <T = unknown>(url: string, body?: unknown) =>
-    request<T>(ADMIN_BASE, url, { method: "PATCH", body: body != null ? JSON.stringify(body) : undefined }),
+    request<T>(ADMIN_BASE, url, { method: "PATCH", body: toBody(body) }),
   delete: <T = unknown>(url: string) =>
     request<T>(ADMIN_BASE, url, { method: "DELETE" }),
 };

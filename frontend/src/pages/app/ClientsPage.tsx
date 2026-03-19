@@ -341,10 +341,10 @@ export function CreateClientForm({ onClose, onCreated }: { onClose?: () => void;
 
         // Pour un SIREN français, récupérer les établissements
         if (first.siren && first.siren.length === 9) {
-          const { data: details } = await apiClient.get<CompanyDetails>(`/companies/${first.siren}`)
+          const details = await apiClient.get<CompanyDetails>(`/companies/${first.siren}`)
           setCompanyDetails(details)
           // Auto-sélectionner le siège
-          const siege = details.etablissements_actifs.find((e) => e.siege)
+          const siege = details.etablissements_actifs.find((e: Etablissement) => e.siege)
           if (siege) handleSelectEtab(siege)
         }
       }

@@ -336,7 +336,7 @@ export default function ConfigApiKeysPage() {
     }
     apiClient
       .get<ApiKeysData>('/config/api-keys')
-      .then(({ data: d }) => {
+      .then((d) => {
         setData(d)
         const initial: Record<string, ProviderCfg> = {}
         for (const { key } of KNOWN_PROVIDERS) {

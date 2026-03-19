@@ -266,14 +266,20 @@ function QuotesList() {
     if (selected.size === 0) return
     setBatchLoading(true)
     try {
-      const { apiClient } = await import('@/lib/api')
+      const apiBase = import.meta.env.VITE_API_URL ?? '/api/v1'
+      const token = localStorage.getItem('supabase_access_token')
       const orgId = localStorage.getItem('kerpta_active_org')
-      const res = await apiClient.post('/quotes/batch/pdf', { ids: [...selected] }, {
-        headers: orgId ? { 'X-Organization-Id': orgId } : {},
-        responseType: 'blob',
+      const reqHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (token) reqHeaders['Authorization'] = `Bearer ${token}`
+      if (orgId) reqHeaders['X-Organization-Id'] = orgId
+      const response = await fetch(`${apiBase}/quotes/batch/pdf`, {
+        method: 'POST',
+        headers: reqHeaders,
+        body: JSON.stringify({ ids: [...selected] }),
       })
-      const blob = new Blob([res.data])
-      const ct = res.headers['content-type'] || ''
+      if (!response.ok) throw new Error(`Download error ${response.status}`)
+      const blob = await response.blob()
+      const ct = response.headers.get('content-type') || ''
       const filename = ct.includes('zip') ? 'devis.zip' : 'devis.pdf'
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')

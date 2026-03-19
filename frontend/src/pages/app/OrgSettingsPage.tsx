@@ -261,7 +261,7 @@ export default function OrgSettingsPage() {
         // Charger le logo si présent
         if (data.has_logo) {
           try {
-            const { data: logo } = await apiClient.get<OrgLogoOut>(
+            const logo = await apiClient.get<OrgLogoOut>(
               `/organizations/${activeOrg!.org_id}/logo`
             )
             setCurrentLogo(logo)
@@ -273,7 +273,7 @@ export default function OrgSettingsPage() {
         // Charger les établissements et données SIRENE si on a un SIREN
         if (data.org_siren) {
           try {
-            const { data: company } = await apiClient.get<CompanyDetails>(`/companies/${data.org_siren}`)
+            const company = await apiClient.get<CompanyDetails>(`/companies/${data.org_siren}`)
             setSireneData(company)
             const etabs = company?.etablissements_actifs?.length
               ? company.etablissements_actifs
@@ -287,7 +287,7 @@ export default function OrgSettingsPage() {
 
         // Charger les associés
         try {
-          const { data: sh } = await apiClient.get<Shareholder[]>(
+          const sh = await apiClient.get<Shareholder[]>(
             `/organizations/${activeOrg!.org_id}/shareholders`
           )
           setShareholders(sh)
@@ -301,12 +301,12 @@ export default function OrgSettingsPage() {
           try {
             await apiClient.post(`/organizations/${activeOrg!.org_id}/enrich`)
             // Recharger les données fraîches
-            const { data: fresh } = await apiClient.get<OrgDetail>(`/organizations/${activeOrg!.org_id}`)
+            const fresh = await apiClient.get<OrgDetail>(`/organizations/${activeOrg!.org_id}`)
             applyOrgData(fresh)
             // Recharger aussi les établissements SIRENE
             if (fresh.org_siren) {
               try {
-                const { data: company } = await apiClient.get<CompanyDetails>(`/companies/${fresh.org_siren}`)
+                const company = await apiClient.get<CompanyDetails>(`/companies/${fresh.org_siren}`)
                 setSireneData(company)
                 const etabs = company?.etablissements_actifs?.length
                   ? company.etablissements_actifs
@@ -368,11 +368,17 @@ export default function OrgSettingsPage() {
     try {
       const formData = new FormData()
       formData.append('file', logoFile)
-      const data = await apiClient.post<OrgLogoOut>(
-        `/organizations/${org.org_id}/logo`,
-        formData,
-        { headers: { 'Content-Type': 'multipart/form-data' } }
+      const token = localStorage.getItem('supabase_access_token')
+      const uploadRes = await fetch(
+        `${import.meta.env.VITE_API_URL ?? '/api/v1'}/organizations/${org.org_id}/logo`,
+        {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: formData,
+        }
       )
+      if (!uploadRes.ok) throw new Error('Upload failed')
+      const data: OrgLogoOut = await uploadRes.json()
       setCurrentLogo(data)
       setLogoPreview(null)
       setLogoFile(null)
@@ -474,7 +480,7 @@ export default function OrgSettingsPage() {
   async function handleAddRepresentative(shId: string) {
     if (!org) return
     try {
-      const { data: rep } = await apiClient.post<ShareholderRepresentative>(
+      const rep = await apiClient.post<ShareholderRepresentative>(
         `/organizations/${org.org_id}/shareholders/${shId}/representatives`,
         { first_name: '', last_name: '' }
       )
@@ -491,7 +497,7 @@ export default function OrgSettingsPage() {
   async function handleUpdateRepresentative(shId: string, repId: string, field: string, value: string) {
     if (!org) return
     try {
-      const { data: rep } = await apiClient.patch<ShareholderRepresentative>(
+      const rep = await apiClient.patch<ShareholderRepresentative>(
         `/organizations/${org.org_id}/shareholders/${shId}/representatives/${repId}`,
         { [field]: value || null }
       )

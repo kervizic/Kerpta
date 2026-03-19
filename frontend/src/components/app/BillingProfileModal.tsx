@@ -186,7 +186,7 @@ export default function BillingProfileModal({ profile, onClose, onSaved }: Props
 
         if (activeOrgId) {
           try {
-            const { data: orgData } = await apiClient.get<{ vat_regime: string | null; vat_exigibility: string | null }>(`/organizations/${activeOrgId}`)
+            const orgData = await apiClient.get<{ vat_regime: string | null; vat_exigibility: string | null }>(`/organizations/${activeOrgId}`)
             setOrgVatRegime(orgData.vat_regime ?? null)
             setOrgVatExigibility(orgData.vat_exigibility ?? 'encaissements')
           } catch { /* */ }

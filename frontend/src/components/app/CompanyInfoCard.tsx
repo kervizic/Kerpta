@@ -148,7 +148,7 @@ export default function CompanyInfoCard({ siren, hideIdentity = false }: Company
     setLoading(true)
     setError(null)
     apiClient.get<CompanyDetailsOut>(`/companies/${siren}`)
-      .then(({ data }) => setCompany(data))
+      .then((data) => setCompany(data))
       .catch(() => setError('Impossible de charger les données entreprise'))
       .finally(() => setLoading(false))
   }, [siren])

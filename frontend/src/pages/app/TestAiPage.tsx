@@ -130,16 +130,11 @@ export default function TestAiPage() {
     try {
       const formData = new FormData()
       formData.append('file', file)
-      const resp = await apiClient.post('/ai/ocr', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          'X-Organization-Id': activeOrgId,
-        },
-      })
+      const resp = await apiClient.post<OcrResult>('/ai/ocr', formData)
       const duration = Math.round(performance.now() - start)
       setOcrDuration(duration)
-      setOcrResult(resp.data)
-      setOcrRaw(JSON.stringify(resp.data, null, 2))
+      setOcrResult(resp)
+      setOcrRaw(JSON.stringify(resp, null, 2))
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Erreur OCR'
       setOcrError(String(msg))
@@ -156,14 +151,12 @@ export default function TestAiPage() {
     setCatResult(null)
 
     try {
-      const resp = await apiClient.post('/ai/categorize', {
+      const resp = await apiClient.post<Record<string, unknown>>('/ai/categorize', {
         label: data.label,
         amount: parseFloat(data.amount),
         supplier_name: data.supplier || undefined,
-      }, {
-        headers: { 'X-Organization-Id': activeOrgId },
       })
-      setCatResult(resp.data)
+      setCatResult(resp)
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Erreur categorisation'
       setCatError(String(msg))
@@ -181,13 +174,11 @@ export default function TestAiPage() {
     setChatError('')
 
     try {
-      const resp = await apiClient.post('/ai/chat', {
+      const resp = await apiClient.post<{ content: string }>('/ai/chat', {
         messages: newMessages.map(m => ({ role: m.role, content: m.content })),
         use_thinking: data.useThinking,
-      }, {
-        headers: { 'X-Organization-Id': activeOrgId },
       })
-      setChatMessages([...newMessages, { role: 'assistant', content: resp.data.content }])
+      setChatMessages([...newMessages, { role: 'assistant', content: resp.content }])
       setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Erreur chat'

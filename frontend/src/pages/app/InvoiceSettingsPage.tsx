@@ -108,12 +108,7 @@ function BankAccountsSection() {
       formData.append('file', file)
       const orgId = localStorage.getItem('kerpta_active_org')
       try {
-        await apiClient.post(`/billing/bank-accounts/${accountId}/rib`, formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-            ...(orgId ? { 'X-Organization-Id': orgId } : {}),
-          },
-        })
+        await apiClient.post(`/billing/bank-accounts/${accountId}/rib`, formData)
         await qc.invalidateQueries({ queryKey: ['bank-accounts'] })
       } catch { /* */ }
     }

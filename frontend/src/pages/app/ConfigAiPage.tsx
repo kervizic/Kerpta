@@ -160,16 +160,16 @@ export default function ConfigAiPage() {
     queryKey: ['ai-config'],
     queryFn: async () => {
       const [cfgRes, provRes, modRes, usageRes] = await Promise.all([
-        adminClient.get('/ai/config'),
-        adminClient.get('/ai/providers'),
-        adminClient.get('/ai/models'),
-        adminClient.get('/ai/usage'),
+        adminClient.get<AiConfig>('/ai/config'),
+        adminClient.get<AiProvider[]>('/ai/providers'),
+        adminClient.get<AiModel[]>('/ai/models'),
+        adminClient.get<UsageStats>('/ai/usage'),
       ])
       return {
-        config: cfgRes.data as AiConfig,
-        providers: provRes.data as AiProvider[],
-        models: modRes.data as AiModel[],
-        usage: usageRes.data as UsageStats,
+        config: cfgRes,
+        providers: provRes,
+        models: modRes,
+        usage: usageRes,
       }
     },
     enabled: isAdmin === true,
@@ -248,14 +248,14 @@ export default function ConfigAiPage() {
   }
 
   async function testProvider(id: string) {
-    const res = await adminClient.post(`/ai/providers/${id}/test`)
-    alert(res.data.message)
+    const res = await adminClient.post<{ message: string }>(`/ai/providers/${id}/test`)
+    alert(res.message)
     invalidate()
   }
 
   async function syncProvider(id: string) {
-    const res = await adminClient.post(`/ai/providers/${id}/sync`)
-    alert(res.data.message)
+    const res = await adminClient.post<{ message: string }>(`/ai/providers/${id}/sync`)
+    alert(res.message)
     invalidate()
   }
 
@@ -288,8 +288,8 @@ export default function ConfigAiPage() {
   }
 
   async function testRoles() {
-    const res = await adminClient.post('/ai/roles/test')
-    const msgs = res.data.map((r: { role: string; success: boolean; message: string }) =>
+    const res = await adminClient.post<{ role: string; success: boolean; message: string }[]>('/ai/roles/test')
+    const msgs = res.map((r: { role: string; success: boolean; message: string }) =>
       `${r.role.toUpperCase()}: ${r.success ? '✓' : '✗'} ${r.message}`
     ).join('\n')
     alert(msgs)
