@@ -280,14 +280,19 @@ function InvoicesList() {
     if (selected.size === 0) return
     setBatchLoading(true)
     try {
-      const { apiClient } = await import('@/lib/api')
       const orgId = localStorage.getItem('kerpta_active_org')
-      const res = await apiClient.post('/invoices/batch/pdf', { ids: [...selected] }, {
-        headers: orgId ? { 'X-Organization-Id': orgId } : {},
-        responseType: 'blob',
+      const token = localStorage.getItem('supabase_access_token')
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (token) headers['Authorization'] = `Bearer ${token}`
+      if (orgId) headers['X-Organization-Id'] = orgId
+      const apiBase = import.meta.env.VITE_API_URL ?? '/api/v1'
+      const response = await fetch(`${apiBase}/invoices/batch/pdf`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ ids: [...selected] }),
       })
-      const blob = new Blob([res.data])
-      const ct = res.headers['content-type'] || ''
+      const blob = await response.blob()
+      const ct = response.headers.get('content-type') || ''
       const filename = ct.includes('zip') ? 'factures.zip' : 'facture.pdf'
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
