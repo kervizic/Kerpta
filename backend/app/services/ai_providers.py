@@ -89,8 +89,11 @@ async def sync_models(
     provider_type: str,
     base_url: str | None,
     api_key: str | None,
+    litellm_url: str | None = None,
+    litellm_key: str | None = None,
 ) -> int:
-    """Recupere la liste des modeles depuis le fournisseur et met a jour ai_models.
+    """Recupere la liste des modeles depuis le fournisseur, met a jour ai_models,
+    et les enregistre dans LiteLLM.
 
     Retourne le nombre de modeles synchronises.
     """
@@ -176,6 +179,15 @@ async def sync_models(
             },
         )
         synced += 1
+
+    # Enregistrer chaque modele dans LiteLLM (si configure)
+    if litellm_url and litellm_key:
+        for m in models_data:
+            await register_model_in_litellm(
+                litellm_url, litellm_key,
+                provider_type, m["model_id"],
+                api_key=api_key, base_url=base_url,
+            )
 
     # Mettre a jour last_check
     await db.execute(

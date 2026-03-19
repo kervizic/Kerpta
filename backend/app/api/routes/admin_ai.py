@@ -35,6 +35,17 @@ from app.services import ai_providers as providers_svc
 router = APIRouter(prefix="/api/admin/ai", tags=["Admin IA"])
 
 
+async def _get_litellm_config(db: AsyncSession) -> tuple[str, str]:
+    """Recupere l'URL et la cle LiteLLM depuis platform_config ou env."""
+    result = await db.execute(
+        text("SELECT ai_litellm_base_url, ai_litellm_master_key FROM platform_config LIMIT 1")
+    )
+    row = result.fetchone()
+    url = (row[0] if row and row[0] else None) or os.getenv("LITELLM_BASE_URL", "http://litellm:4000")
+    key = (row[1] if row and row[1] else None) or os.getenv("LITELLM_MASTER_KEY", "")
+    return url, key
+
+
 async def _auto_enable_ai_if_models(db: AsyncSession) -> None:
     """Active automatiquement l'IA plateforme + toutes les orgs si des modeles actifs existent."""
     result = await db.execute(text("SELECT COUNT(*) FROM ai_models WHERE is_active = true"))
@@ -94,12 +105,16 @@ async def create_provider(
     )
     await db.commit()
 
-    # Auto-test connexion + sync modeles
+    # Auto-test connexion + sync modeles + enregistrement LiteLLM
     test_result = await providers_svc.test_connection(body.type, body.base_url, body.api_key)
     synced = 0
     if test_result["success"]:
         try:
-            synced = await providers_svc.sync_models(db, new_id, body.type, body.base_url, body.api_key)
+            ll_url, ll_key = await _get_litellm_config(db)
+            synced = await providers_svc.sync_models(
+                db, new_id, body.type, body.base_url, body.api_key,
+                litellm_url=ll_url, litellm_key=ll_key,
+            )
             await _auto_enable_ai_if_models(db)
         except Exception:
             pass
@@ -159,7 +174,11 @@ async def update_provider(
         test_result = await providers_svc.test_connection(prov[0], prov[1], prov[2])
         if test_result["success"]:
             try:
-                synced = await providers_svc.sync_models(db, provider_id, prov[0], prov[1], prov[2])
+                ll_url, ll_key = await _get_litellm_config(db)
+                synced = await providers_svc.sync_models(
+                    db, provider_id, prov[0], prov[1], prov[2],
+                    litellm_url=ll_url, litellm_key=ll_key,
+                )
                 await _auto_enable_ai_if_models(db)
             except Exception:
                 pass
@@ -251,7 +270,11 @@ async def sync_provider_models(
     if not row:
         return {"synced": 0, "message": "Fournisseur introuvable"}
 
-    count = await providers_svc.sync_models(db, provider_id, row[0], row[1], row[2])
+    ll_url, ll_key = await _get_litellm_config(db)
+    count = await providers_svc.sync_models(
+        db, provider_id, row[0], row[1], row[2],
+        litellm_url=ll_url, litellm_key=ll_key,
+    )
     await _auto_enable_ai_if_models(db)
     return {"synced": count, "message": f"{count} modeles synchronises"}
 
