@@ -3,6 +3,7 @@
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
 import { useEffect, useState, lazy, Suspense } from 'react'
+import { useLocation } from '@tanstack/react-router'
 import { Menu } from 'lucide-react'
 import { navigate } from '@/hooks/useRoute'
 import { useAuthStore } from '@/stores/authStore'
@@ -22,10 +23,6 @@ const DocumentSettingsPage = lazy(() => import('@/pages/app/DocumentSettingsPage
 const StorageSettingsPage = lazy(() => import('@/pages/app/StorageSettingsPage'))
 const ConfigAiPage = lazy(() => import('@/pages/app/ConfigAiPage'))
 const TestAiPage = lazy(() => import('@/pages/app/TestAiPage'))
-
-interface AppShellProps {
-  path: string
-}
 
 function PageSpinner() {
   return (
@@ -81,7 +78,8 @@ function ModulePlaceholder({ title }: { title: string }) {
   )
 }
 
-export default function AppShell({ path }: AppShellProps) {
+export default function AppShell() {
+  const { pathname: path } = useLocation()
   const { token, fetchMe, fetchOrgs, orgs, activeOrgId } = useAuthStore()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
@@ -166,11 +164,11 @@ export default function AppShell({ path }: AppShellProps) {
             ) : path === '/app/clients' ? (
               <ClientsPage key={activeOrgId} />
             ) : path.startsWith('/app/catalogue') ? (
-              <CatalogPage path={path} key={activeOrgId} />
+              <CatalogPage key={activeOrgId} />
             ) : path === '/app/devis' ? (
               <QuotesPage key={activeOrgId} />
             ) : path.startsWith('/app/contrats') ? (
-              <ContractsPage path={path} key={activeOrgId} />
+              <ContractsPage key={activeOrgId} />
             ) : path === '/app/test-ai' ? (
               <TestAiPage key={activeOrgId} />
             ) : path === '/app/factures' ? (

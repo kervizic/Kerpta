@@ -673,6 +673,6 @@ function SituationEditorPanel({ contractId: _contractId, situationId, onClose }:
 
 // ── Page ───────────────────────────────────────────────────────────────────────
 
-export default function ContractsPage({ path: _path }: { path?: string }) {
+export default function ContractsPage() {
   return <ContractsList />
 }

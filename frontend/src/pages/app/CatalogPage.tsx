@@ -3,6 +3,7 @@
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
 import { useEffect, useState } from 'react'
+import { useLocation } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Plus, Search, Loader2, Trash2, Archive, ArchiveRestore, Pencil,
@@ -102,8 +103,9 @@ const BTN_SECONDARY = 'px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:
 
 // ── Sub-routing ─────────────────────────────────────────────────────────────
 
-export default function CatalogPage({ path }: { path: string }) {
-  const detailMatch = path.match(/^\/app\/catalogue\/([^/]+)$/)
+export default function CatalogPage() {
+  const { pathname } = useLocation()
+  const detailMatch = pathname.match(/^\/app\/catalogue\/([^/]+)$/)
   if (detailMatch) {
     return <ProductsList initialSelectedId={detailMatch[1]} />
   }
