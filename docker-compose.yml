@@ -169,19 +169,22 @@ services:
       - api
 
   # ── LiteLLM — proxy IA (requis si module IA active) ────────────────────────
-  # litellm:
-  #   container_name: kerpta-litellm
-  #   image: ghcr.io/berriai/litellm:main-latest
-  #   restart: unless-stopped
-  #   environment:
-  #     LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-kerpta-dev}
-  #     DATABASE_URL:       postgresql://postgres:${POSTGRES_PASSWORD:-kerpta_dev}@postgres:5432/${POSTGRES_DB:-kerpta}
-  #   ports:
-  #     - "4000:4000"
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #   command: --port 4000
+  litellm:
+    container_name: kerpta-litellm
+    image: kerpta/litellm
+    build:
+      context: ./docker/litellm
+    restart: unless-stopped
+    <<: *kerpta-base
+    environment:
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-kerpta-dev}
+      DATABASE_URL:       postgresql://postgres:${POSTGRES_PASSWORD:-kerpta_dev}@postgres:5432/${POSTGRES_DB:-kerpta}
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: --port 4000
 
   # ── vLLM — inference locale GPU (optionnel) ───────────────────────────────
   # Necessite un GPU NVIDIA avec les drivers CUDA installes sur l'hote.
