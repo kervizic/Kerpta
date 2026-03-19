@@ -5,6 +5,7 @@
 """Routes super-admin pour la gestion du module IA."""
 
 import json
+import os
 import time
 import uuid as uuid_mod
 
@@ -426,11 +427,12 @@ async def get_config(
         """)
     )
     row = result.fetchone()
+    env_key = os.getenv("LITELLM_MASTER_KEY", "")
     if not row:
         return AiConfigResponse(
             ai_enabled=False,
             ai_litellm_base_url="http://litellm:4000",
-            has_master_key=False,
+            has_master_key=bool(env_key),
             ai_features=None,
             roles=AiRolesResponse(),
         )
@@ -439,7 +441,7 @@ async def get_config(
     return AiConfigResponse(
         ai_enabled=row[0],
         ai_litellm_base_url=row[1] or "http://litellm:4000",
-        has_master_key=bool(row[2]),
+        has_master_key=bool(row[2] or env_key),
         ai_features=row[3],
         roles=roles,
     )

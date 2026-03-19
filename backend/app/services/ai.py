@@ -11,6 +11,7 @@ Chaque appel est logue dans ai_usage_logs.
 import base64
 import json
 import logging
+import os
 import time
 import uuid
 
@@ -37,8 +38,8 @@ async def _get_ai_config(db: AsyncSession) -> dict:
         raise HTTPException(503, "Module IA non active sur la plateforme")
     return {
         "enabled": row[0],
-        "litellm_url": row[1],
-        "litellm_key": row[2],
+        "litellm_url": row[1] or os.getenv("LITELLM_BASE_URL", "http://litellm:4000"),
+        "litellm_key": row[2] or os.getenv("LITELLM_MASTER_KEY", ""),
         "vl_model_id": row[3],
         "instruct_model_id": row[4],
         "thinking_model_id": row[5],
