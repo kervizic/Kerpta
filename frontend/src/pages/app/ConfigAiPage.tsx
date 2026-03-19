@@ -235,13 +235,9 @@ export default function ConfigAiPage() {
   }
 
   async function testLitellm() {
-    const { litellmUrl, litellmKey } = configForm.getValues()
-    if (!litellmUrl) return
     try {
-      const resp = await fetch(litellmUrl.replace(/\/$/, '') + '/health', {
-        headers: litellmKey ? { Authorization: `Bearer ${litellmKey}` } : {},
-      })
-      alert(resp.ok ? 'LiteLLM OK !' : `Erreur HTTP ${resp.status}`)
+      const res = await adminClient.post<{ ok: boolean; message: string }>('/ai/config/test')
+      alert(res.ok ? 'LiteLLM OK !' : res.message)
     } catch {
       alert('Impossible de joindre LiteLLM')
     }

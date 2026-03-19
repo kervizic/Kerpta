@@ -475,6 +475,32 @@ async def update_config(
     return {"ok": True}
 
 
+@router.post("/config/test")
+async def test_litellm_connection(
+    _admin: uuid_mod.UUID = Depends(require_platform_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Teste la connexion au proxy LiteLLM depuis le backend."""
+    import httpx
+
+    result = await db.execute(
+        text("SELECT ai_litellm_base_url, ai_litellm_master_key FROM platform_config LIMIT 1")
+    )
+    row = result.fetchone()
+    url = (row[0] if row and row[0] else None) or os.getenv("LITELLM_BASE_URL", "http://litellm:4000")
+    key = (row[1] if row and row[1] else None) or os.getenv("LITELLM_MASTER_KEY", "")
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            headers = {"Authorization": f"Bearer {key}"} if key else {}
+            resp = await client.get(f"{url.rstrip('/')}/health", headers=headers)
+            if resp.status_code == 200:
+                return {"ok": True, "message": "LiteLLM OK"}
+            return {"ok": False, "message": f"Erreur HTTP {resp.status_code}"}
+    except Exception as exc:
+        return {"ok": False, "message": f"Impossible de joindre LiteLLM : {exc}"}
+
+
 # ── Usage ─────────────────────────────────────────────────────────────────────
 
 
