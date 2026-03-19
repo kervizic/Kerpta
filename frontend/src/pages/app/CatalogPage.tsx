@@ -5,6 +5,9 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import {
   Plus, Search, Loader2, Trash2, Archive, ArchiveRestore, Pencil,
   Layers, ShoppingCart, Users, BarChart3, X,
@@ -260,26 +263,34 @@ function ProductsList({ initialSelectedId }: { initialSelectedId?: string } = {}
 
 // ── Formulaire création article (overlay) ──────────────────────────────────
 
+const newProductSchema = z.object({
+  name: z.string().min(1),
+  reference: z.string(),
+  unit: z.string(),
+  unitPrice: z.string(),
+  vatRate: z.string(),
+})
+type NewProductValues = z.infer<typeof newProductSchema>
+
 function NewProductModal({ onClose, onCreated }: { onClose: () => void; onCreated: (id: string) => void }) {
-  const [name, setName] = useState('')
-  const [reference, setReference] = useState('')
-  const [unit, setUnit] = useState('')
-  const [unitPrice, setUnitPrice] = useState('')
-  const [vatRate, setVatRate] = useState('20')
-  const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setSaving(true)
+  const { register, handleSubmit, setValue, watch, formState: { isSubmitting } } = useForm<NewProductValues>({
+    resolver: zodResolver(newProductSchema),
+    defaultValues: { name: '', reference: '', unit: '', unitPrice: '', vatRate: '20' },
+  })
+
+  const unitValue = watch('unit')
+
+  async function onSubmit(data: NewProductValues) {
     setError('')
     try {
       const body: Record<string, unknown> = {
-        name,
-        reference: reference || undefined,
-        unit: unit || undefined,
-        unit_price: unitPrice ? Number(unitPrice) : undefined,
-        vat_rate: Number(vatRate),
+        name: data.name,
+        reference: data.reference || undefined,
+        unit: data.unit || undefined,
+        unit_price: data.unitPrice ? Number(data.unitPrice) : undefined,
+        vat_rate: Number(data.vatRate),
         sale_price_mode: 'fixed',
         is_in_catalog: true,
       }
@@ -288,35 +299,34 @@ function NewProductModal({ onClose, onCreated }: { onClose: () => void; onCreate
     } catch (err) {
       setError(httpError(err, 'Erreur'))
     }
-    setSaving(false)
   }
 
   return (
     <ModalOverlay onClose={onClose} size="lg" title="Nouvel article">
       {error && <div className="p-3 mb-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg text-sm text-red-700 dark:text-red-400">{error}</div>}
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div>
           <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Désignation *</label>
-          <input type="text" value={name} onChange={(e) => setName(e.target.value)} required className={INPUT} placeholder="Nom de l'article" />
+          <input type="text" {...register('name')} required className={INPUT} placeholder="Nom de l'article" />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Référence</label>
-            <input type="text" value={reference} onChange={(e) => setReference(e.target.value)} className={INPUT} placeholder="Réf." />
+            <input type="text" {...register('reference')} className={INPUT} placeholder="Réf." />
           </div>
           <div>
             <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Unité</label>
-            <UnitCombobox value={unit} onChange={setUnit} className={INPUT} placeholder="Unité" />
+            <UnitCombobox value={unitValue} onChange={(v) => setValue('unit', v)} className={INPUT} placeholder="Unité" />
           </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Prix unitaire HT</label>
-            <input type="number" step="0.01" value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} className={INPUT} placeholder="0,00" />
+            <input type="number" step="0.01" {...register('unitPrice')} className={INPUT} placeholder="0,00" />
           </div>
           <div>
             <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">TVA</label>
-            <select value={vatRate} onChange={(e) => setVatRate(e.target.value)} className={SELECT}>
+            <select {...register('vatRate')} className={SELECT}>
               <option value="20">TVA 20%</option>
               <option value="10">TVA 10%</option>
               <option value="5.5">TVA 5,5%</option>
@@ -327,8 +337,8 @@ function NewProductModal({ onClose, onCreated }: { onClose: () => void; onCreate
         </div>
         <div className="flex justify-end gap-2 pt-2">
           <button type="button" onClick={onClose} className={BTN_SECONDARY}>Annuler</button>
-          <button type="submit" disabled={saving || !name} className={BTN}>
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Créer'}
+          <button type="submit" disabled={isSubmitting} className={BTN}>
+            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Créer'}
           </button>
         </div>
       </form>
@@ -781,61 +791,68 @@ function VariantsTab({ productId }: { productId: string }) {
   )
 }
 
+const variantSchema = z.object({
+  clientId: z.string().min(1),
+  overrideRef: z.string(),
+  overrideName: z.string(),
+  priceMode: z.string(),
+  unitPrice: z.string(),
+})
+type VariantValues = z.infer<typeof variantSchema>
+
 function VariantFormModal({ productId, clients, onClose, onSaved }: {
   productId: string; clients: ClientSimple[]; onClose: () => void; onSaved: () => void
 }) {
-  const [clientId, setClientId] = useState('')
-  const [overrideRef, setOverrideRef] = useState('')
-  const [overrideName, setOverrideName] = useState('')
-  const [priceMode, setPriceMode] = useState('inherit')
-  const [unitPrice, setUnitPrice] = useState('')
-  const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setSaving(true)
+  const { register, handleSubmit, watch, formState: { isSubmitting } } = useForm<VariantValues>({
+    resolver: zodResolver(variantSchema),
+    defaultValues: { clientId: '', overrideRef: '', overrideName: '', priceMode: 'inherit', unitPrice: '' },
+  })
+
+  const priceMode = watch('priceMode')
+
+  async function onSubmit(data: VariantValues) {
     setError('')
     try {
       await orgPost(`/catalog/products/${productId}/variants`, {
-        client_id: clientId,
-        override_reference: overrideRef || undefined,
-        override_name: overrideName || undefined,
-        price_mode: priceMode,
-        unit_price: priceMode === 'fixed' && unitPrice ? Number(unitPrice) : undefined,
+        client_id: data.clientId,
+        override_reference: data.overrideRef || undefined,
+        override_name: data.overrideName || undefined,
+        price_mode: data.priceMode,
+        unit_price: data.priceMode === 'fixed' && data.unitPrice ? Number(data.unitPrice) : undefined,
       })
       onSaved()
     } catch (err) { setError(httpError(err, 'Erreur')) }
-    setSaving(false)
   }
 
   return (
     <ModalOverlay onClose={onClose} size="md" title="Nouvelle variante client">
         {error && <div className="p-3 mb-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg text-sm text-red-700 dark:text-red-400">{error}</div>}
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <select value={clientId} onChange={e => setClientId(e.target.value)} required className={SELECT}>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+          <select {...register('clientId')} required className={SELECT}>
             <option value="">Client *</option>
             {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
-          <input type="text" value={overrideRef} onChange={e => setOverrideRef(e.target.value)} placeholder="Référence client" className={INPUT} />
-          <input type="text" value={overrideName} onChange={e => setOverrideName(e.target.value)} placeholder="Désignation client" className={INPUT} />
+          <input type="text" {...register('overrideRef')} placeholder="Référence client" className={INPUT} />
+          <input type="text" {...register('overrideName')} placeholder="Désignation client" className={INPUT} />
           <div className="flex gap-4">
             {['inherit', 'fixed', 'coefficient'].map(m => (
               <label key={m} className="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-200">
-                <input type="radio" name="variantPriceMode" value={m} checked={priceMode === m}
-                  onChange={() => setPriceMode(m)} className="text-kerpta-600 focus:ring-kerpta-400" />
+                <input type="radio" value={m} {...register('priceMode')}
+                  className="text-kerpta-600 focus:ring-kerpta-400" />
                 {m === 'inherit' ? 'Hériter' : m === 'fixed' ? 'Fixe' : 'Coefficient'}
               </label>
             ))}
           </div>
           {priceMode === 'fixed' && (
-            <input type="number" step="0.01" value={unitPrice} onChange={e => setUnitPrice(e.target.value)}
+            <input type="number" step="0.01" {...register('unitPrice')}
               placeholder="Prix unitaire HT" className={INPUT} />
           )}
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className={BTN_SECONDARY}>Annuler</button>
-            <button type="submit" disabled={saving || !clientId} className={BTN}>
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Créer'}
+            <button type="submit" disabled={isSubmitting} className={BTN}>
+              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Créer'}
             </button>
           </div>
         </form>
@@ -928,77 +945,84 @@ function PurchaseLinksTab({ productId }: { productId: string }) {
   )
 }
 
+const purchaseLinkSchema = z.object({
+  supplierRef: z.string(),
+  purchasePrice: z.string(),
+  salePriceMode: z.string(),
+  fixedSalePrice: z.string(),
+  coefficientId: z.string(),
+  isDefault: z.boolean(),
+})
+type PurchaseLinkValues = z.infer<typeof purchaseLinkSchema>
+
 function PurchaseLinkFormModal({ productId, onClose, onSaved }: {
   productId: string; onClose: () => void; onSaved: () => void
 }) {
-  const [supplierRef, setSupplierRef] = useState('')
-  const [purchasePrice, setPurchasePrice] = useState('')
-  const [salePriceMode, setSalePriceMode] = useState('coefficient')
-  const [fixedSalePrice, setFixedSalePrice] = useState('')
-  const [coefficientId, setCoefficientId] = useState('')
-  const [isDefault, setIsDefault] = useState(false)
   const [coefficients, setCoefficients] = useState<Coefficient[]>([])
-  const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  const { register, handleSubmit, watch, formState: { isSubmitting } } = useForm<PurchaseLinkValues>({
+    resolver: zodResolver(purchaseLinkSchema),
+    defaultValues: { supplierRef: '', purchasePrice: '', salePriceMode: 'coefficient', fixedSalePrice: '', coefficientId: '', isDefault: false },
+  })
+
+  const salePriceMode = watch('salePriceMode')
 
   useEffect(() => {
     orgGet<Coefficient[]>('/catalog/coefficients').then(setCoefficients).catch(() => {})
   }, [])
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setSaving(true)
+  async function onSubmit(data: PurchaseLinkValues) {
     setError('')
     try {
       await orgPost(`/catalog/products/${productId}/purchase-links`, {
-        supplier_reference: supplierRef || undefined,
-        purchase_price: purchasePrice ? Number(purchasePrice) : undefined,
-        sale_price_mode: salePriceMode,
-        fixed_sale_price: salePriceMode === 'fixed' && fixedSalePrice ? Number(fixedSalePrice) : undefined,
-        price_coefficient_id: salePriceMode === 'coefficient' && coefficientId ? coefficientId : undefined,
-        is_default: isDefault,
+        supplier_reference: data.supplierRef || undefined,
+        purchase_price: data.purchasePrice ? Number(data.purchasePrice) : undefined,
+        sale_price_mode: data.salePriceMode,
+        fixed_sale_price: data.salePriceMode === 'fixed' && data.fixedSalePrice ? Number(data.fixedSalePrice) : undefined,
+        price_coefficient_id: data.salePriceMode === 'coefficient' && data.coefficientId ? data.coefficientId : undefined,
+        is_default: data.isDefault,
       })
       onSaved()
     } catch (err) { setError(httpError(err, 'Erreur')) }
-    setSaving(false)
   }
 
   return (
     <ModalOverlay onClose={onClose} size="md" title="Lier un achat">
         {error && <div className="p-3 mb-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg text-sm text-red-700 dark:text-red-400">{error}</div>}
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <input type="text" value={supplierRef} onChange={e => setSupplierRef(e.target.value)} placeholder="Référence fournisseur" className={INPUT} />
-          <input type="number" step="0.01" value={purchasePrice} onChange={e => setPurchasePrice(e.target.value)} placeholder="Prix d'achat HT" className={INPUT} />
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+          <input type="text" {...register('supplierRef')} placeholder="Référence fournisseur" className={INPUT} />
+          <input type="number" step="0.01" {...register('purchasePrice')} placeholder="Prix d'achat HT" className={INPUT} />
           <div className="flex gap-4">
             <label className="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-200">
-              <input type="radio" name="linkPriceMode" value="coefficient" checked={salePriceMode === 'coefficient'}
-                onChange={() => setSalePriceMode('coefficient')} className="text-kerpta-600 focus:ring-kerpta-400" />
+              <input type="radio" value="coefficient" {...register('salePriceMode')}
+                className="text-kerpta-600 focus:ring-kerpta-400" />
               Coefficient
             </label>
             <label className="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-200">
-              <input type="radio" name="linkPriceMode" value="fixed" checked={salePriceMode === 'fixed'}
-                onChange={() => setSalePriceMode('fixed')} className="text-kerpta-600 focus:ring-kerpta-400" />
+              <input type="radio" value="fixed" {...register('salePriceMode')}
+                className="text-kerpta-600 focus:ring-kerpta-400" />
               Prix fixe
             </label>
           </div>
           {salePriceMode === 'coefficient' ? (
-            <select value={coefficientId} onChange={e => setCoefficientId(e.target.value)} className={SELECT}>
+            <select {...register('coefficientId')} className={SELECT}>
               <option value="">Coefficient</option>
               {coefficients.map(c => <option key={c.id} value={c.id}>{c.name} (×{Number(c.value)})</option>)}
             </select>
           ) : (
-            <input type="number" step="0.01" value={fixedSalePrice} onChange={e => setFixedSalePrice(e.target.value)}
+            <input type="number" step="0.01" {...register('fixedSalePrice')}
               placeholder="Prix de vente fixe HT" className={INPUT} />
           )}
           <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-            <input type="checkbox" checked={isDefault} onChange={e => setIsDefault(e.target.checked)}
+            <input type="checkbox" {...register('isDefault')}
               className="rounded border-gray-300 text-kerpta-600 focus:ring-kerpta-400" />
             Achat par défaut
           </label>
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className={BTN_SECONDARY}>Annuler</button>
-            <button type="submit" disabled={saving} className={BTN}>
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Créer'}
+            <button type="submit" disabled={isSubmitting} className={BTN}>
+              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Créer'}
             </button>
           </div>
         </form>
@@ -1076,51 +1100,56 @@ function QuantityDiscountsTab({ productId }: { productId: string }) {
   )
 }
 
+const discountSchema = z.object({
+  minQuantity: z.string().min(1),
+  discountPercent: z.string().min(1),
+  clientId: z.string(),
+})
+type DiscountValues = z.infer<typeof discountSchema>
+
 function DiscountFormModal({ productId, onClose, onSaved }: {
   productId: string; onClose: () => void; onSaved: () => void
 }) {
-  const [minQuantity, setMinQuantity] = useState('')
-  const [discountPercent, setDiscountPercent] = useState('')
   const [clients, setClients] = useState<ClientSimple[]>([])
-  const [clientId, setClientId] = useState('')
-  const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  const { register, handleSubmit, formState: { isSubmitting } } = useForm<DiscountValues>({
+    resolver: zodResolver(discountSchema),
+    defaultValues: { minQuantity: '', discountPercent: '', clientId: '' },
+  })
 
   useEffect(() => {
     orgGet<{ items: ClientSimple[] }>('/clients', { page_size: 100 }).then(d => setClients(d.items)).catch(() => {})
   }, [])
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setSaving(true)
+  async function onSubmit(data: DiscountValues) {
     setError('')
     try {
       await orgPost(`/catalog/products/${productId}/quantity-discounts`, {
-        min_quantity: Number(minQuantity),
-        discount_percent: Number(discountPercent),
-        client_id: clientId || undefined,
+        min_quantity: Number(data.minQuantity),
+        discount_percent: Number(data.discountPercent),
+        client_id: data.clientId || undefined,
       })
       onSaved()
     } catch (err) { setError(httpError(err, 'Erreur')) }
-    setSaving(false)
   }
 
   return (
     <ModalOverlay onClose={onClose} size="md" title="Ajouter un palier">
         {error && <div className="p-3 mb-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg text-sm text-red-700 dark:text-red-400">{error}</div>}
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <input type="number" step="0.01" min="0.01" value={minQuantity} onChange={e => setMinQuantity(e.target.value)}
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+          <input type="number" step="0.01" min="0.01" {...register('minQuantity')}
             placeholder="Quantité minimum *" required className={INPUT} />
-          <input type="number" step="0.01" min="0.01" max="100" value={discountPercent} onChange={e => setDiscountPercent(e.target.value)}
+          <input type="number" step="0.01" min="0.01" max="100" {...register('discountPercent')}
             placeholder="Remise en % *" required className={INPUT} />
-          <select value={clientId} onChange={e => setClientId(e.target.value)} className={SELECT}>
+          <select {...register('clientId')} className={SELECT}>
             <option value="">Tous les clients</option>
             {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className={BTN_SECONDARY}>Annuler</button>
-            <button type="submit" disabled={saving || !minQuantity || !discountPercent} className={BTN}>
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Créer'}
+            <button type="submit" disabled={isSubmitting} className={BTN}>
+              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Créer'}
             </button>
           </div>
         </form>

@@ -4,6 +4,9 @@
 
 import { useEffect, useState } from 'react'
 import { Plus, Loader2, Pencil, Trash2, FileText, Sparkles, Minus, Info, RotateCcw } from 'lucide-react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { orgGet, orgPatch } from '@/lib/orgApi'
 import PageLayout from '@/components/app/PageLayout'
 import { INPUT, BTN_SM } from '@/lib/formStyles'
@@ -118,25 +121,42 @@ function PrintStyleSection({ style, onStyleChange }: { style: string; onStyleCha
 
 // ── Section En-tête du document ──────────────────────────────────────────
 
+const documentHeaderSchema = z.object({
+  show_logo: z.boolean(),
+  show_company_name: z.boolean(),
+})
+type DocumentHeaderValues = z.infer<typeof documentHeaderSchema>
+
 function DocumentHeaderSection() {
-  const [showLogo, setShowLogo] = useState(true)
-  const [showCompanyName, setShowCompanyName] = useState(true)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
+  const { watch, setValue, reset } = useForm<DocumentHeaderValues>({
+    resolver: zodResolver(documentHeaderSchema),
+    defaultValues: { show_logo: true, show_company_name: true },
+  })
+
+  const showLogo = watch('show_logo')
+  const showCompanyName = watch('show_company_name')
+
   useEffect(() => {
     orgGet<{ show_logo: boolean; show_company_name: boolean }>('/billing/document-header')
-      .then((data) => { setShowLogo(data.show_logo !== false); setShowCompanyName(data.show_company_name !== false) })
+      .then((data) => {
+        reset({
+          show_logo: data.show_logo !== false,
+          show_company_name: data.show_company_name !== false,
+        })
+      })
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [])
+  }, [reset])
 
-  async function toggle(key: 'show_logo' | 'show_company_name', value: boolean) {
-    if (key === 'show_logo') setShowLogo(value)
-    else setShowCompanyName(value)
+  async function toggle(key: keyof DocumentHeaderValues) {
+    const newVal = !watch(key)
+    setValue(key, newVal)
     setSaving(true)
     try {
-      await orgPatch('/billing/document-header', { [key]: value })
+      await orgPatch('/billing/document-header', { [key]: newVal })
     } catch { /* */ }
     setSaving(false)
   }
@@ -160,10 +180,10 @@ function DocumentHeaderSection() {
         <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-kerpta" /></div>
       ) : (
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => toggle('show_logo', !showLogo)} className={toggleStyle(showLogo)}>
+          <button type="button" onClick={() => toggle('show_logo')} className={toggleStyle(showLogo)}>
             Afficher le logo
           </button>
-          <button type="button" onClick={() => toggle('show_company_name', !showCompanyName)} className={toggleStyle(showCompanyName)}>
+          <button type="button" onClick={() => toggle('show_company_name')} className={toggleStyle(showCompanyName)}>
             Afficher le nom de la société
           </button>
         </div>
@@ -185,17 +205,40 @@ interface OrgInfo {
   website: string | null
 }
 
+const pageFooterSchema = z.object({
+  show_phone: z.boolean(),
+  show_email: z.boolean(),
+  show_website: z.boolean(),
+  footer_logo_first_page: z.boolean(),
+  footer_logo_other_pages: z.boolean(),
+  show_page_number: z.boolean(),
+})
+type PageFooterValues = z.infer<typeof pageFooterSchema>
+
 function PageFooterSection() {
-  const [showPhone, setShowPhone] = useState(false)
-  const [showEmail, setShowEmail] = useState(false)
-  const [showWebsite, setShowWebsite] = useState(false)
-  const [logoFirstPage, setLogoFirstPage] = useState(true)
-  const [logoOtherPages, setLogoOtherPages] = useState(true)
-  const [showPageNumber, setShowPageNumber] = useState(true)
   const [orgInfo, setOrgInfo] = useState<OrgInfo | null>(null)
   const [logoSrc, setLogoSrc] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+
+  const { watch, setValue, reset } = useForm<PageFooterValues>({
+    resolver: zodResolver(pageFooterSchema),
+    defaultValues: {
+      show_phone: false,
+      show_email: false,
+      show_website: false,
+      footer_logo_first_page: true,
+      footer_logo_other_pages: true,
+      show_page_number: true,
+    },
+  })
+
+  const showPhone = watch('show_phone')
+  const showEmail = watch('show_email')
+  const showWebsite = watch('show_website')
+  const logoFirstPage = watch('footer_logo_first_page')
+  const logoOtherPages = watch('footer_logo_other_pages')
+  const showPageNumber = watch('show_page_number')
 
   useEffect(() => {
     const orgId = localStorage.getItem('kerpta_active_org')
@@ -212,28 +255,26 @@ function PageFooterSection() {
     }
     Promise.all(promises).then(([opts, org, logo]) => {
       const o = opts as Record<string, boolean>
-      setShowPhone(o.show_phone ?? false)
-      setShowEmail(o.show_email ?? false)
-      setShowWebsite(o.show_website ?? false)
-      setLogoFirstPage(o.footer_logo_first_page ?? true)
-      setLogoOtherPages(o.footer_logo_other_pages ?? true)
-      setShowPageNumber(o.show_page_number ?? true)
+      reset({
+        show_phone: o.show_phone ?? false,
+        show_email: o.show_email ?? false,
+        show_website: o.show_website ?? false,
+        footer_logo_first_page: o.footer_logo_first_page ?? true,
+        footer_logo_other_pages: o.footer_logo_other_pages ?? true,
+        show_page_number: o.show_page_number ?? true,
+      })
       if (org) setOrgInfo(org as OrgInfo)
       if (logo) setLogoSrc(logo as string)
     }).catch(() => {})
       .finally(() => setLoading(false))
-  }, [])
+  }, [reset])
 
-  async function toggle(key: string, value: boolean) {
-    if (key === 'show_phone') setShowPhone(value)
-    else if (key === 'show_email') setShowEmail(value)
-    else if (key === 'show_website') setShowWebsite(value)
-    else if (key === 'footer_logo_first_page') setLogoFirstPage(value)
-    else if (key === 'footer_logo_other_pages') setLogoOtherPages(value)
-    else if (key === 'show_page_number') setShowPageNumber(value)
+  async function toggle(key: keyof PageFooterValues) {
+    const newVal = !watch(key)
+    setValue(key, newVal)
     setSaving(true)
     try {
-      await orgPatch('/billing/page-footer-options', { [key]: value })
+      await orgPatch('/billing/page-footer-options', { [key]: newVal })
     } catch { /* */ }
     setSaving(false)
   }
@@ -294,22 +335,22 @@ function PageFooterSection() {
       ) : (
         <div className="space-y-4">
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => toggle('show_phone', !showPhone)} className={toggleStyle(showPhone)}>
+            <button type="button" onClick={() => toggle('show_phone')} className={toggleStyle(showPhone)}>
               Telephone
             </button>
-            <button type="button" onClick={() => toggle('show_email', !showEmail)} className={toggleStyle(showEmail)}>
+            <button type="button" onClick={() => toggle('show_email')} className={toggleStyle(showEmail)}>
               Email
             </button>
-            <button type="button" onClick={() => toggle('show_website', !showWebsite)} className={toggleStyle(showWebsite)}>
+            <button type="button" onClick={() => toggle('show_website')} className={toggleStyle(showWebsite)}>
               Site web
             </button>
-            <button type="button" onClick={() => toggle('footer_logo_first_page', !logoFirstPage)} className={toggleStyle(logoFirstPage)}>
+            <button type="button" onClick={() => toggle('footer_logo_first_page')} className={toggleStyle(logoFirstPage)}>
               Logo 1ere page
             </button>
-            <button type="button" onClick={() => toggle('footer_logo_other_pages', !logoOtherPages)} className={toggleStyle(logoOtherPages)}>
+            <button type="button" onClick={() => toggle('footer_logo_other_pages')} className={toggleStyle(logoOtherPages)}>
               Logo pages suivantes
             </button>
-            <button type="button" onClick={() => toggle('show_page_number', !showPageNumber)} className={toggleStyle(showPageNumber)}>
+            <button type="button" onClick={() => toggle('show_page_number')} className={toggleStyle(showPageNumber)}>
               Page X/X
             </button>
           </div>
@@ -1106,25 +1147,55 @@ function DocumentTypesSection({ endpoint, title, description }: { endpoint: stri
 
 // ── Section Colonnes des factures ────────────────────────────────────────
 
+const invoiceColumnsSchema = z.object({
+  reference: z.boolean(),
+  description: z.boolean(),
+  quantity: z.boolean(),
+  unit: z.boolean(),
+  unit_price: z.boolean(),
+  vat_rate: z.boolean(),
+  discount_percent: z.boolean(),
+  total_ht: z.boolean(),
+  total_ttc: z.boolean(),
+})
+type InvoiceColumnsValues = z.infer<typeof invoiceColumnsSchema>
+
 function InvoiceColumnsSection() {
-  const [columns, setColumns] = useState<Record<string, boolean>>({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
+  const { watch, setValue, reset, getValues } = useForm<InvoiceColumnsValues>({
+    resolver: zodResolver(invoiceColumnsSchema),
+    defaultValues: {
+      reference: true, description: true, quantity: true, unit: true,
+      unit_price: true, vat_rate: true, discount_percent: true,
+      total_ht: true, total_ttc: true,
+    },
+  })
+
+  const columns = watch()
+
   useEffect(() => {
     orgGet<Record<string, boolean>>('/billing/invoice-columns')
-      .then(setColumns)
+      .then((data) => {
+        const vals: Record<string, boolean> = {}
+        for (const col of ALL_COLUMNS) {
+          vals[col.key] = data[col.key] !== false
+        }
+        reset(vals as InvoiceColumnsValues)
+      })
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [])
+  }, [reset])
 
-  async function toggle(key: string) {
-    const updated = { ...columns, [key]: !columns[key] }
-    setColumns(updated)
+  async function toggle(key: keyof InvoiceColumnsValues) {
+    const newVal = !getValues(key)
+    setValue(key, newVal)
+    const updated = { ...getValues(), [key]: newVal }
     setSaving(true)
     try {
       const result = await orgPatch('/billing/invoice-columns', updated)
-      setColumns(result as unknown as Record<string, boolean>)
+      reset(result as unknown as InvoiceColumnsValues)
     } catch { /* */ }
     setSaving(false)
   }
@@ -1144,12 +1215,12 @@ function InvoiceColumnsSection() {
         <div className="space-y-2">
           <div className="flex flex-wrap gap-2">
             {ALL_COLUMNS.map((col) => {
-              const on = columns[col.key] !== false
+              const on = columns[col.key as keyof InvoiceColumnsValues] !== false
               return (
                 <button
                   key={col.key}
                   type="button"
-                  onClick={() => toggle(col.key)}
+                  onClick={() => toggle(col.key as keyof InvoiceColumnsValues)}
                   className={`px-2.5 py-1 text-xs rounded-full border transition cursor-pointer ${
                     on ? 'bg-kerpta-50 dark:bg-kerpta-900/30 border-kerpta-200 dark:border-kerpta-700 text-kerpta-700 dark:text-kerpta-400' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:border-gray-300'
                   }`}
