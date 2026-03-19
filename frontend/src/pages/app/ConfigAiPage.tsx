@@ -23,7 +23,7 @@ import {
   Cpu,
   Eye,
 } from 'lucide-react'
-import { BTN, BTN_SM, BTN_DANGER_SM, BTN_SECONDARY, INPUT, SELECT, CARD, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER } from '@/lib/formStyles'
+import { BTN_SM, BTN_SECONDARY, INPUT, SELECT, CARD, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER } from '@/lib/formStyles'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
