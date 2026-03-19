@@ -106,7 +106,6 @@ function BankAccountsSection() {
       if (!file) return
       const formData = new FormData()
       formData.append('file', file)
-      const orgId = localStorage.getItem('kerpta_active_org')
       try {
         await apiClient.post(`/billing/bank-accounts/${accountId}/rib`, formData)
         await qc.invalidateQueries({ queryKey: ['bank-accounts'] })
