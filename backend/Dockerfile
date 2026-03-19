@@ -9,6 +9,7 @@ WORKDIR /app
 # Dépendances système
 # - gcc / libpq-dev : compilation asyncpg
 # - WeasyPrint : pango + cairo + gdk-pixbuf (rendu HTML→PDF sans navigateur)
+# - poppler-utils : pdf2image pour convertir PDF en images (OCR multi-pages)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libpq-dev \
@@ -23,6 +24,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     shared-mime-info \
     fontconfig \
     fonts-liberation \
+    poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # Dépendances Python

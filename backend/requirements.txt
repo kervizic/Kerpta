@@ -43,8 +43,8 @@ Pillow==11.1.0
 # OCR (Mindee)
 mindee==4.9.0
 
-# PaddleOCR-VL (parsing de documents via llama.cpp)
-paddleocr[doc-parser]>=3.3.0
+# PDF vers images pour OCR multi-pages (le modele VL tourne sur llama.cpp)
+pdf2image==1.17.0
 
 # Storage
 boto3==1.35.85        # S3-compatible (OVH, AWS, Scaleway)
