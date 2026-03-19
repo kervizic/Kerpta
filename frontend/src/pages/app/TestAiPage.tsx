@@ -6,7 +6,7 @@ import { useState, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { apiClient } from '@/lib/api'
+import { orgPost } from '@/lib/orgApi'
 import { useAuthStore } from '@/stores/authStore'
 import {
   BrainCircuit,
@@ -130,13 +130,13 @@ export default function TestAiPage() {
     try {
       const formData = new FormData()
       formData.append('file', file)
-      const resp = await apiClient.post<OcrResult>('/ai/ocr', formData)
+      const resp = await orgPost<OcrResult>('/ai/ocr', formData)
       const duration = Math.round(performance.now() - start)
       setOcrDuration(duration)
       setOcrResult(resp)
       setOcrRaw(JSON.stringify(resp, null, 2))
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Erreur OCR'
+      const msg = (err as { data?: { detail?: string } })?.data?.detail || 'Erreur OCR'
       setOcrError(String(msg))
     } finally {
       setOcrLoading(false)
@@ -151,14 +151,14 @@ export default function TestAiPage() {
     setCatResult(null)
 
     try {
-      const resp = await apiClient.post<Record<string, unknown>>('/ai/categorize', {
+      const resp = await orgPost<Record<string, unknown>>('/ai/categorize', {
         label: data.label,
         amount: parseFloat(data.amount),
         supplier_name: data.supplier || undefined,
       })
       setCatResult(resp)
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Erreur categorisation'
+      const msg = (err as { data?: { detail?: string } })?.data?.detail || 'Erreur categorisation'
       setCatError(String(msg))
     }
   }
@@ -174,14 +174,14 @@ export default function TestAiPage() {
     setChatError('')
 
     try {
-      const resp = await apiClient.post<{ content: string }>('/ai/chat', {
+      const resp = await orgPost<{ content: string }>('/ai/chat', {
         messages: newMessages.map(m => ({ role: m.role, content: m.content })),
         use_thinking: data.useThinking,
       })
       setChatMessages([...newMessages, { role: 'assistant', content: resp.content }])
       setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Erreur chat'
+      const msg = (err as { data?: { detail?: string } })?.data?.detail || 'Erreur chat'
       setChatError(String(msg))
     }
   }

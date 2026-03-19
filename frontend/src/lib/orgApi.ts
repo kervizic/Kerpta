@@ -4,8 +4,9 @@
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "/api/v1";
 
-function headers(): Record<string, string> {
-  const h: Record<string, string> = { "Content-Type": "application/json" };
+function headers(isFormData = false): Record<string, string> {
+  const h: Record<string, string> = {};
+  if (!isFormData) h["Content-Type"] = "application/json";
   const token = localStorage.getItem("supabase_access_token");
   if (token) h.Authorization = `Bearer ${token}`;
   const orgId = localStorage.getItem("kerpta_active_org");
@@ -22,9 +23,10 @@ function handle401(response: Response): void {
 }
 
 async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
+  const isFormData = options.body instanceof FormData;
   const response = await fetch(`${API_BASE}${url}`, {
     ...options,
-    headers: { ...headers(), ...(options.headers as Record<string, string> ?? {}) },
+    headers: { ...headers(isFormData), ...(options.headers as Record<string, string> ?? {}) },
   });
 
   if (!response.ok) {
@@ -47,7 +49,11 @@ export async function orgGet<T = unknown>(url: string, params?: Record<string, u
 }
 
 export async function orgPost<T = unknown>(url: string, body?: unknown): Promise<T> {
-  return request<T>(url, { method: "POST", body: body != null ? JSON.stringify(body) : undefined });
+  const isFormData = body instanceof FormData;
+  return request<T>(url, {
+    method: "POST",
+    body: body == null ? undefined : isFormData ? body : JSON.stringify(body),
+  });
 }
 
 export async function orgPatch<T = unknown>(url: string, body?: unknown): Promise<T> {
