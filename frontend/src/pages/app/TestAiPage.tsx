@@ -6,7 +6,7 @@ import { useState, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { orgPost } from '@/lib/orgApi'
+import { orgClient } from '@/lib/api'
 import { useAuthStore } from '@/stores/authStore'
 import {
   BrainCircuit,
@@ -130,7 +130,7 @@ export default function TestAiPage() {
     try {
       const formData = new FormData()
       formData.append('file', file)
-      const resp = await orgPost<OcrResult>('/ai/ocr', formData)
+      const resp = await orgClient.post<OcrResult>('/ai/ocr', formData)
       const duration = Math.round(performance.now() - start)
       setOcrDuration(duration)
       setOcrResult(resp)
@@ -151,7 +151,7 @@ export default function TestAiPage() {
     setCatResult(null)
 
     try {
-      const resp = await orgPost<Record<string, unknown>>('/ai/categorize', {
+      const resp = await orgClient.post<Record<string, unknown>>('/ai/categorize', {
         label: data.label,
         amount: parseFloat(data.amount),
         supplier_name: data.supplier || undefined,
@@ -174,7 +174,7 @@ export default function TestAiPage() {
     setChatError('')
 
     try {
-      const resp = await orgPost<{ content: string }>('/ai/chat', {
+      const resp = await orgClient.post<{ content: string }>('/ai/chat', {
         messages: newMessages.map(m => ({ role: m.role, content: m.content })),
         use_thinking: data.useThinking,
       })

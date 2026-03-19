@@ -10,6 +10,11 @@ function authHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+function orgHeader(): Record<string, string> {
+  const orgId = localStorage.getItem("kerpta_active_org");
+  return orgId ? { "X-Organization-Id": orgId } : {};
+}
+
 function handle401(response: Response): void {
   if (response.status === 401) {
     localStorage.removeItem("supabase_access_token");
@@ -29,11 +34,17 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(base: string, url: string, options: RequestInit = {}): Promise<T> {
+async function request<T>(
+  base: string,
+  url: string,
+  options: RequestInit = {},
+  extraHeaders: Record<string, string> = {},
+): Promise<T> {
   const isFormData = options.body instanceof FormData;
   const headers: Record<string, string> = {
     ...(isFormData ? {} : { "Content-Type": "application/json" }),
     ...authHeaders(),
+    ...extraHeaders,
     ...(options.headers as Record<string, string> ?? {}),
   };
 
@@ -55,24 +66,38 @@ function toBody(body: unknown): BodyInit | undefined {
   return JSON.stringify(body);
 }
 
-export const apiClient = {
-  get: <T = unknown>(url: string, params?: Record<string, unknown>) => {
-    const query = params ? "?" + new URLSearchParams(
-      Object.entries(params)
-        .filter(([, v]) => v != null)
-        .map(([k, v]) => [k, String(v)])
-    ).toString() : "";
-    return request<T>(API_BASE, url + query);
-  },
-  post: <T = unknown>(url: string, body?: unknown) =>
-    request<T>(API_BASE, url, { method: "POST", body: toBody(body) }),
-  put: <T = unknown>(url: string, body?: unknown) =>
-    request<T>(API_BASE, url, { method: "PUT", body: toBody(body) }),
-  patch: <T = unknown>(url: string, body?: unknown) =>
-    request<T>(API_BASE, url, { method: "PATCH", body: toBody(body) }),
-  delete: <T = unknown>(url: string) =>
-    request<T>(API_BASE, url, { method: "DELETE" }),
-};
+function buildQuery(params?: Record<string, unknown>): string {
+  if (!params) return "";
+  return "?" + new URLSearchParams(
+    Object.entries(params)
+      .filter(([, v]) => v != null)
+      .map(([k, v]) => [k, String(v)])
+  ).toString();
+}
+
+function makeClient(base: string, extra: () => Record<string, string> = () => ({})) {
+  return {
+    get: <T = unknown>(url: string, params?: Record<string, unknown>) =>
+      request<T>(base, url + buildQuery(params), {}, extra()),
+    post: <T = unknown>(url: string, body?: unknown) =>
+      request<T>(base, url, { method: "POST", body: toBody(body) }, extra()),
+    put: <T = unknown>(url: string, body?: unknown) =>
+      request<T>(base, url, { method: "PUT", body: toBody(body) }, extra()),
+    patch: <T = unknown>(url: string, body?: unknown) =>
+      request<T>(base, url, { method: "PATCH", body: toBody(body) }, extra()),
+    delete: <T = unknown>(url: string) =>
+      request<T>(base, url, { method: "DELETE" }, extra()),
+  };
+}
+
+/** Client API standard (auth uniquement) */
+export const apiClient = makeClient(API_BASE);
+
+/** Client API avec header X-Organization-Id automatique */
+export const orgClient = makeClient(API_BASE, orgHeader);
+
+/** Client admin (prefix /api/admin) */
+export const adminClient = makeClient(ADMIN_BASE);
 
 /** Extrait le message d'erreur d'une ApiError ou retourne le fallback */
 export function httpError(err: unknown, fallback: string): string {
@@ -84,22 +109,3 @@ export function httpError(err: unknown, fallback: string): string {
   }
   return fallback;
 }
-
-export const adminClient = {
-  get: <T = unknown>(url: string, params?: Record<string, unknown>) => {
-    const query = params ? "?" + new URLSearchParams(
-      Object.entries(params)
-        .filter(([, v]) => v != null)
-        .map(([k, v]) => [k, String(v)])
-    ).toString() : "";
-    return request<T>(ADMIN_BASE, url + query);
-  },
-  post: <T = unknown>(url: string, body?: unknown) =>
-    request<T>(ADMIN_BASE, url, { method: "POST", body: toBody(body) }),
-  put: <T = unknown>(url: string, body?: unknown) =>
-    request<T>(ADMIN_BASE, url, { method: "PUT", body: toBody(body) }),
-  patch: <T = unknown>(url: string, body?: unknown) =>
-    request<T>(ADMIN_BASE, url, { method: "PATCH", body: toBody(body) }),
-  delete: <T = unknown>(url: string) =>
-    request<T>(ADMIN_BASE, url, { method: "DELETE" }),
-};

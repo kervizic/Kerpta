@@ -1,75 +1,33 @@
-// Kerpta - Helper API avec header X-Organization-Id automatique
+// Kerpta - Helpers API organisation (re-exporte orgClient + download)
 // Copyright (C) 2026 Emmanuel Kervizic
 // Licence : AGPL-3.0 - https://www.gnu.org/licenses/agpl-3.0.html
 
+import { orgClient } from './api';
+
 const API_BASE = import.meta.env.VITE_API_URL ?? "/api/v1";
 
-function headers(isFormData = false): Record<string, string> {
-  const h: Record<string, string> = {};
-  if (!isFormData) h["Content-Type"] = "application/json";
-  const token = localStorage.getItem("supabase_access_token");
-  if (token) h.Authorization = `Bearer ${token}`;
-  const orgId = localStorage.getItem("kerpta_active_org");
-  if (orgId) h["X-Organization-Id"] = orgId;
-  return h;
-}
+// Re-exports directs depuis orgClient pour compatibilite existante
+export const orgGet = orgClient.get;
+export const orgPost = orgClient.post;
+export const orgPatch = orgClient.patch;
+export const orgDelete = orgClient.delete;
 
-function handle401(response: Response): void {
-  if (response.status === 401) {
-    localStorage.removeItem("supabase_access_token");
-    localStorage.removeItem("kerpta_user");
-    window.location.href = "/login";
-  }
-}
-
-async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
-  const isFormData = options.body instanceof FormData;
-  const response = await fetch(`${API_BASE}${url}`, {
-    ...options,
-    headers: { ...headers(isFormData), ...(options.headers as Record<string, string> ?? {}) },
-  });
-
-  if (!response.ok) {
-    handle401(response);
-    const data = await response.json().catch(() => null);
-    throw Object.assign(new Error(`API error ${response.status}`), { status: response.status, data });
-  }
-
-  if (response.status === 204) return null as T;
-  return response.json();
-}
-
-export async function orgGet<T = unknown>(url: string, params?: Record<string, unknown>): Promise<T> {
-  const query = params
-    ? "?" + new URLSearchParams(
-        Object.entries(params).filter(([, v]) => v != null).map(([k, v]) => [k, String(v)])
-      ).toString()
-    : "";
-  return request<T>(url + query);
-}
-
-export async function orgPost<T = unknown>(url: string, body?: unknown): Promise<T> {
-  const isFormData = body instanceof FormData;
-  return request<T>(url, {
-    method: "POST",
-    body: body == null ? undefined : isFormData ? body : JSON.stringify(body),
-  });
-}
-
-export async function orgPatch<T = unknown>(url: string, body?: unknown): Promise<T> {
-  return request<T>(url, { method: "PATCH", body: body != null ? JSON.stringify(body) : undefined });
-}
-
-export async function orgDelete<T = unknown>(url: string): Promise<T> {
-  return request<T>(url, { method: "DELETE" });
-}
-
-/** Telecharge un fichier binaire (PDF, ZIP...) avec authentification. */
+/** Telecharge un fichier binaire (PDF, ZIP...) avec authentification + org header. */
 export async function orgDownload(url: string, defaultFilename: string): Promise<void> {
-  const response = await fetch(`${API_BASE}${url}`, { headers: headers() });
+  const headers: Record<string, string> = {};
+  const token = localStorage.getItem("supabase_access_token");
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const orgId = localStorage.getItem("kerpta_active_org");
+  if (orgId) headers["X-Organization-Id"] = orgId;
+
+  const response = await fetch(`${API_BASE}${url}`, { headers });
 
   if (!response.ok) {
-    handle401(response);
+    if (response.status === 401) {
+      localStorage.removeItem("supabase_access_token");
+      localStorage.removeItem("kerpta_user");
+      window.location.href = "/login";
+    }
     throw new Error(`Download error ${response.status}`);
   }
 
