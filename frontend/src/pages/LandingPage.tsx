@@ -19,7 +19,6 @@ interface ContentSection {
 
 export default function LandingPage() {
   const [sections, setSections] = useState<Record<string, Record<string, unknown>>>({})
-  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetch('/api/v1/platform/content')
@@ -33,17 +32,8 @@ export default function LandingPage() {
           setSections(map)
         }
       })
-      .catch(() => {/* contenu statique affiché si API indisponible */})
-      .finally(() => setLoading(false))
+      .catch(() => {/* contenu statique affiche si API indisponible */})
   }, [])
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-white dark:bg-slate-950">
-        <div className="w-8 h-8 border-2 border-kerpta border-t-transparent rounded-full animate-spin" />
-      </div>
-    )
-  }
 
   return (
     <div className="min-h-screen bg-white text-gray-900 dark:bg-slate-950 dark:text-white">
