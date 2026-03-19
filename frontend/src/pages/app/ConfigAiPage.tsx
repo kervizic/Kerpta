@@ -373,12 +373,9 @@ export default function ConfigAiPage() {
           <div className="space-y-4 pt-2">
             <div className="flex items-center gap-3">
               <span className="text-sm text-gray-700 dark:text-gray-300 w-40">Module IA</span>
-              <button
-                onClick={() => { configForm.setValue('aiEnabled', !aiEnabled) }}
-                className={`px-3 py-1.5 text-xs rounded-full border transition cursor-pointer ${aiEnabled ? 'bg-kerpta-50 dark:bg-kerpta-900/30 border-kerpta-200 dark:border-kerpta-700 text-kerpta-700 dark:text-kerpta-400' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400'}`}
-              >
-                {aiEnabled ? 'Active' : 'Desactive'}
-              </button>
+              <span className={`px-3 py-1.5 text-xs rounded-full border ${aiEnabled ? 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700 text-green-700 dark:text-green-400' : 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400'}`}>
+                {aiEnabled ? 'Active (auto)' : 'Inactif - ajoutez un fournisseur avec des modeles'}
+              </span>
             </div>
             <div className="flex items-center gap-3">
               <span className="text-sm text-gray-700 dark:text-gray-300 w-40">LiteLLM URL</span>

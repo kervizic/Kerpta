@@ -35,6 +35,15 @@ from app.services import ai_providers as providers_svc
 router = APIRouter(prefix="/api/admin/ai", tags=["Admin IA"])
 
 
+async def _auto_enable_ai_if_models(db: AsyncSession) -> None:
+    """Active automatiquement l'IA plateforme + toutes les orgs si des modeles actifs existent."""
+    count = await db.execute(text("SELECT COUNT(*) FROM ai_models WHERE is_active = true"))
+    if count.scalar() and count.scalar() > 0:
+        await db.execute(text("UPDATE platform_config SET ai_enabled = true, updated_at = now() WHERE ai_enabled = false"))
+        await db.execute(text("UPDATE organizations SET module_ai_enabled = true WHERE module_ai_enabled = false"))
+        await db.commit()
+
+
 # ── Fournisseurs ──────────────────────────────────────────────────────────────
 
 
@@ -90,6 +99,7 @@ async def create_provider(
     if test_result["success"]:
         try:
             synced = await providers_svc.sync_models(db, new_id, body.type, body.base_url, body.api_key)
+            await _auto_enable_ai_if_models(db)
         except Exception:
             pass
     else:
@@ -149,6 +159,7 @@ async def update_provider(
         if test_result["success"]:
             try:
                 synced = await providers_svc.sync_models(db, provider_id, prov[0], prov[1], prov[2])
+                await _auto_enable_ai_if_models(db)
             except Exception:
                 pass
         else:
@@ -240,6 +251,7 @@ async def sync_provider_models(
         return {"synced": 0, "message": "Fournisseur introuvable"}
 
     count = await providers_svc.sync_models(db, provider_id, row[0], row[1], row[2])
+    await _auto_enable_ai_if_models(db)
     return {"synced": count, "message": f"{count} modeles synchronises"}
 
 
