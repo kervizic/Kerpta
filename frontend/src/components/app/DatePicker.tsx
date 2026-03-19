@@ -4,7 +4,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { DayPicker } from 'react-day-picker'
-import { fr } from 'react-day-picker/locale'
+import { fr } from 'date-fns/locale/fr'
 import { format, parse, isValid } from 'date-fns'
 import { Calendar, X } from 'lucide-react'
 
