@@ -137,23 +137,64 @@ async def _log_usage(
 # ── OCR (role VL) ─────────────────────────────────────────────────────────────
 
 
-async def _pdf_to_images(file_bytes: bytes) -> list[tuple[bytes, str]]:
-    """Convertit un PDF en liste d'images PNG (une par page) via pdf2image."""
-    import asyncio
-    import io
+async def _ocr_with_paddleocr(
+    file_bytes: bytes,
+    content_type: str,
+    litellm_url: str,
+    litellm_key: str,
+    model_name: str,
+) -> str:
+    """Utilise la lib PaddleOCR pour parser un document (image ou PDF).
+
+    PaddleOCR gere nativement :
+    - PDF multi-pages (conversion + OCR page par page)
+    - Layout detection (texte, tableaux, formules)
+    - Envoi via LiteLLM (API OpenAI-compatible)
+
+    Retourne le contenu en Markdown structure.
+    """
     import tempfile
+    from paddleocr import PaddleOCRVL
 
-    def _convert():
-        from pdf2image import convert_from_bytes
-        images = convert_from_bytes(file_bytes, dpi=200, fmt="png")
-        result = []
-        for img in images:
-            buf = io.BytesIO()
-            img.save(buf, format="PNG")
-            result.append((buf.getvalue(), "image/png"))
-        return result
+    is_pdf = content_type == "application/pdf" or file_bytes[:5] == b"%PDF-"
+    suffix = ".pdf" if is_pdf else ".png"
 
-    return await asyncio.to_thread(_convert)
+    # PaddleOCRVL attend un chemin fichier
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        tmp.write(file_bytes)
+        tmp_path = tmp.name
+
+    try:
+        # On pointe vers LiteLLM qui route vers le bon provider
+        litellm_v1 = litellm_url.rstrip("/")
+        if not litellm_v1.endswith("/v1"):
+            litellm_v1 += "/v1"
+
+        pipeline = PaddleOCRVL(
+            vl_rec_backend="llama-cpp-server",
+            vl_rec_server_url=litellm_v1,
+            vl_rec_api_key=litellm_key or "no-key-required",
+            vl_rec_api_model_name=model_name,
+            device="cpu",
+        )
+
+        output = pipeline.predict(tmp_path)
+        pages = list(output)
+
+        # Fusionner les pages en Markdown
+        markdown_parts = []
+        for res in pages:
+            res_dict = res.to_dict() if hasattr(res, "to_dict") else {}
+            # Extraire le contenu textuel de chaque bloc
+            for block in res_dict.get("parsing_res_list", []):
+                content = block.get("block_content", "")
+                if content:
+                    markdown_parts.append(content)
+
+        return "\n\n".join(markdown_parts) if markdown_parts else str(pages)
+    finally:
+        import os
+        os.unlink(tmp_path)
 
 
 async def ocr(
@@ -165,8 +206,8 @@ async def ocr(
 ) -> dict:
     """Extrait les donnees structurees d'une facture depuis une image ou un PDF.
 
-    Envoie l'image (ou chaque page du PDF) au modele VL via LiteLLM.
-    Le modele VL (PaddleOCR-VL sur llama.cpp) extrait et structure les donnees.
+    Etape 1 : PaddleOCR-VL parse le document (gere PDF multi-pages nativement)
+    Etape 2 : Le LLM Instruct extrait les champs JSON structures du Markdown
     """
     config = await _get_ai_config(db)
     model_vl = await _resolve_model(db, config["vl_model_id"])
@@ -174,57 +215,107 @@ async def ocr(
         raise HTTPException(503, "Aucun modele VL configure pour l'OCR")
 
     start = time.monotonic()
-    is_pdf = content_type == "application/pdf" or file_bytes[:5] == b"%PDF-"
 
-    if is_pdf:
-        pages = await _pdf_to_images(file_bytes)
-    else:
-        pages = [(file_bytes, content_type)]
-
-    all_contents = []
-    total_tokens_in = 0
-    total_tokens_out = 0
-
-    for page_bytes, page_ct in pages:
-        b64 = base64.b64encode(page_bytes).decode("utf-8")
-        messages = [
-            {
-                "role": "system",
-                "content": (
-                    "Tu es un assistant d'extraction de factures fournisseur. "
-                    "Extrais les informations suivantes au format JSON strict : "
-                    "supplier_name, supplier_siret, supplier_address, invoice_number, "
-                    "issue_date (DD/MM/YYYY), due_date (DD/MM/YYYY), total_ht, total_tva, total_ttc, iban, "
-                    "lines (array of {description, quantity, unit_price, vat_rate, total_ht}). "
-                    "Si une info est absente, mets null. Reponds UNIQUEMENT en JSON, sans markdown."
-                ),
-            },
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": "Extrais les donnees de cette facture :"},
-                    {"type": "image_url", "image_url": {"url": f"data:{page_ct};base64,{b64}"}},
-                ],
-            },
-        ]
-
-        resp = await _call_litellm(
+    # Etape 1 : PaddleOCR-VL extrait le texte/tableaux en Markdown (via LiteLLM)
+    try:
+        markdown_content = await _ocr_with_paddleocr(
+            file_bytes, content_type,
             config["litellm_url"], config["litellm_key"],
-            model_vl["litellm_name"], messages,
+            model_vl["litellm_name"],
         )
-        usage = resp.get("usage", {})
-        total_tokens_in += usage.get("prompt_tokens", 0)
-        total_tokens_out += usage.get("completion_tokens", 0)
+    except ImportError:
+        _log.warning("paddleocr non installe, fallback sur OCR via LiteLLM")
+        # Fallback : OCR direct via LiteLLM (images uniquement, pas de PDF)
+        return await _ocr_fallback_litellm(db, config, model_vl, file_bytes, content_type, org_id, user_id, start)
 
-        page_content = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
-        all_contents.append(page_content.strip())
+    # Etape 2 : LLM Instruct extrait les champs JSON du Markdown
+    model_instruct = await _resolve_model(db, config["instruct_model_id"])
+    if not model_instruct:
+        # Pas de modele Instruct : retourner le texte brut
+        duration = int((time.monotonic() - start) * 1000)
+        await _log_usage(db, org_id, user_id, model_vl["uuid"], "vl", 0, 0, duration)
+        return {"raw_text": markdown_content}
 
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "Tu es un assistant d'extraction de factures fournisseur. "
+                "On te donne le contenu OCR d'une facture en Markdown. "
+                "Extrais les informations suivantes au format JSON strict : "
+                "supplier_name, supplier_siret, supplier_address, invoice_number, "
+                "issue_date (DD/MM/YYYY), due_date (DD/MM/YYYY), total_ht, total_tva, total_ttc, iban, "
+                "lines (array of {description, quantity, unit_price, vat_rate, total_ht}). "
+                "Si une info est absente, mets null. Reponds UNIQUEMENT en JSON, sans markdown."
+            ),
+        },
+        {"role": "user", "content": markdown_content},
+    ]
+
+    resp = await _call_litellm(
+        config["litellm_url"], config["litellm_key"],
+        model_instruct["litellm_name"], messages, max_tokens=2048,
+    )
     duration = int((time.monotonic() - start) * 1000)
-    await _log_usage(db, org_id, user_id, model_vl["uuid"], "vl",
-                     total_tokens_in, total_tokens_out, duration)
 
-    # Fusionner les pages et parser le JSON
-    content = "\n".join(all_contents)
+    usage = resp.get("usage", {})
+    await _log_usage(db, org_id, user_id, model_instruct["uuid"], "vl",
+                     usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0), duration)
+
+    content = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+    content = content.strip()
+    if content.startswith("```"):
+        content = content.split("\n", 1)[-1]
+        if content.endswith("```"):
+            content = content[:-3]
+        content = content.strip()
+
+    try:
+        return json.loads(content)
+    except json.JSONDecodeError:
+        return {"raw_text": content}
+
+
+async def _ocr_fallback_litellm(
+    db: AsyncSession,
+    config: dict,
+    model: dict,
+    image_bytes: bytes,
+    content_type: str,
+    org_id: uuid.UUID,
+    user_id: uuid.UUID,
+    start: float,
+) -> dict:
+    """Fallback OCR via LiteLLM pour les images (si paddleocr non installe)."""
+    b64 = base64.b64encode(image_bytes).decode("utf-8")
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "Tu es un assistant d'extraction de factures fournisseur. "
+                "Extrais les informations suivantes au format JSON strict : "
+                "supplier_name, supplier_siret, supplier_address, invoice_number, "
+                "issue_date (DD/MM/YYYY), due_date (DD/MM/YYYY), total_ht, total_tva, total_ttc, iban, "
+                "lines (array of {description, quantity, unit_price, vat_rate, total_ht}). "
+                "Si une info est absente, mets null. Reponds UNIQUEMENT en JSON, sans markdown."
+            ),
+        },
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "Extrais les donnees de cette facture :"},
+                {"type": "image_url", "image_url": {"url": f"data:{content_type};base64,{b64}"}},
+            ],
+        },
+    ]
+
+    resp = await _call_litellm(config["litellm_url"], config["litellm_key"], model["litellm_name"], messages)
+    duration = int((time.monotonic() - start) * 1000)
+    usage = resp.get("usage", {})
+    await _log_usage(db, org_id, user_id, model["uuid"], "vl",
+                     usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0), duration)
+
+    content = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
     content = content.strip()
     if content.startswith("```"):
         content = content.split("\n", 1)[-1]
