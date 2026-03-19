@@ -116,6 +116,9 @@ services:
       POSTGRES_DB:           ${POSTGRES_DB:-kerpta}
       POSTGRES_USER:         postgres
       POSTGRES_PASSWORD:     ${POSTGRES_PASSWORD:-kerpta_dev}
+      # IA - LiteLLM
+      LITELLM_MASTER_KEY:    ${LITELLM_MASTER_KEY:-sk-kerpta-dev}
+      LITELLM_BASE_URL:      http://litellm:4000
     ports:
       - "8000:8000"
     volumes:
