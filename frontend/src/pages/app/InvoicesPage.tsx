@@ -22,7 +22,7 @@ import MobileFilterPanel from '@/components/app/MobileFilterPanel'
 import PageLayout from '@/components/app/PageLayout'
 import { INPUT, SELECT, LINE_INPUT, LINE_SELECT, BTN, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER, BADGE_COUNT, CARD } from '@/lib/formStyles'
 import { fmtCurrency } from '@/lib/formatting'
-import axios from 'axios'
+import { ApiError } from '@/lib/api'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -988,10 +988,10 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
 
       onClose?.()
     } catch (err) {
-      if (axios.isAxiosError(err)) {
-        const d = err.response?.data as { detail?: unknown }
+      if (err instanceof ApiError) {
+        const d = err.data as { detail?: unknown }
         if (typeof d?.detail === 'string') setError(d.detail)
-        else setError(`Erreur ${err.response?.status || ''} — impossible d'enregistrer la facture`)
+        else setError(`Erreur ${err.status || ''} - impossible d'enregistrer la facture`)
       } else {
         setError("Erreur inattendue lors de l'enregistrement")
       }

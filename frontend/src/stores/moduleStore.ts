@@ -71,7 +71,7 @@ export const useModuleStore = create<ModuleState>((set, get) => ({
   loadModules: async (orgId: string) => {
     set({ loading: true, orgId })
     try {
-      const { data } = await apiClient.get<Record<string, boolean>>(
+      const data = await apiClient.get<Record<string, boolean>>(
         `/organizations/${orgId}/modules`,
       )
       set({ config: data, loading: false })

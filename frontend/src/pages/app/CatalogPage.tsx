@@ -13,12 +13,12 @@ import {
   Layers, ShoppingCart, Users, BarChart3, X,
 } from 'lucide-react'
 import { orgGet, orgPost, orgPatch, orgDelete } from '@/lib/orgApi'
+import { httpError } from '@/lib/api'
 import { fmtPrice } from '@/lib/formatting'
 import PageLayout from '@/components/app/PageLayout'
 import { useAuthStore } from '@/stores/authStore'
 import UnitCombobox from '@/components/app/UnitCombobox'
 import ModalOverlay from '@/components/app/ModalOverlay'
-import axios from 'axios'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -93,13 +93,6 @@ interface QuantityDiscount {
 
 interface ClientSimple { id: string; name: string }
 
-function httpError(err: unknown, fallback: string): string {
-  if (axios.isAxiosError(err)) {
-    const d = err.response?.data as { detail?: unknown }
-    if (typeof d?.detail === 'string') return d.detail
-  }
-  return fallback
-}
 
 import { INPUT, SELECT, BTN } from '@/lib/formStyles'
 const BTN_SECONDARY = 'px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition'

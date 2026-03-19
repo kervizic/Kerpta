@@ -3,7 +3,6 @@
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
 import { useEffect, useRef, useState } from 'react'
-import axios from 'axios'
 import {
   Building,
   MapPin,
@@ -24,7 +23,7 @@ import {
   UserPlus,
   X,
 } from 'lucide-react'
-import { apiClient } from '@/lib/api'
+import { apiClient, httpError } from '@/lib/api'
 import { useAuthStore } from '@/stores/authStore'
 import CompanyInfoCard from '@/components/app/CompanyInfoCard'
 import { InfoHint } from '@/components/ui/InfoHint'
@@ -133,20 +132,6 @@ function formatAddress(a: AddressOut | null | undefined): string {
   return [a.voie, a.complement, a.code_postal && a.commune ? `${a.code_postal} ${a.commune}` : (a.commune ?? a.code_postal)]
     .filter(Boolean)
     .join(', ')
-}
-
-function httpError(err: unknown, fallback: string): string {
-  if (axios.isAxiosError(err)) {
-    const d = err.response?.data as { detail?: unknown } | undefined
-    const detail = d?.detail
-    if (typeof detail === 'string') return detail
-    if (Array.isArray(detail) && detail.length > 0) {
-      const first = detail[0] as { msg?: string }
-      return first?.msg ?? fallback
-    }
-    if (err.response?.status) return `Erreur ${err.response.status} — ${fallback}`
-  }
-  return fallback
 }
 
 function formatBytes(bytes: number): string {
@@ -270,7 +255,7 @@ export default function OrgSettingsPage() {
       setEtablissements([])
       setNombreEtabsTotal(0)
       try {
-        const { data } = await apiClient.get<OrgDetail>(`/organizations/${activeOrg!.org_id}`)
+        const data = await apiClient.get<OrgDetail>(`/organizations/${activeOrg!.org_id}`)
         applyOrgData(data)
 
         // Charger le logo si présent
@@ -383,7 +368,7 @@ export default function OrgSettingsPage() {
     try {
       const formData = new FormData()
       formData.append('file', logoFile)
-      const { data } = await apiClient.post<OrgLogoOut>(
+      const data = await apiClient.post<OrgLogoOut>(
         `/organizations/${org.org_id}/logo`,
         formData,
         { headers: { 'Content-Type': 'multipart/form-data' } }
@@ -433,7 +418,7 @@ export default function OrgSettingsPage() {
     try {
       await apiClient.post(`/organizations/${activeOrg.org_id}/enrich`)
       // Recharger les données fraîches
-      const { data } = await apiClient.get<OrgDetail>(`/organizations/${activeOrg.org_id}`)
+      const data = await apiClient.get<OrgDetail>(`/organizations/${activeOrg.org_id}`)
       applyOrgData(data)
       setEnrichSuccess(true)
       setTimeout(() => setEnrichSuccess(false), 4000)
@@ -451,7 +436,7 @@ export default function OrgSettingsPage() {
     if (!org) return
     setShAdding(true)
     try {
-      const { data } = await apiClient.post<Shareholder>(
+      const data = await apiClient.post<Shareholder>(
         `/organizations/${org.org_id}/shareholders`,
         { type: 'physical' }
       )
@@ -466,7 +451,7 @@ export default function OrgSettingsPage() {
   async function handleUpdateShareholder(shId: string, field: string, value: unknown) {
     if (!org) return
     try {
-      const { data } = await apiClient.patch<Shareholder>(
+      const data = await apiClient.patch<Shareholder>(
         `/organizations/${org.org_id}/shareholders/${shId}`,
         { [field]: value || null }
       )

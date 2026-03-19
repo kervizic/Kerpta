@@ -5,7 +5,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { DayPicker } from 'react-day-picker'
 import { fr } from 'date-fns/locale/fr'
-import { format, parse, isValid } from 'date-fns'
 import { Calendar, X } from 'lucide-react'
 
 import 'react-day-picker/style.css'
@@ -39,16 +38,21 @@ export default function DatePicker({
     return () => document.removeEventListener('mousedown', handle)
   }, [])
 
-  // Parser la valeur YYYY-MM-DD en Date
-  const selected = value ? parse(value, 'yyyy-MM-dd', new Date()) : undefined
-  const validSelected = selected && isValid(selected) ? selected : undefined
+  // Parser la valeur YYYY-MM-DD en Date (natif)
+  const selected = value ? new Date(value + 'T00:00:00') : undefined
+  const validSelected = selected && !isNaN(selected.getTime()) ? selected : undefined
 
-  // Affichage formaté
-  const displayValue = validSelected ? format(validSelected, 'dd MMM yyyy', { locale: fr }) : ''
+  // Affichage formate (Intl natif)
+  const displayValue = validSelected
+    ? validSelected.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+    : ''
 
   function handleSelect(date: Date | undefined) {
     if (date) {
-      onChange(format(date, 'yyyy-MM-dd'))
+      const y = date.getFullYear()
+      const m = String(date.getMonth() + 1).padStart(2, '0')
+      const d = String(date.getDate()).padStart(2, '0')
+      onChange(`${y}-${m}-${d}`)
     }
     setOpen(false)
   }

@@ -30,7 +30,9 @@ export default defineConfig({
           // Icones (souvent le plus gros)
           "vendor-icons": ["lucide-react"],
           // Utilitaires
-          "vendor-utils": ["axios", "date-fns", "zustand"],
+          "vendor-utils": ["zustand"],
+          // DatePicker (react-day-picker + date-fns locale)
+          "vendor-datepicker": ["react-day-picker", "date-fns"],
         },
       },
     },

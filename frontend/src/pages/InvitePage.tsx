@@ -4,10 +4,9 @@
 
 import { useEffect, useState } from 'react'
 import { Users, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
-import { apiClient } from '@/lib/api'
+import { apiClient, ApiError } from '@/lib/api'
 import { useAuthStore } from '@/stores/authStore'
 import { navigate } from '@/hooks/useRoute'
-import axios from 'axios'
 import { BTN } from '@/lib/formStyles'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -56,11 +55,11 @@ export default function InvitePage({ token }: { token: string }) {
     setLoading(true)
     setError('')
     try {
-      const { data } = await apiClient.get<InvitePreview>(`/invitations/${token}`)
+      const data = await apiClient.get<InvitePreview>(`/invitations/${token}`)
       setPreview(data)
     } catch (err) {
-      if (axios.isAxiosError(err)) {
-        const d = err.response?.data as { detail?: string } | undefined
+      if (err instanceof ApiError) {
+        const d = err.data as { detail?: string } | undefined
         setError(d?.detail ?? 'Invitation introuvable ou expirée')
       } else {
         setError('Erreur de connexion')
@@ -73,7 +72,7 @@ export default function InvitePage({ token }: { token: string }) {
   async function handleAccept() {
     setAccepting(true)
     try {
-      const { data } = await apiClient.post<{ org_id: string; org_name: string; role: string }>(
+      const data = await apiClient.post<{ org_id: string; org_name: string; role: string }>(
         `/invitations/${token}/accept`
       )
       setAcceptedOrg(data.org_name)
@@ -82,8 +81,8 @@ export default function InvitePage({ token }: { token: string }) {
       // Rediriger vers l'app après 2 secondes
       setTimeout(() => navigate('/app'), 2000)
     } catch (err) {
-      if (axios.isAxiosError(err)) {
-        const d = err.response?.data as { detail?: string } | undefined
+      if (err instanceof ApiError) {
+        const d = err.data as { detail?: string } | undefined
         setError(d?.detail ?? "Erreur lors de l'acceptation")
       } else {
         setError('Erreur de connexion')

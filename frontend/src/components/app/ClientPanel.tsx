@@ -134,7 +134,7 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
       if (c.company_siren) {
         setLoadingEtabs(true)
         try {
-          const { data } = await apiClient.get<CompanyDetailsOut>(`/companies/${c.company_siren}`)
+          const data = await apiClient.get<CompanyDetailsOut>(`/companies/${c.company_siren}`)
           setEtabs(data.etablissements_actifs ?? [])
         } catch { /* pas critique */ }
         setLoadingEtabs(false)

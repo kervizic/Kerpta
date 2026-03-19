@@ -81,7 +81,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
 
   async fetchMe() {
     try {
-      const { data } = await apiClient.get<{
+      const data = await apiClient.get<{
         id: string
         is_platform_admin: boolean
         email: string | null
@@ -95,7 +95,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
 
   async fetchOrgs() {
     try {
-      const { data } = await apiClient.get<OrgMembership[]>('/organizations/me')
+      const data = await apiClient.get<OrgMembership[]>('/organizations/me')
       const { activeOrgId } = get()
       const validActive = data.find((o) => o.org_id === activeOrgId)
       const newActiveId = validActive ? activeOrgId : (data[0]?.org_id ?? null)

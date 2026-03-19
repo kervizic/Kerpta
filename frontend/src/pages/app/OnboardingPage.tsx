@@ -7,10 +7,9 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Building2, Users, ArrowLeft, Search, CheckCircle2, Loader2 } from 'lucide-react'
-import { apiClient } from '@/lib/api'
+import { apiClient, httpError } from '@/lib/api'
 import { useAuthStore } from '@/stores/authStore'
 import { navigate } from '@/hooks/useRoute'
-import axios from 'axios'
 import { BTN } from '@/lib/formStyles'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -69,25 +68,6 @@ const createOrgSchema = z.object({
 })
 
 type CreateOrgForm = z.infer<typeof createOrgSchema>
-
-// ── Helpers ────────────────────────────────────────────────────────────────────
-
-function httpError(err: unknown, fallback: string): string {
-  if (axios.isAxiosError(err)) {
-    const d = err.response?.data as { detail?: unknown } | undefined
-    const detail = d?.detail
-    if (typeof detail === 'string') return detail
-    if (Array.isArray(detail) && detail.length > 0) {
-      // Erreur de validation Pydantic 422
-      const first = detail[0] as { msg?: string; loc?: string[] }
-      return first?.msg ?? fallback
-    }
-    if (err.response?.status) {
-      return `Erreur ${err.response.status} — ${fallback}`
-    }
-  }
-  return fallback
-}
 
 // ── Composant principal ───────────────────────────────────────────────────────
 
@@ -244,7 +224,7 @@ function CreateStep({
     setSearchError('')
     setLookupResult(null)
     try {
-      const { data } = await apiClient.get<CompanyLookup[]>(`/companies/search?q=${clean}`)
+      const data = await apiClient.get<CompanyLookup[]>(`/companies/search?q=${clean}`)
       if (!data.length) {
         setSearchError('Aucune entreprise trouvée pour ce SIREN/SIRET')
         return
@@ -464,7 +444,7 @@ function JoinStep({
     setResults(null)
     setSelected(null)
     try {
-      const { data } = await apiClient.get<OrgSearchResult[]>(
+      const data = await apiClient.get<OrgSearchResult[]>(
         `/organizations/search?q=${encodeURIComponent(query.trim())}`
       )
       setResults(data)

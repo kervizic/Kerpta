@@ -12,12 +12,10 @@ import {
   Building2, MapPin, CheckCircle2,
 } from 'lucide-react'
 import { orgGet, orgPost } from '@/lib/orgApi'
-import { apiClient } from '@/lib/api'
+import { apiClient, httpError } from '@/lib/api'
 import PageLayout from '@/components/app/PageLayout'
 import ClientPanel from '@/components/app/ClientPanel'
 import { COUNTRIES, getCountryMode } from '@/data/countries'
-import axios from 'axios'
-
 // ── Types ────────────────────────────────────────────────────────────────────
 
 interface BillingProfileShort {
@@ -90,14 +88,6 @@ interface AddressSuggestion {
   voie: string
   code_postal: string
   commune: string
-}
-
-function httpError(err: unknown, fallback: string): string {
-  if (axios.isAxiosError(err)) {
-    const d = err.response?.data as { detail?: unknown }
-    if (typeof d?.detail === 'string') return d.detail
-  }
-  return fallback
 }
 
 import { INPUT, SELECT, BTN, OVERLAY_BACKDROP, OVERLAY_PANEL } from '@/lib/formStyles'
@@ -339,7 +329,7 @@ export function CreateClientForm({ onClose, onCreated }: { onClose?: () => void;
     setSearchResults([])
     setSelectedEtab(null)
     try {
-      const { data } = await apiClient.get<CompanySearchResult[]>('/companies/search', { params: { q: clean } })
+      const data = await apiClient.get<CompanySearchResult[]>('/companies/search', { q: clean })
       setSearchResults(data)
 
       if (data.length > 0) {
