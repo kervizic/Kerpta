@@ -69,6 +69,7 @@ const VENTE_ITEMS: NavItem[] = [
   { label: 'Devis', href: '/app/devis', icon: <FileText className="w-4 h-4" />, moduleKey: 'ventes.devis' },
   { label: 'Commandes', href: '/app/contrats', icon: <FolderKanban className="w-4 h-4" />, moduleKey: 'ventes.commandes' },
   { label: 'Factures', href: '/app/factures', icon: <Receipt className="w-4 h-4" />, moduleKey: 'ventes.factures' },
+  { label: 'Test IA', href: '/app/test-ai', icon: <BrainCircuit className="w-4 h-4" /> },
 ]
 
 // Items de la section "Achats"
