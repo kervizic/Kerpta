@@ -198,6 +198,20 @@ async def sync_models(
     return synced
 
 
+def _litellm_provider(provider_type: str) -> str:
+    """Convertit le type de provider Kerpta en prefixe LiteLLM."""
+    mapping = {
+        "openai_compatible": "openai",
+        "openai": "openai",
+        "ollama": "ollama",
+        "vllm": "openai",       # vLLM expose une API OpenAI-compatible
+        "anthropic": "anthropic",
+        "google": "gemini",
+        "mistral": "mistral",
+    }
+    return mapping.get(provider_type, "openai")
+
+
 async def register_model_in_litellm(
     litellm_url: str,
     litellm_key: str,
@@ -207,9 +221,12 @@ async def register_model_in_litellm(
     base_url: str | None = None,
 ) -> bool:
     """Enregistre un modele dans LiteLLM via POST /model/new."""
-    litellm_model_name = f"{provider_type}/{model_id}"
+    ll_provider = _litellm_provider(provider_type)
+    litellm_model_name = f"{ll_provider}/{model_id}"
+    # model_name = ce qu'on appelle cote Kerpta (provider_type/model_id)
+    kerpta_model_name = f"{provider_type}/{model_id}"
     body: dict = {
-        "model_name": litellm_model_name,
+        "model_name": kerpta_model_name,
         "litellm_params": {
             "model": litellm_model_name,
         },
