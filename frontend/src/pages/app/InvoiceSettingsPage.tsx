@@ -2,7 +2,8 @@
 // Copyright (C) 2026 Emmanuel Kervizic
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
-import { useEffect, useState, useCallback } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Loader2, Pencil, Trash2, Star, Upload, ExternalLink, X, Settings } from 'lucide-react'
 import { orgGet, orgPost, orgPatch, orgDelete } from '@/lib/orgApi'
 import { apiClient } from '@/lib/api'
@@ -45,8 +46,11 @@ function Modal({ title, onClose, children, wide }: { title: string; onClose: () 
 // ── Section Comptes bancaires ────────────────────────────────────────────────
 
 function BankAccountsSection() {
-  const [items, setItems] = useState<BankAccount[]>([])
-  const [loading, setLoading] = useState(true)
+  const qc = useQueryClient()
+  const { data: items = [], isLoading: loading } = useQuery({
+    queryKey: ['bank-accounts'],
+    queryFn: () => orgGet<BankAccount[]>('/billing/bank-accounts'),
+  })
   const [modal, setModal] = useState<BankAccount | 'new' | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -56,14 +60,6 @@ function BankAccountsSection() {
   const [iban, setIban] = useState('')
   const [bic, setBic] = useState('')
   const [isDefault, setIsDefault] = useState(false)
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    try { setItems(await orgGet<BankAccount[]>('/billing/bank-accounts')) } catch { /* */ }
-    setLoading(false)
-  }, [])
-
-  useEffect(() => { void load() }, [load])
 
   function openModal(item: BankAccount | 'new') {
     if (item === 'new') {
@@ -85,14 +81,14 @@ function BankAccountsSection() {
         await orgPatch(`/billing/bank-accounts/${modal.id}`, body)
       }
       setModal(null)
-      await load()
+      await qc.invalidateQueries({ queryKey: ['bank-accounts'] })
     } catch { /* */ }
     setSaving(false)
   }
 
   async function handleDelete(id: string) {
     if (!confirm('Supprimer ce compte bancaire ?')) return
-    try { await orgDelete(`/billing/bank-accounts/${id}`); await load() } catch { /* */ }
+    try { await orgDelete(`/billing/bank-accounts/${id}`); await qc.invalidateQueries({ queryKey: ['bank-accounts'] }) } catch { /* */ }
   }
 
   async function handleRibUpload(accountId: string) {
@@ -112,7 +108,7 @@ function BankAccountsSection() {
             ...(orgId ? { 'X-Organization-Id': orgId } : {}),
           },
         })
-        await load()
+        await qc.invalidateQueries({ queryKey: ['bank-accounts'] })
       } catch { /* */ }
     }
     input.click()
@@ -120,7 +116,7 @@ function BankAccountsSection() {
 
   async function handleRibDelete(accountId: string) {
     if (!confirm('Supprimer le RIB ?')) return
-    try { await orgDelete(`/billing/bank-accounts/${accountId}/rib`); await load() } catch { /* */ }
+    try { await orgDelete(`/billing/bank-accounts/${accountId}/rib`); await qc.invalidateQueries({ queryKey: ['bank-accounts'] }) } catch { /* */ }
   }
 
   return (
@@ -201,21 +197,16 @@ function BankAccountsSection() {
 // ── Section Profils de facturation ──────────────────────────────────────────
 
 function BillingProfilesSection() {
-  const [items, setItems] = useState<BillingProfileData[]>([])
-  const [loading, setLoading] = useState(true)
+  const qc = useQueryClient()
+  const { data: items = [], isLoading: loading } = useQuery({
+    queryKey: ['billing-profiles'],
+    queryFn: () => orgGet<BillingProfileData[]>('/billing/profiles'),
+  })
   const [modal, setModal] = useState<BillingProfileData | 'new' | null>(null)
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    try { setItems(await orgGet<BillingProfileData[]>('/billing/profiles')) } catch { /* */ }
-    setLoading(false)
-  }, [])
-
-  useEffect(() => { void load() }, [load])
 
   async function handleDelete(id: string) {
     if (!confirm('Supprimer ce profil de facturation ?')) return
-    try { await orgDelete(`/billing/profiles/${id}`); await load() } catch { /* */ }
+    try { await orgDelete(`/billing/profiles/${id}`); await qc.invalidateQueries({ queryKey: ['billing-profiles'] }) } catch { /* */ }
   }
 
   return (
@@ -260,7 +251,7 @@ function BillingProfilesSection() {
         <BillingProfileModal
           profile={modal === 'new' ? null : modal}
           onClose={() => setModal(null)}
-          onSaved={load}
+          onSaved={() => qc.invalidateQueries({ queryKey: ['billing-profiles'] })}
         />
       )}
     </section>
@@ -270,22 +261,22 @@ function BillingProfilesSection() {
 // ── Section Unités ────────────────────────────────────────────────────────────
 
 function UnitsSection() {
+  const qc = useQueryClient()
+  const { data: queryData, isLoading: loading } = useQuery({
+    queryKey: ['units'],
+    queryFn: () => orgGet<Unit[]>('/billing/units'),
+  })
   const [items, setItems] = useState<Unit[]>([])
   const [edits, setEdits] = useState<Record<string, string>>({})
-  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [synced, setSynced] = useState<Unit[] | undefined>(undefined)
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const data = await orgGet<Unit[]>('/billing/units')
-      setItems(data)
-      setEdits(Object.fromEntries(data.map((u) => [u.id, u.label])))
-    } catch { /* */ }
-    setLoading(false)
-  }, [])
-
-  useEffect(() => { void load() }, [load])
+  // Sync local state when query data changes
+  if (queryData && queryData !== synced) {
+    setSynced(queryData)
+    setItems(queryData)
+    setEdits(Object.fromEntries(queryData.map((u) => [u.id, u.label])))
+  }
 
   function addRow() {
     setItems((prev) => [...prev, { id: '__new__', label: '', position: prev.length }])
@@ -298,7 +289,7 @@ function UnitsSection() {
       setEdits((prev) => { const { __new__, ...rest } = prev; return rest })
       return
     }
-    try { await orgDelete(`/billing/units/${id}`); await load() } catch { /* */ }
+    try { await orgDelete(`/billing/units/${id}`); await qc.invalidateQueries({ queryKey: ['units'] }) } catch { /* */ }
   }
 
   async function handleSave() {
@@ -317,7 +308,7 @@ function UnitsSection() {
           await orgPatch(`/billing/units/${item.id}`, { label: edits[item.id].trim() })
         }
       }
-      await load()
+      await qc.invalidateQueries({ queryKey: ['units'] })
     } catch { /* */ }
     setSaving(false)
   }
@@ -377,22 +368,22 @@ interface PaymentMethodItem {
 }
 
 function PaymentMethodsSection() {
+  const qc = useQueryClient()
+  const { data: queryData, isLoading: loading } = useQuery({
+    queryKey: ['payment-methods'],
+    queryFn: () => orgGet<PaymentMethodItem[]>('/billing/payment-methods'),
+  })
   const [items, setItems] = useState<PaymentMethodItem[]>([])
   const [edits, setEdits] = useState<Record<string, string>>({})
-  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [synced, setSynced] = useState<PaymentMethodItem[] | undefined>(undefined)
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const data = await orgGet<PaymentMethodItem[]>('/billing/payment-methods')
-      setItems(data)
-      setEdits(Object.fromEntries(data.map((m) => [m.id, m.label])))
-    } catch { /* */ }
-    setLoading(false)
-  }, [])
-
-  useEffect(() => { void load() }, [load])
+  // Sync local state when query data changes
+  if (queryData && queryData !== synced) {
+    setSynced(queryData)
+    setItems(queryData)
+    setEdits(Object.fromEntries(queryData.map((m) => [m.id, m.label])))
+  }
 
   function addRow() {
     setItems((prev) => [...prev, { id: '__new__', label: '', position: prev.length }])
@@ -405,7 +396,7 @@ function PaymentMethodsSection() {
       setEdits((prev) => { const { __new__, ...rest } = prev; return rest })
       return
     }
-    try { await orgDelete(`/billing/payment-methods/${id}`); await load() } catch { /* */ }
+    try { await orgDelete(`/billing/payment-methods/${id}`); await qc.invalidateQueries({ queryKey: ['payment-methods'] }) } catch { /* */ }
   }
 
   async function handleSave() {
@@ -424,7 +415,7 @@ function PaymentMethodsSection() {
           await orgPatch(`/billing/payment-methods/${item.id}`, { label: edits[item.id].trim() })
         }
       }
-      await load()
+      await qc.invalidateQueries({ queryKey: ['payment-methods'] })
     } catch { /* */ }
     setSaving(false)
   }
@@ -480,16 +471,19 @@ function PaymentMethodsSection() {
 interface VatRate { rate: string; label: string }
 
 function VatRatesSection() {
+  const { data: queryData, isLoading: loading } = useQuery({
+    queryKey: ['vat-rates'],
+    queryFn: () => orgGet<VatRate[]>('/billing/vat-rates'),
+  })
   const [rates, setRates] = useState<VatRate[]>([])
-  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [synced, setSynced] = useState<VatRate[] | undefined>(undefined)
 
-  useEffect(() => {
-    orgGet<VatRate[]>('/billing/vat-rates')
-      .then(setRates)
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
+  // Sync local state when query data changes
+  if (queryData && queryData !== synced) {
+    setSynced(queryData)
+    setRates(queryData)
+  }
 
   function updateRate(index: number, field: keyof VatRate, value: string) {
     setRates((prev) => prev.map((r, i) => i === index ? { ...r, [field]: value } : r))
@@ -602,16 +596,19 @@ const DECIMAL_OPTIONS = [
 ]
 
 function RoundingSection() {
+  const { data: queryData, isLoading: loading } = useQuery({
+    queryKey: ['rounding'],
+    queryFn: () => orgGet<RoundingConfig>('/billing/rounding'),
+  })
   const [config, setConfig] = useState<RoundingConfig | null>(null)
-  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [synced, setSynced] = useState<RoundingConfig | undefined>(undefined)
 
-  useEffect(() => {
-    orgGet<RoundingConfig>('/billing/rounding')
-      .then(setConfig)
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
+  // Sync local state when query data changes
+  if (queryData && queryData !== synced) {
+    setSynced(queryData)
+    setConfig(queryData)
+  }
 
   async function handleChange(key: keyof RoundingConfig, value: number) {
     if (!config) return
