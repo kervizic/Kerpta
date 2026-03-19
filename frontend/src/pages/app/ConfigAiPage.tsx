@@ -134,7 +134,7 @@ export default function ConfigAiPage() {
       setModels(modRes.data)
       setUsage(usageRes.data)
       setAiEnabled(cfgRes.data.ai_enabled)
-      setLitellmUrl(cfgRes.data.ai_litellm_base_url || '')
+      setLitellmUrl(cfgRes.data.ai_litellm_base_url || 'http://litellm:4000')
       setRoleVl(cfgRes.data.roles?.vl?.id || '')
       setRoleInstruct(cfgRes.data.roles?.instruct?.id || '')
       setRoleThinking(cfgRes.data.roles?.thinking?.id || '')
@@ -265,14 +265,21 @@ export default function ConfigAiPage() {
   // ── Rendu ──────────────────────────────────────────────────────────────────
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
-      <h1 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-        <BrainCircuit className="w-5 h-5 text-kerpta" />
-        Intelligence Artificielle
-      </h1>
+    <div className="flex-1 overflow-y-auto p-8">
+      <div className="max-w-2xl mx-auto space-y-6">
+      {/* En-tete */}
+      <div className="flex items-center gap-3 mb-8">
+        <div className="w-10 h-10 rounded-xl bg-kerpta-50 border border-kerpta-200 flex items-center justify-center">
+          <BrainCircuit className="w-5 h-5 text-kerpta" />
+        </div>
+        <div>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Intelligence Artificielle</h1>
+          <p className="text-sm text-gray-500">Configuration du proxy LiteLLM, fournisseurs et modeles</p>
+        </div>
+      </div>
 
       {/* Section 1 - General */}
-      <section className={CARD}>
+      <section className={CARD + ' p-5'}>
         {sectionHeader('general', 'General', <Settings2 className="w-4 h-4 text-gray-400" />)}
         {openSections.general && (
           <div className="space-y-4 pt-2">
@@ -306,7 +313,7 @@ export default function ConfigAiPage() {
       </section>
 
       {/* Section 2 - Fournisseurs */}
-      <section className={CARD}>
+      <section className={CARD + ' p-5'}>
         {sectionHeader('providers', 'Fournisseurs', <Cpu className="w-4 h-4 text-gray-400" />)}
         {openSections.providers && (
           <div className="space-y-3 pt-2">
@@ -347,7 +354,7 @@ export default function ConfigAiPage() {
       </section>
 
       {/* Section 3 - Modeles */}
-      <section className={CARD}>
+      <section className={CARD + ' p-5'}>
         {sectionHeader('models', 'Modeles', <BrainCircuit className="w-4 h-4 text-gray-400" />)}
         {openSections.models && (
           <div className="space-y-4 pt-2">
@@ -388,7 +395,7 @@ export default function ConfigAiPage() {
       </section>
 
       {/* Section 4 - Roles */}
-      <section className={CARD}>
+      <section className={CARD + ' p-5'}>
         {sectionHeader('roles', 'Roles', <Eye className="w-4 h-4 text-gray-400" />)}
         {openSections.roles && (
           <div className="space-y-4 pt-2">
@@ -421,7 +428,7 @@ export default function ConfigAiPage() {
       </section>
 
       {/* Section 5 - Fonctionnalites */}
-      <section className={CARD}>
+      <section className={CARD + ' p-5'}>
         {sectionHeader('features', 'Fonctionnalites', <Settings2 className="w-4 h-4 text-gray-400" />)}
         {openSections.features && (
           <div className="space-y-3 pt-2">
@@ -452,7 +459,7 @@ export default function ConfigAiPage() {
       </section>
 
       {/* Section 6 - Usage */}
-      <section className={CARD}>
+      <section className={CARD + ' p-5'}>
         {sectionHeader('usage', 'Usage (30 jours)', <BarChart3 className="w-4 h-4 text-gray-400" />)}
         {openSections.usage && usage && (
           <div className="space-y-4 pt-2">
@@ -559,6 +566,7 @@ export default function ConfigAiPage() {
           </div>
         </div>
       )}
+    </div>
     </div>
   )
 }
