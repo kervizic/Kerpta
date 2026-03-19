@@ -37,8 +37,9 @@ router = APIRouter(prefix="/api/admin/ai", tags=["Admin IA"])
 
 async def _auto_enable_ai_if_models(db: AsyncSession) -> None:
     """Active automatiquement l'IA plateforme + toutes les orgs si des modeles actifs existent."""
-    count = await db.execute(text("SELECT COUNT(*) FROM ai_models WHERE is_active = true"))
-    if count.scalar() and count.scalar() > 0:
+    result = await db.execute(text("SELECT COUNT(*) FROM ai_models WHERE is_active = true"))
+    nb = result.scalar() or 0
+    if nb > 0:
         await db.execute(text("UPDATE platform_config SET ai_enabled = true, updated_at = now() WHERE ai_enabled = false"))
         await db.execute(text("UPDATE organizations SET module_ai_enabled = true WHERE module_ai_enabled = false"))
         await db.commit()
@@ -470,6 +471,9 @@ async def get_config(
     _admin: uuid_mod.UUID = Depends(require_platform_admin),
     db: AsyncSession = Depends(get_db),
 ):
+    # Auto-active l'IA si des modeles existent (rattrapage)
+    await _auto_enable_ai_if_models(db)
+
     result = await db.execute(
         text("""
             SELECT ai_enabled, ai_litellm_base_url, ai_litellm_master_key, ai_features,

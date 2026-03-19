@@ -31,12 +31,28 @@ async def _require_ai_enabled(
     db: AsyncSession,
     org_id: UUID,
 ) -> None:
-    """Verifie que l'IA est active sur la plateforme ET sur l'organisation."""
+    """Verifie que l'IA est active sur la plateforme ET sur l'organisation.
+
+    Auto-active les deux si des modeles IA actifs existent (rattrapage).
+    """
+    # Compter les modeles actifs (pour auto-activation eventuelle)
+    models_result = await db.execute(
+        text("SELECT COUNT(*) FROM ai_models WHERE is_active = true")
+    )
+    nb_models = models_result.scalar() or 0
+
     # Plateforme
     cfg = await db.execute(text("SELECT ai_enabled FROM platform_config LIMIT 1"))
     row = cfg.fetchone()
     if not row or not row[0]:
-        raise HTTPException(503, "Module IA non active sur la plateforme")
+        if nb_models > 0:
+            # Auto-active la plateforme
+            await db.execute(text(
+                "UPDATE platform_config SET ai_enabled = true, updated_at = now() WHERE ai_enabled = false"
+            ))
+            await db.commit()
+        else:
+            raise HTTPException(503, "Module IA non active sur la plateforme - ajoutez un fournisseur avec des modeles")
 
     # Organisation
     org = await db.execute(
@@ -47,7 +63,15 @@ async def _require_ai_enabled(
     if not org_row:
         raise HTTPException(404, "Organisation introuvable")
     if not org_row[0]:
-        raise HTTPException(403, "Module IA non active pour cette organisation")
+        if nb_models > 0:
+            # Auto-active l'organisation
+            await db.execute(
+                text("UPDATE organizations SET module_ai_enabled = true WHERE id = :oid"),
+                {"oid": str(org_id)},
+            )
+            await db.commit()
+        else:
+            raise HTTPException(403, "Module IA non active pour cette organisation")
 
 
 @router.post("/ocr", response_model=AiOcrResponse)
