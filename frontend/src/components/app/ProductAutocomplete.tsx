@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { orgGet } from '@/lib/orgApi'
+import { fmtPrice } from '@/lib/formatting'
 
 export interface AutocompleteProduct {
   id: string
@@ -109,10 +110,6 @@ export default function ProductAutocomplete({
     }
   }, [])
 
-  function fmtPrice(v: number | null): string {
-    if (v == null) return ''
-    return Number(v).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
-  }
 
   return (
     <div ref={ref} className="relative">

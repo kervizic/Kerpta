@@ -3,6 +3,7 @@
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
 import { useEffect, useState } from 'react'
+import { fmtCurrencyRounded as formatCurrency } from '@/lib/formatting'
 import {
   Building2, MapPin, Briefcase, Users, UserRound,
   TrendingUp, FileText, Loader2, ExternalLink, Info,
@@ -128,10 +129,6 @@ function formatDate(d: string | null | undefined): string {
   }
 }
 
-function formatCurrency(v: number | null | undefined): string {
-  if (v == null) return '—'
-  return v.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })
-}
 
 // ── Composant ────────────────────────────────────────────────────────────────
 

@@ -2,13 +2,15 @@
 // Copyright (C) 2026 Emmanuel Kervizic
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Loader2, BarChart3, Filter } from 'lucide-react'
 import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
 import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
 import MobileFilterPanel from '@/components/app/MobileFilterPanel'
 import PageLayout from '@/components/app/PageLayout'
 import { BTN, OVERLAY_BACKDROP, OVERLAY_PANEL, CARD } from '@/lib/formStyles'
+import { fmtCurrency } from '@/lib/formatting'
 
 interface Contract {
   id: string
@@ -79,9 +81,6 @@ const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
   cancelled: { label: 'Annulé', cls: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400' },
 }
 
-function fmtCurrency(v: number) {
-  return Number(v).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
-}
 
 // ── Filtres colonnes ──────────────────────────────────────────────────────────
 
@@ -106,22 +105,20 @@ const CONTRACT_FILTERS: FilterOption[] = [
 // ── Liste ─────────────────────────────────────────────────────────────────────
 
 function ContractsList() {
-  const [contracts, setContracts] = useState<Contract[]>([])
-  const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [filters, setFilters] = useState<FilterValues>({})
-  const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [showMobileFilters, setShowMobileFilters] = useState(false)
+  const qc = useQueryClient()
 
-  const updateFilter = useCallback((column: string, value: string | string[]) => {
+  const updateFilter = (column: string, value: string | string[]) => {
     setFilters((prev) => ({ ...prev, [column]: value }))
     setPage(1)
-  }, [])
+  }
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ['contracts', { page, filters }],
+    queryFn: async () => {
       const params: Record<string, string | number | undefined> = { page }
 
       if (filters.type) params.contract_type = filters.type as string
@@ -141,17 +138,13 @@ function ContractsList() {
         items = items.filter((c) => statusArr.includes(c.status))
       }
 
-      setContracts(items)
-      setTotal(data.total)
-    } catch { /* ignore */ }
-    setLoading(false)
-  }, [page, filters])
+      return { items, total: data.total }
+    },
+  })
+  const contracts = data?.items ?? []
+  const total = data?.total ?? 0
 
-  // Debounce pour les filtres texte
-  useEffect(() => {
-    const timer = setTimeout(() => { void load() }, 300)
-    return () => clearTimeout(timer)
-  }, [load])
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['contracts'] })
 
   const activeFilterCount = Object.values(filters).filter((v) =>
     (typeof v === 'string' && v) || (Array.isArray(v) && v.some(Boolean))
@@ -254,7 +247,7 @@ function ContractsList() {
         {selectedId && (
           <ContractDetailPanel
             contractId={selectedId}
-            onClose={() => { setSelectedId(null); void load() }}
+            onClose={() => { setSelectedId(null); void invalidate() }}
           />
         )}
 

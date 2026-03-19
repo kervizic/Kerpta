@@ -2,12 +2,14 @@
 // Copyright (C) 2026 Emmanuel Kervizic
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Plus, Search, Loader2, Trash2, Archive, ArchiveRestore, Pencil,
   Layers, ShoppingCart, Users, BarChart3, X,
 } from 'lucide-react'
 import { orgGet, orgPost, orgPatch, orgDelete } from '@/lib/orgApi'
+import { fmtPrice } from '@/lib/formatting'
 import PageLayout from '@/components/app/PageLayout'
 import { useAuthStore } from '@/stores/authStore'
 import UnitCombobox from '@/components/app/UnitCombobox'
@@ -97,10 +99,10 @@ function httpError(err: unknown, fallback: string): string {
 
 import { INPUT, SELECT, BTN } from '@/lib/formStyles'
 const BTN_SECONDARY = 'px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition'
-
-function fmtPrice(v: number | null | undefined): string {
+  if (v == null) return 'X'
+// REMOVE_LINE_ABOVE_AND_BELOW
   if (v == null) return '—'
-  return Number(v).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' \u20ac'
+  return 'DELETEME2'\u20ac'
 }
 
 // ── Sub-routing ─────────────────────────────────────────────────────────────
@@ -116,28 +118,25 @@ export default function CatalogPage({ path }: { path: string }) {
 // ── Liste des articles ──────────────────────────────────────────────────────
 
 function ProductsList({ initialSelectedId }: { initialSelectedId?: string } = {}) {
-  const [products, setProducts] = useState<Product[]>([])
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
-  const [total, setTotal] = useState(0)
   const [showArchived, setShowArchived] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId ?? null)
   const [showNewModal, setShowNewModal] = useState(false)
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
+  const qc = useQueryClient()
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['catalog'] })
+
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ['catalog', { search, page, showArchived }],
+    queryFn: async () => {
       const params: Record<string, unknown> = { search: search || undefined, page }
       if (showArchived) params.include_archived = true
-      const data = await orgGet<{ items: Product[]; total: number }>('/catalog/products', params)
-      setProducts(data.items)
-      setTotal(data.total)
-    } catch { /* ignore */ }
-    setLoading(false)
-  }, [page, search, showArchived])
-
-  useEffect(() => { void load() }, [load])
+      return orgGet<{ items: Product[]; total: number }>('/catalog/products', params)
+    },
+  })
+  const products = data?.items ?? []
+  const total = data?.total ?? 0
 
   return (
     <PageLayout
@@ -247,7 +246,7 @@ function ProductsList({ initialSelectedId }: { initialSelectedId?: string } = {}
         {selectedId && (
           <ProductDetailModal
             productId={selectedId}
-            onClose={() => { setSelectedId(null); void load() }}
+            onClose={() => { setSelectedId(null); void invalidate() }}
           />
         )}
 
@@ -255,7 +254,7 @@ function ProductsList({ initialSelectedId }: { initialSelectedId?: string } = {}
         {showNewModal && (
           <NewProductModal
             onClose={() => setShowNewModal(false)}
-            onCreated={(id) => { setShowNewModal(false); setSelectedId(id); void load() }}
+            onCreated={(id) => { setShowNewModal(false); setSelectedId(id); void invalidate() }}
           />
         )}
     </PageLayout>
@@ -363,22 +362,22 @@ export function ProductDetailModal({ productId, onClose }: { productId: string; 
   const activeOrg = orgs?.find((o) => o.org_id === activeOrgId)
   const isAccountant = activeOrg?.role === 'owner' || activeOrg?.role === 'accountant'
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const p = await orgGet<Product>(`/catalog/products/${productId}`)
-      setProduct(p)
-    } catch { onClose() }
-    setLoading(false)
-  }, [productId, onClose])
-
-  useEffect(() => { void load() }, [load])
+  const qcDetail = useQueryClient()
+  const { data: fetchedProduct, isLoading: loading } = useQuery({
+    queryKey: ['catalog-product', productId],
+    queryFn: async () => {
+      try { return await orgGet<Product>(`/catalog/products/${productId}`) }
+      catch { onClose(); return null }
+    },
+  })
+  useEffect(() => { if (fetchedProduct) setProduct(fetchedProduct) }, [fetchedProduct])
+  const reloadProduct = () => void qcDetail.invalidateQueries({ queryKey: ['catalog-product', productId] })
 
   async function saveField(field: string, value: unknown) {
     setSavingField(true)
     try {
       await orgPatch(`/catalog/products/${productId}`, { [field]: value })
-      void load()
+      reloadProduct()
     } catch { /* ignore */ }
     setSavingField(false)
     setEditingName(false)
@@ -399,7 +398,7 @@ export function ProductDetailModal({ productId, onClose }: { productId: string; 
     setUnarchiving(true)
     try {
       await orgPatch(`/catalog/products/${productId}/unarchive`, {})
-      void load()
+      reloadProduct()
     } catch { /* ignore */ }
     setUnarchiving(false)
   }
@@ -703,30 +702,25 @@ function EditableInfoCard({ label, value, editingField, fieldKey, editFieldValue
 // ── Onglet Variantes client ─────────────────────────────────────────────────
 
 function VariantsTab({ productId }: { productId: string }) {
-  const [variants, setVariants] = useState<Variant[]>([])
-  const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
-  const [clients, setClients] = useState<ClientSimple[]>([])
+  const qcV = useQueryClient()
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const data = await orgGet<Variant[]>(`/catalog/products/${productId}/variants`)
-      setVariants(data)
-    } catch { /* ignore */ }
-    setLoading(false)
-  }, [productId])
+  const { data: variants = [], isLoading: loading } = useQuery({
+    queryKey: ['catalog-variants', productId],
+    queryFn: () => orgGet<Variant[]>(`/catalog/products/${productId}/variants`),
+  })
+  const invalidateV = () => void qcV.invalidateQueries({ queryKey: ['catalog-variants', productId] })
 
-  useEffect(() => { void load() }, [load])
-
-  useEffect(() => {
-    orgGet<{ items: ClientSimple[] }>('/clients', { page_size: 100 }).then(d => setClients(d.items)).catch(() => {})
-  }, [])
+  const { data: clientsData } = useQuery({
+    queryKey: ['clients-simple'],
+    queryFn: () => orgGet<{ items: ClientSimple[] }>('/clients', { page_size: 100 }),
+  })
+  const clients = clientsData?.items ?? []
 
   async function handleDelete(variantId: string) {
     try {
       await orgDelete(`/catalog/products/${productId}/variants/${variantId}`)
-      void load()
+      invalidateV()
     } catch { /* ignore */ }
   }
 
@@ -785,7 +779,7 @@ function VariantsTab({ productId }: { productId: string }) {
 
       {showForm && (
         <VariantFormModal productId={productId} clients={clients}
-          onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); void load() }} />
+          onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); invalidateV() }} />
       )}
     </div>
   )
@@ -856,25 +850,19 @@ function VariantFormModal({ productId, clients, onClose, onSaved }: {
 // ── Onglet Achats liés ──────────────────────────────────────────────────────
 
 function PurchaseLinksTab({ productId }: { productId: string }) {
-  const [links, setLinks] = useState<PurchaseLink[]>([])
-  const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const qcPL = useQueryClient()
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const data = await orgGet<PurchaseLink[]>(`/catalog/products/${productId}/purchase-links`)
-      setLinks(data)
-    } catch { /* ignore */ }
-    setLoading(false)
-  }, [productId])
-
-  useEffect(() => { void load() }, [load])
+  const { data: links = [], isLoading: loading } = useQuery({
+    queryKey: ['catalog-purchase-links', productId],
+    queryFn: () => orgGet<PurchaseLink[]>(`/catalog/products/${productId}/purchase-links`),
+  })
+  const invalidatePL = () => void qcPL.invalidateQueries({ queryKey: ['catalog-purchase-links', productId] })
 
   async function handleDelete(linkId: string) {
     try {
       await orgDelete(`/catalog/products/${productId}/purchase-links/${linkId}`)
-      void load()
+      invalidatePL()
     } catch { /* ignore */ }
   }
 
@@ -938,7 +926,7 @@ function PurchaseLinksTab({ productId }: { productId: string }) {
 
       {showForm && (
         <PurchaseLinkFormModal productId={productId}
-          onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); void load() }} />
+          onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); invalidatePL() }} />
       )}
     </div>
   )
@@ -1026,25 +1014,19 @@ function PurchaseLinkFormModal({ productId, onClose, onSaved }: {
 // ── Onglet Paliers quantit&eacute; ─────────────────────────────────────────────────
 
 function QuantityDiscountsTab({ productId }: { productId: string }) {
-  const [discounts, setDiscounts] = useState<QuantityDiscount[]>([])
-  const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const qcQD = useQueryClient()
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const data = await orgGet<QuantityDiscount[]>(`/catalog/products/${productId}/quantity-discounts`)
-      setDiscounts(data)
-    } catch { /* ignore */ }
-    setLoading(false)
-  }, [productId])
-
-  useEffect(() => { void load() }, [load])
+  const { data: discounts = [], isLoading: loading } = useQuery({
+    queryKey: ['catalog-quantity-discounts', productId],
+    queryFn: () => orgGet<QuantityDiscount[]>(`/catalog/products/${productId}/quantity-discounts`),
+  })
+  const invalidateQD = () => void qcQD.invalidateQueries({ queryKey: ['catalog-quantity-discounts', productId] })
 
   async function handleDelete(discountId: string) {
     try {
       await orgDelete(`/catalog/products/${productId}/quantity-discounts/${discountId}`)
-      void load()
+      invalidateQD()
     } catch { /* ignore */ }
   }
 
@@ -1092,7 +1074,7 @@ function QuantityDiscountsTab({ productId }: { productId: string }) {
 
       {showForm && (
         <DiscountFormModal productId={productId}
-          onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); void load() }} />
+          onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); invalidateQD() }} />
       )}
     </div>
   )

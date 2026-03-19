@@ -2,7 +2,8 @@
 // Copyright (C) 2026 Emmanuel Kervizic
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { adminClient } from '@/lib/api'
 import { useAuthStore } from '@/stores/authStore'
 import {
@@ -90,11 +91,7 @@ const FEATURES = [
 
 export default function ConfigAiPage() {
   const { isAdmin } = useAuthStore()
-  const [loading, setLoading] = useState(true)
-  const [config, setConfig] = useState<AiConfig | null>(null)
-  const [providers, setProviders] = useState<AiProvider[]>([])
-  const [models, setModels] = useState<AiModel[]>([])
-  const [usage, setUsage] = useState<UsageStats | null>(null)
+  const qc = useQueryClient()
   const [saving, setSaving] = useState(false)
 
   // Config form state
@@ -122,36 +119,41 @@ export default function ConfigAiPage() {
 
   const toggleSection = (s: string) => setOpenSections((prev) => ({ ...prev, [s]: !prev[s] }))
 
-  const fetchAll = useCallback(async () => {
-    try {
+  const { data: queryData, isLoading: loading } = useQuery({
+    queryKey: ['ai-config'],
+    queryFn: async () => {
       const [cfgRes, provRes, modRes, usageRes] = await Promise.all([
         adminClient.get('/ai/config'),
         adminClient.get('/ai/providers'),
         adminClient.get('/ai/models'),
         adminClient.get('/ai/usage'),
       ])
-      setConfig(cfgRes.data)
-      setProviders(provRes.data)
-      setModels(modRes.data)
-      setUsage(usageRes.data)
-      setAiEnabled(cfgRes.data.ai_enabled)
-      setLitellmUrl(cfgRes.data.ai_litellm_base_url || 'http://litellm:4000')
-      setRoleVl(cfgRes.data.roles?.vl?.id || '')
-      setRoleInstruct(cfgRes.data.roles?.instruct?.id || '')
-      setRoleThinking(cfgRes.data.roles?.thinking?.id || '')
-      setFeatures(cfgRes.data.ai_features || {})
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+      return {
+        config: cfgRes.data as AiConfig,
+        providers: provRes.data as AiProvider[],
+        models: modRes.data as AiModel[],
+        usage: usageRes.data as UsageStats,
+      }
+    },
+    enabled: isAdmin === true,
+  })
+
+  const config = queryData?.config ?? null
+  const providers = queryData?.providers ?? []
+  const models = queryData?.models ?? []
+  const usage = queryData?.usage ?? null
+
+  const invalidate = () => void qc.invalidateQueries({ queryKey: ['ai-config'] })
 
   useEffect(() => {
-    if (isAdmin === null) return
-    if (!isAdmin) return
-    fetchAll()
-  }, [isAdmin, fetchAll])
+    if (!config) return
+    setAiEnabled(config.ai_enabled)
+    setLitellmUrl(config.ai_litellm_base_url || 'http://litellm:4000')
+    setRoleVl(config.roles?.vl?.id || '')
+    setRoleInstruct(config.roles?.instruct?.id || '')
+    setRoleThinking(config.roles?.thinking?.id || '')
+    setFeatures(config.ai_features || {})
+  }, [config])
 
   if (isAdmin === null) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-kerpta" /></div>
   if (!isAdmin) return <div className="max-w-4xl mx-auto px-6 py-8"><p className="text-red-500">Acces reserve aux administrateurs plateforme.</p></div>
@@ -203,19 +205,19 @@ export default function ConfigAiPage() {
   async function testProvider(id: string) {
     const res = await adminClient.post(`/ai/providers/${id}/test`)
     alert(res.data.message)
-    fetchAll()
+    invalidate()
   }
 
   async function syncProvider(id: string) {
     const res = await adminClient.post(`/ai/providers/${id}/sync`)
     alert(res.data.message)
-    fetchAll()
+    invalidate()
   }
 
   async function deleteProvider(id: string) {
     if (!confirm('Supprimer ce fournisseur et tous ses modeles ?')) return
     await adminClient.delete(`/ai/providers/${id}`)
-    fetchAll()
+    invalidate()
   }
 
   async function saveProvider() {
@@ -226,18 +228,18 @@ export default function ConfigAiPage() {
     }
     setShowProviderModal(false)
     setEditProvider(null)
-    fetchAll()
+    invalidate()
   }
 
   async function toggleModel(id: string, active: boolean) {
     await adminClient.put(`/ai/models/${id}`, { is_active: !active })
-    fetchAll()
+    invalidate()
   }
 
   async function deleteModel(id: string) {
     if (!confirm('Supprimer ce modele ?')) return
     await adminClient.delete(`/ai/models/${id}`)
-    fetchAll()
+    invalidate()
   }
 
   async function testRoles() {

@@ -2,7 +2,8 @@
 // Copyright (C) 2026 Emmanuel Kervizic
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Loader2, Send, Check, X, Copy, Plus, Trash2, RefreshCw, Pencil, FileDown, Archive, ArchiveRestore,
 } from 'lucide-react'
@@ -18,6 +19,7 @@ import { CreateClientForm } from '@/pages/app/ClientsPage'
 import { ProductDetailModal } from '@/pages/app/CatalogPage'
 import PageLayout from '@/components/app/PageLayout'
 import { INPUT, SELECT, LINE_INPUT, LINE_SELECT, BTN, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER, BADGE_COUNT, CARD } from '@/lib/formStyles'
+import { fmtCurrency } from '@/lib/formatting'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -113,9 +115,6 @@ interface DocTypeConfig {
 
 const DOC_LABELS: Record<string, string> = { devis: 'Devis', bpu: 'BPU', attachement: 'Attachement' }
 
-function fmtCurrency(v: number) {
-  return Number(v).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
-}
 
 function calcLineHT(line: FormLine): number {
   const qty = parseFloat(line.quantity) || 0
@@ -164,72 +163,74 @@ const QUOTE_FILTERS: FilterOption[] = [
 ]
 
 function QuotesList() {
-  const [quotes, setQuotes] = useState<Quote[]>([])
-  const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [filters, setFilters] = useState<FilterValues>({})
-  const [loading, setLoading] = useState(true)
+  const [debouncedFilters, setDebouncedFilters] = useState<FilterValues>({})
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editId, setEditId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [showMobileFilters, setShowMobileFilters] = useState(false)
   const [docTypeLabels, setDocTypeLabels] = useState<Record<string, string>>(DOC_LABELS)
 
-  // Sélection multiple + archivage
+  // Selection multiple + archivage
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [showArchived, setShowArchived] = useState(false)
   const [batchLoading, setBatchLoading] = useState(false)
 
-  // Charger les types de documents pour les labels
-  useEffect(() => {
-    orgGet<DocTypeConfig[]>('/billing/quote-document-types')
-      .then((types) => {
-        const labels: Record<string, string> = {}
-        types.forEach((t) => { labels[t.key] = t.title })
-        setDocTypeLabels(labels)
-      })
-      .catch(() => {})
-  }, [])
+  const qc = useQueryClient()
+  const invalidate = () => { setSelected(new Set()); void qc.invalidateQueries({ queryKey: ['quotes'] }) }
 
-  const updateFilter = useCallback((column: string, value: string | string[]) => {
+  // Charger les types de documents
+  const { data: docTypes } = useQuery({
+    queryKey: ['quote-document-types'],
+    queryFn: () => orgGet<DocTypeConfig[]>('/billing/quote-document-types'),
+  })
+  useEffect(() => {
+    if (docTypes) {
+      const labels: Record<string, string> = {}
+      docTypes.forEach((t) => { labels[t.key] = t.title })
+      setDocTypeLabels(labels)
+    }
+  }, [docTypes])
+
+  const updateFilter = (column: string, value: string | string[]) => {
     setFilters((prev) => ({ ...prev, [column]: value }))
     setPage(1)
-  }, [])
+  }
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
+  // Debounce des filtres (300ms)
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  useEffect(() => {
+    debounceRef.current = setTimeout(() => setDebouncedFilters(filters), 300)
+    return () => clearTimeout(debounceRef.current)
+  }, [filters])
+
+  const { data: rawData, isLoading: loading } = useQuery({
+    queryKey: ['quotes', { page, filters: debouncedFilters, showArchived }],
+    queryFn: () => {
       const params: Record<string, string | number | undefined> = { page }
-
-      if (filters.number) params.search = filters.number as string
-      if (filters.type) params.document_type = filters.type as string
-      if (filters.client) params.client_search = filters.client as string
-      const dateArr = filters.date as string[] | undefined
+      if (debouncedFilters.number) params.search = debouncedFilters.number as string
+      if (debouncedFilters.type) params.document_type = debouncedFilters.type as string
+      if (debouncedFilters.client) params.client_search = debouncedFilters.client as string
+      const dateArr = debouncedFilters.date as string[] | undefined
       if (dateArr?.[0]) params.date_from = dateArr[0]
       if (dateArr?.[1]) params.date_to = dateArr[1]
-      const statusArr = filters.status as string[] | undefined
+      const statusArr = debouncedFilters.status as string[] | undefined
       if (statusArr?.length === 1) params.status = statusArr[0]
       if (showArchived) params.archived = 'true'
+      return orgGet<{ items: Quote[]; total: number }>('/quotes', params)
+    },
+  })
 
-      const data = await orgGet<{ items: Quote[]; total: number }>('/quotes', params)
-      let items = data.items
-
-      if (statusArr && statusArr.length > 1) {
-        items = items.filter((q) => statusArr.includes(q.status))
-      }
-
-      setQuotes(items)
-      setTotal(data.total)
-    } catch { /* ignore */ }
-    setSelected(new Set())
-    setLoading(false)
-  }, [page, filters, showArchived])
-
-  // Debounce pour les filtres texte
-  useEffect(() => {
-    const timer = setTimeout(() => { void load() }, 300)
-    return () => clearTimeout(timer)
-  }, [load])
+  const statusArr = debouncedFilters.status as string[] | undefined
+  const quotes = useMemo(() => {
+    let items = rawData?.items ?? []
+    if (statusArr && statusArr.length > 1) {
+      items = items.filter((q) => statusArr.includes(q.status))
+    }
+    return items
+  }, [rawData, statusArr])
+  const total = rawData?.total ?? 0
 
   const activeFilterCount = Object.values(filters).filter((v) =>
     (typeof v === 'string' && v) || (Array.isArray(v) && v.some(Boolean))
@@ -256,7 +257,7 @@ function QuotesList() {
     setBatchLoading(true)
     try {
       await orgPost('/quotes/batch/archive', { ids: [...selected], archive: !showArchived })
-      void load()
+      invalidate()
     } catch { /* */ }
     setBatchLoading(false)
   }
@@ -480,7 +481,7 @@ function QuotesList() {
         {selectedId && (
           <QuoteDetailPanel
             quoteId={selectedId}
-            onClose={() => { setSelectedId(null); void load() }}
+            onClose={() => { setSelectedId(null); invalidate() }}
           />
         )}
 
@@ -488,14 +489,14 @@ function QuotesList() {
         {editId && (
           <QuoteFormPage
             quoteId={editId}
-            onClose={() => { setEditId(null); void load() }}
+            onClose={() => { setEditId(null); invalidate() }}
           />
         )}
 
         {/* Formulaire création en overlay */}
         {showCreate && (
           <QuoteFormPage
-            onClose={() => { setShowCreate(false); void load() }}
+            onClose={() => { setShowCreate(false); invalidate() }}
           />
         )}
 

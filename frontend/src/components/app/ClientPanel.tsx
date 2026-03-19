@@ -8,6 +8,7 @@ import {
   Plus, Trash2, Check, AlertTriangle,
 } from 'lucide-react'
 import { orgGet, orgPost, orgPatch, orgDelete } from '@/lib/orgApi'
+import { fmtCurrency } from '@/lib/formatting'
 import ModalOverlay from '@/components/app/ModalOverlay'
 import { apiClient } from '@/lib/api'
 import CompanyInfoCard from '@/components/app/CompanyInfoCard'
@@ -472,19 +473,19 @@ export default function ClientPanel({ clientId, compact = false, onClose }: Clie
                   </div>
                   <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-center">
                     <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase font-semibold">Facturé</p>
-                    <p className="text-xl font-bold text-gray-900 dark:text-white">{(Number(client.total_invoiced) || 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</p>
+                    <p className="text-xl font-bold text-gray-900 dark:text-white">{fmtCurrency(Number(client.total_invoiced) || 0)}</p>
                   </div>
                   <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-center">
                     <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase font-semibold">Solde</p>
                     <p className={`text-xl font-bold ${(Number(client.balance) || 0) > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                      {(Number(client.balance) || 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                      {fmtCurrency(Number(client.balance) || 0)}
                     </p>
                   </div>
                 </div>
                 <div className="mt-2 grid grid-cols-3 gap-3 text-sm text-gray-500 dark:text-gray-400">
                   <p>Factures : {client.invoice_count ?? 0}</p>
                   <p>Contrats : {client.contract_count ?? 0}</p>
-                  <p>Payé : {(Number(client.total_paid) || 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</p>
+                  <p>Payé : {fmtCurrency(Number(client.total_paid) || 0)}</p>
                 </div>
               </section>
             )}

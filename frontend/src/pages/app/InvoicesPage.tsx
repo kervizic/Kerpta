@@ -2,7 +2,8 @@
 // Copyright (C) 2026 Emmanuel Kervizic
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Loader2, Send, Check, FileText, Plus, Trash2, Pencil, RefreshCw,
   ShieldCheck, Printer, Lock, X, FileDown, Archive, ArchiveRestore,
@@ -20,6 +21,7 @@ import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/comp
 import MobileFilterPanel from '@/components/app/MobileFilterPanel'
 import PageLayout from '@/components/app/PageLayout'
 import { INPUT, SELECT, LINE_INPUT, LINE_SELECT, BTN, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER, BADGE_COUNT, CARD } from '@/lib/formStyles'
+import { fmtCurrency } from '@/lib/formatting'
 import axios from 'axios'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -125,10 +127,6 @@ const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
 
 interface PaymentMethodOption { id: string; label: string; position: number }
 
-function fmtCurrency(v: number) {
-  return Number(v).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
-}
-
 function calcLineHT(line: FormLine): number {
   const qty = parseFloat(line.quantity) || 0
   const price = parseFloat(line.unit_price) || 0
@@ -188,76 +186,68 @@ const INVOICE_FILTERS: FilterOption[] = [
 ]
 
 function InvoicesList() {
-  const [invoices, setInvoices] = useState<Invoice[]>([])
-  const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [filters, setFilters] = useState<FilterValues>({})
-  const [loading, setLoading] = useState(true)
+  const [debouncedFilters, setDebouncedFilters] = useState<FilterValues>({})
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editId, setEditId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [showMobileFilters, setShowMobileFilters] = useState(false)
 
-  // Sélection multiple + archivage
+  // Selection multiple + archivage
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [showArchived, setShowArchived] = useState(false)
   const [batchLoading, setBatchLoading] = useState(false)
 
-  const updateFilter = useCallback((column: string, value: string | string[]) => {
+  const qc = useQueryClient()
+  const invalidate = () => { setSelected(new Set()); void qc.invalidateQueries({ queryKey: ['invoices'] }) }
+
+  const updateFilter = (column: string, value: string | string[]) => {
     setFilters((prev) => ({ ...prev, [column]: value }))
     setPage(1)
-  }, [])
+  }
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
+  // Debounce des filtres (300ms)
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  useEffect(() => {
+    debounceRef.current = setTimeout(() => setDebouncedFilters(filters), 300)
+    return () => clearTimeout(debounceRef.current)
+  }, [filters])
+
+  const { data: rawData, isLoading: loading } = useQuery({
+    queryKey: ['invoices', { page, filters: debouncedFilters, showArchived }],
+    queryFn: () => {
       const params: Record<string, string | boolean | number | undefined> = { page }
-
-      // Numéro
-      if (filters.number) params.search = filters.number as string
-      // Type (facture/avoir)
-      if (filters.type) params.is_credit_note = filters.type === 'true'
-      // Client
-      if (filters.client) params.client_search = filters.client as string
-      // Date
-      const dateArr = filters.date as string[] | undefined
+      if (debouncedFilters.number) params.search = debouncedFilters.number as string
+      if (debouncedFilters.type) params.is_credit_note = debouncedFilters.type === 'true'
+      if (debouncedFilters.client) params.client_search = debouncedFilters.client as string
+      const dateArr = debouncedFilters.date as string[] | undefined
       if (dateArr?.[0]) params.date_from = dateArr[0]
       if (dateArr?.[1]) params.date_to = dateArr[1]
-      // Statut (multi-select → on envoie le premier pour l'instant, filtrage client pour multi)
-      const statusArr = filters.status as string[] | undefined
+      const statusArr = debouncedFilters.status as string[] | undefined
       if (statusArr?.length === 1) params.status = statusArr[0]
       if (showArchived) params.archived = true
+      return orgGet<{ items: Invoice[]; total: number }>('/invoices', params)
+    },
+  })
 
-      const data = await orgGet<{ items: Invoice[]; total: number }>('/invoices', params)
-      let items = data.items
-
-      // Filtrage côté client pour multi-status (le backend ne supporte qu'un seul)
-      if (statusArr && statusArr.length > 1) {
-        items = items.filter((inv) => statusArr.includes(inv.status))
-      }
-
-      // Filtrage côté client pour le paiement
-      const paymentFilter = filters.payment as string | undefined
-      if (paymentFilter === 'no') {
-        items = items.filter((inv) => inv.amount_paid === 0)
-      } else if (paymentFilter === 'partial') {
-        items = items.filter((inv) => inv.amount_paid > 0 && inv.amount_paid < inv.total_ttc)
-      } else if (paymentFilter === 'yes') {
-        items = items.filter((inv) => inv.amount_paid >= inv.total_ttc && inv.total_ttc > 0)
-      }
-
-      setInvoices(items)
-      setTotal(data.total)
-    } catch { /* ignore */ }
-    setSelected(new Set())
-    setLoading(false)
-  }, [page, filters, showArchived])
-
-  // Debounce pour les filtres texte
-  useEffect(() => {
-    const timer = setTimeout(() => { void load() }, 300)
-    return () => clearTimeout(timer)
-  }, [load])
+  const statusArr = debouncedFilters.status as string[] | undefined
+  const paymentFilter = debouncedFilters.payment as string | undefined
+  const invoices = useMemo(() => {
+    let items = rawData?.items ?? []
+    if (statusArr && statusArr.length > 1) {
+      items = items.filter((inv) => statusArr.includes(inv.status))
+    }
+    if (paymentFilter === 'no') {
+      items = items.filter((inv) => inv.amount_paid === 0)
+    } else if (paymentFilter === 'partial') {
+      items = items.filter((inv) => inv.amount_paid > 0 && inv.amount_paid < inv.total_ttc)
+    } else if (paymentFilter === 'yes') {
+      items = items.filter((inv) => inv.amount_paid >= inv.total_ttc && inv.total_ttc > 0)
+    }
+    return items
+  }, [rawData, statusArr, paymentFilter])
+  const total = rawData?.total ?? 0
 
   const activeFilterCount = Object.values(filters).filter((v) =>
     (typeof v === 'string' && v) || (Array.isArray(v) && v.some(Boolean))
@@ -281,7 +271,7 @@ function InvoicesList() {
     setBatchLoading(true)
     try {
       await orgPost('/invoices/batch/archive', { ids: [...selected], archive: !showArchived })
-      void load()
+      invalidate()
     } catch { /* */ }
     setBatchLoading(false)
   }
@@ -512,7 +502,7 @@ function InvoicesList() {
         {selectedId && (
           <InvoiceDetailPanel
             invoiceId={selectedId}
-            onClose={() => { setSelectedId(null); void load() }}
+            onClose={() => { setSelectedId(null); invalidate() }}
           />
         )}
 
@@ -520,14 +510,14 @@ function InvoicesList() {
         {editId && (
           <InvoiceFormPage
             invoiceId={editId}
-            onClose={() => { setEditId(null); void load() }}
+            onClose={() => { setEditId(null); invalidate() }}
           />
         )}
 
         {/* Formulaire création en overlay */}
         {showCreate && (
           <InvoiceFormPage
-            onClose={() => { setShowCreate(false); void load() }}
+            onClose={() => { setShowCreate(false); invalidate() }}
           />
         )}
 

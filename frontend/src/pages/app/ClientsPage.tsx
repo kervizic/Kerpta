@@ -2,7 +2,8 @@
 // Copyright (C) 2026 Emmanuel Kervizic
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Plus, Search, Loader2, Users,
   Building2, MapPin, CheckCircle2,
@@ -111,25 +112,20 @@ function formatSiret(s: string): string {
 // ── Liste des clients ─────────────────────────────────────────────────────────
 
 function ClientsList() {
-  const [clients, setClients] = useState<Client[]>([])
-  const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
-  const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
+  const qc = useQueryClient()
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const data = await orgGet<PaginatedClients>('/clients', { search: search || undefined, page })
-      setClients(data.items)
-      setTotal(data.total)
-    } catch { /* ignore */ }
-    setLoading(false)
-  }, [page, search])
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ['clients', { search, page }],
+    queryFn: () => orgGet<PaginatedClients>('/clients', { search: search || undefined, page }),
+  })
+  const clients = data?.items ?? []
+  const total = data?.total ?? 0
 
-  useEffect(() => { void load() }, [load])
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['clients'] })
 
   return (
     <PageLayout
@@ -221,14 +217,14 @@ function ClientsList() {
       {selectedId && (
         <ClientPanel
           clientId={selectedId}
-          onClose={() => { setSelectedId(null); void load() }}
+          onClose={() => { setSelectedId(null); void invalidate() }}
         />
       )}
 
       {/* ── Modal création client ──────────────────────────────────── */}
       {showCreate && (
         <CreateClientForm
-          onClose={() => { setShowCreate(false); void load() }}
+          onClose={() => { setShowCreate(false); void invalidate() }}
         />
       )}
     </PageLayout>

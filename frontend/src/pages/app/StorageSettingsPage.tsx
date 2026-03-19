@@ -2,7 +2,8 @@
 // Copyright (C) 2026 Emmanuel Kervizic
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { HardDrive, Cloud, Server, CheckCircle2, XCircle, Loader2, Trash2, ExternalLink } from 'lucide-react'
 import { orgGet, orgPost, orgDelete } from '@/lib/orgApi'
 import ModalOverlay from '@/components/app/ModalOverlay'
@@ -305,27 +306,17 @@ function FtpModal({
 // ── Page principale ──────────────────────────────────────────────────────────
 
 export default function StorageSettingsPage() {
-  const [connections, setConnections] = useState<StorageConnection[]>([])
-  const [loading, setLoading] = useState(true)
+  const qc = useQueryClient()
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['storage-connections'] })
+
+  const { data: connections = [], isLoading: loading } = useQuery({
+    queryKey: ['storage-connections'],
+    queryFn: () => orgGet<StorageConnection[]>('/storage/connections').catch(() => [] as StorageConnection[]),
+  })
+
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [ftpOpen, setFtpOpen] = useState(false)
   const [error, setError] = useState('')
-
-  const load = useCallback(async () => {
-    try {
-      const data = await orgGet<StorageConnection[]>('/storage/connections')
-      setConnections(data)
-    } catch {
-      // API pas encore implémentée — pas d'erreur affichée
-      setConnections([])
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    void load()
-  }, [load])
 
   function getConnection(provider: ProviderKey): StorageConnection | null {
     return connections.find((c) => c.provider === provider) ?? null
@@ -356,7 +347,7 @@ export default function StorageSettingsPage() {
     try {
       await orgPost('/storage/connect', { provider: 'ftp', ...data })
       setFtpOpen(false)
-      await load()
+      invalidate()
     } catch {
       setError('Impossible de se connecter au serveur FTP. Vérifiez les paramètres.')
     } finally {
@@ -369,7 +360,7 @@ export default function StorageSettingsPage() {
     setError('')
     try {
       await orgDelete(`/storage/connections/${id}`)
-      await load()
+      invalidate()
     } catch {
       setError('Erreur lors de la déconnexion.')
     } finally {
