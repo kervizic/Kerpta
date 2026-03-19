@@ -231,8 +231,8 @@ async def register_model_in_litellm(
             "model": litellm_model_name,
         },
     }
-    if api_key:
-        body["litellm_params"]["api_key"] = api_key
+    # LiteLLM/OpenAI SDK exige toujours une api_key, meme si le provider n'en a pas
+    body["litellm_params"]["api_key"] = api_key or "no-key-required"
     if base_url:
         body["litellm_params"]["api_base"] = base_url
 
