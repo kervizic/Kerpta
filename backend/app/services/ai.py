@@ -153,12 +153,12 @@ def _get_paddle_pipeline(litellm_url: str, litellm_key: str, model_name: str):
         return _paddle_pipeline
 
     # Workaround : paddlex crashe "PDX has already been initialized" dans les
-    # workers forkes par uvicorn. On reset le flag avant l'import.
-    pdx_mod = sys.modules.get("paddlex")
-    if pdx_mod and hasattr(pdx_mod, "repo_manager"):
-        rm = pdx_mod.repo_manager
-        if hasattr(rm, "_initialized") and rm._initialized:
-            rm._initialized = False
+    # workers forkes par uvicorn ou apres un import partiel echoue.
+    # On nettoie tous les modules paddle* pour forcer un import propre.
+    if "paddleocr" not in sys.modules:
+        stale = [k for k in sys.modules if k.startswith(("paddlex", "paddleocr"))]
+        for k in stale:
+            del sys.modules[k]
 
     from paddleocr import PaddleOCRVL
 
