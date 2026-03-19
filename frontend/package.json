@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "type-check": "tsc --noEmit",
-    "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
+    "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "analyze": "vite build && echo 'Rapport: dist/bundle-stats.html'"
   },
   "dependencies": {
     "react": "^19.0.0",
@@ -44,6 +45,7 @@
     "vitest": "^2.1.8",
     "@testing-library/react": "^16.1.0",
     "@testing-library/jest-dom": "^6.6.3",
-    "jsdom": "^25.0.1"
+    "jsdom": "^25.0.1",
+    "rollup-plugin-visualizer": "^5.12.0"
   }
 }

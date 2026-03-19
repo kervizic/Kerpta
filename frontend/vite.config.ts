@@ -1,12 +1,38 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import { visualizer } from "rollup-plugin-visualizer";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    visualizer({
+      filename: "dist/bundle-stats.html",
+      gzipSize: true,
+      brotliSize: true,
+    }),
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+    },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Separer React en son propre chunk (cache longue duree)
+          "vendor-react": ["react", "react-dom"],
+          // Router + Query ensemble
+          "vendor-tanstack": ["@tanstack/react-router", "@tanstack/react-query"],
+          // Formulaires
+          "vendor-forms": ["react-hook-form", "@hookform/resolvers", "zod"],
+          // Icones (souvent le plus gros)
+          "vendor-icons": ["lucide-react"],
+          // Utilitaires
+          "vendor-utils": ["axios", "date-fns", "zustand"],
+        },
+      },
     },
   },
   server: {
