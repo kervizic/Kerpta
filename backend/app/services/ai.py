@@ -137,6 +137,46 @@ async def _log_usage(
 # ── OCR (role VL) ─────────────────────────────────────────────────────────────
 
 
+# Singleton PaddleOCRVL : une seule instance par worker uvicorn
+# Evite le crash "PDX has already been initialized" lors de reimports
+_paddle_pipeline = None
+_paddle_config: tuple | None = None
+
+
+def _get_paddle_pipeline(litellm_url: str, litellm_key: str, model_name: str):
+    """Retourne ou cree le pipeline PaddleOCRVL (singleton par worker)."""
+    global _paddle_pipeline, _paddle_config
+    import sys
+
+    new_config = (litellm_url, litellm_key, model_name)
+    if _paddle_pipeline is not None and _paddle_config == new_config:
+        return _paddle_pipeline
+
+    # Workaround : paddlex crashe "PDX has already been initialized" dans les
+    # workers forkes par uvicorn. On reset le flag avant l'import.
+    pdx_mod = sys.modules.get("paddlex")
+    if pdx_mod and hasattr(pdx_mod, "repo_manager"):
+        rm = pdx_mod.repo_manager
+        if hasattr(rm, "_initialized") and rm._initialized:
+            rm._initialized = False
+
+    from paddleocr import PaddleOCRVL
+
+    litellm_v1 = litellm_url.rstrip("/")
+    if not litellm_v1.endswith("/v1"):
+        litellm_v1 += "/v1"
+
+    _paddle_pipeline = PaddleOCRVL(
+        vl_rec_backend="llama-cpp-server",
+        vl_rec_server_url=litellm_v1,
+        vl_rec_api_key=litellm_key or "no-key-required",
+        vl_rec_api_model_name=model_name,
+        device="cpu",
+    )
+    _paddle_config = new_config
+    return _paddle_pipeline
+
+
 async def _ocr_with_paddleocr(
     file_bytes: bytes,
     content_type: str,
@@ -153,48 +193,36 @@ async def _ocr_with_paddleocr(
 
     Retourne le contenu en Markdown structure.
     """
+    import asyncio
     import tempfile
-    from paddleocr import PaddleOCRVL
 
     is_pdf = content_type == "application/pdf" or file_bytes[:5] == b"%PDF-"
     suffix = ".pdf" if is_pdf else ".png"
 
-    # PaddleOCRVL attend un chemin fichier
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
         tmp.write(file_bytes)
         tmp_path = tmp.name
 
-    try:
-        # On pointe vers LiteLLM qui route vers le bon provider
-        litellm_v1 = litellm_url.rstrip("/")
-        if not litellm_v1.endswith("/v1"):
-            litellm_v1 += "/v1"
-
-        pipeline = PaddleOCRVL(
-            vl_rec_backend="llama-cpp-server",
-            vl_rec_server_url=litellm_v1,
-            vl_rec_api_key=litellm_key or "no-key-required",
-            vl_rec_api_model_name=model_name,
-            device="cpu",
-        )
-
+    def _run():
+        pipeline = _get_paddle_pipeline(litellm_url, litellm_key, model_name)
         output = pipeline.predict(tmp_path)
         pages = list(output)
 
-        # Fusionner les pages en Markdown
         markdown_parts = []
         for res in pages:
             res_dict = res.to_dict() if hasattr(res, "to_dict") else {}
-            # Extraire le contenu textuel de chaque bloc
             for block in res_dict.get("parsing_res_list", []):
                 content = block.get("block_content", "")
                 if content:
                     markdown_parts.append(content)
 
         return "\n\n".join(markdown_parts) if markdown_parts else str(pages)
+
+    try:
+        return await asyncio.to_thread(_run)
     finally:
-        import os
-        os.unlink(tmp_path)
+        import os as _os
+        _os.unlink(tmp_path)
 
 
 async def ocr(
