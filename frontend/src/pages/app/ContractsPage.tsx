@@ -3,7 +3,7 @@
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, Loader2, BarChart3, Info, Filter } from 'lucide-react'
+import { Plus, Loader2, BarChart3, Filter } from 'lucide-react'
 import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
 import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
 import MobileFilterPanel from '@/components/app/MobileFilterPanel'

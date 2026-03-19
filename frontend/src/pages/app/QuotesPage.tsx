@@ -4,7 +4,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import {
-  Loader2, Send, Check, X, Copy, Plus, Trash2, RefreshCw, Info, Pencil, FileDown, Archive, ArchiveRestore,
+  Loader2, Send, Check, X, Copy, Plus, Trash2, RefreshCw, Pencil, FileDown, Archive, ArchiveRestore,
 } from 'lucide-react'
 import { orgGet, orgPost, orgPatch, orgDownload } from '@/lib/orgApi'
 import UnitCombobox from '@/components/app/UnitCombobox'
