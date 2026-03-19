@@ -168,6 +168,56 @@ services:
     depends_on:
       - api
 
+  # ── LiteLLM — proxy IA (requis si module IA active) ────────────────────────
+  # litellm:
+  #   container_name: kerpta-litellm
+  #   image: ghcr.io/berriai/litellm:main-latest
+  #   restart: unless-stopped
+  #   environment:
+  #     LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-kerpta-dev}
+  #     DATABASE_URL:       postgresql://postgres:${POSTGRES_PASSWORD:-kerpta_dev}@postgres:5432/${POSTGRES_DB:-kerpta}
+  #   ports:
+  #     - "4000:4000"
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   command: --port 4000
+
+  # ── vLLM — inference locale GPU (optionnel) ───────────────────────────────
+  # Necessite un GPU NVIDIA avec les drivers CUDA installes sur l'hote.
+  # Ajuster --model selon le modele souhaite (ex: mistralai/Mistral-7B-Instruct-v0.3)
+  # vllm:
+  #   container_name: kerpta-vllm
+  #   image: vllm/vllm-openai:latest
+  #   restart: unless-stopped
+  #   runtime: nvidia
+  #   environment:
+  #     NVIDIA_VISIBLE_DEVICES: all
+  #   volumes:
+  #     - vllm_cache:/root/.cache/huggingface
+  #   ports:
+  #     - "8001:8000"
+  #   command: --model mistralai/Mistral-7B-Instruct-v0.3 --max-model-len 8192
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: 1
+  #             capabilities: [gpu]
+
+  # ── Ollama — inference locale CPU/GPU (optionnel, alternative a vLLM) ─────
+  # Plus simple que vLLM, fonctionne aussi sans GPU.
+  # Apres demarrage : docker exec kerpta-ollama ollama pull mistral:7b
+  # ollama:
+  #   container_name: kerpta-ollama
+  #   image: ollama/ollama:latest
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ollama_data:/root/.ollama
+  #   ports:
+  #     - "11434:11434"
+
   # ── DocuSeal — signature électronique (optionnel) ───────────────────────────
   # docuseal:
   #   container_name: kerpta-docuseal
@@ -187,4 +237,6 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  # vllm_cache:
+  # ollama_data:
   # docuseal_data:
