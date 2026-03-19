@@ -1,0 +1,564 @@
+// Kerpta — Page de configuration Intelligence Artificielle (super-admin)
+// Copyright (C) 2026 Emmanuel Kervizic
+// Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
+
+import { useEffect, useState, useCallback } from 'react'
+import { adminClient } from '@/lib/api'
+import { useAuthStore } from '@/stores/authStore'
+import {
+  BrainCircuit,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Loader2,
+  Plus,
+  RefreshCw,
+  Trash2,
+  Pencil,
+  Zap,
+  X,
+  Circle,
+  BarChart3,
+  Settings2,
+  Cpu,
+  Eye,
+} from 'lucide-react'
+import { BTN, BTN_SM, BTN_DANGER_SM, BTN_SECONDARY, INPUT, SELECT, CARD, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER } from '@/lib/formStyles'
+
+// ── Types ────────────────────────────────────────────────────────────────────
+
+interface AiProvider {
+  id: string
+  name: string
+  type: string
+  base_url: string | null
+  is_active: boolean
+  last_check_at: string | null
+  last_check_ok: boolean | null
+  model_count: number
+}
+
+interface AiModel {
+  id: string
+  provider_id: string
+  provider_name: string
+  provider_type: string
+  model_id: string
+  display_name: string
+  capabilities: string[] | null
+  context_window: number | null
+  is_active: boolean
+}
+
+interface AiConfig {
+  ai_enabled: boolean
+  ai_litellm_base_url: string | null
+  has_master_key: boolean
+  ai_features: Record<string, boolean> | null
+  roles: { vl: AiModel | null; instruct: AiModel | null; thinking: AiModel | null }
+}
+
+interface UsageStats {
+  total_tokens_in: number
+  total_tokens_out: number
+  total_calls: number
+  calls_by_role: Record<string, number>
+  daily_stats: { date: string; tokens_in: number; tokens_out: number; calls: number }[] | null
+  top_organizations: { name: string; tokens: number }[] | null
+}
+
+const PROVIDER_TYPES = [
+  { value: 'ollama', label: 'Ollama (local)' },
+  { value: 'vllm', label: 'vLLM (local GPU)' },
+  { value: 'openai', label: 'OpenAI' },
+  { value: 'anthropic', label: 'Anthropic (Claude)' },
+  { value: 'mistral', label: 'Mistral' },
+  { value: 'google', label: 'Google (Gemini)' },
+  { value: 'openai_compatible', label: 'Compatible OpenAI' },
+]
+
+const FEATURES = [
+  { key: 'ocr', label: 'OCR factures', role: 'vl', desc: 'Scan et extraction structuree' },
+  { key: 'categorize', label: 'Categorisation PCG', role: 'instruct', desc: 'Suggestion de compte comptable' },
+  { key: 'chat', label: 'Assistant chat', role: 'instruct', desc: 'Chat contextuel sidebar' },
+  { key: 'generate', label: 'Aide a la redaction', role: 'instruct', desc: 'Generation PV, mails, descriptions' },
+  { key: 'analysis', label: 'Analyse financiere', role: 'thinking', desc: 'Questions complexes sur le bilan' },
+]
+
+// ── Page principale ──────────────────────────────────────────────────────────
+
+export default function ConfigAiPage() {
+  const { isAdmin } = useAuthStore()
+  const [loading, setLoading] = useState(true)
+  const [config, setConfig] = useState<AiConfig | null>(null)
+  const [providers, setProviders] = useState<AiProvider[]>([])
+  const [models, setModels] = useState<AiModel[]>([])
+  const [usage, setUsage] = useState<UsageStats | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  // Config form state
+  const [litellmUrl, setLitellmUrl] = useState('')
+  const [litellmKey, setLitellmKey] = useState('')
+  const [aiEnabled, setAiEnabled] = useState(false)
+
+  // Roles form state
+  const [roleVl, setRoleVl] = useState<string>('')
+  const [roleInstruct, setRoleInstruct] = useState<string>('')
+  const [roleThinking, setRoleThinking] = useState<string>('')
+
+  // Features form state
+  const [features, setFeatures] = useState<Record<string, boolean>>({})
+
+  // Provider modal
+  const [showProviderModal, setShowProviderModal] = useState(false)
+  const [editProvider, setEditProvider] = useState<AiProvider | null>(null)
+  const [provForm, setProvForm] = useState({ name: '', type: 'ollama', base_url: '', api_key: '' })
+
+  // Sections ouvertes/fermees
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    general: true, providers: true, models: true, roles: true, features: true, usage: true,
+  })
+
+  const toggleSection = (s: string) => setOpenSections((prev) => ({ ...prev, [s]: !prev[s] }))
+
+  const fetchAll = useCallback(async () => {
+    try {
+      const [cfgRes, provRes, modRes, usageRes] = await Promise.all([
+        adminClient.get('/ai/config'),
+        adminClient.get('/ai/providers'),
+        adminClient.get('/ai/models'),
+        adminClient.get('/ai/usage'),
+      ])
+      setConfig(cfgRes.data)
+      setProviders(provRes.data)
+      setModels(modRes.data)
+      setUsage(usageRes.data)
+      setAiEnabled(cfgRes.data.ai_enabled)
+      setLitellmUrl(cfgRes.data.ai_litellm_base_url || '')
+      setRoleVl(cfgRes.data.roles?.vl?.id || '')
+      setRoleInstruct(cfgRes.data.roles?.instruct?.id || '')
+      setRoleThinking(cfgRes.data.roles?.thinking?.id || '')
+      setFeatures(cfgRes.data.ai_features || {})
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (isAdmin === null) return
+    if (!isAdmin) return
+    fetchAll()
+  }, [isAdmin, fetchAll])
+
+  if (isAdmin === null) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-kerpta" /></div>
+  if (!isAdmin) return <div className="max-w-4xl mx-auto px-6 py-8"><p className="text-red-500">Acces reserve aux administrateurs plateforme.</p></div>
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-kerpta" /></div>
+
+  const activeModels = models.filter((m) => m.is_active)
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
+
+  async function saveConfig() {
+    setSaving(true)
+    try {
+      await adminClient.put('/ai/config', {
+        ai_enabled: aiEnabled,
+        ai_litellm_base_url: litellmUrl || null,
+        ai_litellm_master_key: litellmKey || undefined,
+        ai_features: features,
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function saveRoles() {
+    setSaving(true)
+    try {
+      await adminClient.put('/ai/roles', {
+        vl: roleVl || null,
+        instruct: roleInstruct || null,
+        thinking: roleThinking || null,
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function testLitellm() {
+    if (!litellmUrl) return
+    try {
+      const resp = await fetch(litellmUrl.replace(/\/$/, '') + '/health', {
+        headers: litellmKey ? { Authorization: `Bearer ${litellmKey}` } : {},
+      })
+      alert(resp.ok ? 'LiteLLM OK !' : `Erreur HTTP ${resp.status}`)
+    } catch {
+      alert('Impossible de joindre LiteLLM')
+    }
+  }
+
+  async function testProvider(id: string) {
+    const res = await adminClient.post(`/ai/providers/${id}/test`)
+    alert(res.data.message)
+    fetchAll()
+  }
+
+  async function syncProvider(id: string) {
+    const res = await adminClient.post(`/ai/providers/${id}/sync`)
+    alert(res.data.message)
+    fetchAll()
+  }
+
+  async function deleteProvider(id: string) {
+    if (!confirm('Supprimer ce fournisseur et tous ses modeles ?')) return
+    await adminClient.delete(`/ai/providers/${id}`)
+    fetchAll()
+  }
+
+  async function saveProvider() {
+    if (editProvider) {
+      await adminClient.put(`/ai/providers/${editProvider.id}`, provForm)
+    } else {
+      await adminClient.post('/ai/providers', provForm)
+    }
+    setShowProviderModal(false)
+    setEditProvider(null)
+    fetchAll()
+  }
+
+  async function toggleModel(id: string, active: boolean) {
+    await adminClient.put(`/ai/models/${id}`, { is_active: !active })
+    fetchAll()
+  }
+
+  async function deleteModel(id: string) {
+    if (!confirm('Supprimer ce modele ?')) return
+    await adminClient.delete(`/ai/models/${id}`)
+    fetchAll()
+  }
+
+  async function testRoles() {
+    const res = await adminClient.post('/ai/roles/test')
+    const msgs = res.data.map((r: { role: string; success: boolean; message: string }) =>
+      `${r.role.toUpperCase()}: ${r.success ? '✓' : '✗'} ${r.message}`
+    ).join('\n')
+    alert(msgs)
+  }
+
+  function sectionHeader(key: string, title: string, icon: React.ReactNode) {
+    return (
+      <button
+        onClick={() => toggleSection(key)}
+        className="flex items-center justify-between w-full py-3"
+      >
+        <div className="flex items-center gap-2">
+          {icon}
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">{title}</h2>
+        </div>
+        {openSections[key] ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+      </button>
+    )
+  }
+
+  // ── Rendu ──────────────────────────────────────────────────────────────────
+
+  return (
+    <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
+      <h1 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+        <BrainCircuit className="w-5 h-5 text-kerpta" />
+        Intelligence Artificielle
+      </h1>
+
+      {/* Section 1 - General */}
+      <section className={CARD}>
+        {sectionHeader('general', 'General', <Settings2 className="w-4 h-4 text-gray-400" />)}
+        {openSections.general && (
+          <div className="space-y-4 pt-2">
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-700 dark:text-gray-300 w-40">Module IA</span>
+              <button
+                onClick={() => { setAiEnabled(!aiEnabled); }}
+                className={`px-3 py-1.5 text-xs rounded-full border transition cursor-pointer ${aiEnabled ? 'bg-kerpta-50 dark:bg-kerpta-900/30 border-kerpta-200 dark:border-kerpta-700 text-kerpta-700 dark:text-kerpta-400' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400'}`}
+              >
+                {aiEnabled ? 'Active' : 'Desactive'}
+              </button>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-700 dark:text-gray-300 w-40">LiteLLM URL</span>
+              <input className={INPUT + ' flex-1'} value={litellmUrl} onChange={(e) => setLitellmUrl(e.target.value)} placeholder="http://litellm:4000" />
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-700 dark:text-gray-300 w-40">Master Key</span>
+              <input className={INPUT + ' flex-1'} type="password" value={litellmKey} onChange={(e) => setLitellmKey(e.target.value)} placeholder={config?.has_master_key ? '••••••••' : 'Non configuree'} />
+            </div>
+            <div className="flex gap-2">
+              <button onClick={testLitellm} className={BTN_SM} disabled={!litellmUrl}>
+                <Zap className="w-3.5 h-3.5" /> Tester la connexion
+              </button>
+              <button onClick={saveConfig} className={BTN_SM} disabled={saving}>
+                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Sauvegarder
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Section 2 - Fournisseurs */}
+      <section className={CARD}>
+        {sectionHeader('providers', 'Fournisseurs', <Cpu className="w-4 h-4 text-gray-400" />)}
+        {openSections.providers && (
+          <div className="space-y-3 pt-2">
+            {providers.map((p) => (
+              <div key={p.id} className="flex items-center justify-between border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <Circle className={`w-3 h-3 ${p.last_check_ok ? 'fill-green-500 text-green-500' : p.last_check_ok === false ? 'fill-red-500 text-red-500' : 'fill-gray-300 text-gray-300'}`} />
+                  <div>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">{p.name}</span>
+                    <span className="text-[10px] text-gray-400 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded font-mono ml-2">{p.type}</span>
+                    <p className="text-xs text-gray-400">{p.model_count} modeles - {p.base_url || 'API cloud'}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => syncProvider(p.id)} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition" title="Synchroniser">
+                    <RefreshCw className="w-3.5 h-3.5 text-gray-400" />
+                  </button>
+                  <button onClick={() => testProvider(p.id)} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition" title="Tester">
+                    <Zap className="w-3.5 h-3.5 text-gray-400" />
+                  </button>
+                  <button onClick={() => { setEditProvider(p); setProvForm({ name: p.name, type: p.type, base_url: p.base_url || '', api_key: '' }); setShowProviderModal(true) }} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition" title="Editer">
+                    <Pencil className="w-3.5 h-3.5 text-gray-400" />
+                  </button>
+                  <button onClick={() => deleteProvider(p.id)} className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/30 transition" title="Supprimer">
+                    <Trash2 className="w-3.5 h-3.5 text-gray-400 hover:text-red-500" />
+                  </button>
+                </div>
+              </div>
+            ))}
+            <button
+              onClick={() => { setEditProvider(null); setProvForm({ name: '', type: 'ollama', base_url: '', api_key: '' }); setShowProviderModal(true) }}
+              className={BTN_SM}
+            >
+              <Plus className="w-3.5 h-3.5" /> Ajouter un fournisseur
+            </button>
+          </div>
+        )}
+      </section>
+
+      {/* Section 3 - Modeles */}
+      <section className={CARD}>
+        {sectionHeader('models', 'Modeles', <BrainCircuit className="w-4 h-4 text-gray-400" />)}
+        {openSections.models && (
+          <div className="space-y-4 pt-2">
+            {providers.map((p) => {
+              const pModels = models.filter((m) => m.provider_id === p.id)
+              if (pModels.length === 0) return null
+              return (
+                <div key={p.id}>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wide mb-2">{p.name}</p>
+                  <div className="space-y-1">
+                    {pModels.map((m) => (
+                      <div key={m.id} className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-800 dark:text-gray-200">{m.display_name}</span>
+                          {m.capabilities?.map((c) => (
+                            <span key={c} className="text-[10px] bg-kerpta-50 dark:bg-kerpta-900/30 text-kerpta-600 dark:text-kerpta-400 px-1.5 py-0.5 rounded">{c}</span>
+                          ))}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => toggleModel(m.id, m.is_active)}
+                            className={`px-2 py-0.5 text-[10px] rounded-full border transition ${m.is_active ? 'bg-kerpta-50 border-kerpta-200 text-kerpta-700 dark:bg-kerpta-900/30 dark:border-kerpta-700 dark:text-kerpta-400' : 'bg-gray-100 border-gray-200 text-gray-400 dark:bg-gray-800 dark:border-gray-600'}`}
+                          >
+                            {m.is_active ? 'Actif' : 'Inactif'}
+                          </button>
+                          <button onClick={() => deleteModel(m.id)} className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/30">
+                            <Trash2 className="w-3 h-3 text-gray-400 hover:text-red-500" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* Section 4 - Roles */}
+      <section className={CARD}>
+        {sectionHeader('roles', 'Roles', <Eye className="w-4 h-4 text-gray-400" />)}
+        {openSections.roles && (
+          <div className="space-y-4 pt-2">
+            {[
+              { label: 'VL (Vision)', value: roleVl, set: setRoleVl, desc: 'OCR, lecture documents' },
+              { label: 'Instruct', value: roleInstruct, set: setRoleInstruct, desc: 'Categorisation, chat, redaction' },
+              { label: 'Thinking', value: roleThinking, set: setRoleThinking, desc: 'Analyse financiere complexe' },
+            ].map((r) => (
+              <div key={r.label} className="flex items-center gap-3">
+                <div className="w-40">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{r.label}</span>
+                  <p className="text-[10px] text-gray-400">{r.desc}</p>
+                </div>
+                <select className={SELECT + ' flex-1'} value={r.value} onChange={(e) => r.set(e.target.value)}>
+                  <option value="">Non configure</option>
+                  {activeModels.map((m) => (
+                    <option key={m.id} value={m.id}>{m.display_name} ({m.provider_name})</option>
+                  ))}
+                </select>
+              </div>
+            ))}
+            <div className="flex gap-2">
+              <button onClick={testRoles} className={BTN_SM}><Zap className="w-3.5 h-3.5" /> Tester les roles</button>
+              <button onClick={saveRoles} className={BTN_SM} disabled={saving}>
+                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Sauvegarder
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Section 5 - Fonctionnalites */}
+      <section className={CARD}>
+        {sectionHeader('features', 'Fonctionnalites', <Settings2 className="w-4 h-4 text-gray-400" />)}
+        {openSections.features && (
+          <div className="space-y-3 pt-2">
+            {FEATURES.map((f) => {
+              const roleAssigned = f.role === 'vl' ? !!roleVl : f.role === 'thinking' ? !!roleThinking : !!roleInstruct
+              const enabled = features[f.key] !== false && roleAssigned
+              return (
+                <div key={f.key} className={`flex items-center justify-between px-3 py-2 rounded-lg ${!roleAssigned ? 'opacity-50' : ''}`}>
+                  <div>
+                    <span className="text-sm text-gray-800 dark:text-gray-200">{f.label}</span>
+                    <p className="text-[10px] text-gray-400">{f.desc} - requiert : {f.role.toUpperCase()}</p>
+                  </div>
+                  <button
+                    onClick={() => { if (roleAssigned) setFeatures({ ...features, [f.key]: !enabled }) }}
+                    disabled={!roleAssigned}
+                    className={`px-3 py-1.5 text-xs rounded-full border transition ${enabled ? 'bg-kerpta-50 dark:bg-kerpta-900/30 border-kerpta-200 dark:border-kerpta-700 text-kerpta-700 dark:text-kerpta-400' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400'}`}
+                  >
+                    {enabled ? 'Active' : 'Desactive'}
+                  </button>
+                </div>
+              )
+            })}
+            <button onClick={saveConfig} className={BTN_SM} disabled={saving}>
+              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Sauvegarder
+            </button>
+          </div>
+        )}
+      </section>
+
+      {/* Section 6 - Usage */}
+      <section className={CARD}>
+        {sectionHeader('usage', 'Usage (30 jours)', <BarChart3 className="w-4 h-4 text-gray-400" />)}
+        {openSections.usage && usage && (
+          <div className="space-y-4 pt-2">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="text-center">
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{usage.total_calls}</p>
+                <p className="text-xs text-gray-400">Appels</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{(usage.total_tokens_in / 1000).toFixed(1)}k</p>
+                <p className="text-xs text-gray-400">Tokens in</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{(usage.total_tokens_out / 1000).toFixed(1)}k</p>
+                <p className="text-xs text-gray-400">Tokens out</p>
+              </div>
+            </div>
+
+            {Object.keys(usage.calls_by_role).length > 0 && (
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">Par role</p>
+                <div className="flex gap-4">
+                  {Object.entries(usage.calls_by_role).map(([role, count]) => (
+                    <span key={role} className="text-sm text-gray-700 dark:text-gray-300">
+                      <span className="font-semibold">{role.toUpperCase()}</span> : {count}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {usage.daily_stats && usage.daily_stats.length > 0 && (
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">Graphique quotidien</p>
+                <div className="flex items-end gap-1 h-24">
+                  {usage.daily_stats.map((d) => {
+                    const maxTokens = Math.max(...usage.daily_stats!.map((x) => x.tokens_in + x.tokens_out), 1)
+                    const h = ((d.tokens_in + d.tokens_out) / maxTokens) * 100
+                    return (
+                      <div key={d.date} className="flex-1 min-w-0" title={`${d.date}: ${d.calls} appels`}>
+                        <div className="bg-kerpta-400 dark:bg-kerpta-500 rounded-t" style={{ height: `${Math.max(h, 2)}%` }} />
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {usage.top_organizations && usage.top_organizations.length > 0 && (
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">Top organisations</p>
+                <div className="space-y-1">
+                  {usage.top_organizations.map((o, i) => (
+                    <div key={o.name} className="flex items-center justify-between text-sm">
+                      <span className="text-gray-700 dark:text-gray-300">{i + 1}. {o.name}</span>
+                      <span className="text-gray-400">{(o.tokens / 1000).toFixed(1)}k tokens</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* Modal fournisseur */}
+      {showProviderModal && (
+        <div className={OVERLAY_BACKDROP} onClick={() => setShowProviderModal(false)}>
+          <div className={OVERLAY_PANEL + ' max-w-md'} onClick={(e) => e.stopPropagation()}>
+            <div className={OVERLAY_HEADER}>
+              <h3 className="text-sm font-semibold">{editProvider ? 'Modifier le fournisseur' : 'Ajouter un fournisseur'}</h3>
+              <button onClick={() => setShowProviderModal(false)}><X className="w-4 h-4 text-gray-400" /></button>
+            </div>
+            <div className="p-4 space-y-3">
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Nom</label>
+                <input className={INPUT} value={provForm.name} onChange={(e) => setProvForm({ ...provForm, name: e.target.value })} placeholder="Mon Ollama" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Type</label>
+                <select className={SELECT} value={provForm.type} onChange={(e) => setProvForm({ ...provForm, type: e.target.value })}>
+                  {PROVIDER_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+              </div>
+              {!['openai', 'anthropic', 'mistral', 'google'].includes(provForm.type) && (
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">URL</label>
+                  <input className={INPUT} value={provForm.base_url} onChange={(e) => setProvForm({ ...provForm, base_url: e.target.value })} placeholder="http://ollama:11434" />
+                </div>
+              )}
+              {provForm.type !== 'ollama' && provForm.type !== 'vllm' && (
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">Cle API</label>
+                  <input className={INPUT} type="password" value={provForm.api_key} onChange={(e) => setProvForm({ ...provForm, api_key: e.target.value })} placeholder="sk-..." />
+                </div>
+              )}
+              <div className="flex justify-end gap-2 pt-2">
+                <button onClick={() => setShowProviderModal(false)} className={BTN_SECONDARY}>Annuler</button>
+                <button onClick={saveProvider} className={BTN_SM} disabled={!provForm.name}>
+                  <Check className="w-3.5 h-3.5" /> {editProvider ? 'Modifier' : 'Ajouter'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

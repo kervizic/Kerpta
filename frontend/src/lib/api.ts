@@ -20,6 +20,32 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+/** Client pour les routes admin (/api/admin/*) */
+export const adminClient = axios.create({
+  baseURL: "/api/admin",
+  headers: { "Content-Type": "application/json" },
+});
+
+adminClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem("supabase_access_token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+adminClient.interceptors.response.use(
+  (response) => response,
+  (error: unknown) => {
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      localStorage.removeItem("supabase_access_token");
+      localStorage.removeItem("kerpta_user");
+      window.location.href = "/login";
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Intercepteur — redirige vers /login sur 401
 // Important : on vide le token AVANT de rediriger pour éviter la boucle
 // login → /app → 401 → /login → token trouvé → /app → …

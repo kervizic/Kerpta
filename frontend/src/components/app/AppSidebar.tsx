@@ -38,6 +38,7 @@ import {
   HardDrive,
   Moon,
   Sun,
+  BrainCircuit,
 } from 'lucide-react'
 import { navigate } from '@/hooks/useRoute'
 import { useAuthStore, type OrgMembership } from '@/stores/authStore'
@@ -128,6 +129,11 @@ const KERPTA_CONFIG_ITEMS: NavItem[] = [
     label: 'Clés API',
     href: '/app/config/api-keys',
     icon: <KeyRound className="w-4 h-4" />,
+  },
+  {
+    label: 'Intelligence Artificielle',
+    href: '/app/config/ai',
+    icon: <BrainCircuit className="w-4 h-4" />,
   },
 ]
 

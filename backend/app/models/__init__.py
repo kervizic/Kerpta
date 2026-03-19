@@ -37,3 +37,7 @@ from app.models.platform import (  # noqa: F401
     OrganizationStorageConfig,
 )
 from app.models.attachment import Attachment, DocumentAttachment  # noqa: F401
+from app.models.ai_provider import AiProvider  # noqa: F401
+from app.models.ai_model import AiModel  # noqa: F401
+from app.models.ai_usage_log import AiUsageLog  # noqa: F401
+from app.models.ai_categorization import AiCategorizationHistory  # noqa: F401

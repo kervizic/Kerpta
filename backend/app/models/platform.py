@@ -34,6 +34,29 @@ class PlatformConfig(Base, UUIDPrimaryKeyMixin, TimestampUpdateMixin):
         JSONB, nullable=True, comment="Clés API externes (INSEE, etc.)"
     )
 
+    # Ajouté par la migration 0015 — Module IA
+    ai_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    ai_litellm_base_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    ai_litellm_master_key: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ai_role_vl_model_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("ai_models.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    ai_role_instruct_model_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("ai_models.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    ai_role_thinking_model_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("ai_models.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    ai_features: Mapped[dict | None] = mapped_column(
+        JSONB, nullable=True, comment="Fonctionnalites IA activees"
+    )
+
 
 class PlatformAdminLog(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     """Journal d'audit des actions super-admin."""
