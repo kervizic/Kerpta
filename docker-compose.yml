@@ -181,7 +181,7 @@ services:
     <<: *kerpta-base
     environment:
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-kerpta-dev}
-      DATABASE_URL:       postgresql://postgres:${POSTGRES_PASSWORD:-kerpta_dev}@postgres:5432/${POSTGRES_DB:-kerpta}
+      DATABASE_URL:       postgresql://postgres:${POSTGRES_PASSWORD:-kerpta_dev}@postgres:5432/litellm
     ports:
       - "4000:4000"
     depends_on:
