@@ -429,7 +429,6 @@ export default function StorageSettingsPage() {
             Les PDF de factures et devis sont automatiquement sauvegardés à chaque impression.
           </p>
         </div>
-      </div>
 
       {/* Modal FTP */}
       <FtpModal

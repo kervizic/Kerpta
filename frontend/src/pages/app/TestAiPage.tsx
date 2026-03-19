@@ -205,7 +205,6 @@ export default function TestAiPage() {
       icon={<BrainCircuit className="w-5 h-5 text-kerpta" />}
       title="Test IA"
       subtitle="Module de test temporaire - a supprimer apres validation"
-      size="lg"
     >
       {/* Tabs */}
       <div className="flex gap-1 border-b border-gray-200 dark:border-gray-700">

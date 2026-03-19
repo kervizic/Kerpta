@@ -664,7 +664,6 @@ export default function InvoiceSettingsPage() {
     <PageLayout
       icon={<Settings className="w-5 h-5 text-kerpta" />}
       title="Paramètres de vente"
-      size="md"
     >
       <div className="space-y-6">
         <BankAccountsSection />

@@ -29,7 +29,7 @@ export default function PageLayout({
   icon,
   title,
   subtitle,
-  size = 'sm',
+  size = 'lg',
   actions,
   children,
 }: PageLayoutProps) {

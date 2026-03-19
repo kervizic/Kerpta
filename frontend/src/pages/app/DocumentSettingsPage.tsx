@@ -1187,7 +1187,6 @@ export default function DocumentSettingsPage() {
     <PageLayout
       icon={<FileText className="w-5 h-5 text-kerpta" />}
       title="Documents"
-      size="md"
     >
       {themeLoading ? (
         <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-kerpta" /></div>

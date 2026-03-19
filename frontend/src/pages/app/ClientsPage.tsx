@@ -135,7 +135,6 @@ function ClientsList() {
     <PageLayout
       icon={<Users className="w-5 h-5 text-kerpta" />}
       title="Clients"
-      size="lg"
       actions={
         <button
           onClick={() => setShowCreate(true)}

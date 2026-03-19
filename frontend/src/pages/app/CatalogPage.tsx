@@ -143,7 +143,6 @@ function ProductsList({ initialSelectedId }: { initialSelectedId?: string } = {}
     <PageLayout
       icon={<Layers className="w-5 h-5 text-kerpta" />}
       title="Catalogue"
-      size="lg"
       actions={<>
             <button
               onClick={() => { setShowArchived(!showArchived); setPage(1) }}

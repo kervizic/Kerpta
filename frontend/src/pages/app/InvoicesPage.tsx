@@ -315,7 +315,6 @@ function InvoicesList() {
     <PageLayout
       icon={<FileText className="w-5 h-5 text-kerpta" />}
       title="Factures"
-      size="lg"
       actions={<>
             {activeFilterCount > 0 && (
               <span className="text-[10px] bg-kerpta-100 text-kerpta-700 dark:bg-kerpta-900/40 dark:text-kerpta-400 px-2 py-0.5 rounded-full font-medium">
