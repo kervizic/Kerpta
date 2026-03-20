@@ -85,20 +85,19 @@ async def ocr_invoice(
     db: AsyncSession = Depends(get_db),
 ):
     """OCR via PaddleX Serving - retourne le resultat brut PaddleX."""
-    _log.info("[OCR] Requete recue - fichier=%s, content_type=%s, org=%s",
-              file.filename, file.content_type, x_organization_id)
+    print(f"[OCR] Requete recue - fichier={file.filename}, content_type={file.content_type}, org={x_organization_id}", flush=True)
     await _require_ai_enabled(db, x_organization_id)
-    _log.info("[OCR] IA activee, lecture du fichier...")
+    print("[OCR] IA activee, lecture du fichier...", flush=True)
     image_bytes = await file.read()
-    _log.info("[OCR] Fichier lu : %d octets", len(image_bytes))
+    print(f"[OCR] Fichier lu : {len(image_bytes)} octets", flush=True)
     content_type = file.content_type or "image/jpeg"
-    _log.info("[OCR] Appel PaddleX en cours...")
+    print(f"[OCR] Appel PaddleX en cours (content_type={content_type})...", flush=True)
     try:
         result = await ai_svc.ocr(db, image_bytes, x_organization_id, user_id, content_type)
-        _log.info("[OCR] PaddleX OK - cles resultat : %s", list(result.keys()) if isinstance(result, dict) else type(result))
+        print(f"[OCR] PaddleX OK - cles resultat : {list(result.keys()) if isinstance(result, dict) else type(result)}", flush=True)
         return result
     except Exception as exc:
-        _log.error("[OCR] Erreur : %s", exc)
+        print(f"[OCR] Erreur : {exc}", flush=True)
         raise
 
 
