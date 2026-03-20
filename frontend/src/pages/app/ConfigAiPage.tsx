@@ -429,10 +429,10 @@ export default function ConfigAiPage() {
             </div>
             <div className="flex gap-2">
               <button onClick={testLitellm} className={BTN_SM} disabled={!configForm.watch('litellmUrl')}>
-                <Zap className="w-3.5 h-3.5" /> Tester la connexion LiteLLM
+                <Zap className="w-3.5 h-3.5" /> Test LiteLLM
               </button>
               <button onClick={testPaddlex} className={BTN_SM} disabled={!configForm.watch('paddlexUrl')}>
-                <Monitor className="w-3.5 h-3.5" /> Tester la connexion PaddleX
+                <Monitor className="w-3.5 h-3.5" /> Test PaddleX
               </button>
               <button onClick={saveConfig} className={BTN_SM} disabled={saving}>
                 {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Sauvegarder
