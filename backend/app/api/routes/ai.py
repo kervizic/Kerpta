@@ -85,20 +85,12 @@ async def ocr_invoice(
     db: AsyncSession = Depends(get_db),
 ):
     """OCR via PaddleX Serving - retourne le resultat brut PaddleX."""
-    print(f"[OCR] Requete recue - fichier={file.filename}, content_type={file.content_type}, org={x_organization_id}", flush=True)
+    _log.info("OCR requete - fichier=%s, %s octets, org=%s", file.filename, file.size, x_organization_id)
     await _require_ai_enabled(db, x_organization_id)
-    print("[OCR] IA activee, lecture du fichier...", flush=True)
     image_bytes = await file.read()
-    print(f"[OCR] Fichier lu : {len(image_bytes)} octets", flush=True)
     content_type = file.content_type or "image/jpeg"
-    print(f"[OCR] Appel PaddleX en cours (content_type={content_type})...", flush=True)
-    try:
-        result = await ai_svc.ocr(db, image_bytes, x_organization_id, user_id, content_type)
-        print(f"[OCR] PaddleX OK - cles resultat : {list(result.keys()) if isinstance(result, dict) else type(result)}", flush=True)
-        return result
-    except Exception as exc:
-        print(f"[OCR] Erreur : {exc}", flush=True)
-        raise
+    result = await ai_svc.ocr(db, image_bytes, x_organization_id, user_id, content_type)
+    return result
 
 
 @router.post("/categorize", response_model=AiCategorizeResponse)
