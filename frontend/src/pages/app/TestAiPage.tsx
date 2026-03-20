@@ -101,7 +101,7 @@ export default function TestAiPage() {
   const [vlmFile, setVlmFile] = useState<File | null>(null)
   const [vlmPreview, setVlmPreview] = useState<string | null>(null)
   const [vlmResult, setVlmResult] = useState<OcrResult | null>(null)
-  const [vlmRaw, setVlmRaw] = useState<string>('')
+  const [, setVlmRaw] = useState<string>('')
   const [vlmLoading, setVlmLoading] = useState(false)
   const [vlmError, setVlmError] = useState('')
   const [vlmDuration, setVlmDuration] = useState<number | null>(null)
@@ -492,9 +492,9 @@ export default function TestAiPage() {
                 <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Resultat OCR VLM</h2>
                 <div className="flex items-center gap-3 text-xs text-gray-400">
                   {vlmResult.pages_count != null && <span>{vlmResult.pages_count as number} page(s)</span>}
-                  {(vlmResult as Record<string, unknown>).model && <span>{(vlmResult as Record<string, unknown>).model as string}</span>}
+                  {(vlmResult as Record<string, unknown>).model && <span>{String((vlmResult as Record<string, unknown>).model)}</span>}
                   {(vlmResult as Record<string, unknown>).tokens_in != null && (
-                    <span>{(vlmResult as Record<string, unknown>).tokens_in as number} / {(vlmResult as Record<string, unknown>).tokens_out as number} tokens</span>
+                    <span>{String((vlmResult as Record<string, unknown>).tokens_in)} / {String((vlmResult as Record<string, unknown>).tokens_out)} tokens</span>
                   )}
                   {vlmDuration !== null && <span>{(vlmDuration / 1000).toFixed(1)}s</span>}
                 </div>
