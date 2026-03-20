@@ -181,13 +181,29 @@ async def sync_models(
         synced += 1
 
     # Enregistrer chaque modele dans LiteLLM (si configure)
+    litellm_failures = 0
     if litellm_url and litellm_key:
         for m in models_data:
-            await register_model_in_litellm(
+            ok = await register_model_in_litellm(
                 litellm_url, litellm_key,
                 provider_type, m["model_id"],
                 api_key=api_key, base_url=base_url,
             )
+            if not ok:
+                litellm_failures += 1
+
+    if litellm_failures > 0 and litellm_failures == len(models_data):
+        # Tous les enregistrements LiteLLM ont echoue
+        await db.execute(
+            text("UPDATE ai_providers SET last_check_at = now(), last_check_ok = false, updated_at = now() WHERE id = :id"),
+            {"id": str(provider_id)},
+        )
+        await db.commit()
+        raise HTTPException(
+            502,
+            f"{synced} modele(s) trouves sur le provider mais LiteLLM non joignable - "
+            "verifiez la configuration LiteLLM dans Reglages IA > General",
+        )
 
     # Mettre a jour last_check
     await db.execute(
