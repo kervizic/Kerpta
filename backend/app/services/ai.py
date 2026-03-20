@@ -184,12 +184,7 @@ async def _ocr_with_paddleocr(
 ) -> str:
     """Utilise la lib PaddleOCR pour parser un document (image ou PDF).
 
-    PaddleOCR gere nativement :
-    - PDF multi-pages (conversion + OCR page par page)
-    - Layout detection (texte, tableaux, formules)
-    - Envoi via LiteLLM (API OpenAI-compatible)
-
-    Retourne le contenu en Markdown structure.
+    Retourne la sortie brute de PaddleOCR (dict avec les pages et blocs).
     """
     import asyncio
     import tempfile
@@ -206,15 +201,14 @@ async def _ocr_with_paddleocr(
         output = pipeline.predict(tmp_path)
         pages = list(output)
 
-        markdown_parts = []
+        result_pages = []
         for res in pages:
-            res_dict = res.to_dict() if hasattr(res, "to_dict") else {}
-            for block in res_dict.get("parsing_res_list", []):
-                content = block.get("block_content", "")
-                if content:
-                    markdown_parts.append(content)
+            if hasattr(res, "to_dict"):
+                result_pages.append(res.to_dict())
+            else:
+                result_pages.append({"raw": str(res)})
 
-        return "\n\n".join(markdown_parts) if markdown_parts else str(pages)
+        return {"pages": result_pages}
 
     try:
         return await asyncio.to_thread(_run)
@@ -230,10 +224,9 @@ async def ocr(
     user_id: uuid.UUID,
     content_type: str = "image/jpeg",
 ) -> dict:
-    """Extrait les donnees structurees d'une facture depuis une image ou un PDF.
+    """Extrait le contenu d'un document via PaddleOCR-VL (via LiteLLM).
 
-    Etape 1 : PaddleOCR-VL parse le document (gere PDF multi-pages nativement)
-    Etape 2 : Le LLM Instruct extrait les champs JSON structures du Markdown
+    Retourne directement la sortie brute de PaddleOCR.
     """
     config = await _get_ai_config(db)
     model_vl = await _resolve_model(db, config["vl_model_id"])
@@ -242,25 +235,20 @@ async def ocr(
 
     start = time.monotonic()
 
-    # Etape 1 : PaddleOCR-VL extrait le texte/tableaux en Markdown (via LiteLLM)
     try:
-        markdown_content = await _ocr_with_paddleocr(
+        result = await _ocr_with_paddleocr(
             file_bytes, content_type,
             config["litellm_url"], config["litellm_key"],
             model_vl["litellm_name"],
         )
     except Exception as exc:
         _log.warning("paddleocr indisponible (%s: %s), fallback sur OCR via LiteLLM", type(exc).__name__, exc)
-        return await _ocr_fallback_litellm(db, config, model_vl, file_bytes, content_type, org_id, user_id, start)
+        result = await _ocr_fallback_extract(config, model_vl, file_bytes, content_type)
 
-    # Etape 2 : LLM Instruct extrait les champs JSON du Markdown
-    model_instruct = await _resolve_model(db, config["instruct_model_id"])
-    if not model_instruct:
-        duration = int((time.monotonic() - start) * 1000)
-        await _log_usage(db, org_id, user_id, model_vl["uuid"], "vl", 0, 0, duration)
-        return {"raw_text": markdown_content}
+    duration = int((time.monotonic() - start) * 1000)
+    await _log_usage(db, org_id, user_id, model_vl["uuid"], "vl", 0, 0, duration)
 
-    return await _structure_ocr_text(db, config, model_instruct, markdown_content, org_id, user_id, start)
+    return result
 
 
 async def _structure_ocr_text(
@@ -333,20 +321,13 @@ async def _pdf_to_images(file_bytes: bytes) -> list[tuple[bytes, str]]:
     return await asyncio.to_thread(_convert)
 
 
-async def _ocr_fallback_litellm(
-    db: AsyncSession,
+async def _ocr_fallback_extract(
     config: dict,
     model_vl: dict,
     file_bytes: bytes,
     content_type: str,
-    org_id: uuid.UUID,
-    user_id: uuid.UUID,
-    start: float,
 ) -> dict:
-    """Fallback OCR via LiteLLM en 2 etapes :
-    1. Modele VL extrait le texte brut de chaque page
-    2. Modele Instruct structure le texte en JSON
-    """
+    """Fallback : envoie l'image au modele VL via LiteLLM pour extraction texte."""
     is_pdf = content_type == "application/pdf" or file_bytes[:5] == b"%PDF-"
 
     if is_pdf:
@@ -354,15 +335,11 @@ async def _ocr_fallback_litellm(
     else:
         pages = [(file_bytes, content_type)]
 
-    # Etape 1 : extraction texte brut par le modele VL (page par page)
     all_texts = []
-    total_tokens_in = 0
-    total_tokens_out = 0
-
     for page_bytes, page_ct in pages:
         b64 = base64.b64encode(page_bytes).decode("utf-8")
         messages = [
-            {"role": "system", "content": "Extrais tout le texte visible de cette image. Retourne le texte brut tel quel, sans reformater."},
+            {"role": "system", "content": "Extrais tout le texte visible de cette image. Retourne le texte brut tel quel."},
             {
                 "role": "user",
                 "content": [
@@ -371,29 +348,11 @@ async def _ocr_fallback_litellm(
                 ],
             },
         ]
-
         resp = await _call_litellm(config["litellm_url"], config["litellm_key"], model_vl["litellm_name"], messages)
-        usage = resp.get("usage", {})
-        total_tokens_in += usage.get("prompt_tokens", 0)
-        total_tokens_out += usage.get("completion_tokens", 0)
-        page_content = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
-        all_contents.append(page_content.strip())
-
-        total_tokens_in += usage.get("prompt_tokens", 0)
-        total_tokens_out += usage.get("completion_tokens", 0)
         page_text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
         all_texts.append(page_text.strip())
 
-    raw_text = "\n\n".join(all_texts)
-    await _log_usage(db, org_id, user_id, model_vl["uuid"], "vl",
-                     total_tokens_in, total_tokens_out, int((time.monotonic() - start) * 1000))
-
-    # Etape 2 : structuration JSON par le modele Instruct
-    model_instruct = await _resolve_model(db, config["instruct_model_id"])
-    if not model_instruct:
-        return {"raw_text": raw_text}
-
-    return await _structure_ocr_text(db, config, model_instruct, raw_text, org_id, user_id, start)
+    return {"pages": [{"raw": text} for text in all_texts]}
 
 
 # ── Categorisation comptable (role Instruct) ──────────────────────────────────
