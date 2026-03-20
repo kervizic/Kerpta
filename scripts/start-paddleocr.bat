@@ -13,55 +13,64 @@ set PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True
 :: Etape 1 - Verifier Python
 :: ----------------------------------------------------------------
 python --version >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [ERREUR] Python non trouve. Installez Python 3.10+ et ajoutez-le au PATH.
-    pause
-    exit /b 1
-)
+if %errorlevel% neq 0 goto :no_python
 echo [OK] Python trouve.
+goto :check_paddle
+
+:no_python
+echo [ERREUR] Python non trouve. Installez Python 3.10+ et ajoutez-le au PATH.
+goto :fin
 
 :: ----------------------------------------------------------------
-:: Etape 2 - Installer paddlepaddle-gpu 3.0+ (obligatoire pour PaddleX 3.4)
-::
-:: IMPORTANT : PaddleX 3.4.2 necessite PaddlePaddle >= 3.0.0
-:: La version PyPI (2.6.2) est trop vieille et cause l'erreur
-:: "set_optimization_level". Il faut installer depuis le repo officiel.
+:: Etape 2 - Installer paddlepaddle-gpu 3.0+
+:: PaddleX 3.4 necessite PaddlePaddle >= 3.0.0
+:: La version PyPI (2.6.2) cause l'erreur "set_optimization_level"
 :: ----------------------------------------------------------------
+:check_paddle
 python -c "import paddle; v=paddle.__version__; exit(0 if int(v.split('.')[0]) >= 3 else 1)" >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [INFO] Installation de paddlepaddle-gpu 3.0+ depuis le repo officiel...
-    echo [INFO] Desinstallation de l'ancienne version...
-    pip uninstall -y paddlepaddle paddlepaddle-gpu >nul 2>&1
-    echo [INFO] Installation de la derniere version paddlepaddle-gpu (CUDA 11.8)...
-    pip install paddlepaddle-gpu -i https://www.paddlepaddle.org.cn/packages/stable/cu118/
-    if %errorlevel% neq 0 (
-        echo [WARN] CUDA 11.8 echoue, tentative CUDA 12.6...
-        pip install paddlepaddle-gpu -i https://www.paddlepaddle.org.cn/packages/stable/cu126/
-        if %errorlevel% neq 0 (
-            echo [WARN] GPU echoue, installation CPU...
-            pip install paddlepaddle -i https://www.paddlepaddle.org.cn/packages/stable/cpu/
-        )
-    )
-) else (
-    echo [OK] PaddlePaddle 3.0+ deja installe.
-)
+if %errorlevel% equ 0 goto :paddle_ok
+
+echo [INFO] Installation de paddlepaddle-gpu 3.0+ depuis le repo officiel...
+echo [INFO] Desinstallation de l'ancienne version...
+pip uninstall -y paddlepaddle paddlepaddle-gpu >nul 2>&1
+
+echo [INFO] Installation de la derniere version paddlepaddle-gpu (CUDA 11.8)...
+pip install paddlepaddle-gpu -i https://www.paddlepaddle.org.cn/packages/stable/cu118/
+if %errorlevel% equ 0 goto :paddle_ok
+
+echo [WARN] CUDA 11.8 echoue, tentative CUDA 12.6...
+pip install paddlepaddle-gpu -i https://www.paddlepaddle.org.cn/packages/stable/cu126/
+if %errorlevel% equ 0 goto :paddle_ok
+
+echo [WARN] GPU echoue, installation CPU...
+pip install paddlepaddle -i https://www.paddlepaddle.org.cn/packages/stable/cpu/
+if %errorlevel% neq 0 goto :paddle_fail
+goto :paddle_ok
+
+:paddle_fail
+echo [ERREUR] Impossible d'installer PaddlePaddle.
+goto :fin
+
+:paddle_ok
+echo [OK] PaddlePaddle 3.0+ pret.
 
 :: ----------------------------------------------------------------
 :: Etape 3 - Installer PaddleX si absent
 :: ----------------------------------------------------------------
 python -c "import paddlex" >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [INFO] Installation de PaddleX...
-    pip install paddlex==3.4.2
-    if %errorlevel% neq 0 (
-        echo [ERREUR] Echec installation paddlex.
-        pause
-        exit /b 1
-    )
-    echo [OK] PaddleX installe.
-) else (
-    echo [OK] PaddleX deja installe.
-)
+if %errorlevel% equ 0 goto :paddlex_ok
+
+echo [INFO] Installation de PaddleX...
+pip install paddlex==3.4.2
+if %errorlevel% neq 0 goto :paddlex_fail
+goto :paddlex_ok
+
+:paddlex_fail
+echo [ERREUR] Echec installation paddlex.
+goto :fin
+
+:paddlex_ok
+echo [OK] PaddleX pret.
 
 :: ----------------------------------------------------------------
 :: Etape 4 - Installer le plugin serving
@@ -71,14 +80,7 @@ paddlex --install serving
 echo [OK] Plugin serving pret.
 
 :: ----------------------------------------------------------------
-:: Etape 5 - Supprimer le cache modele corrompu si besoin
-:: ----------------------------------------------------------------
-if exist "%USERPROFILE%\.paddlex\official_models\PP-DocLayoutV2" (
-    echo [OK] Cache modele PP-DocLayoutV2 present.
-)
-
-:: ----------------------------------------------------------------
-:: Etape 6 - Detecter GPU et demarrer
+:: Etape 5 - Detecter GPU et demarrer
 :: ----------------------------------------------------------------
 echo.
 set DEVICE=cpu
@@ -102,4 +104,9 @@ paddlex --serve --pipeline PaddleOCR-VL --device %DEVICE% --host 0.0.0.0 --port 
 
 echo.
 echo [INFO] PaddleX s'est arrete.
-pause
+goto :fin
+
+:fin
+echo.
+echo Appuyez sur une touche pour fermer...
+pause >nul
