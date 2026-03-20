@@ -492,10 +492,10 @@ export default function TestAiPage() {
                 <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Resultat OCR VLM</h2>
                 <div className="flex items-center gap-3 text-xs text-gray-400">
                   {vlmResult.pages_count != null && <span>{vlmResult.pages_count as number} page(s)</span>}
-                  {(vlmResult as Record<string, unknown>).model && <span>{String((vlmResult as Record<string, unknown>).model)}</span>}
-                  {(vlmResult as Record<string, unknown>).tokens_in != null && (
-                    <span>{String((vlmResult as Record<string, unknown>).tokens_in)} / {String((vlmResult as Record<string, unknown>).tokens_out)} tokens</span>
-                  )}
+                  {'model' in vlmResult && vlmResult.model ? <span>{String(vlmResult.model)}</span> : null}
+                  {'tokens_in' in vlmResult && vlmResult.tokens_in != null ? (
+                    <span>{String(vlmResult.tokens_in)} / {String(vlmResult.tokens_out)} tokens</span>
+                  ) : null}
                   {vlmDuration !== null && <span>{(vlmDuration / 1000).toFixed(1)}s</span>}
                 </div>
               </div>
