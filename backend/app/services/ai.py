@@ -152,13 +152,10 @@ def _get_paddle_pipeline(litellm_url: str, litellm_key: str, model_name: str):
     if _paddle_pipeline is not None and _paddle_config == new_config:
         return _paddle_pipeline
 
-    # Workaround : paddlex crashe "PDX has already been initialized" dans les
-    # workers forkes par uvicorn ou apres un import partiel echoue.
-    # On nettoie tous les modules paddle* pour forcer un import propre.
-    if "paddleocr" not in sys.modules:
-        stale = [k for k in sys.modules if k.startswith(("paddlex", "paddleocr"))]
-        for k in stale:
-            del sys.modules[k]
+    # Workaround PaddleOCR#17330 : paddlex crashe "PDX has already been
+    # initialized" dans les workers forkes par uvicorn.
+    # PADDLE_PDX_EAGER_INIT=False desactive l'init automatique au import.
+    os.environ.setdefault("PADDLE_PDX_EAGER_INIT", "False")
 
     from paddleocr import PaddleOCRVL
 
