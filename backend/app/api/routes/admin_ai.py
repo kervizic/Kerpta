@@ -411,8 +411,27 @@ async def delete_model(
     _admin: uuid_mod.UUID = Depends(require_platform_admin),
     db: AsyncSession = Depends(get_db),
 ):
+    # Recuperer les infos du modele pour le supprimer aussi de LiteLLM
+    row = await db.execute(
+        text("""
+            SELECT m.model_id, p.type
+            FROM ai_models m JOIN ai_providers p ON m.provider_id = p.id
+            WHERE m.id = :id
+        """),
+        {"id": str(model_id)},
+    )
+    model_row = row.fetchone()
+
     await db.execute(text("DELETE FROM ai_models WHERE id = :id"), {"id": str(model_id)})
     await db.commit()
+
+    # Supprimer de LiteLLM en arriere-plan
+    if model_row:
+        cfg = await db.execute(text("SELECT ai_litellm_base_url, ai_litellm_master_key FROM platform_config LIMIT 1"))
+        cfg_row = cfg.fetchone()
+        if cfg_row and cfg_row[0] and cfg_row[1]:
+            ll_name = f"{model_row[1]}/{model_row[0]}"
+            await providers_svc.remove_model_from_litellm(cfg_row[0], cfg_row[1], ll_name)
 
 
 # ── Roles ─────────────────────────────────────────────────────────────────────

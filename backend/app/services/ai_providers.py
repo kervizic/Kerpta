@@ -180,6 +180,25 @@ async def sync_models(
         )
         synced += 1
 
+    # Supprimer les modeles Kerpta qui ne sont plus sur le provider
+    provider_model_ids = {m["model_id"] for m in models_data}
+    existing = await db.execute(
+        text("SELECT id, model_id FROM ai_models WHERE provider_id = :pid"),
+        {"pid": str(provider_id)},
+    )
+    for row in existing.fetchall():
+        if row[1] not in provider_model_ids:
+            # Supprimer de LiteLLM
+            if litellm_url and litellm_key:
+                ll_name = f"{provider_type}/{row[1]}"
+                await remove_model_from_litellm(litellm_url, litellm_key, ll_name)
+            # Supprimer de Kerpta
+            await db.execute(
+                text("DELETE FROM ai_models WHERE id = :id"),
+                {"id": str(row[0])},
+            )
+            _log.info("Modele supprime (absent du provider) : %s", row[1])
+
     # Enregistrer chaque modele dans LiteLLM (si configure)
     if litellm_url and litellm_key:
         for m in models_data:
