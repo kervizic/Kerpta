@@ -256,17 +256,29 @@ async def ocr(
     # Etape 2 : LLM Instruct extrait les champs JSON du Markdown
     model_instruct = await _resolve_model(db, config["instruct_model_id"])
     if not model_instruct:
-        # Pas de modele Instruct : retourner le texte brut
         duration = int((time.monotonic() - start) * 1000)
         await _log_usage(db, org_id, user_id, model_vl["uuid"], "vl", 0, 0, duration)
         return {"raw_text": markdown_content}
 
+    return await _structure_ocr_text(db, config, model_instruct, markdown_content, org_id, user_id, start)
+
+
+async def _structure_ocr_text(
+    db: AsyncSession,
+    config: dict,
+    model_instruct: dict,
+    raw_text: str,
+    org_id: uuid.UUID,
+    user_id: uuid.UUID,
+    start: float,
+) -> dict:
+    """Etape 2 OCR : le modele Instruct structure le texte brut en JSON."""
     messages = [
         {
             "role": "system",
             "content": (
                 "Tu es un assistant d'extraction de factures fournisseur. "
-                "On te donne le contenu OCR d'une facture en Markdown. "
+                "On te donne le contenu OCR d'une facture. "
                 "Extrais les informations suivantes au format JSON strict : "
                 "supplier_name, supplier_siret, supplier_address, invoice_number, "
                 "issue_date (DD/MM/YYYY), due_date (DD/MM/YYYY), total_ht, total_tva, total_ttc, iban, "
@@ -274,7 +286,7 @@ async def ocr(
                 "Si une info est absente, mets null. Reponds UNIQUEMENT en JSON, sans markdown."
             ),
         },
-        {"role": "user", "content": markdown_content},
+        {"role": "user", "content": raw_text},
     ]
 
     resp = await _call_litellm(
@@ -284,7 +296,7 @@ async def ocr(
     duration = int((time.monotonic() - start) * 1000)
 
     usage = resp.get("usage", {})
-    await _log_usage(db, org_id, user_id, model_instruct["uuid"], "vl",
+    await _log_usage(db, org_id, user_id, model_instruct["uuid"], "instruct",
                      usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0), duration)
 
     content = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
@@ -296,9 +308,11 @@ async def ocr(
         content = content.strip()
 
     try:
-        return json.loads(content)
+        result = json.loads(content)
+        result["raw_text"] = raw_text
+        return result
     except json.JSONDecodeError:
-        return {"raw_text": content}
+        return {"raw_text": raw_text}
 
 
 async def _pdf_to_images(file_bytes: bytes) -> list[tuple[bytes, str]]:
@@ -322,14 +336,17 @@ async def _pdf_to_images(file_bytes: bytes) -> list[tuple[bytes, str]]:
 async def _ocr_fallback_litellm(
     db: AsyncSession,
     config: dict,
-    model: dict,
+    model_vl: dict,
     file_bytes: bytes,
     content_type: str,
     org_id: uuid.UUID,
     user_id: uuid.UUID,
     start: float,
 ) -> dict:
-    """Fallback OCR via LiteLLM (envoie image(s) au modele VL directement)."""
+    """Fallback OCR via LiteLLM en 2 etapes :
+    1. Modele VL extrait le texte brut de chaque page
+    2. Modele Instruct structure le texte en JSON
+    """
     is_pdf = content_type == "application/pdf" or file_bytes[:5] == b"%PDF-"
 
     if is_pdf:
@@ -337,55 +354,46 @@ async def _ocr_fallback_litellm(
     else:
         pages = [(file_bytes, content_type)]
 
-    system_prompt = (
-        "Tu es un assistant d'extraction de factures fournisseur. "
-        "Extrais les informations suivantes au format JSON strict : "
-        "supplier_name, supplier_siret, supplier_address, invoice_number, "
-        "issue_date (DD/MM/YYYY), due_date (DD/MM/YYYY), total_ht, total_tva, total_ttc, iban, "
-        "lines (array of {description, quantity, unit_price, vat_rate, total_ht}). "
-        "Si une info est absente, mets null. Reponds UNIQUEMENT en JSON, sans markdown."
-    )
-
-    all_contents = []
+    # Etape 1 : extraction texte brut par le modele VL (page par page)
+    all_texts = []
     total_tokens_in = 0
     total_tokens_out = 0
 
     for page_bytes, page_ct in pages:
         b64 = base64.b64encode(page_bytes).decode("utf-8")
         messages = [
-            {"role": "system", "content": system_prompt},
+            {"role": "system", "content": "Extrais tout le texte visible de cette image. Retourne le texte brut tel quel, sans reformater."},
             {
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": "Extrais les donnees de cette facture :"},
+                    {"type": "text", "text": "Extrais le texte de ce document :"},
                     {"type": "image_url", "image_url": {"url": f"data:{page_ct};base64,{b64}"}},
                 ],
             },
         ]
 
-        resp = await _call_litellm(config["litellm_url"], config["litellm_key"], model["litellm_name"], messages)
+        resp = await _call_litellm(config["litellm_url"], config["litellm_key"], model_vl["litellm_name"], messages)
         usage = resp.get("usage", {})
         total_tokens_in += usage.get("prompt_tokens", 0)
         total_tokens_out += usage.get("completion_tokens", 0)
         page_content = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
         all_contents.append(page_content.strip())
 
-    duration = int((time.monotonic() - start) * 1000)
-    await _log_usage(db, org_id, user_id, model["uuid"], "vl",
-                     total_tokens_in, total_tokens_out, duration)
+        total_tokens_in += usage.get("prompt_tokens", 0)
+        total_tokens_out += usage.get("completion_tokens", 0)
+        page_text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+        all_texts.append(page_text.strip())
 
-    content = "\n".join(all_contents)
-    content = content.strip()
-    if content.startswith("```"):
-        content = content.split("\n", 1)[-1]
-        if content.endswith("```"):
-            content = content[:-3]
-        content = content.strip()
+    raw_text = "\n\n".join(all_texts)
+    await _log_usage(db, org_id, user_id, model_vl["uuid"], "vl",
+                     total_tokens_in, total_tokens_out, int((time.monotonic() - start) * 1000))
 
-    try:
-        return json.loads(content)
-    except json.JSONDecodeError:
-        return {"raw_text": content}
+    # Etape 2 : structuration JSON par le modele Instruct
+    model_instruct = await _resolve_model(db, config["instruct_model_id"])
+    if not model_instruct:
+        return {"raw_text": raw_text}
+
+    return await _structure_ocr_text(db, config, model_instruct, raw_text, org_id, user_id, start)
 
 
 # ── Categorisation comptable (role Instruct) ──────────────────────────────────
