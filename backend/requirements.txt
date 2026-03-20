@@ -39,6 +39,8 @@ pikepdf==9.4.2            # Compression et optimisation PDF
 
 # Traitement d'images (redimensionnement logos)
 Pillow==11.1.0
+pillow-heif==0.20.0       # Support HEIC/HEIF (photos iPhone)
+PyMuPDF==1.25.3           # Rendu PDF -> images (OCR VLM)
 
 # OCR (Mindee)
 mindee==4.9.0

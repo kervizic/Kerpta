@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Emmanuel Kervizic
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -24,7 +24,7 @@ import {
 import { BTN, BTN_SM, BTN_SECONDARY, CARD, INPUT } from '@/lib/formStyles'
 import PageLayout from '@/components/app/PageLayout'
 
-type Tab = 'ocr' | 'categorize' | 'chat'
+type Tab = 'ocr' | 'ocr-vlm' | 'categorize' | 'chat'
 
 interface OcrResult {
   supplier_name?: string | null
@@ -97,6 +97,36 @@ export default function TestAiPage() {
   const [chatError, setChatError] = useState('')
   const chatEndRef = useRef<HTMLDivElement>(null)
 
+  // VLM OCR state
+  const [vlmFile, setVlmFile] = useState<File | null>(null)
+  const [vlmPreview, setVlmPreview] = useState<string | null>(null)
+  const [vlmResult, setVlmResult] = useState<OcrResult | null>(null)
+  const [vlmRaw, setVlmRaw] = useState<string>('')
+  const [vlmLoading, setVlmLoading] = useState(false)
+  const [vlmError, setVlmError] = useState('')
+  const [vlmDuration, setVlmDuration] = useState<number | null>(null)
+  const [vlmChrono, setVlmChrono] = useState<number>(0)
+  const vlmFileRef = useRef<HTMLInputElement>(null)
+
+  // Chrono PaddleX
+  const [ocrChrono, setOcrChrono] = useState<number>(0)
+
+  // Live chrono for PaddleX OCR
+  useEffect(() => {
+    if (!ocrLoading) { setOcrChrono(0); return }
+    const start = performance.now()
+    const id = setInterval(() => setOcrChrono(Math.round(performance.now() - start)), 100)
+    return () => clearInterval(id)
+  }, [ocrLoading])
+
+  // Live chrono for VLM OCR
+  useEffect(() => {
+    if (!vlmLoading) { setVlmChrono(0); return }
+    const start = performance.now()
+    const id = setInterval(() => setVlmChrono(Math.round(performance.now() - start)), 100)
+    return () => clearInterval(id)
+  }, [vlmLoading])
+
   const [copied, setCopied] = useState(false)
 
   // ── OCR ──────────────────────────────────────────────────────────────────
@@ -140,6 +170,50 @@ export default function TestAiPage() {
       setOcrError(String(msg))
     } finally {
       setOcrLoading(false)
+    }
+  }
+
+  // ── VLM OCR ────────────────────────────────────────────────────────────
+
+  function handleVlmFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]
+    if (!f) return
+    setVlmFile(f)
+    setVlmResult(null)
+    setVlmRaw('')
+    setVlmError('')
+    setVlmDuration(null)
+
+    if (f.type.startsWith('image/')) {
+      const reader = new FileReader()
+      reader.onload = (ev) => setVlmPreview(ev.target?.result as string)
+      reader.readAsDataURL(f)
+    } else {
+      setVlmPreview(null)
+    }
+  }
+
+  async function runVlmOcr() {
+    if (!vlmFile || !activeOrgId) return
+    setVlmLoading(true)
+    setVlmError('')
+    setVlmResult(null)
+    setVlmRaw('')
+    const start = performance.now()
+
+    try {
+      const formData = new FormData()
+      formData.append('file', vlmFile)
+      const resp = await orgClient.post<OcrResult>('/ai/ocr-vlm', formData)
+      const duration = Math.round(performance.now() - start)
+      setVlmDuration(duration)
+      setVlmResult(resp)
+      setVlmRaw(JSON.stringify(resp, null, 2))
+    } catch (err: unknown) {
+      const msg = (err as { data?: { detail?: string } })?.data?.detail || 'Erreur OCR VLM'
+      setVlmError(String(msg))
+    } finally {
+      setVlmLoading(false)
     }
   }
 
@@ -197,7 +271,8 @@ export default function TestAiPage() {
   // ── Tabs ────────────────────────────────────────────────────────────────
 
   const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
-    { key: 'ocr', label: 'OCR (Vision)', icon: <FileImage className="w-4 h-4" /> },
+    { key: 'ocr', label: 'OCR PaddleX', icon: <FileImage className="w-4 h-4" /> },
+    { key: 'ocr-vlm', label: 'OCR VLM', icon: <BrainCircuit className="w-4 h-4" /> },
     { key: 'categorize', label: 'Categorisation PCG', icon: <BookOpen className="w-4 h-4" /> },
     { key: 'chat', label: 'Chat IA', icon: <MessageSquare className="w-4 h-4" /> },
   ]
@@ -266,7 +341,7 @@ export default function TestAiPage() {
               <div className="flex gap-2">
                 <button onClick={runOcr} disabled={ocrLoading} className={BTN + ' flex-1'}>
                   {ocrLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <BrainCircuit className="w-4 h-4" />}
-                  {ocrLoading ? 'Analyse en cours...' : 'Lancer l\'OCR'}
+                  {ocrLoading ? `Analyse... ${(ocrChrono / 1000).toFixed(1)}s` : 'Lancer l\'OCR'}
                 </button>
                 <button
                   onClick={() => { setFile(null); setPreview(null); setOcrResult(null); setOcrRaw(''); setOcrError(''); setOcrDuration(null) }}
@@ -290,7 +365,7 @@ export default function TestAiPage() {
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Resultat OCR</h2>
                 {ocrDuration !== null && (
-                  <span className="text-xs text-gray-400">{ocrDuration} ms</span>
+                  <span className="text-xs text-gray-400">{(ocrDuration / 1000).toFixed(1)}s</span>
                 )}
               </div>
 
@@ -348,6 +423,131 @@ export default function TestAiPage() {
                 </div>
                 <pre className="text-xs bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700 rounded-lg p-4 overflow-auto max-h-80 font-mono">
                   {ocrRaw}
+                </pre>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Tab OCR VLM ──────────────────────────────────────────────────── */}
+      {tab === 'ocr-vlm' && (
+        <div className="space-y-6">
+          <div className={CARD + ' p-6 space-y-4'}>
+            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Document source (VLM)</h2>
+
+            <div
+              onClick={() => vlmFileRef.current?.click()}
+              className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-8 text-center cursor-pointer hover:border-kerpta hover:bg-kerpta-50/30 transition"
+            >
+              <input
+                ref={vlmFileRef}
+                type="file"
+                accept="image/*,application/pdf"
+                onChange={handleVlmFileChange}
+                className="hidden"
+              />
+              {vlmPreview ? (
+                <img src={vlmPreview} alt="Apercu" className="max-h-64 mx-auto rounded-lg" />
+              ) : vlmFile ? (
+                <div className="flex flex-col items-center gap-2 text-gray-500">
+                  <FileText className="w-12 h-12" />
+                  <span className="text-sm font-medium">{vlmFile.name}</span>
+                  <span className="text-xs text-gray-400">{(vlmFile.size / 1024).toFixed(0)} Ko</span>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-2 text-gray-400">
+                  <Upload className="w-10 h-10" />
+                  <span className="text-sm">Cliquez ou glissez un PDF / image</span>
+                  <span className="text-xs">JPG, PNG, HEIC, PDF - max 10 Mo</span>
+                </div>
+              )}
+            </div>
+
+            {vlmFile && (
+              <div className="flex gap-2">
+                <button onClick={runVlmOcr} disabled={vlmLoading} className={BTN + ' flex-1'}>
+                  {vlmLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <BrainCircuit className="w-4 h-4" />}
+                  {vlmLoading ? `Analyse VLM... ${(vlmChrono / 1000).toFixed(1)}s` : 'Lancer l\'OCR VLM'}
+                </button>
+                <button
+                  onClick={() => { setVlmFile(null); setVlmPreview(null); setVlmResult(null); setVlmRaw(''); setVlmError(''); setVlmDuration(null) }}
+                  className={BTN_SECONDARY}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {vlmError && (
+              <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-600 dark:text-red-400">
+                {vlmError}
+              </div>
+            )}
+          </div>
+
+          {vlmResult && (
+            <div className={CARD + ' p-6 space-y-4'}>
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Resultat OCR VLM</h2>
+                <div className="flex items-center gap-3 text-xs text-gray-400">
+                  {vlmResult.pages_count != null && <span>{vlmResult.pages_count as number} page(s)</span>}
+                  {vlmDuration !== null && <span>{(vlmDuration / 1000).toFixed(1)}s</span>}
+                </div>
+              </div>
+
+              {/* Structured fields */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
+                {[
+                  ['Fournisseur', vlmResult.supplier_name],
+                  ['SIRET', vlmResult.supplier_siret],
+                  ['Adresse', vlmResult.supplier_address],
+                  ['N Facture', vlmResult.invoice_number],
+                  ['Date emission', vlmResult.issue_date],
+                  ['Date echeance', vlmResult.due_date],
+                  ['Total HT', vlmResult.total_ht != null ? `${vlmResult.total_ht} EUR` : null],
+                  ['Total TVA', vlmResult.total_tva != null ? `${vlmResult.total_tva} EUR` : null],
+                  ['Total TTC', vlmResult.total_ttc != null ? `${vlmResult.total_ttc} EUR` : null],
+                  ['IBAN', vlmResult.iban],
+                ].map(([label, value]) => (
+                  <div key={label as string} className="flex justify-between text-sm py-1">
+                    <span className="text-gray-500">{label as string}</span>
+                    <span className={`font-medium ${value ? 'text-gray-900 dark:text-white' : 'text-gray-300 dark:text-gray-600'}`}>
+                      {(value as string) ?? '-'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Lines */}
+              {vlmResult.lines && vlmResult.lines.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-semibold text-gray-500 mb-2 uppercase">Lignes ({vlmResult.lines.length})</h3>
+                  <div className="space-y-1">
+                    {vlmResult.lines.map((line, i) => (
+                      <div key={i} className="text-xs bg-gray-50 dark:bg-gray-800 rounded p-2 flex justify-between gap-2">
+                        <span className="flex-1 truncate">{line.description}</span>
+                        <span className="text-gray-500 whitespace-nowrap">
+                          {line.quantity ?? '?'} x {line.unit_price ?? '?'} EUR
+                        </span>
+                        <span className="font-medium whitespace-nowrap">{line.total_ht ?? '?'} EUR</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Raw JSON */}
+              <div className="relative">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-gray-400 uppercase">JSON brut</span>
+                  <button onClick={() => copyJson(vlmRaw)} className={BTN_SM}>
+                    {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                    {copied ? 'Copie' : 'Copier'}
+                  </button>
+                </div>
+                <pre className="text-xs bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700 rounded-lg p-4 overflow-auto max-h-80 font-mono">
+                  {vlmRaw}
                 </pre>
               </div>
             </div>

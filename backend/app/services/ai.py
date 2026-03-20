@@ -81,6 +81,7 @@ async def _call_litellm(
     model_name: str,
     messages: list[dict],
     max_tokens: int = 4096,
+    timeout: float = 120.0,
 ) -> dict:
     """Appelle LiteLLM en format OpenAI chat completions."""
     url = f"{litellm_url.rstrip('/')}/v1/chat/completions"
@@ -92,7 +93,7 @@ async def _call_litellm(
     headers = {"Authorization": f"Bearer {litellm_key}"}
 
     try:
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=timeout) as client:
             resp = await client.post(url, json=body, headers=headers)
             resp.raise_for_status()
             return resp.json()
@@ -205,6 +206,132 @@ async def ocr(
     await _log_usage(db, org_id, user_id, None, "vl", 0, 0, duration)
 
     return result
+
+
+# ── OCR VLM (modele Vision-Language via LiteLLM) ─────────────────────────────
+
+_VLM_EXTRACTION_PROMPT = """Tu es un expert-comptable francais. Analyse ce document et extrais TOUTES les informations dans le format JSON suivant :
+
+{
+  "supplier_name": "Nom du fournisseur/emetteur",
+  "supplier_siret": "SIRET ou SIREN",
+  "supplier_address": "Adresse complete",
+  "invoice_number": "Numero du document",
+  "issue_date": "YYYY-MM-DD",
+  "due_date": "YYYY-MM-DD",
+  "total_ht": 0.00,
+  "total_tva": 0.00,
+  "total_ttc": 0.00,
+  "iban": "IBAN si present",
+  "lines": [
+    {"description": "...", "quantity": 1, "unit_price": 0.00, "vat_rate": 20.0, "total_ht": 0.00}
+  ],
+  "raw_text": "Texte brut complet du document"
+}
+
+Mets null pour les champs absents. Reponds UNIQUEMENT avec le JSON."""
+
+
+def _pdf_pages_to_b64(file_bytes: bytes) -> list[str]:
+    """Convertit chaque page d'un PDF en image JPEG base64 via PyMuPDF."""
+    import fitz  # PyMuPDF
+
+    doc = fitz.open(stream=file_bytes, filetype="pdf")
+    pages_b64 = []
+    for page in doc:
+        pix = page.get_pixmap(dpi=200)
+        img_bytes = pix.tobytes("jpeg")
+        pages_b64.append(base64.b64encode(img_bytes).decode("ascii"))
+    doc.close()
+    return pages_b64
+
+
+def _image_to_jpeg_b64(file_bytes: bytes, content_type: str) -> str:
+    """Convertit n'importe quelle image (HEIC, PNG, etc.) en JPEG base64 via Pillow."""
+    from PIL import Image
+    import io
+
+    # Enregistrer le support HEIC/HEIF (photos iPhone)
+    try:
+        import pillow_heif
+        pillow_heif.register_heif_opener()
+    except ImportError:
+        pass
+
+    img = Image.open(io.BytesIO(file_bytes))
+    if img.mode in ("RGBA", "P"):
+        img = img.convert("RGB")
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=85)
+    return base64.b64encode(buf.getvalue()).decode("ascii")
+
+
+async def ocr_vlm(
+    db: AsyncSession,
+    file_bytes: bytes,
+    org_id: uuid.UUID,
+    user_id: uuid.UUID,
+    content_type: str = "image/jpeg",
+) -> dict:
+    """OCR via le modele VL (Vision-Language) configure dans LiteLLM.
+
+    Envoie les pages du document comme images au modele vision.
+    Supporte PDF multi-pages, JPEG, PNG, HEIC et autres formats image.
+    """
+    config = await _get_ai_config(db)
+    model = await _resolve_model(db, config["vl_model_id"])
+    if not model:
+        raise HTTPException(503, "Aucun modele VL configure (Reglages IA > Roles > Vision)")
+
+    is_pdf = content_type == "application/pdf" or file_bytes[:5] == b"%PDF-"
+
+    # Convertir en images base64
+    if is_pdf:
+        images_b64 = _pdf_pages_to_b64(file_bytes)
+    else:
+        images_b64 = [_image_to_jpeg_b64(file_bytes, content_type)]
+
+    # Construire le message vision multi-image
+    content: list[dict] = [
+        {"type": "text", "text": _VLM_EXTRACTION_PROMPT},
+    ]
+    for img_b64 in images_b64:
+        content.append({
+            "type": "image_url",
+            "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"},
+        })
+
+    messages = [{"role": "user", "content": content}]
+
+    start = time.monotonic()
+    resp = await _call_litellm(
+        config["litellm_url"], config["litellm_key"],
+        model["litellm_name"], messages, max_tokens=4096, timeout=300.0,
+    )
+    duration = int((time.monotonic() - start) * 1000)
+
+    usage = resp.get("usage", {})
+    await _log_usage(
+        db, org_id, user_id, model["uuid"], "vl",
+        usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0), duration,
+    )
+
+    text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+    # Tenter de parser le JSON
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        cleaned = cleaned.split("\n", 1)[-1]
+        if cleaned.endswith("```"):
+            cleaned = cleaned[:-3]
+        cleaned = cleaned.strip()
+
+    try:
+        result = json.loads(cleaned)
+        result["duration_ms"] = duration
+        result["pages_count"] = len(images_b64)
+        return result
+    except json.JSONDecodeError:
+        return {"raw_text": text, "duration_ms": duration, "pages_count": len(images_b64)}
 
 
 # ── Categorisation comptable (role Instruct) ──────────────────────────────────

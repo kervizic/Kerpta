@@ -93,6 +93,22 @@ async def ocr_invoice(
     return result
 
 
+@router.post("/ocr-vlm")
+async def ocr_vlm(
+    file: UploadFile = File(...),
+    x_organization_id: UUID = Header(..., alias="X-Organization-Id"),
+    user_id: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """OCR via le modele VL (Vision-Language) configure dans LiteLLM."""
+    _log.info("OCR-VLM requete - fichier=%s, %s octets, org=%s", file.filename, file.size, x_organization_id)
+    await _require_ai_enabled(db, x_organization_id)
+    image_bytes = await file.read()
+    content_type = file.content_type or "image/jpeg"
+    result = await ai_svc.ocr_vlm(db, image_bytes, x_organization_id, user_id, content_type)
+    return result
+
+
 @router.post("/categorize", response_model=AiCategorizeResponse)
 async def categorize_entry(
     body: AiCategorizeRequest,
