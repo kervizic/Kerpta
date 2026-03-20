@@ -231,7 +231,7 @@ def _pdf_pages_to_b64(file_bytes: bytes) -> list[str]:
     doc = fitz.open(stream=file_bytes, filetype="pdf")
     pages_b64 = []
     for page in doc:
-        pix = page.get_pixmap(dpi=200)
+        pix = page.get_pixmap(dpi=150)
         img_bytes = pix.tobytes("jpeg")
         pages_b64.append(base64.b64encode(img_bytes).decode("ascii"))
     doc.close()
@@ -254,7 +254,11 @@ def _image_to_jpeg_b64(file_bytes: bytes, content_type: str) -> str:
     if img.mode in ("RGBA", "P"):
         img = img.convert("RGB")
     buf = io.BytesIO()
-    img.save(buf, format="JPEG", quality=85)
+    # Redimensionner si trop grand (max 1500px de cote)
+    max_side = 1500
+    if max(img.size) > max_side:
+        img.thumbnail((max_side, max_side))
+    img.save(buf, format="JPEG", quality=80)
     return base64.b64encode(buf.getvalue()).decode("ascii")
 
 
