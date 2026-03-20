@@ -303,7 +303,71 @@ async def ocr(
 
 # ── OCR VLM (modele Vision-Language via LiteLLM) ─────────────────────────────
 
-_VLM_EXTRACTION_PROMPT = "Retranscris exactement tout le texte visible de ce document. Tableaux en Markdown. Pas de commentaire."
+_VLM_EXTRACTION_PROMPT = """Tu es un extracteur de donnees comptables universel. Retourne UNIQUEMENT un JSON valide, sans markdown, sans texte avant ou apres.
+REGLES STRICTES :
+Valeur non trouvee = null
+Montants = float 2 decimales - TOUJOURS lire la valeur dans le document, ne jamais recalculer
+Dates = YYYY-MM-DD
+Chaque produit/service = une entree dans "lignes", meme si fusionne visuellement dans le document
+Les lignes TOTAL, SOUS-TOTAL, CUMUL ne sont PAS des lignes
+Identifiant fiscal : mettre la valeur trouvee dans le champ correspondant - SIREN (9 chiffres) dans "siren", SIRET (14 chiffres) dans "siret", les deux si les deux sont presents
+"designation" = libelle court tel qu'ecrit dans le document - "description" = texte long ou complementaire si present
+"confiance" globale et par ligne = certitude entre 0 et 1 - baisser si fusion de lignes suspectee, OCR douteux ou donnees reconstituees
+{
+  "meta": {
+    "type_document": "facture|avoir|releve|devis|bon_livraison|bon_commande|pro_forma|acompte",
+    "devise": null,
+    "langue": null,
+    "confiance": null,
+    "pages": null
+  },
+  "parties": {
+    "emetteur": {
+      "designation": null,
+      "adresse": {"rue": null, "code_postal": null, "ville": null, "pays": null},
+      "identifiants": {"siret": null, "siren": null, "tva": null}
+    },
+    "destinataire": {
+      "designation": null,
+      "adresse": {"rue": null, "code_postal": null, "ville": null, "pays": null},
+      "identifiants": {"client": null, "tva": null}
+    }
+  },
+  "document": {
+    "numero": null,
+    "date_emission": null,
+    "date_echeance": null,
+    "numero_commande": null,
+    "reference": null
+  },
+  "lignes": [
+    {
+      "confiance": null,
+      "reference": null,
+      "designation": null,
+      "description": null,
+      "quantite": null,
+      "unite": null,
+      "prix_unitaire_ht": null,
+      "montant_ht": null,
+      "taux_tva": null,
+      "montant_tva": null,
+      "montant_ttc": null
+    }
+  ],
+  "totaux": {
+    "total_ht": null,
+    "total_tva": null,
+    "total_ttc": null,
+    "ventilation_tva": [{"taux": null, "base_ht": null, "montant": null}]
+  },
+  "paiement": {
+    "mode": null,
+    "echeance": null,
+    "montant_preleve": null,
+    "iban": null
+  }
+}"""
 
 
 def _pdf_pages_to_b64(file_bytes: bytes) -> list[str]:
@@ -363,58 +427,64 @@ async def ocr_vlm(
 
     is_pdf = content_type == "application/pdf" or file_bytes[:5] == b"%PDF-"
 
-    # Convertir en images base64
+    # Convertir en images base64 (150 DPI)
     if is_pdf:
         images_b64 = _pdf_pages_to_b64(file_bytes)
     else:
         images_b64 = [_image_to_jpeg_b64(file_bytes, content_type)]
 
-    # Traiter page par page pour ne pas surcharger le modele
-    all_texts: list[str] = []
-    total_tokens_in = 0
-    total_tokens_out = 0
+    # Envoyer toutes les pages en une seule requete
+    content: list[dict] = [
+        {"type": "text", "text": _VLM_EXTRACTION_PROMPT},
+    ]
+    for img_b64 in images_b64:
+        content.append({
+            "type": "image_url",
+            "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"},
+        })
+
+    messages = [{"role": "user", "content": content}]
+
     start = time.monotonic()
-
-    for i, img_b64 in enumerate(images_b64):
-        page_prompt = _VLM_EXTRACTION_PROMPT
-        if len(images_b64) > 1:
-            page_prompt = f"--- PAGE {i + 1}/{len(images_b64)} ---\n\n{_VLM_EXTRACTION_PROMPT}"
-
-        messages = [{"role": "user", "content": [
-            {"type": "text", "text": page_prompt},
-            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}},
-        ]}]
-
-        resp = await _call_litellm(
-            config["litellm_url"], config["litellm_key"],
-            model["litellm_name"], messages, max_tokens=4096, timeout=300.0,
-        )
-
-        usage = resp.get("usage", {})
-        total_tokens_in += usage.get("prompt_tokens", 0)
-        total_tokens_out += usage.get("completion_tokens", 0)
-
-        page_text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
-        all_texts.append(page_text.strip())
-
+    resp = await _call_litellm(
+        config["litellm_url"], config["litellm_key"],
+        model["litellm_name"], messages, max_tokens=4096, timeout=300.0,
+    )
     duration = int((time.monotonic() - start) * 1000)
 
+    usage = resp.get("usage", {})
     await _log_usage(
         db, org_id, user_id, model["uuid"], "vl",
-        total_tokens_in, total_tokens_out, duration,
+        usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0), duration,
     )
 
-    # Concatener toutes les pages
-    full_text = "\n\n".join(all_texts)
+    text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
 
-    return {
-        "raw_text": full_text,
-        "duration_ms": duration,
-        "pages_count": len(images_b64),
-        "tokens_in": total_tokens_in,
-        "tokens_out": total_tokens_out,
-        "model": model["litellm_name"],
-    }
+    # Parser le JSON
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        cleaned = cleaned.split("\n", 1)[-1]
+        if cleaned.endswith("```"):
+            cleaned = cleaned[:-3]
+        cleaned = cleaned.strip()
+
+    try:
+        result = json.loads(cleaned)
+        result["duration_ms"] = duration
+        result["pages_count"] = len(images_b64)
+        result["tokens_in"] = usage.get("prompt_tokens", 0)
+        result["tokens_out"] = usage.get("completion_tokens", 0)
+        result["model"] = model["litellm_name"]
+        return result
+    except json.JSONDecodeError:
+        return {
+            "raw_text": text,
+            "duration_ms": duration,
+            "pages_count": len(images_b64),
+            "tokens_in": usage.get("prompt_tokens", 0),
+            "tokens_out": usage.get("completion_tokens", 0),
+            "model": model["litellm_name"],
+        }
 
 
 # ── Categorisation comptable (role Instruct) ──────────────────────────────────

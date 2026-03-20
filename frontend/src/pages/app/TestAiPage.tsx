@@ -491,7 +491,7 @@ export default function TestAiPage() {
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Resultat OCR VLM</h2>
                 <div className="flex items-center gap-3 text-xs text-gray-400">
-                  {vlmResult.pages_count != null && <span>{vlmResult.pages_count as number} page(s)</span>}
+                  {vlmResult.pages_count != null && <span>{String(vlmResult.pages_count)} page(s)</span>}
                   {'model' in vlmResult && vlmResult.model ? <span>{String(vlmResult.model)}</span> : null}
                   {'tokens_in' in vlmResult && vlmResult.tokens_in != null ? (
                     <span>{String(vlmResult.tokens_in)} / {String(vlmResult.tokens_out)} tokens</span>
@@ -500,17 +500,17 @@ export default function TestAiPage() {
                 </div>
               </div>
 
-              {/* Texte brut OCR */}
+              {/* JSON structure */}
               <div className="relative">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs text-gray-400 uppercase">Texte extrait (brut, sans interpretation)</span>
-                  <button onClick={() => copyJson(vlmResult.raw_text || '')} className={BTN_SM}>
+                  <span className="text-xs text-gray-400 uppercase">JSON extrait</span>
+                  <button onClick={() => copyJson(JSON.stringify(vlmResult, null, 2))} className={BTN_SM}>
                     {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                     {copied ? 'Copie' : 'Copier'}
                   </button>
                 </div>
-                <pre className="text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700 rounded-lg p-4 overflow-auto max-h-[600px] font-mono whitespace-pre-wrap">
-                  {vlmResult.raw_text || '(vide)'}
+                <pre className="text-xs bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700 rounded-lg p-4 overflow-auto max-h-[600px] font-mono whitespace-pre-wrap">
+                  {JSON.stringify(vlmResult, null, 2)}
                 </pre>
               </div>
             </div>
