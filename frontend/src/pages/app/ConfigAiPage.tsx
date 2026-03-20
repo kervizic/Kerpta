@@ -28,6 +28,8 @@ import {
   Eye,
   AlertCircle,
   CheckCircle2,
+  Monitor,
+  Copy,
 } from 'lucide-react'
 import { BTN_SM, BTN_SECONDARY, INPUT, SELECT, CARD, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER } from '@/lib/formStyles'
 import PageLayout from '@/components/app/PageLayout'
@@ -138,6 +140,24 @@ function ToastBanner({ toast, onClose }: { toast: Toast; onClose: () => void }) 
   )
 }
 
+// ── CopyBlock (commande copiable) ───────────────────────────────────────────
+
+function CopyBlock({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2">
+      <code className="text-xs text-gray-700 dark:text-gray-300 font-mono flex-1 select-all">{text}</code>
+      <button
+        onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000) }}
+        className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition shrink-0"
+        title="Copier"
+      >
+        {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5 text-gray-400" />}
+      </button>
+    </div>
+  )
+}
+
 // ── Page principale ──────────────────────────────────────────────────────────
 
 export default function ConfigAiPage() {
@@ -171,7 +191,7 @@ export default function ConfigAiPage() {
 
   // Sections ouvertes/fermees
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-    general: true, providers: true, models: true, roles: true, features: true, usage: true,
+    general: true, providers: true, models: true, roles: true, features: true, ocr: false, usage: true,
   })
 
   const toggleSection = (s: string) => setOpenSections((prev) => ({ ...prev, [s]: !prev[s] }))
@@ -543,7 +563,85 @@ export default function ConfigAiPage() {
         )}
       </section>
 
-      {/* Section 6 - Usage */}
+      {/* Section 6 - Guide OCR PaddleX */}
+      <section className={CARD + ' p-5'}>
+        {sectionHeader('ocr', 'OCR - PaddleX Serving', <Monitor className="w-4 h-4 text-gray-400" />)}
+        {openSections.ocr && (
+          <div className="space-y-4 pt-2">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              L'OCR utilise <span className="font-semibold">PaddleX Serving</span> (PaddleOCR-VL) pour extraire le texte des factures et documents.
+              Le serveur PaddleX tourne sur une machine separee (Windows/Linux) avec suffisamment de RAM (8 Go minimum recommande).
+            </p>
+
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <p className="text-xs font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wide mb-2">Architecture</p>
+              <p className="text-sm text-blue-700 dark:text-blue-300">
+                Kerpta (VPS) envoie les documents via HTTP au serveur PaddleX (machine locale ou dedicee).
+                PaddleX gere le decoupage multi-pages, la detection de mise en page et l'extraction OCR via le modele PaddleOCR-VL 1.5.
+              </p>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Installation (Windows)</p>
+              <div className="space-y-2">
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">1. Verifier que Python 3.10+ est installe</p>
+                  <CopyBlock text="python --version" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">2. Installer PaddlePaddle, PaddleOCR et PaddleX</p>
+                  <CopyBlock text="pip install paddlepaddle paddleocr[doc-parser] paddlex" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">3. Installer le plugin Serving</p>
+                  <CopyBlock text="paddlex --install serving" />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Demarrage du serveur</p>
+              <CopyBlock text="paddlex --serve --pipeline PaddleOCR-VL --device cpu --host 0.0.0.0 --port 12321" />
+              <p className="text-xs text-gray-400 mt-2">
+                Utilisez <span className="font-mono">--device gpu</span> si vous avez un GPU NVIDIA avec CUDA pour de meilleures performances.
+                Le port par defaut est <span className="font-mono">12321</span>.
+              </p>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Configuration dans Kerpta</p>
+              <ol className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                <li className="flex gap-2">
+                  <span className="text-kerpta font-bold">1.</span>
+                  <span>Ajoutez un fournisseur de type <span className="font-semibold">Compatible OpenAI</span> avec l'URL de votre machine PaddleX (ex : <span className="font-mono text-xs">http://192.168.1.100:12321</span>).</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="text-kerpta font-bold">2.</span>
+                  <span>Synchronisez les modeles - le modele PaddleOCR-VL apparaitra automatiquement.</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="text-kerpta font-bold">3.</span>
+                  <span>Dans la section <span className="font-semibold">Roles</span>, assignez ce modele au role <span className="font-semibold">VL (Vision)</span>.</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="text-kerpta font-bold">4.</span>
+                  <span>Activez la fonctionnalite <span className="font-semibold">OCR factures</span> dans les fonctionnalites.</span>
+                </li>
+              </ol>
+            </div>
+
+            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+              <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide mb-1">Alternative sans PaddleX</p>
+              <p className="text-sm text-amber-700 dark:text-amber-300">
+                Si vous n'avez pas de machine pour PaddleX, vous pouvez assigner un modele VL (Vision-Language) standard au role VL.
+                Le support de l'OCR via un modele VL generique sera disponible dans une prochaine version.
+              </p>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Section 7 - Usage */}
       <section className={CARD + ' p-5'}>
         {sectionHeader('usage', 'Usage (30 jours)', <BarChart3 className="w-4 h-4 text-gray-400" />)}
         {openSections.usage && usage && (
