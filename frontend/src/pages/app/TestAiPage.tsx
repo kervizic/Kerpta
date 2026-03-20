@@ -492,62 +492,25 @@ export default function TestAiPage() {
                 <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Resultat OCR VLM</h2>
                 <div className="flex items-center gap-3 text-xs text-gray-400">
                   {vlmResult.pages_count != null && <span>{vlmResult.pages_count as number} page(s)</span>}
+                  {(vlmResult as Record<string, unknown>).model && <span>{(vlmResult as Record<string, unknown>).model as string}</span>}
+                  {(vlmResult as Record<string, unknown>).tokens_in != null && (
+                    <span>{(vlmResult as Record<string, unknown>).tokens_in as number} / {(vlmResult as Record<string, unknown>).tokens_out as number} tokens</span>
+                  )}
                   {vlmDuration !== null && <span>{(vlmDuration / 1000).toFixed(1)}s</span>}
                 </div>
               </div>
 
-              {/* Structured fields */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
-                {[
-                  ['Fournisseur', vlmResult.supplier_name],
-                  ['SIRET', vlmResult.supplier_siret],
-                  ['Adresse', vlmResult.supplier_address],
-                  ['N Facture', vlmResult.invoice_number],
-                  ['Date emission', vlmResult.issue_date],
-                  ['Date echeance', vlmResult.due_date],
-                  ['Total HT', vlmResult.total_ht != null ? `${vlmResult.total_ht} EUR` : null],
-                  ['Total TVA', vlmResult.total_tva != null ? `${vlmResult.total_tva} EUR` : null],
-                  ['Total TTC', vlmResult.total_ttc != null ? `${vlmResult.total_ttc} EUR` : null],
-                  ['IBAN', vlmResult.iban],
-                ].map(([label, value]) => (
-                  <div key={label as string} className="flex justify-between text-sm py-1">
-                    <span className="text-gray-500">{label as string}</span>
-                    <span className={`font-medium ${value ? 'text-gray-900 dark:text-white' : 'text-gray-300 dark:text-gray-600'}`}>
-                      {(value as string) ?? '-'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Lines */}
-              {vlmResult.lines && vlmResult.lines.length > 0 && (
-                <div>
-                  <h3 className="text-xs font-semibold text-gray-500 mb-2 uppercase">Lignes ({vlmResult.lines.length})</h3>
-                  <div className="space-y-1">
-                    {vlmResult.lines.map((line, i) => (
-                      <div key={i} className="text-xs bg-gray-50 dark:bg-gray-800 rounded p-2 flex justify-between gap-2">
-                        <span className="flex-1 truncate">{line.description}</span>
-                        <span className="text-gray-500 whitespace-nowrap">
-                          {line.quantity ?? '?'} x {line.unit_price ?? '?'} EUR
-                        </span>
-                        <span className="font-medium whitespace-nowrap">{line.total_ht ?? '?'} EUR</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Raw JSON */}
+              {/* Texte brut OCR */}
               <div className="relative">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs text-gray-400 uppercase">JSON brut</span>
-                  <button onClick={() => copyJson(vlmRaw)} className={BTN_SM}>
+                  <span className="text-xs text-gray-400 uppercase">Texte extrait (brut, sans interpretation)</span>
+                  <button onClick={() => copyJson(vlmResult.raw_text || '')} className={BTN_SM}>
                     {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                     {copied ? 'Copie' : 'Copier'}
                   </button>
                 </div>
-                <pre className="text-xs bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700 rounded-lg p-4 overflow-auto max-h-80 font-mono">
-                  {vlmRaw}
+                <pre className="text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700 rounded-lg p-4 overflow-auto max-h-[600px] font-mono whitespace-pre-wrap">
+                  {vlmResult.raw_text || '(vide)'}
                 </pre>
               </div>
             </div>

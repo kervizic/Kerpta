@@ -210,26 +210,18 @@ async def ocr(
 
 # ── OCR VLM (modele Vision-Language via LiteLLM) ─────────────────────────────
 
-_VLM_EXTRACTION_PROMPT = """Tu es un expert-comptable francais. Analyse ce document et extrais TOUTES les informations dans le format JSON suivant :
+_VLM_EXTRACTION_PROMPT = """Lis ce document et retranscris EXACTEMENT tout le texte visible, tel quel.
 
-{
-  "supplier_name": "Nom du fournisseur/emetteur",
-  "supplier_siret": "SIRET ou SIREN",
-  "supplier_address": "Adresse complete",
-  "invoice_number": "Numero du document",
-  "issue_date": "YYYY-MM-DD",
-  "due_date": "YYYY-MM-DD",
-  "total_ht": 0.00,
-  "total_tva": 0.00,
-  "total_ttc": 0.00,
-  "iban": "IBAN si present",
-  "lines": [
-    {"description": "...", "quantity": 1, "unit_price": 0.00, "vat_rate": 20.0, "total_ht": 0.00}
-  ],
-  "raw_text": "Texte brut complet du document"
-}
+Regles strictes :
+- Retranscris chaque mot, chiffre, symbole exactement comme il apparait
+- Ne corrige RIEN (pas d'orthographe, pas de format de date, pas de calcul)
+- N'invente RIEN, n'extrapole RIEN, ne regroupe RIEN, ne calcule RIEN
+- Conserve la mise en page originale (sauts de ligne, alignements, tableaux)
+- Pour les tableaux, utilise le format Markdown (|col1|col2|...)
+- Si une zone est illisible, indique [illisible]
+- S'il y a plusieurs pages, separe-les par --- PAGE X ---
 
-Mets null pour les champs absents. Reponds UNIQUEMENT avec le JSON."""
+Reponds UNIQUEMENT avec le texte brut du document, sans commentaire."""
 
 
 def _pdf_pages_to_b64(file_bytes: bytes) -> list[str]:
@@ -317,21 +309,15 @@ async def ocr_vlm(
     )
 
     text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
-    # Tenter de parser le JSON
-    cleaned = text.strip()
-    if cleaned.startswith("```"):
-        cleaned = cleaned.split("\n", 1)[-1]
-        if cleaned.endswith("```"):
-            cleaned = cleaned[:-3]
-        cleaned = cleaned.strip()
 
-    try:
-        result = json.loads(cleaned)
-        result["duration_ms"] = duration
-        result["pages_count"] = len(images_b64)
-        return result
-    except json.JSONDecodeError:
-        return {"raw_text": text, "duration_ms": duration, "pages_count": len(images_b64)}
+    return {
+        "raw_text": text.strip(),
+        "duration_ms": duration,
+        "pages_count": len(images_b64),
+        "tokens_in": usage.get("prompt_tokens", 0),
+        "tokens_out": usage.get("completion_tokens", 0),
+        "model": model["litellm_name"],
+    }
 
 
 # ── Categorisation comptable (role Instruct) ──────────────────────────────────
