@@ -139,6 +139,58 @@ async def _log_usage(
 # ── OCR (PaddleX Serving distant) ─────────────────────────────────────────────
 
 
+def _downscale_pdf(file_bytes: bytes, dpi: int = 120) -> bytes:
+    """Convertit chaque page du PDF en image JPEG basse resolution,
+    puis reconstruit un PDF leger. Reduit la taille envoyee a PaddleX."""
+    import fitz  # PyMuPDF
+    from PIL import Image
+    import io
+
+    src = fitz.open(stream=file_bytes, filetype="pdf")
+    dst = fitz.open()
+
+    for page in src:
+        pix = page.get_pixmap(dpi=dpi)
+        img = Image.open(io.BytesIO(pix.tobytes("jpeg")))
+        img_buf = io.BytesIO()
+        img.save(img_buf, format="JPEG", quality=80)
+        img_buf.seek(0)
+
+        # Creer une page PDF avec l'image
+        img_doc = fitz.open(stream=img_buf.read(), filetype="jpeg")
+        rect = fitz.Rect(0, 0, pix.width * 72 / dpi, pix.height * 72 / dpi)
+        new_page = dst.new_page(width=rect.width, height=rect.height)
+        new_page.insert_image(rect, stream=img_doc.tobytes())
+        img_doc.close()
+
+    result = dst.tobytes(deflate=True)
+    src.close()
+    dst.close()
+    return result
+
+
+def _downscale_image(file_bytes: bytes, max_side: int = 1500) -> bytes:
+    """Redimensionne une image si elle depasse max_side pixels."""
+    from PIL import Image
+    import io
+
+    try:
+        import pillow_heif
+        pillow_heif.register_heif_opener()
+    except ImportError:
+        pass
+
+    img = Image.open(io.BytesIO(file_bytes))
+    if max(img.size) <= max_side:
+        return file_bytes
+    if img.mode in ("RGBA", "P"):
+        img = img.convert("RGB")
+    img.thumbnail((max_side, max_side))
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=85)
+    return buf.getvalue()
+
+
 async def _call_paddlex(base_url: str, file_bytes: bytes, file_type: int) -> dict:
     """Appelle PaddleX Serving (distant) pour l'OCR.
 
@@ -196,7 +248,14 @@ async def ocr(
         raise HTTPException(503, "URL du serveur PaddleX non configuree (Reglages IA > General)")
 
     is_pdf = content_type == "application/pdf" or file_bytes[:5] == b"%PDF-"
-    file_type = 0 if is_pdf else 1
+
+    # Reduire la resolution pour accelerer le traitement PaddleX
+    if is_pdf:
+        file_bytes = _downscale_pdf(file_bytes, dpi=120)
+        file_type = 0
+    else:
+        file_bytes = _downscale_image(file_bytes, max_side=1500)
+        file_type = 1
 
     start = time.monotonic()
 
