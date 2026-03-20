@@ -74,18 +74,19 @@ async def _require_ai_enabled(
             raise HTTPException(403, "Module IA non active pour cette organisation")
 
 
-@router.post("/ocr", response_model=AiOcrResponse)
+@router.post("/ocr")
 async def ocr_invoice(
     file: UploadFile = File(...),
     x_organization_id: UUID = Header(..., alias="X-Organization-Id"),
     user_id: UUID = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
 ):
+    """OCR via PaddleX Serving - retourne le resultat brut PaddleX."""
     await _require_ai_enabled(db, x_organization_id)
     image_bytes = await file.read()
     content_type = file.content_type or "image/jpeg"
     result = await ai_svc.ocr(db, image_bytes, x_organization_id, user_id, content_type)
-    return AiOcrResponse(**result)
+    return result
 
 
 @router.post("/categorize", response_model=AiCategorizeResponse)
