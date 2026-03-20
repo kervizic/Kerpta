@@ -4,7 +4,10 @@
 
 """Routes IA pour les organisations (OCR, categorisation, chat, generation)."""
 
+import logging
 from uuid import UUID
+
+_log = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Depends, Header, HTTPException, UploadFile, File
 from sqlalchemy import text
@@ -82,11 +85,21 @@ async def ocr_invoice(
     db: AsyncSession = Depends(get_db),
 ):
     """OCR via PaddleX Serving - retourne le resultat brut PaddleX."""
+    _log.info("[OCR] Requete recue - fichier=%s, content_type=%s, org=%s",
+              file.filename, file.content_type, x_organization_id)
     await _require_ai_enabled(db, x_organization_id)
+    _log.info("[OCR] IA activee, lecture du fichier...")
     image_bytes = await file.read()
+    _log.info("[OCR] Fichier lu : %d octets", len(image_bytes))
     content_type = file.content_type or "image/jpeg"
-    result = await ai_svc.ocr(db, image_bytes, x_organization_id, user_id, content_type)
-    return result
+    _log.info("[OCR] Appel PaddleX en cours...")
+    try:
+        result = await ai_svc.ocr(db, image_bytes, x_organization_id, user_id, content_type)
+        _log.info("[OCR] PaddleX OK - cles resultat : %s", list(result.keys()) if isinstance(result, dict) else type(result))
+        return result
+    except Exception as exc:
+        _log.error("[OCR] Erreur : %s", exc)
+        raise
 
 
 @router.post("/categorize", response_model=AiCategorizeResponse)
