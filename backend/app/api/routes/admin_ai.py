@@ -56,6 +56,35 @@ async def _auto_enable_ai_if_models(db: AsyncSession) -> None:
         await db.commit()
 
 
+# Flag pour ne pas re-enregistrer a chaque requete GET /config
+_litellm_models_ensured = False
+
+
+async def _ensure_models_in_litellm(db: AsyncSession) -> None:
+    """Re-enregistre les modeles actifs dans LiteLLM si besoin (perte au restart)."""
+    global _litellm_models_ensured
+    if _litellm_models_ensured:
+        return
+    _litellm_models_ensured = True
+
+    litellm_url, litellm_key = await _get_litellm_config(db)
+    result = await db.execute(
+        text("""
+            SELECT m.model_id, p.type, p.api_key, p.base_url
+            FROM ai_models m
+            JOIN ai_providers p ON p.id = m.provider_id
+            WHERE m.is_active = true AND p.is_active = true
+        """)
+    )
+    rows = result.fetchall()
+    for model_id, provider_type, api_key, base_url in rows:
+        await providers_svc.register_model_in_litellm(
+            litellm_url, litellm_key,
+            provider_type, model_id,
+            api_key=api_key, base_url=base_url,
+        )
+
+
 # ── Fournisseurs ──────────────────────────────────────────────────────────────
 
 
@@ -496,6 +525,8 @@ async def get_config(
 ):
     # Auto-active l'IA si des modeles existent (rattrapage)
     await _auto_enable_ai_if_models(db)
+    # Re-enregistre les modeles dans LiteLLM si absent (perte au restart)
+    await _ensure_models_in_litellm(db)
 
     result = await db.execute(
         text("""
