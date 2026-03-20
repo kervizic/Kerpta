@@ -9,7 +9,6 @@ WORKDIR /app
 # Dépendances système
 # - gcc / libpq-dev : compilation asyncpg
 # - WeasyPrint : pango + cairo + gdk-pixbuf (rendu HTML→PDF sans navigateur)
-# - libgl1 : OpenCV (requis par PaddlePaddle/PaddleOCR)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libpq-dev \
@@ -24,7 +23,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     shared-mime-info \
     fontconfig \
     fonts-liberation \
-    libgl1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Dépendances Python

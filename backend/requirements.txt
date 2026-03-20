@@ -43,9 +43,8 @@ Pillow==11.1.0
 # OCR (Mindee)
 mindee==4.9.0
 
-# PaddleOCR-VL (layout detection locale + VLM distant via LiteLLM)
-paddlepaddle>=3.0.0           # Framework CPU pour la detection de layout
-paddleocr[doc-parser]>=3.3.0  # Pipeline OCR complet (PDF, tableaux, formules)
+# OCR : PaddleX Serving distant (layout + VLM sur machine Windows)
+# Pas de paddlepaddle/paddleocr local - le VPS envoie les docs via HTTP
 
 # Storage
 boto3==1.35.85        # S3-compatible (OVH, AWS, Scaleway)

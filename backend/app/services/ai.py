@@ -134,91 +134,44 @@ async def _log_usage(
     await db.commit()
 
 
-# ── OCR (role VL) ─────────────────────────────────────────────────────────────
+# ── OCR (PaddleX Serving distant) ─────────────────────────────────────────────
 
 
-# Singleton PaddleOCRVL par worker uvicorn
-_paddle_pipeline = None
-_paddle_config: tuple | None = None
+async def _call_paddlex(base_url: str, file_bytes: bytes, file_type: int) -> dict:
+    """Appelle PaddleX Serving (distant) pour l'OCR.
 
+    Le serveur PaddleX tourne sur la machine Windows et gere :
+    - Layout detection (PP-DocLayoutV3)
+    - VLM (PaddleOCR-VL)
+    - PDF multi-pages nativement
 
-def _get_paddle_pipeline(litellm_url: str, litellm_key: str, model_name: str):
-    """Retourne ou cree le pipeline PaddleOCRVL (singleton par worker)."""
-    global _paddle_pipeline, _paddle_config
-
-    new_config = (litellm_url, litellm_key, model_name)
-    if _paddle_pipeline is not None and _paddle_config == new_config:
-        return _paddle_pipeline
-
-    os.environ.setdefault("PADDLE_PDX_EAGER_INIT", "False")
-    os.environ.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "True")
-
-    from paddleocr import PaddleOCRVL
-
-    litellm_v1 = litellm_url.rstrip("/")
-    if not litellm_v1.endswith("/v1"):
-        litellm_v1 += "/v1"
-
-    _paddle_pipeline = PaddleOCRVL(
-        vl_rec_backend="vllm-server",
-        vl_rec_server_url=litellm_v1,
-        vl_rec_api_key=litellm_key or "no-key-required",
-        vl_rec_api_model_name=model_name,
-        device="cpu",
-    )
-    _paddle_config = new_config
-    return _paddle_pipeline
-
-
-async def _ocr_with_paddleocr(
-    file_bytes: bytes,
-    content_type: str,
-    litellm_url: str,
-    litellm_key: str,
-    model_name: str,
-) -> dict:
-    """Pipeline PaddleOCR complet : layout detection + VLM via LiteLLM.
-
-    Gere nativement PDF multi-pages, tableaux, formules.
-    Retourne la sortie brute de PaddleOCR.
+    Args:
+        base_url: URL du serveur PaddleX (ex: http://100.67.242.46:12321)
+        file_bytes: contenu du fichier (image ou PDF)
+        file_type: 0 = PDF, 1 = image
     """
-    import asyncio
-    import tempfile
+    b64 = base64.b64encode(file_bytes).decode("ascii")
+    payload = {"file": b64, "fileType": file_type}
 
-    is_pdf = content_type == "application/pdf" or file_bytes[:5] == b"%PDF-"
-    suffix = ".pdf" if is_pdf else ".png"
-
-    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-        tmp.write(file_bytes)
-        tmp_path = tmp.name
-
-    def _run():
-        _log.info("[PaddleOCR] Demarrage pipeline...")
-        pipeline = _get_paddle_pipeline(litellm_url, litellm_key, model_name)
-        _log.info("[PaddleOCR] Pipeline pret, lancement predict sur %s (%d bytes)...", suffix, len(file_bytes))
-        output = pipeline.predict(tmp_path)
-        _log.info("[PaddleOCR] predict() retourne, iteration des pages...")
-        pages = list(output)
-        _log.info("[PaddleOCR] %d page(s) traitee(s), conversion en dict...", len(pages))
-
-        result_pages = []
-        for i, res in enumerate(pages):
-            _log.info("[PaddleOCR] Page %d : type=%s, attrs=%s", i, type(res).__name__, dir(res)[:10])
-            if hasattr(res, "to_dict"):
-                _log.info("[PaddleOCR] Page %d : appel to_dict()...", i)
-                result_pages.append(res.to_dict())
-                _log.info("[PaddleOCR] Page %d : to_dict() OK", i)
-            else:
-                result_pages.append({"raw": str(res)})
-                _log.info("[PaddleOCR] Page %d : pas de to_dict, str()", i)
-        _log.info("[PaddleOCR] Terminee : %d page(s) converties", len(result_pages))
-        return {"pages": result_pages}
+    url = f"{base_url.rstrip('/')}/layout-parsing"
 
     try:
-        return await asyncio.to_thread(_run)
-    finally:
-        import os as _os
-        _os.unlink(tmp_path)
+        async with httpx.AsyncClient(timeout=300.0) as client:
+            resp = await client.post(url, json=payload)
+            resp.raise_for_status()
+            data = resp.json()
+    except httpx.ConnectError:
+        raise HTTPException(503, "PaddleX Serving non joignable - verifiez le serveur OCR")
+    except httpx.TimeoutException:
+        raise HTTPException(504, "PaddleX Serving timeout - le document est peut-etre trop gros")
+    except httpx.HTTPStatusError as exc:
+        _log.warning("PaddleX erreur %s: %s", exc.response.status_code, exc.response.text[:300])
+        raise HTTPException(502, f"Erreur PaddleX : {exc.response.status_code}")
+
+    if data.get("errorCode", 0) != 0:
+        raise HTTPException(502, f"Erreur PaddleX : {data.get('errorMsg', 'inconnue')}")
+
+    return data.get("result", {})
 
 
 async def ocr(
@@ -228,23 +181,27 @@ async def ocr(
     user_id: uuid.UUID,
     content_type: str = "image/jpeg",
 ) -> dict:
-    """Extrait le contenu d'un document via PaddleOCR-VL.
+    """Extrait le contenu d'un document via PaddleX Serving (distant).
 
-    Layout detection locale (PaddlePaddle CPU) + VLM distant (llama.cpp via LiteLLM).
-    Gere nativement PDF multi-pages, tableaux, formules.
+    Le serveur PaddleX (sur machine Windows) gere layout detection + VLM.
+    Supporte PDF multi-pages et images nativement.
     """
     config = await _get_ai_config(db)
     model_vl = await _resolve_model(db, config["vl_model_id"])
     if not model_vl:
         raise HTTPException(503, "Aucun modele VL configure pour l'OCR")
 
+    # URL du serveur PaddleX = base_url du provider VL
+    paddlex_url = model_vl.get("base_url")
+    if not paddlex_url:
+        raise HTTPException(503, "URL du serveur PaddleX non configuree sur le provider VL")
+
+    is_pdf = content_type == "application/pdf" or file_bytes[:5] == b"%PDF-"
+    file_type = 0 if is_pdf else 1
+
     start = time.monotonic()
 
-    result = await _ocr_with_paddleocr(
-        file_bytes, content_type,
-        config["litellm_url"], config["litellm_key"],
-        model_vl["litellm_name"],
-    )
+    result = await _call_paddlex(paddlex_url, file_bytes, file_type)
 
     duration = int((time.monotonic() - start) * 1000)
     await _log_usage(db, org_id, user_id, model_vl["uuid"], "vl", 0, 0, duration)
