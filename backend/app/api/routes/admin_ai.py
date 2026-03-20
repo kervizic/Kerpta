@@ -619,6 +619,37 @@ async def test_litellm_connection(
         return {"ok": False, "message": f"Impossible de joindre LiteLLM : {exc}"}
 
 
+@router.post("/config/test-paddlex")
+async def test_paddlex_connection(
+    _admin: uuid_mod.UUID = Depends(require_platform_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Teste la connexion au serveur PaddleX Serving distant."""
+    import httpx
+
+    result = await db.execute(
+        text("SELECT ai_paddlex_url FROM platform_config LIMIT 1")
+    )
+    row = result.fetchone()
+    url = row[0] if row and row[0] else None
+
+    if not url:
+        return {"ok": False, "message": "URL PaddleX non configuree"}
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            # PaddleX Serving repond sur / ou /layout-parsing
+            resp = await client.get(f"{url.rstrip('/')}/")
+            # Tout statut HTTP = serveur joignable (meme 404/405)
+            return {"ok": True, "message": f"PaddleX connecte ({url})"}
+    except httpx.ConnectError:
+        return {"ok": False, "message": f"PaddleX non joignable sur {url}"}
+    except httpx.TimeoutException:
+        return {"ok": False, "message": f"PaddleX timeout sur {url}"}
+    except Exception as exc:
+        return {"ok": False, "message": f"Erreur PaddleX : {exc}"}
+
+
 # ── Usage ─────────────────────────────────────────────────────────────────────
 
 

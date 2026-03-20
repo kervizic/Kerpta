@@ -301,6 +301,19 @@ export default function ConfigAiPage() {
     }
   }
 
+  async function testPaddlex() {
+    try {
+      const res = await adminClient.post<{ ok: boolean; message: string }>('/ai/config/test-paddlex')
+      if (res.ok) {
+        showToast('success', res.message)
+      } else {
+        showToast('error', res.message)
+      }
+    } catch {
+      showToast('error', 'Erreur de communication avec le serveur')
+    }
+  }
+
   async function syncProvider(id: string) {
     try {
       const res = await adminClient.post<{ message: string }>(`/ai/providers/${id}/sync`)
@@ -416,7 +429,10 @@ export default function ConfigAiPage() {
             </div>
             <div className="flex gap-2">
               <button onClick={testLitellm} className={BTN_SM} disabled={!configForm.watch('litellmUrl')}>
-                <Zap className="w-3.5 h-3.5" /> Tester la connexion
+                <Zap className="w-3.5 h-3.5" /> Tester LiteLLM
+              </button>
+              <button onClick={testPaddlex} className={BTN_SM} disabled={!configForm.watch('paddlexUrl')}>
+                <Monitor className="w-3.5 h-3.5" /> Tester PaddleX
               </button>
               <button onClick={saveConfig} className={BTN_SM} disabled={saving}>
                 {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Sauvegarder
