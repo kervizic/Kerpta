@@ -63,6 +63,7 @@ interface AiConfig {
   ai_enabled: boolean
   ai_litellm_base_url: string | null
   has_master_key: boolean
+  ai_paddlex_url: string | null
   ai_features: Record<string, boolean> | null
   roles: { vl: AiModel | null; instruct: AiModel | null; thinking: AiModel | null }
 }
@@ -104,6 +105,7 @@ const FEATURES = [
 const configSchema = z.object({
   litellmUrl: z.string(),
   litellmKey: z.string(),
+  paddlexUrl: z.string(),
   aiEnabled: z.boolean(),
 })
 type ConfigFormValues = z.infer<typeof configSchema>
@@ -173,7 +175,7 @@ export default function ConfigAiPage() {
   // Config form (useForm)
   const configForm = useForm<ConfigFormValues>({
     resolver: zodResolver(configSchema),
-    defaultValues: { litellmUrl: '', litellmKey: '', aiEnabled: false },
+    defaultValues: { litellmUrl: '', litellmKey: '', paddlexUrl: '', aiEnabled: false },
   })
   const aiEnabled = configForm.watch('aiEnabled')
 
@@ -228,6 +230,7 @@ export default function ConfigAiPage() {
       aiEnabled: config.ai_enabled,
       litellmUrl: config.ai_litellm_base_url || 'http://litellm:4000',
       litellmKey: '',
+      paddlexUrl: config.ai_paddlex_url || '',
     })
   }, [config])
 
@@ -247,6 +250,7 @@ export default function ConfigAiPage() {
         ai_enabled: vals.aiEnabled,
         ai_litellm_base_url: vals.litellmUrl || null,
         ai_litellm_master_key: vals.litellmKey || undefined,
+        ai_paddlex_url: vals.paddlexUrl || null,
       })
       showToast('success', 'Configuration sauvegardee')
       invalidate()
@@ -404,6 +408,11 @@ export default function ConfigAiPage() {
             <div className="flex items-center gap-3">
               <span className="text-sm text-gray-700 dark:text-gray-300 w-40">Master Key</span>
               <input className={INPUT + ' flex-1'} type="password" {...configForm.register('litellmKey')} placeholder={config?.has_master_key ? '••••••••' : 'Non configuree'} />
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-700 dark:text-gray-300 w-40">URL PaddleX</span>
+              <input className={INPUT + ' flex-1'} {...configForm.register('paddlexUrl')} placeholder="http://192.168.1.100:12321" />
+              <span className="text-[10px] text-gray-400 shrink-0">OCR distant</span>
             </div>
             <div className="flex gap-2">
               <button onClick={testLitellm} className={BTN_SM} disabled={!configForm.watch('litellmUrl')}>
@@ -613,18 +622,14 @@ export default function ConfigAiPage() {
               <ol className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
                 <li className="flex gap-2">
                   <span className="text-kerpta font-bold">1.</span>
-                  <span>Ajoutez un fournisseur de type <span className="font-semibold">Compatible OpenAI</span> avec l'URL de votre machine PaddleX (ex : <span className="font-mono text-xs">http://192.168.1.100:12321</span>).</span>
+                  <span>Dans la section <span className="font-semibold">General</span> ci-dessus, renseignez le champ <span className="font-semibold">URL PaddleX</span> avec l'adresse de votre machine (ex : <span className="font-mono text-xs">http://192.168.1.100:12321</span>).</span>
                 </li>
                 <li className="flex gap-2">
                   <span className="text-kerpta font-bold">2.</span>
-                  <span>Synchronisez les modeles - le modele PaddleOCR-VL apparaitra automatiquement.</span>
+                  <span>Cliquez <span className="font-semibold">Sauvegarder</span>.</span>
                 </li>
                 <li className="flex gap-2">
                   <span className="text-kerpta font-bold">3.</span>
-                  <span>Dans la section <span className="font-semibold">Roles</span>, assignez ce modele au role <span className="font-semibold">VL (Vision)</span>.</span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="text-kerpta font-bold">4.</span>
                   <span>Activez la fonctionnalite <span className="font-semibold">OCR factures</span> dans les fonctionnalites.</span>
                 </li>
               </ol>

@@ -29,7 +29,7 @@ async def _get_ai_config(db: AsyncSession) -> dict:
         text("""
             SELECT ai_enabled, ai_litellm_base_url, ai_litellm_master_key,
                    ai_role_vl_model_id, ai_role_instruct_model_id, ai_role_thinking_model_id,
-                   ai_features
+                   ai_features, ai_paddlex_url
             FROM platform_config LIMIT 1
         """)
     )
@@ -44,6 +44,7 @@ async def _get_ai_config(db: AsyncSession) -> dict:
         "instruct_model_id": row[4],
         "thinking_model_id": row[5],
         "features": row[6] or {},
+        "paddlex_url": row[7],
     }
 
 
@@ -185,16 +186,13 @@ async def ocr(
 
     Le serveur PaddleX (sur machine Windows) gere layout detection + VLM.
     Supporte PDF multi-pages et images nativement.
+    L'URL est configuree dans General > URL PaddleX sur la page config IA.
     """
     config = await _get_ai_config(db)
-    model_vl = await _resolve_model(db, config["vl_model_id"])
-    if not model_vl:
-        raise HTTPException(503, "Aucun modele VL configure pour l'OCR")
 
-    # URL du serveur PaddleX = base_url du provider VL
-    paddlex_url = model_vl.get("base_url")
+    paddlex_url = config.get("paddlex_url")
     if not paddlex_url:
-        raise HTTPException(503, "URL du serveur PaddleX non configuree sur le provider VL")
+        raise HTTPException(503, "URL du serveur PaddleX non configuree (Reglages IA > General)")
 
     is_pdf = content_type == "application/pdf" or file_bytes[:5] == b"%PDF-"
     file_type = 0 if is_pdf else 1
@@ -204,7 +202,7 @@ async def ocr(
     result = await _call_paddlex(paddlex_url, file_bytes, file_type)
 
     duration = int((time.monotonic() - start) * 1000)
-    await _log_usage(db, org_id, user_id, model_vl["uuid"], "vl", 0, 0, duration)
+    await _log_usage(db, org_id, user_id, None, "vl", 0, 0, duration)
 
     return result
 

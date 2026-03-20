@@ -117,6 +117,7 @@ class AiConfigUpdate(BaseModel):
     ai_enabled: bool | None = None
     ai_litellm_base_url: str | None = Field(None, max_length=255)
     ai_litellm_master_key: str | None = None
+    ai_paddlex_url: str | None = Field(None, max_length=255)
     ai_features: dict | None = None
 
 
@@ -124,6 +125,7 @@ class AiConfigResponse(BaseModel):
     ai_enabled: bool
     ai_litellm_base_url: str | None
     has_master_key: bool
+    ai_paddlex_url: str | None = None
     ai_features: dict | None
     roles: AiRolesResponse
 

@@ -531,7 +531,8 @@ async def get_config(
     result = await db.execute(
         text("""
             SELECT ai_enabled, ai_litellm_base_url, ai_litellm_master_key, ai_features,
-                   ai_role_vl_model_id, ai_role_instruct_model_id, ai_role_thinking_model_id
+                   ai_role_vl_model_id, ai_role_instruct_model_id, ai_role_thinking_model_id,
+                   ai_paddlex_url
             FROM platform_config LIMIT 1
         """)
     )
@@ -542,6 +543,7 @@ async def get_config(
             ai_enabled=False,
             ai_litellm_base_url="http://litellm:4000",
             has_master_key=bool(env_key),
+            ai_paddlex_url=None,
             ai_features=None,
             roles=AiRolesResponse(),
         )
@@ -551,6 +553,7 @@ async def get_config(
         ai_enabled=row[0],
         ai_litellm_base_url=row[1] or "http://litellm:4000",
         has_master_key=bool(row[2] or env_key),
+        ai_paddlex_url=row[7],
         ai_features=row[3],
         roles=roles,
     )
@@ -573,6 +576,9 @@ async def update_config(
     if body.ai_litellm_master_key is not None:
         sets.append("ai_litellm_master_key = :key")
         params["key"] = body.ai_litellm_master_key
+    if body.ai_paddlex_url is not None:
+        sets.append("ai_paddlex_url = :paddlex_url")
+        params["paddlex_url"] = body.ai_paddlex_url or None
     if body.ai_features is not None:
         sets.append("ai_features = CAST(:features AS jsonb)")
         params["features"] = json.dumps(body.ai_features)
