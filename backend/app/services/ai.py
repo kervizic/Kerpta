@@ -212,58 +212,6 @@ async def _ocr_with_paddleocr(
         _os.unlink(tmp_path)
 
 
-async def _pdf_to_images(file_bytes: bytes) -> list[tuple[bytes, str]]:
-    """Convertit un PDF en liste d'images PNG (une par page) via pdf2image."""
-    import asyncio
-    import io
-
-    def _convert():
-        from pdf2image import convert_from_bytes
-        images = convert_from_bytes(file_bytes, dpi=200, fmt="png")
-        result = []
-        for img in images:
-            buf = io.BytesIO()
-            img.save(buf, format="PNG")
-            result.append((buf.getvalue(), "image/png"))
-        return result
-
-    return await asyncio.to_thread(_convert)
-
-
-async def _ocr_via_litellm(
-    config: dict,
-    model_vl: dict,
-    file_bytes: bytes,
-    content_type: str,
-) -> dict:
-    """Fallback : envoie les images au modele VL via LiteLLM (sans PaddleOCR)."""
-    is_pdf = content_type == "application/pdf" or file_bytes[:5] == b"%PDF-"
-
-    if is_pdf:
-        pages = await _pdf_to_images(file_bytes)
-    else:
-        pages = [(file_bytes, content_type)]
-
-    all_texts = []
-    for page_bytes, page_ct in pages:
-        b64 = base64.b64encode(page_bytes).decode("utf-8")
-        messages = [
-            {"role": "system", "content": "Extrais tout le texte visible de cette image. Retourne le texte brut tel quel."},
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": "Extrais le texte de ce document :"},
-                    {"type": "image_url", "image_url": {"url": f"data:{page_ct};base64,{b64}"}},
-                ],
-            },
-        ]
-        resp = await _call_litellm(config["litellm_url"], config["litellm_key"], model_vl["litellm_name"], messages)
-        page_text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
-        all_texts.append(page_text.strip())
-
-    return {"pages": [{"raw": text} for text in all_texts]}
-
-
 async def ocr(
     db: AsyncSession,
     file_bytes: bytes,
@@ -271,10 +219,10 @@ async def ocr(
     user_id: uuid.UUID,
     content_type: str = "image/jpeg",
 ) -> dict:
-    """Extrait le contenu d'un document via PaddleOCR-VL (layout + VLM via LiteLLM).
+    """Extrait le contenu d'un document via PaddleOCR-VL.
 
-    Pipeline principal : PaddleOCR (layout detection locale + VLM distant)
-    Fallback : envoi direct des images au VLM via LiteLLM (sans layout detection)
+    Layout detection locale (PaddlePaddle CPU) + VLM distant (llama.cpp via LiteLLM).
+    Gere nativement PDF multi-pages, tableaux, formules.
     """
     config = await _get_ai_config(db)
     model_vl = await _resolve_model(db, config["vl_model_id"])
@@ -283,15 +231,11 @@ async def ocr(
 
     start = time.monotonic()
 
-    try:
-        result = await _ocr_with_paddleocr(
-            file_bytes, content_type,
-            config["litellm_url"], config["litellm_key"],
-            model_vl["litellm_name"],
-        )
-    except Exception as exc:
-        _log.warning("PaddleOCR indisponible (%s), fallback LiteLLM direct", exc)
-        result = await _ocr_via_litellm(config, model_vl, file_bytes, content_type)
+    result = await _ocr_with_paddleocr(
+        file_bytes, content_type,
+        config["litellm_url"], config["litellm_key"],
+        model_vl["litellm_name"],
+    )
 
     duration = int((time.monotonic() - start) * 1000)
     await _log_usage(db, org_id, user_id, model_vl["uuid"], "vl", 0, 0, duration)

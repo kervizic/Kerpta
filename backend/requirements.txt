@@ -46,7 +46,6 @@ mindee==4.9.0
 # PaddleOCR-VL (layout detection locale + VLM distant via LiteLLM)
 paddlepaddle>=3.0.0           # Framework CPU pour la detection de layout
 paddleocr[doc-parser]>=3.3.0  # Pipeline OCR complet (PDF, tableaux, formules)
-pdf2image==1.17.0             # Fallback PDF -> images
 
 # Storage
 boto3==1.35.85        # S3-compatible (OVH, AWS, Scaleway)
