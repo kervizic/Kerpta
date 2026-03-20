@@ -137,6 +137,81 @@ async def _log_usage(
 # ── OCR (role VL) ─────────────────────────────────────────────────────────────
 
 
+# Singleton PaddleOCRVL par worker uvicorn
+_paddle_pipeline = None
+_paddle_config: tuple | None = None
+
+
+def _get_paddle_pipeline(litellm_url: str, litellm_key: str, model_name: str):
+    """Retourne ou cree le pipeline PaddleOCRVL (singleton par worker)."""
+    global _paddle_pipeline, _paddle_config
+
+    new_config = (litellm_url, litellm_key, model_name)
+    if _paddle_pipeline is not None and _paddle_config == new_config:
+        return _paddle_pipeline
+
+    os.environ.setdefault("PADDLE_PDX_EAGER_INIT", "False")
+    os.environ.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "True")
+
+    from paddleocr import PaddleOCRVL
+
+    litellm_v1 = litellm_url.rstrip("/")
+    if not litellm_v1.endswith("/v1"):
+        litellm_v1 += "/v1"
+
+    _paddle_pipeline = PaddleOCRVL(
+        vl_rec_backend="vllm-server",
+        vl_rec_server_url=litellm_v1,
+        vl_rec_api_key=litellm_key or "no-key-required",
+        vl_rec_api_model_name=model_name,
+        device="cpu",
+    )
+    _paddle_config = new_config
+    return _paddle_pipeline
+
+
+async def _ocr_with_paddleocr(
+    file_bytes: bytes,
+    content_type: str,
+    litellm_url: str,
+    litellm_key: str,
+    model_name: str,
+) -> dict:
+    """Pipeline PaddleOCR complet : layout detection + VLM via LiteLLM.
+
+    Gere nativement PDF multi-pages, tableaux, formules.
+    Retourne la sortie brute de PaddleOCR.
+    """
+    import asyncio
+    import tempfile
+
+    is_pdf = content_type == "application/pdf" or file_bytes[:5] == b"%PDF-"
+    suffix = ".pdf" if is_pdf else ".png"
+
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        tmp.write(file_bytes)
+        tmp_path = tmp.name
+
+    def _run():
+        pipeline = _get_paddle_pipeline(litellm_url, litellm_key, model_name)
+        output = pipeline.predict(tmp_path)
+        pages = list(output)
+
+        result_pages = []
+        for res in pages:
+            if hasattr(res, "to_dict"):
+                result_pages.append(res.to_dict())
+            else:
+                result_pages.append({"raw": str(res)})
+        return {"pages": result_pages}
+
+    try:
+        return await asyncio.to_thread(_run)
+    finally:
+        import os as _os
+        _os.unlink(tmp_path)
+
+
 async def _pdf_to_images(file_bytes: bytes) -> list[tuple[bytes, str]]:
     """Convertit un PDF en liste d'images PNG (une par page) via pdf2image."""
     import asyncio
@@ -155,24 +230,13 @@ async def _pdf_to_images(file_bytes: bytes) -> list[tuple[bytes, str]]:
     return await asyncio.to_thread(_convert)
 
 
-async def ocr(
-    db: AsyncSession,
+async def _ocr_via_litellm(
+    config: dict,
+    model_vl: dict,
     file_bytes: bytes,
-    org_id: uuid.UUID,
-    user_id: uuid.UUID,
-    content_type: str = "image/jpeg",
+    content_type: str,
 ) -> dict:
-    """Extrait le contenu d'un document via le modele VL (PaddleOCR-VL sur LiteLLM).
-
-    - Images : envoyees directement en base64 au modele VL via LiteLLM
-    - PDF : converties en images (pdf2image) puis chaque page envoyee au modele VL
-    """
-    config = await _get_ai_config(db)
-    model_vl = await _resolve_model(db, config["vl_model_id"])
-    if not model_vl:
-        raise HTTPException(503, "Aucun modele VL configure pour l'OCR")
-
-    start = time.monotonic()
+    """Fallback : envoie les images au modele VL via LiteLLM (sans PaddleOCR)."""
     is_pdf = content_type == "application/pdf" or file_bytes[:5] == b"%PDF-"
 
     if is_pdf:
@@ -194,16 +258,45 @@ async def ocr(
             },
         ]
         resp = await _call_litellm(config["litellm_url"], config["litellm_key"], model_vl["litellm_name"], messages)
-        usage = resp.get("usage", {})
         page_text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
         all_texts.append(page_text.strip())
 
-    duration = int((time.monotonic() - start) * 1000)
-    total_in = sum(resp.get("usage", {}).get("prompt_tokens", 0) for _ in pages)
-    total_out = sum(resp.get("usage", {}).get("completion_tokens", 0) for _ in pages)
-    await _log_usage(db, org_id, user_id, model_vl["uuid"], "vl", total_in, total_out, duration)
-
     return {"pages": [{"raw": text} for text in all_texts]}
+
+
+async def ocr(
+    db: AsyncSession,
+    file_bytes: bytes,
+    org_id: uuid.UUID,
+    user_id: uuid.UUID,
+    content_type: str = "image/jpeg",
+) -> dict:
+    """Extrait le contenu d'un document via PaddleOCR-VL (layout + VLM via LiteLLM).
+
+    Pipeline principal : PaddleOCR (layout detection locale + VLM distant)
+    Fallback : envoi direct des images au VLM via LiteLLM (sans layout detection)
+    """
+    config = await _get_ai_config(db)
+    model_vl = await _resolve_model(db, config["vl_model_id"])
+    if not model_vl:
+        raise HTTPException(503, "Aucun modele VL configure pour l'OCR")
+
+    start = time.monotonic()
+
+    try:
+        result = await _ocr_with_paddleocr(
+            file_bytes, content_type,
+            config["litellm_url"], config["litellm_key"],
+            model_vl["litellm_name"],
+        )
+    except Exception as exc:
+        _log.warning("PaddleOCR indisponible (%s), fallback LiteLLM direct", exc)
+        result = await _ocr_via_litellm(config, model_vl, file_bytes, content_type)
+
+    duration = int((time.monotonic() - start) * 1000)
+    await _log_usage(db, org_id, user_id, model_vl["uuid"], "vl", 0, 0, duration)
+
+    return result
 
 
 # ── Categorisation comptable (role Instruct) ──────────────────────────────────
