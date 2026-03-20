@@ -169,7 +169,7 @@ def _downscale_pdf(file_bytes: bytes, dpi: int = 120) -> bytes:
     return result
 
 
-def _downscale_image(file_bytes: bytes, max_side: int = 1500) -> bytes:
+def _downscale_image(file_bytes: bytes, max_side: int = 1754) -> bytes:
     """Redimensionne une image si elle depasse max_side pixels."""
     from PIL import Image
     import io
@@ -433,58 +433,77 @@ async def ocr_vlm(
     else:
         images_b64 = [_image_to_jpeg_b64(file_bytes, content_type)]
 
-    # Envoyer toutes les pages en une seule requete
-    content: list[dict] = [
-        {"type": "text", "text": _VLM_EXTRACTION_PROMPT},
-    ]
-    for img_b64 in images_b64:
-        content.append({
-            "type": "image_url",
-            "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"},
-        })
-
-    messages = [{"role": "user", "content": content}]
-
+    # Envoyer page par page pour eviter de surcharger le modele
     start = time.monotonic()
-    resp = await _call_litellm(
-        config["litellm_url"], config["litellm_key"],
-        model["litellm_name"], messages, max_tokens=4096, timeout=300.0,
-    )
-    duration = int((time.monotonic() - start) * 1000)
+    total_tokens_in = 0
+    total_tokens_out = 0
+    all_pages_results = []
+    last_text = ""
 
-    usage = resp.get("usage", {})
+    for i, img_b64 in enumerate(images_b64):
+        page_prompt = _VLM_EXTRACTION_PROMPT if i == 0 else (
+            "Meme consignes. Extrais les donnees de cette page supplementaire. "
+            "Retourne UNIQUEMENT le JSON."
+        )
+        content: list[dict] = [
+            {"type": "text", "text": page_prompt},
+            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}},
+        ]
+        messages = [{"role": "user", "content": content}]
+
+        resp = await _call_litellm(
+            config["litellm_url"], config["litellm_key"],
+            model["litellm_name"], messages, max_tokens=4096, timeout=300.0,
+        )
+
+        usage = resp.get("usage", {})
+        total_tokens_in += usage.get("prompt_tokens", 0)
+        total_tokens_out += usage.get("completion_tokens", 0)
+
+        last_text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+        parsed = _parse_vlm_json(last_text)
+        if parsed:
+            all_pages_results.append(parsed)
+
+    duration = int((time.monotonic() - start) * 1000)
     await _log_usage(
         db, org_id, user_id, model["uuid"], "vl",
-        usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0), duration,
+        total_tokens_in, total_tokens_out, duration,
     )
 
-    text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+    meta = {
+        "duration_ms": duration,
+        "pages_count": len(images_b64),
+        "tokens_in": total_tokens_in,
+        "tokens_out": total_tokens_out,
+        "model": model["litellm_name"],
+    }
 
-    # Parser le JSON
+    if not all_pages_results:
+        return {"raw_text": last_text, **meta}
+
+    result = all_pages_results[0]
+    # Fusionner les lignes des pages suivantes
+    for page_result in all_pages_results[1:]:
+        if "lignes" in page_result and page_result["lignes"]:
+            result.setdefault("lignes", [])
+            result["lignes"].extend(page_result["lignes"])
+    result.update(meta)
+    return result
+
+
+def _parse_vlm_json(text: str) -> dict | None:
+    """Parse le JSON retourne par le VLM, en nettoyant les blocs markdown."""
     cleaned = text.strip()
     if cleaned.startswith("```"):
         cleaned = cleaned.split("\n", 1)[-1]
         if cleaned.endswith("```"):
             cleaned = cleaned[:-3]
         cleaned = cleaned.strip()
-
     try:
-        result = json.loads(cleaned)
-        result["duration_ms"] = duration
-        result["pages_count"] = len(images_b64)
-        result["tokens_in"] = usage.get("prompt_tokens", 0)
-        result["tokens_out"] = usage.get("completion_tokens", 0)
-        result["model"] = model["litellm_name"]
-        return result
+        return json.loads(cleaned)
     except json.JSONDecodeError:
-        return {
-            "raw_text": text,
-            "duration_ms": duration,
-            "pages_count": len(images_b64),
-            "tokens_in": usage.get("prompt_tokens", 0),
-            "tokens_out": usage.get("completion_tokens", 0),
-            "model": model["litellm_name"],
-        }
+        return None
 
 
 # ── Categorisation comptable (role Instruct) ──────────────────────────────────
