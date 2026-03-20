@@ -101,12 +101,19 @@ async def ocr_vlm(
     db: AsyncSession = Depends(get_db),
 ):
     """OCR via le modele VL (Vision-Language) configure dans LiteLLM."""
-    _log.info("OCR-VLM requete - fichier=%s, %s octets, org=%s", file.filename, file.size, x_organization_id)
+    print(f"[OCR-VLM] Requete recue - fichier={file.filename}, content_type={file.content_type}, org={x_organization_id}", flush=True)
     await _require_ai_enabled(db, x_organization_id)
+    print("[OCR-VLM] IA activee, lecture du fichier...", flush=True)
     image_bytes = await file.read()
+    print(f"[OCR-VLM] Fichier lu : {len(image_bytes)} octets", flush=True)
     content_type = file.content_type or "image/jpeg"
-    result = await ai_svc.ocr_vlm(db, image_bytes, x_organization_id, user_id, content_type)
-    return result
+    try:
+        result = await ai_svc.ocr_vlm(db, image_bytes, x_organization_id, user_id, content_type)
+        print(f"[OCR-VLM] OK - cles : {list(result.keys()) if isinstance(result, dict) else type(result)}", flush=True)
+        return result
+    except Exception as exc:
+        print(f"[OCR-VLM] Erreur : {exc}", flush=True)
+        raise
 
 
 @router.post("/categorize", response_model=AiCategorizeResponse)
