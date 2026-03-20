@@ -165,7 +165,7 @@ def _get_paddle_pipeline(litellm_url: str, litellm_key: str, model_name: str):
         litellm_v1 += "/v1"
 
     _paddle_pipeline = PaddleOCRVL(
-        vl_rec_backend="llama-cpp-server",
+        vl_rec_backend="vllm-server",
         vl_rec_server_url=litellm_v1,
         vl_rec_api_key=litellm_key or "no-key-required",
         vl_rec_api_model_name=model_name,
