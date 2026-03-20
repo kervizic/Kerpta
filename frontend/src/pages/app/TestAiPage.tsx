@@ -346,7 +346,7 @@ export default function TestAiPage() {
                     {copied ? 'Copie' : 'Copier'}
                   </button>
                 </div>
-                <pre className="text-xs bg-gray-900 text-green-400 rounded-lg p-4 overflow-auto max-h-80 font-mono">
+                <pre className="text-xs bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700 rounded-lg p-4 overflow-auto max-h-80 font-mono">
                   {ocrRaw}
                 </pre>
               </div>
@@ -431,7 +431,7 @@ export default function TestAiPage() {
                     ))}
                   </div>
                 )}
-                <pre className="text-xs bg-gray-900 text-green-400 rounded-lg p-3 overflow-auto max-h-40 font-mono">
+                <pre className="text-xs bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700 rounded-lg p-3 overflow-auto max-h-40 font-mono">
                   {JSON.stringify(catResult, null, 2)}
                 </pre>
               </div>
