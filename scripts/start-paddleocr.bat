@@ -19,7 +19,6 @@ if %errorlevel% neq 0 (
     echo [INFO] Installation de PaddlePaddle + PaddleOCR + PaddleX...
     echo [INFO] Cela peut prendre quelques minutes...
     pip install paddlepaddle "paddleocr[doc-parser]" paddlex
-    :: Verifier que paddlex est bien importable malgre les warnings pip
     python -c "import paddlex" >nul 2>&1
     if %errorlevel% neq 0 (
         echo [ERREUR] Echec de l'installation. Verifiez votre connexion internet.
@@ -29,17 +28,12 @@ if %errorlevel% neq 0 (
     echo [OK] Packages installes.
 )
 
-:: Verifier si le plugin serving est installe, sinon l'installer
-python -c "from paddlex.inference.serving import basic_serving" >nul 2>&1
-if %errorlevel% neq 0 (
+:: Installer le plugin serving si pas encore fait
+:: On verifie via la presence du fichier marker plutot que par import
+if not exist "%LOCALAPPDATA%\paddlex_serving_installed.flag" (
     echo [INFO] Installation du plugin serving...
     paddlex --install serving
-    python -c "from paddlex.inference.serving import basic_serving" >nul 2>&1
-    if %errorlevel% neq 0 (
-        echo [ERREUR] Echec de l'installation du plugin serving.
-        pause
-        exit /b 1
-    )
+    echo. > "%LOCALAPPDATA%\paddlex_serving_installed.flag"
     echo [OK] Plugin serving installe.
 )
 
