@@ -287,39 +287,50 @@ async def ocr_vlm(
     else:
         images_b64 = [_image_to_jpeg_b64(file_bytes, content_type)]
 
-    # Construire le message vision multi-image
-    content: list[dict] = [
-        {"type": "text", "text": _VLM_EXTRACTION_PROMPT},
-    ]
-    for img_b64 in images_b64:
-        content.append({
-            "type": "image_url",
-            "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"},
-        })
-
-    messages = [{"role": "user", "content": content}]
-
+    # Traiter page par page pour ne pas surcharger le modele
+    all_texts: list[str] = []
+    total_tokens_in = 0
+    total_tokens_out = 0
     start = time.monotonic()
-    resp = await _call_litellm(
-        config["litellm_url"], config["litellm_key"],
-        model["litellm_name"], messages, max_tokens=4096, timeout=300.0,
-    )
+
+    for i, img_b64 in enumerate(images_b64):
+        page_prompt = _VLM_EXTRACTION_PROMPT
+        if len(images_b64) > 1:
+            page_prompt = f"--- PAGE {i + 1}/{len(images_b64)} ---\n\n{_VLM_EXTRACTION_PROMPT}"
+
+        messages = [{"role": "user", "content": [
+            {"type": "text", "text": page_prompt},
+            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}},
+        ]}]
+
+        resp = await _call_litellm(
+            config["litellm_url"], config["litellm_key"],
+            model["litellm_name"], messages, max_tokens=4096, timeout=120.0,
+        )
+
+        usage = resp.get("usage", {})
+        total_tokens_in += usage.get("prompt_tokens", 0)
+        total_tokens_out += usage.get("completion_tokens", 0)
+
+        page_text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+        all_texts.append(page_text.strip())
+
     duration = int((time.monotonic() - start) * 1000)
 
-    usage = resp.get("usage", {})
     await _log_usage(
         db, org_id, user_id, model["uuid"], "vl",
-        usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0), duration,
+        total_tokens_in, total_tokens_out, duration,
     )
 
-    text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+    # Concatener toutes les pages
+    full_text = "\n\n".join(all_texts)
 
     return {
-        "raw_text": text.strip(),
+        "raw_text": full_text,
         "duration_ms": duration,
         "pages_count": len(images_b64),
-        "tokens_in": usage.get("prompt_tokens", 0),
-        "tokens_out": usage.get("completion_tokens", 0),
+        "tokens_in": total_tokens_in,
+        "tokens_out": total_tokens_out,
         "model": model["litellm_name"],
     }
 
