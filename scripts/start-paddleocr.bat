@@ -18,12 +18,15 @@ python -c "import paddlex" >nul 2>&1
 if %errorlevel% neq 0 (
     echo [INFO] Installation de PaddlePaddle + PaddleOCR + PaddleX...
     echo [INFO] Cela peut prendre quelques minutes...
-    pip install paddlepaddle paddleocr[doc-parser] paddlex
+    pip install paddlepaddle "paddleocr[doc-parser]" paddlex
+    :: Verifier que paddlex est bien importable malgre les warnings pip
+    python -c "import paddlex" >nul 2>&1
     if %errorlevel% neq 0 (
         echo [ERREUR] Echec de l'installation. Verifiez votre connexion internet.
         pause
         exit /b 1
     )
+    echo [OK] Packages installes.
     echo [INFO] Installation du plugin serving...
     paddlex --install serving
     if %errorlevel% neq 0 (
