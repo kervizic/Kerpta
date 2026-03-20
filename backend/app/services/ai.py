@@ -210,18 +210,7 @@ async def ocr(
 
 # ── OCR VLM (modele Vision-Language via LiteLLM) ─────────────────────────────
 
-_VLM_EXTRACTION_PROMPT = """Lis ce document et retranscris EXACTEMENT tout le texte visible, tel quel.
-
-Regles strictes :
-- Retranscris chaque mot, chiffre, symbole exactement comme il apparait
-- Ne corrige RIEN (pas d'orthographe, pas de format de date, pas de calcul)
-- N'invente RIEN, n'extrapole RIEN, ne regroupe RIEN, ne calcule RIEN
-- Conserve la mise en page originale (sauts de ligne, alignements, tableaux)
-- Pour les tableaux, utilise le format Markdown (|col1|col2|...)
-- Si une zone est illisible, indique [illisible]
-- S'il y a plusieurs pages, separe-les par --- PAGE X ---
-
-Reponds UNIQUEMENT avec le texte brut du document, sans commentaire."""
+_VLM_EXTRACTION_PROMPT = "Retranscris exactement tout le texte visible de ce document. Tableaux en Markdown. Pas de commentaire."
 
 
 def _pdf_pages_to_b64(file_bytes: bytes) -> list[str]:
