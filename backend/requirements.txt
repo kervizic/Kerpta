@@ -45,6 +45,7 @@ mindee==4.9.0
 
 # PaddleOCR-VL (parsing de documents via llama.cpp)
 paddleocr[doc-parser]>=3.3.0
+pdf2image==1.17.0             # Fallback PDF -> images pour OCR
 
 # Storage
 boto3==1.35.85        # S3-compatible (OVH, AWS, Scaleway)

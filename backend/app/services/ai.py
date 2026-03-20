@@ -249,9 +249,8 @@ async def ocr(
             config["litellm_url"], config["litellm_key"],
             model_vl["litellm_name"],
         )
-    except ImportError:
-        _log.warning("paddleocr non installe, fallback sur OCR via LiteLLM")
-        # Fallback : OCR direct via LiteLLM (images uniquement, pas de PDF)
+    except Exception as exc:
+        _log.warning("paddleocr indisponible (%s: %s), fallback sur OCR via LiteLLM", type(exc).__name__, exc)
         return await _ocr_fallback_litellm(db, config, model_vl, file_bytes, content_type, org_id, user_id, start)
 
     # Etape 2 : LLM Instruct extrait les champs JSON du Markdown
@@ -302,46 +301,80 @@ async def ocr(
         return {"raw_text": content}
 
 
+async def _pdf_to_images(file_bytes: bytes) -> list[tuple[bytes, str]]:
+    """Convertit un PDF en liste d'images PNG (une par page) via pdf2image."""
+    import asyncio
+    import io
+
+    def _convert():
+        from pdf2image import convert_from_bytes
+        images = convert_from_bytes(file_bytes, dpi=200, fmt="png")
+        result = []
+        for img in images:
+            buf = io.BytesIO()
+            img.save(buf, format="PNG")
+            result.append((buf.getvalue(), "image/png"))
+        return result
+
+    return await asyncio.to_thread(_convert)
+
+
 async def _ocr_fallback_litellm(
     db: AsyncSession,
     config: dict,
     model: dict,
-    image_bytes: bytes,
+    file_bytes: bytes,
     content_type: str,
     org_id: uuid.UUID,
     user_id: uuid.UUID,
     start: float,
 ) -> dict:
-    """Fallback OCR via LiteLLM pour les images (si paddleocr non installe)."""
-    b64 = base64.b64encode(image_bytes).decode("utf-8")
-    messages = [
-        {
-            "role": "system",
-            "content": (
-                "Tu es un assistant d'extraction de factures fournisseur. "
-                "Extrais les informations suivantes au format JSON strict : "
-                "supplier_name, supplier_siret, supplier_address, invoice_number, "
-                "issue_date (DD/MM/YYYY), due_date (DD/MM/YYYY), total_ht, total_tva, total_ttc, iban, "
-                "lines (array of {description, quantity, unit_price, vat_rate, total_ht}). "
-                "Si une info est absente, mets null. Reponds UNIQUEMENT en JSON, sans markdown."
-            ),
-        },
-        {
-            "role": "user",
-            "content": [
-                {"type": "text", "text": "Extrais les donnees de cette facture :"},
-                {"type": "image_url", "image_url": {"url": f"data:{content_type};base64,{b64}"}},
-            ],
-        },
-    ]
+    """Fallback OCR via LiteLLM (envoie image(s) au modele VL directement)."""
+    is_pdf = content_type == "application/pdf" or file_bytes[:5] == b"%PDF-"
 
-    resp = await _call_litellm(config["litellm_url"], config["litellm_key"], model["litellm_name"], messages)
+    if is_pdf:
+        pages = await _pdf_to_images(file_bytes)
+    else:
+        pages = [(file_bytes, content_type)]
+
+    system_prompt = (
+        "Tu es un assistant d'extraction de factures fournisseur. "
+        "Extrais les informations suivantes au format JSON strict : "
+        "supplier_name, supplier_siret, supplier_address, invoice_number, "
+        "issue_date (DD/MM/YYYY), due_date (DD/MM/YYYY), total_ht, total_tva, total_ttc, iban, "
+        "lines (array of {description, quantity, unit_price, vat_rate, total_ht}). "
+        "Si une info est absente, mets null. Reponds UNIQUEMENT en JSON, sans markdown."
+    )
+
+    all_contents = []
+    total_tokens_in = 0
+    total_tokens_out = 0
+
+    for page_bytes, page_ct in pages:
+        b64 = base64.b64encode(page_bytes).decode("utf-8")
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "Extrais les donnees de cette facture :"},
+                    {"type": "image_url", "image_url": {"url": f"data:{page_ct};base64,{b64}"}},
+                ],
+            },
+        ]
+
+        resp = await _call_litellm(config["litellm_url"], config["litellm_key"], model["litellm_name"], messages)
+        usage = resp.get("usage", {})
+        total_tokens_in += usage.get("prompt_tokens", 0)
+        total_tokens_out += usage.get("completion_tokens", 0)
+        page_content = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+        all_contents.append(page_content.strip())
+
     duration = int((time.monotonic() - start) * 1000)
-    usage = resp.get("usage", {})
     await _log_usage(db, org_id, user_id, model["uuid"], "vl",
-                     usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0), duration)
+                     total_tokens_in, total_tokens_out, duration)
 
-    content = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+    content = "\n".join(all_contents)
     content = content.strip()
     if content.startswith("```"):
         content = content.split("\n", 1)[-1]
