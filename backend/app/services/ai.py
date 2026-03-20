@@ -193,16 +193,25 @@ async def _ocr_with_paddleocr(
         tmp_path = tmp.name
 
     def _run():
+        _log.info("[PaddleOCR] Demarrage pipeline...")
         pipeline = _get_paddle_pipeline(litellm_url, litellm_key, model_name)
+        _log.info("[PaddleOCR] Pipeline pret, lancement predict sur %s (%d bytes)...", suffix, len(file_bytes))
         output = pipeline.predict(tmp_path)
+        _log.info("[PaddleOCR] predict() retourne, iteration des pages...")
         pages = list(output)
+        _log.info("[PaddleOCR] %d page(s) traitee(s), conversion en dict...", len(pages))
 
         result_pages = []
-        for res in pages:
+        for i, res in enumerate(pages):
+            _log.info("[PaddleOCR] Page %d : type=%s, attrs=%s", i, type(res).__name__, dir(res)[:10])
             if hasattr(res, "to_dict"):
+                _log.info("[PaddleOCR] Page %d : appel to_dict()...", i)
                 result_pages.append(res.to_dict())
+                _log.info("[PaddleOCR] Page %d : to_dict() OK", i)
             else:
                 result_pages.append({"raw": str(res)})
+                _log.info("[PaddleOCR] Page %d : pas de to_dict, str()", i)
+        _log.info("[PaddleOCR] Terminee : %d page(s) converties", len(result_pages))
         return {"pages": result_pages}
 
     try:
