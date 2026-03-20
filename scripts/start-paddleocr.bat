@@ -27,17 +27,24 @@ if %errorlevel% neq 0 (
         exit /b 1
     )
     echo [OK] Packages installes.
+)
+
+:: Verifier si le plugin serving est installe, sinon l'installer
+python -c "from paddlex.inference.serving import basic_serving" >nul 2>&1
+if %errorlevel% neq 0 (
     echo [INFO] Installation du plugin serving...
     paddlex --install serving
+    python -c "from paddlex.inference.serving import basic_serving" >nul 2>&1
     if %errorlevel% neq 0 (
         echo [ERREUR] Echec de l'installation du plugin serving.
         pause
         exit /b 1
     )
-    echo [OK] Installation terminee.
+    echo [OK] Plugin serving installe.
 )
 
 echo.
+echo [OK] Tout est installe.
 echo Demarrage du serveur PaddleX (PaddleOCR-VL)...
 echo Endpoint : http://0.0.0.0:12321/layout-parsing
 echo.
