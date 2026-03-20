@@ -627,7 +627,7 @@ async def test_litellm_connection(
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             headers = {"Authorization": f"Bearer {key}"} if key else {}
-            resp = await client.get(f"{url.rstrip('/')}/health", headers=headers)
+            resp = await client.get(f"{url.rstrip('/')}/health/liveliness", headers=headers)
             if resp.status_code in (200, 500):
                 # 500 "Model list not initialized" = connexion OK, aucun modele configure
                 return {"ok": True, "message": "LiteLLM connecte"}
