@@ -152,7 +152,7 @@ async def _call_paddlex(base_url: str, file_bytes: bytes, file_type: int) -> dic
         file_type: 0 = PDF, 1 = image
     """
     b64 = base64.b64encode(file_bytes).decode("ascii")
-    payload = {"file": b64, "fileType": file_type}
+    payload = {"file": b64, "fileType": file_type, "visualize": False}
 
     url = f"{base_url.rstrip('/')}/layout-parsing"
 
