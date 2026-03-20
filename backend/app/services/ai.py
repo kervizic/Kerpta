@@ -305,7 +305,7 @@ async def ocr_vlm(
 
         resp = await _call_litellm(
             config["litellm_url"], config["litellm_key"],
-            model["litellm_name"], messages, max_tokens=4096, timeout=120.0,
+            model["litellm_name"], messages, max_tokens=4096, timeout=300.0,
         )
 
         usage = resp.get("usage", {})
