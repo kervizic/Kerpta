@@ -191,6 +191,25 @@ def _downscale_image(file_bytes: bytes, max_side: int = 1500) -> bytes:
     return buf.getvalue()
 
 
+def _merge_paddlex_results(results: list[dict]) -> dict:
+    """Fusionne les resultats PaddleX de plusieurs pages en un seul resultat."""
+    if len(results) == 1:
+        return results[0]
+
+    merged: dict = {"layoutParsingResults": []}
+    for i, r in enumerate(results):
+        for item in r.get("layoutParsingResults", []):
+            # Ajouter le numero de page a chaque resultat
+            item["page_index"] = i
+            merged["layoutParsingResults"].append(item)
+
+    # Conserver dataInfo du premier resultat
+    if results[0].get("dataInfo"):
+        merged["dataInfo"] = results[0]["dataInfo"]
+
+    return merged
+
+
 async def _call_paddlex(base_url: str, file_bytes: bytes, file_type: int) -> dict:
     """Appelle PaddleX Serving (distant) pour l'OCR.
 
@@ -249,17 +268,32 @@ async def ocr(
 
     is_pdf = content_type == "application/pdf" or file_bytes[:5] == b"%PDF-"
 
-    # Reduire la resolution pour accelerer le traitement PaddleX
-    if is_pdf:
-        file_bytes = _downscale_pdf(file_bytes, dpi=120)
-        file_type = 0
-    else:
-        file_bytes = _downscale_image(file_bytes, max_side=1500)
-        file_type = 1
-
     start = time.monotonic()
 
-    result = await _call_paddlex(paddlex_url, file_bytes, file_type)
+    if is_pdf:
+        # Envoyer page par page en image 120 DPI
+        import fitz  # PyMuPDF
+        from PIL import Image
+        import io
+
+        doc = fitz.open(stream=file_bytes, filetype="pdf")
+        all_results: list[dict] = []
+
+        for page in doc:
+            pix = page.get_pixmap(dpi=120)
+            img_buf = io.BytesIO(pix.tobytes("jpeg"))
+            img_bytes = img_buf.getvalue()
+
+            page_result = await _call_paddlex(paddlex_url, img_bytes, 1)
+            all_results.append(page_result)
+
+        doc.close()
+
+        # Fusionner les resultats de chaque page
+        result = _merge_paddlex_results(all_results)
+    else:
+        file_bytes = _downscale_image(file_bytes, max_side=1500)
+        result = await _call_paddlex(paddlex_url, file_bytes, 1)
 
     duration = int((time.monotonic() - start) * 1000)
     await _log_usage(db, org_id, user_id, None, "vl", 0, 0, duration)
