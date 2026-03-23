@@ -124,7 +124,8 @@ async def list_orders(
                    o.subtotal_ht, o.total_vat, o.total_ttc,
                    o.discount_type, o.discount_value,
                    o.notes, o.is_archived,
-                   o.created_at, o.updated_at
+                   o.created_at, o.updated_at,
+                   o.contract_id::text
             FROM orders o
             LEFT JOIN clients c ON c.id = o.client_id
             WHERE {where}
@@ -166,6 +167,7 @@ async def list_orders(
             "is_archived": r[14],
             "created_at": r[15],
             "updated_at": r[16],
+            "contract_id": r[17],
         })
 
     return {"items": items, "total": total, "page": page, "page_size": page_size}

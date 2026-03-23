@@ -16,7 +16,7 @@ import PageLayout from '@/components/app/PageLayout'
 import { BTN, BTN_SM, BTN_SECONDARY, CARD, INPUT, SELECT, TEXTAREA, LABEL, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER, BADGE_COUNT } from '@/lib/formStyles'
 import { fmtCurrency } from '@/lib/formatting'
 
-// ── Types ────────────────────────────────────────────────────────────────────
+// -- Types --------------------------------------------------------------------
 
 interface Order {
   id: string
@@ -32,6 +32,7 @@ interface Order {
   total_vat: number
   total_ttc: number
   is_archived: boolean
+  contract_id: string | null
   created_at: string
 }
 
@@ -61,13 +62,12 @@ interface OrderDetail extends Order {
   discount_value: number
   notes: string | null
   client_document_url: string | null
-  contract_id: string | null
   lines: OrderLine[]
   linked_quotes: LinkedDoc[]
   linked_invoices: LinkedDoc[]
 }
 
-// ── Constantes ───────────────────────────────────────────────────────────────
+// -- Constantes ---------------------------------------------------------------
 
 const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
   draft: { label: 'Brouillon', cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' },
@@ -84,17 +84,13 @@ const SOURCE_LABELS: Record<string, string> = {
   manual: 'Manuelle',
 }
 
-// ── Filtres ──────────────────────────────────────────────────────────────────
+type OrderTypeFilter = 'all' | 'orders' | 'contracts'
+
+// -- Filtres ------------------------------------------------------------------
 
 const ORDER_FILTERS: FilterOption[] = [
   { column: 'reference', label: 'Reference', type: 'text', placeholder: 'Rechercher...' },
   { column: 'client', label: 'Client', type: 'text', placeholder: 'Rechercher un client...' },
-  { column: 'source', label: 'Source', type: 'select', options: [
-    { value: 'quote_validation', label: 'Validation devis' },
-    { value: 'quote_invoice', label: 'Facturation devis' },
-    { value: 'client_document', label: 'BC client' },
-    { value: 'manual', label: 'Manuelle' },
-  ] },
   { column: 'date', label: 'Date', type: 'date-range' },
   { column: 'status', label: 'Statut', type: 'multi-select', options: [
     { value: 'draft', label: 'Brouillon' },
@@ -105,7 +101,7 @@ const ORDER_FILTERS: FilterOption[] = [
   ] },
 ]
 
-// ── Composant principal ──────────────────────────────────────────────────────
+// -- Composant principal ------------------------------------------------------
 
 export default function OrdersPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -114,6 +110,7 @@ export default function OrdersPage() {
   const [filters, setFilters] = useState<FilterValues>({})
   const [debouncedFilters, setDebouncedFilters] = useState<FilterValues>({})
   const [showMobileFilters, setShowMobileFilters] = useState(false)
+  const [orderTypeFilter, setOrderTypeFilter] = useState<OrderTypeFilter>('all')
 
   // Selection multiple + archivage
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -141,7 +138,6 @@ export default function OrdersPage() {
       const params: Record<string, string | number | undefined> = { page, page_size: 25 }
       if (debouncedFilters.reference) params.search = debouncedFilters.reference as string
       if (debouncedFilters.client) params.client_search = debouncedFilters.client as string
-      if (debouncedFilters.source) params.source = debouncedFilters.source as string
       const dateArr = debouncedFilters.date as string[] | undefined
       if (dateArr?.[0]) params.date_from = dateArr[0]
       if (dateArr?.[1]) params.date_to = dateArr[1]
@@ -155,11 +151,18 @@ export default function OrdersPage() {
   const statusArr = debouncedFilters.status as string[] | undefined
   const orders = useMemo(() => {
     let items = rawData?.items ?? []
+    // Filtre statut multi-select cote client
     if (statusArr && statusArr.length > 1) {
       items = items.filter((o) => statusArr.includes(o.status))
     }
+    // Filtre type : commandes vs contrats
+    if (orderTypeFilter === 'orders') {
+      items = items.filter((o) => !o.contract_id)
+    } else if (orderTypeFilter === 'contracts') {
+      items = items.filter((o) => !!o.contract_id)
+    }
     return items
-  }, [rawData, statusArr])
+  }, [rawData, statusArr, orderTypeFilter])
   const total = rawData?.total ?? 0
   const totalPages = Math.ceil(total / 25)
 
@@ -192,6 +195,12 @@ export default function OrdersPage() {
     } catch { /* */ }
     setBatchLoading(false)
   }
+
+  const TYPE_TABS: { key: OrderTypeFilter; label: string }[] = [
+    { key: 'all', label: 'Toutes' },
+    { key: 'orders', label: 'Commandes' },
+    { key: 'contracts', label: 'Contrats' },
+  ]
 
   return (
     <PageLayout
@@ -250,6 +259,23 @@ export default function OrdersPage() {
         </button>
       </>}
     >
+      {/* Onglets Toutes / Commandes / Contrats */}
+      <div className="flex gap-1 mb-3">
+        {TYPE_TABS.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => { setOrderTypeFilter(tab.key); setPage(1) }}
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition ${
+              orderTypeFilter === tab.key
+                ? 'border-kerpta-300 bg-kerpta-50 text-kerpta-700 dark:border-kerpta-600 dark:bg-kerpta-900/30 dark:text-kerpta-400'
+                : 'border-gray-200 text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       {/* Desktop : tableau */}
       <div className="hidden md:block bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden">
         <table className="w-full text-sm">
@@ -265,17 +291,16 @@ export default function OrdersPage() {
               </th>
               <ColumnFilterHeader filter={ORDER_FILTERS[0]} value={filters.reference || ''} onChange={(v) => updateFilter('reference', v)} />
               <ColumnFilterHeader filter={ORDER_FILTERS[1]} value={filters.client || ''} onChange={(v) => updateFilter('client', v)} />
-              <ColumnFilterHeader filter={ORDER_FILTERS[2]} value={filters.source || ''} onChange={(v) => updateFilter('source', v)} />
-              <ColumnFilterHeader filter={ORDER_FILTERS[3]} value={filters.date || []} onChange={(v) => updateFilter('date', v)} />
+              <ColumnFilterHeader filter={ORDER_FILTERS[2]} value={filters.date || []} onChange={(v) => updateFilter('date', v)} />
               <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase">Total TTC</th>
-              <ColumnFilterHeader filter={ORDER_FILTERS[4]} value={filters.status || []} onChange={(v) => updateFilter('status', v)} />
+              <ColumnFilterHeader filter={ORDER_FILTERS[3]} value={filters.status || []} onChange={(v) => updateFilter('status', v)} />
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={7} className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin text-kerpta mx-auto" /></td></tr>
+              <tr><td colSpan={6} className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin text-kerpta mx-auto" /></td></tr>
             ) : orders.length === 0 ? (
-              <tr><td colSpan={7} className="py-12 text-center text-gray-400 dark:text-gray-500 text-sm">Aucune commande trouvee</td></tr>
+              <tr><td colSpan={6} className="py-12 text-center text-gray-400 dark:text-gray-500 text-sm">Aucune commande trouvee</td></tr>
             ) : (
               orders.map((o) => {
                 const st = STATUS_LABELS[o.status] || { label: o.status, cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' }
@@ -289,9 +314,17 @@ export default function OrdersPage() {
                         className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-kerpta focus:ring-kerpta-400"
                       />
                     </td>
-                    <td className="px-4 py-3 font-medium text-gray-900 dark:text-white whitespace-nowrap">{o.display_reference || '-'}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900 dark:text-white whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        {o.display_reference || '-'}
+                        {o.contract_id && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400">
+                            Contrat
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{o.client_name || '-'}</td>
-                    <td className="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs whitespace-nowrap">{SOURCE_LABELS[o.source] || o.source}</td>
                     <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">{o.issue_date}</td>
                     <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200 whitespace-nowrap">{fmtCurrency(o.total_ttc)}</td>
                     <td className="px-4 py-3 whitespace-nowrap"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${st.cls}`}>{st.label}</span></td>
@@ -330,6 +363,11 @@ export default function OrdersPage() {
                     <span className="font-medium text-sm text-gray-900 dark:text-white truncate">
                       {o.display_reference || '-'}
                     </span>
+                    {o.contract_id && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400 shrink-0">
+                        Contrat
+                      </span>
+                    )}
                   </div>
                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${st.cls}`}>{st.label}</span>
                 </div>
@@ -338,7 +376,6 @@ export default function OrdersPage() {
                   <span className="font-medium text-gray-900 dark:text-white">{fmtCurrency(o.total_ttc)}</span>
                 </div>
                 <div className="flex justify-between text-xs text-gray-400 dark:text-gray-500 mt-0.5 pl-6">
-                  <span>{SOURCE_LABELS[o.source] || o.source}</span>
                   <span>{o.issue_date}</span>
                 </div>
               </div>
@@ -393,7 +430,7 @@ export default function OrdersPage() {
   )
 }
 
-// ── Detail overlay ───────────────────────────────────────────────────────────
+// -- Detail overlay -----------------------------------------------------------
 
 function OrderDetailOverlay({
   orderId, onClose, onRefresh,
@@ -436,6 +473,11 @@ function OrderDetailOverlay({
             {order && (
               <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${(STATUS_LABELS[order.status] || { cls: '' }).cls}`}>
                 {(STATUS_LABELS[order.status] || { label: order.status }).label}
+              </span>
+            )}
+            {order?.contract_id && (
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400">
+                Contrat
               </span>
             )}
           </div>
@@ -592,7 +634,7 @@ function OrderDetailOverlay({
   )
 }
 
-// ── Modale creation ──────────────────────────────────────────────────────────
+// -- Modale creation ----------------------------------------------------------
 
 function CreateOrderModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const [clientId, setClientId] = useState('')
