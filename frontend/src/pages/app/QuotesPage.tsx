@@ -560,7 +560,7 @@ function QuoteDetailPanel({ quoteId, onClose }: { quoteId: string; onClose: () =
     {/* Modale acceptation avec ref client */}
     {showAcceptModal && (
       <div className={OVERLAY_BACKDROP} onClick={() => setShowAcceptModal(false)} style={{ zIndex: 60 }}>
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md w-full mx-4 shadow-xl" onClick={e => e.stopPropagation()}>
+        <div className={OVERLAY_PANEL + ' max-w-md p-6'} onClick={e => e.stopPropagation()}>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Accepter le devis</h3>
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
             Le devis {quote?.number} va etre accepte et une commande sera creee automatiquement.
@@ -576,7 +576,7 @@ function QuoteDetailPanel({ quoteId, onClose }: { quoteId: string; onClose: () =
             autoFocus
           />
           <div className="flex justify-end gap-2 mt-4">
-            <button onClick={() => setShowAcceptModal(false)} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">
+            <button onClick={() => setShowAcceptModal(false)} className={BTN + ' border-gray-300 text-gray-700 dark:text-gray-300'}>
               Annuler
             </button>
             <button onClick={handleAcceptConfirm} className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white text-sm font-semibold rounded-lg transition">

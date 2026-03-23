@@ -11,7 +11,7 @@ import {
 import { orgGet, orgPost } from '@/lib/orgApi'
 import ClientCombobox, { type ClientItem } from '@/components/app/ClientCombobox'
 import PageLayout from '@/components/app/PageLayout'
-import { BTN, BTN_SM, CARD, INPUT, SELECT, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER } from '@/lib/formStyles'
+import { BTN, BTN_SM, BTN_SECONDARY, CARD, INPUT, SELECT, TEXTAREA, LABEL, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER } from '@/lib/formStyles'
 import { fmtCurrency } from '@/lib/formatting'
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -345,19 +345,19 @@ function OrderDetailOverlay({
             {/* Infos generales */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
-                <span className="text-xs text-gray-500 dark:text-gray-400 block mb-0.5">Client</span>
+                <span className={LABEL + ' mb-0.5'}>Client</span>
                 <span className="text-sm font-medium text-gray-900 dark:text-white">{order.client_name || '-'}</span>
               </div>
               <div>
-                <span className="text-xs text-gray-500 dark:text-gray-400 block mb-0.5">Ref. client</span>
+                <span className={LABEL + ' mb-0.5'}>Ref. client</span>
                 <span className="text-sm font-medium text-gray-900 dark:text-white">{order.client_reference || '-'}</span>
               </div>
               <div>
-                <span className="text-xs text-gray-500 dark:text-gray-400 block mb-0.5">Source</span>
+                <span className={LABEL + ' mb-0.5'}>Source</span>
                 <span className="text-sm text-gray-700 dark:text-gray-300">{SOURCE_LABELS[order.source] || order.source}</span>
               </div>
               <div>
-                <span className="text-xs text-gray-500 dark:text-gray-400 block mb-0.5">Date</span>
+                <span className={LABEL + ' mb-0.5'}>Date</span>
                 <span className="text-sm text-gray-700 dark:text-gray-300">{new Date(order.issue_date).toLocaleDateString('fr-FR')}</span>
               </div>
             </div>
@@ -516,7 +516,7 @@ function CreateOrderModal({ onClose, onCreated }: { onClose: () => void; onCreat
 
   return (
     <div className={OVERLAY_BACKDROP} onClick={onClose}>
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-lg w-full mx-4 shadow-xl" onClick={e => e.stopPropagation()}>
+      <div className={OVERLAY_PANEL + ' max-w-lg p-6'} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Nouvelle commande</h3>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
@@ -526,7 +526,7 @@ function CreateOrderModal({ onClose, onCreated }: { onClose: () => void; onCreat
 
         <div className="space-y-3">
           <div>
-            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Client *</label>
+            <label className={LABEL}>Client *</label>
             <ClientCombobox
               value={clientId}
               onChange={(c: ClientItem | null) => setClientId(c?.id || '')}
@@ -534,12 +534,12 @@ function CreateOrderModal({ onClose, onCreated }: { onClose: () => void; onCreat
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Reference BC client</label>
+            <label className={LABEL}>Reference BC client</label>
             <input className={INPUT} placeholder="Ex: BC-42-2026" value={clientRef} onChange={e => setClientRef(e.target.value)} />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Source</label>
+            <label className={LABEL}>Source</label>
             <select className={SELECT} value={source} onChange={e => setSource(e.target.value)}>
               <option value="client_document">BC client recu</option>
               <option value="manual">Commande manuelle</option>
@@ -547,13 +547,13 @@ function CreateOrderModal({ onClose, onCreated }: { onClose: () => void; onCreat
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Date</label>
+            <label className={LABEL}>Date</label>
             <input className={INPUT} type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)} />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Notes</label>
-            <textarea className={INPUT + ' h-20 resize-none'} value={notes} onChange={e => setNotes(e.target.value)} />
+            <label className={LABEL}>Notes</label>
+            <textarea className={TEXTAREA + ' h-20'} value={notes} onChange={e => setNotes(e.target.value)} />
           </div>
 
           {error && (
@@ -563,9 +563,7 @@ function CreateOrderModal({ onClose, onCreated }: { onClose: () => void; onCreat
           )}
 
           <div className="flex justify-end gap-2 pt-2">
-            <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">
-              Annuler
-            </button>
+            <button onClick={onClose} className={BTN_SECONDARY}>Annuler</button>
             <button onClick={handleSave} disabled={saving} className={BTN}>
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
               Creer
