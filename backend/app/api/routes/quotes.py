@@ -87,10 +87,13 @@ async def send_quote(
 @router.post("/{quote_id}/accept")
 async def accept_quote(
     quote_id: str,
+    client_reference: str | None = Body(None, embed=True),
     ctx: OrgContext = Depends(get_org_context),
     db: AsyncSession = Depends(get_db),
 ):
-    return await svc.accept_quote(ctx.org_id, quote_id, db)
+    return await svc.accept_quote(
+        ctx.org_id, quote_id, db, client_reference=client_reference,
+    )
 
 
 @router.post("/{quote_id}/refuse")

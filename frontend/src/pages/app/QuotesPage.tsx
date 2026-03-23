@@ -534,19 +534,58 @@ function QuoteDetailPanel({ quoteId, onClose }: { quoteId: string; onClose: () =
       .finally(() => setLoading(false))
   }, [quoteId])
 
-  async function doAction(action: string) {
+  const [showAcceptModal, setShowAcceptModal] = useState(false)
+  const [acceptClientRef, setAcceptClientRef] = useState('')
+
+  async function doAction(action: string, body?: Record<string, unknown>) {
     setActionLoading(action)
     try {
-      await orgPost(`/quotes/${quoteId}/${action}`)
+      await orgPost(`/quotes/${quoteId}/${action}`, body ?? {})
       const data = await orgGet<QuoteDetail>(`/quotes/${quoteId}`)
       setQuote(data)
     } catch { /* ignore */ }
     setActionLoading('')
   }
 
+  async function handleAcceptConfirm() {
+    setShowAcceptModal(false)
+    await doAction('accept', { client_reference: acceptClientRef || null })
+    setAcceptClientRef('')
+  }
+
   const st = quote ? (STATUS_LABELS[quote.status] || { label: quote.status, cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' }) : null
 
   return (
+    <>
+    {/* Modale acceptation avec ref client */}
+    {showAcceptModal && (
+      <div className={OVERLAY_BACKDROP} onClick={() => setShowAcceptModal(false)} style={{ zIndex: 60 }}>
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md w-full mx-4 shadow-xl" onClick={e => e.stopPropagation()}>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Accepter le devis</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            Le devis {quote?.number} va etre accepte et une commande sera creee automatiquement.
+          </p>
+          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">
+            N de commande client (optionnel)
+          </label>
+          <input
+            className={INPUT}
+            placeholder="Ex: BC-42-2026"
+            value={acceptClientRef}
+            onChange={e => setAcceptClientRef(e.target.value)}
+            autoFocus
+          />
+          <div className="flex justify-end gap-2 mt-4">
+            <button onClick={() => setShowAcceptModal(false)} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">
+              Annuler
+            </button>
+            <button onClick={handleAcceptConfirm} className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white text-sm font-semibold rounded-lg transition">
+              <Check className="w-4 h-4 inline mr-1" />Accepter
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     <div
       className={OVERLAY_BACKDROP}
       onClick={onClose}
@@ -582,7 +621,7 @@ function QuoteDetailPanel({ quoteId, onClose }: { quoteId: string; onClose: () =
         <div className="flex flex-wrap gap-2 mb-5">
           {(quote.status === 'draft' || quote.status === 'sent') && (
             <>
-              <button onClick={() => doAction('accept')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
+              <button onClick={() => setShowAcceptModal(true)} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
                 {actionLoading === 'accept' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Accepter
               </button>
               {quote.status === 'draft' && (
@@ -661,6 +700,7 @@ function QuoteDetailPanel({ quoteId, onClose }: { quoteId: string; onClose: () =
         )}
       </div>
     </div>
+    </>
   )
 }
 

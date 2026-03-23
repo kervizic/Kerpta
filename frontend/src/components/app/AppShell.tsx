@@ -15,6 +15,7 @@ const OrgSettingsPage = lazy(() => import('@/pages/app/OrgSettingsPage'))
 const ClientsPage = lazy(() => import('@/pages/app/ClientsPage'))
 const CatalogPage = lazy(() => import('@/pages/app/CatalogPage'))
 const QuotesPage = lazy(() => import('@/pages/app/QuotesPage'))
+const OrdersPage = lazy(() => import('@/pages/app/OrdersPage'))
 const ContractsPage = lazy(() => import('@/pages/app/ContractsPage'))
 const InvoicesPage = lazy(() => import('@/pages/app/InvoicesPage'))
 const ModulesPage = lazy(() => import('@/pages/app/ModulesPage'))
@@ -167,6 +168,8 @@ export default function AppShell() {
               <CatalogPage key={activeOrgId} />
             ) : path === '/app/devis' ? (
               <QuotesPage key={activeOrgId} />
+            ) : path === '/app/commandes' ? (
+              <OrdersPage key={activeOrgId} />
             ) : path.startsWith('/app/contrats') ? (
               <ContractsPage key={activeOrgId} />
             ) : path === '/app/test-ai' ? (

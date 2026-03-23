@@ -27,9 +27,8 @@ class Invoice(Base, UUIDPrimaryKeyMixin, TimestampUpdateMixin):
     quote_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("quotes.id"), nullable=True
     )
-    purchase_order_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("client_purchase_orders.id"), nullable=True
-    )
+    # Note : purchase_order_id supprime (migration 0017) — remplace par table order_invoices
+    # Le champ purchase_order_number (texte libre) est conserve pour l'affichage PDF
 
     # Lien contrat et situation
     contract_id: Mapped[uuid.UUID | None] = mapped_column(

@@ -17,9 +17,8 @@ from app.models.product import (  # noqa: F401
 )
 from app.models.quote import Quote, QuoteLine  # noqa: F401
 from app.models.invoice import Invoice, InvoiceLine, Payment  # noqa: F401
+from app.models.order import Order, OrderLine, order_quotes, order_invoices  # noqa: F401
 from app.models.purchase import (  # noqa: F401
-    ClientPurchaseOrder,
-    ClientPurchaseOrderLine,
     SupplierQuote,
     SupplierQuoteLine,
     SupplierOrder,

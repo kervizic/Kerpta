@@ -55,9 +55,7 @@ class Client(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     organization: Mapped["Organization"] = relationship(back_populates="clients")
     quotes: Mapped[list["Quote"]] = relationship(back_populates="client")
     invoices: Mapped[list["Invoice"]] = relationship(back_populates="client")
-    purchase_orders: Mapped[list["ClientPurchaseOrder"]] = relationship(
-        back_populates="client"
-    )
+    orders: Mapped[list["Order"]] = relationship(back_populates="client")
     contracts: Mapped[list["Contract"]] = relationship(back_populates="client")
     product_variants: Mapped[list["ClientProductVariant"]] = relationship(
         back_populates="client"

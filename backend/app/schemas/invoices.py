@@ -42,7 +42,6 @@ class InvoiceLineOut(BaseModel):
 class InvoiceCreate(BaseModel):
     client_id: str
     quote_id: str | None = None
-    purchase_order_id: str | None = None
     contract_id: str | None = None
     issue_date: date
     due_date: date | None = None
@@ -85,7 +84,6 @@ class InvoiceOut(BaseModel):
     client_id: str
     client_name: str | None = None
     quote_id: str | None = None
-    purchase_order_id: str | None = None
     contract_id: str | None = None
     situation_id: str | None = None
     is_situation: bool

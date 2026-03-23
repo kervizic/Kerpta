@@ -30,6 +30,7 @@ from app.api.routes.catalog import router as catalog_router
 from app.api.routes.clients import router as clients_router
 from app.api.routes.contracts import router as contracts_router
 from app.api.routes.invoices import router as invoices_router
+from app.api.routes.orders import router as orders_router
 from app.api.routes.quotes import router as quotes_router
 from app.api.routes.situations import router as situations_router
 from app.api.routes.attachments import router as attachments_router
@@ -188,6 +189,7 @@ app.include_router(billing_router)
 app.include_router(clients_router)
 app.include_router(catalog_router)
 app.include_router(quotes_router)
+app.include_router(orders_router)
 app.include_router(contracts_router)
 app.include_router(situations_router)
 app.include_router(invoices_router)

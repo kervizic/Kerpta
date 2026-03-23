@@ -383,9 +383,19 @@ async def send_quote(
 
 
 async def accept_quote(
-    org_id: uuid.UUID, quote_id: str, db: AsyncSession
+    org_id: uuid.UUID,
+    quote_id: str,
+    db: AsyncSession,
+    *,
+    client_reference: str | None = None,
+    create_order: bool = True,
 ) -> dict:
-    """Marque un devis comme accepté et met à jour le budget du contrat si lié."""
+    """Marque un devis comme accepte et cree une commande automatiquement.
+
+    Args:
+        client_reference: reference BC du client (optionnel).
+        create_order: si True (defaut), cree une commande liee au devis.
+    """
     result = await db.execute(
         text("""
             UPDATE quotes SET status = 'accepted', accepted_at = now(), updated_at = now()
@@ -396,15 +406,23 @@ async def accept_quote(
     )
     row = result.fetchone()
     if row is None:
-        raise HTTPException(409, "Le devis ne peut pas être accepté (statut invalide)")
+        raise HTTPException(409, "Le devis ne peut pas etre accepte (statut invalide)")
 
-    # Recalculer le budget du contrat si lié
+    # Recalculer le budget du contrat si lie
     contract_id = row[0]
     if contract_id:
         await _update_contract_budget(contract_id, db)
 
+    # Creer une commande automatiquement
+    order_id = None
+    if create_order:
+        from app.services.orders import create_from_quote
+        order_id = await create_from_quote(
+            org_id, quote_id, "quote_validation", client_reference, db,
+        )
+
     await db.commit()
-    return {"status": "accepted"}
+    return {"status": "accepted", "order_id": order_id}
 
 
 async def refuse_quote(

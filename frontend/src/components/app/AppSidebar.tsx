@@ -67,7 +67,8 @@ const VENTE_ITEMS: NavItem[] = [
   { label: 'Clients', href: '/app/clients', icon: <UserRound className="w-4 h-4" />, moduleKey: 'ventes.clients' },
   { label: 'Catalogue', href: '/app/catalogue', icon: <Package className="w-4 h-4" />, moduleKey: 'ventes.catalogue' },
   { label: 'Devis', href: '/app/devis', icon: <FileText className="w-4 h-4" />, moduleKey: 'ventes.devis' },
-  { label: 'Commandes', href: '/app/contrats', icon: <FolderKanban className="w-4 h-4" />, moduleKey: 'ventes.commandes' },
+  { label: 'Commandes', href: '/app/commandes', icon: <ShoppingCart className="w-4 h-4" />, moduleKey: 'ventes.commandes' },
+  { label: 'Contrats', href: '/app/contrats', icon: <FolderKanban className="w-4 h-4" />, moduleKey: 'ventes.contrats' },
   { label: 'Factures', href: '/app/factures', icon: <Receipt className="w-4 h-4" />, moduleKey: 'ventes.factures' },
   { label: 'Test IA', href: '/app/test-ai', icon: <BrainCircuit className="w-4 h-4" /> },
 ]
