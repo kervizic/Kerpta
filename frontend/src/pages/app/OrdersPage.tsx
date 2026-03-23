@@ -529,7 +529,7 @@ function CreateOrderModal({ onClose, onCreated }: { onClose: () => void; onCreat
             <label className={LABEL}>Client *</label>
             <ClientCombobox
               value={clientId}
-              onChange={(c: ClientItem | null) => setClientId(c?.id || '')}
+              onChange={(id: string) => setClientId(id)}
             />
           </div>
 

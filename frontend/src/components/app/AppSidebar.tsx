@@ -19,7 +19,7 @@ import {
   UserRound,
   Package,
   FileText,
-  FolderKanban,
+
   Receipt,
   Briefcase,
   ShoppingCart,
