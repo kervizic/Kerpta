@@ -5,10 +5,11 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Loader2, X, FileText, Receipt, Archive, ArchiveRestore,
+  Loader2, X, Plus, FileText, Receipt, Archive, ArchiveRestore,
   ShoppingCart, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { orgGet, orgPost } from '@/lib/orgApi'
+import ClientCombobox, { type ClientItem } from '@/components/app/ClientCombobox'
 import PageLayout from '@/components/app/PageLayout'
 import { BTN, BTN_SM, CARD, INPUT, SELECT, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER } from '@/lib/formStyles'
 import { fmtCurrency } from '@/lib/formatting'
@@ -93,6 +94,7 @@ const SOURCE_LABELS: Record<string, string> = {
 
 export default function OrdersPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [showCreate, setShowCreate] = useState(false)
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState('')
   const [search, setSearch] = useState('')
@@ -125,6 +127,11 @@ export default function OrdersPage() {
       subtitle={`${total} commande${total > 1 ? 's' : ''}`}
     >
       {/* Filtres */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        <button onClick={() => setShowCreate(true)} className={BTN}>
+          <Plus className="w-4 h-4" /> Nouvelle commande
+        </button>
+      </div>
       <div className="flex flex-wrap gap-2 mb-4">
         <input
           className={INPUT + ' max-w-xs'}
@@ -262,6 +269,14 @@ export default function OrdersPage() {
           orderId={selectedId}
           onClose={() => setSelectedId(null)}
           onRefresh={() => qc.invalidateQueries({ queryKey: ['orders'] })}
+        />
+      )}
+
+      {/* Modale creation */}
+      {showCreate && (
+        <CreateOrderModal
+          onClose={() => setShowCreate(false)}
+          onCreated={() => { setShowCreate(false); qc.invalidateQueries({ queryKey: ['orders'] }) }}
         />
       )}
     </PageLayout>
@@ -462,6 +477,101 @@ function OrderDetailOverlay({
             )}
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+// ── Modale creation ──────────────────────────────────────────────────────────
+
+function CreateOrderModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const [clientId, setClientId] = useState('')
+  const [clientRef, setClientRef] = useState('')
+  const [source, setSource] = useState('client_document')
+  const [issueDate, setIssueDate] = useState(new Date().toISOString().slice(0, 10))
+  const [notes, setNotes] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  async function handleSave() {
+    if (!clientId) { setError('Selectionnez un client'); return }
+    setSaving(true)
+    setError('')
+    try {
+      await orgPost('/orders', {
+        client_id: clientId,
+        client_reference: clientRef || null,
+        source,
+        issue_date: issueDate,
+        notes: notes || null,
+        lines: [],
+      })
+      onCreated()
+    } catch {
+      setError('Erreur lors de la creation')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className={OVERLAY_BACKDROP} onClick={onClose}>
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-lg w-full mx-4 shadow-xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Nouvelle commande</h3>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
+            <X className="w-5 h-5 text-gray-400" />
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Client *</label>
+            <ClientCombobox
+              value={clientId}
+              onChange={(c: ClientItem | null) => setClientId(c?.id || '')}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Reference BC client</label>
+            <input className={INPUT} placeholder="Ex: BC-42-2026" value={clientRef} onChange={e => setClientRef(e.target.value)} />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Source</label>
+            <select className={SELECT} value={source} onChange={e => setSource(e.target.value)}>
+              <option value="client_document">BC client recu</option>
+              <option value="manual">Commande manuelle</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Date</label>
+            <input className={INPUT} type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)} />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Notes</label>
+            <textarea className={INPUT + ' h-20 resize-none'} value={notes} onChange={e => setNotes(e.target.value)} />
+          </div>
+
+          {error && (
+            <div className="p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-xs text-red-600 dark:text-red-400">
+              {error}
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">
+              Annuler
+            </button>
+            <button onClick={handleSave} disabled={saving} className={BTN}>
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              Creer
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )
