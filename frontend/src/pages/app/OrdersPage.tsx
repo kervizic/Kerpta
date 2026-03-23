@@ -9,7 +9,7 @@ import {
   ShoppingCart, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { orgGet, orgPost } from '@/lib/orgApi'
-import ClientCombobox, { type ClientItem } from '@/components/app/ClientCombobox'
+import ClientCombobox from '@/components/app/ClientCombobox'
 import PageLayout from '@/components/app/PageLayout'
 import { BTN, BTN_SM, BTN_SECONDARY, CARD, INPUT, SELECT, TEXTAREA, LABEL, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER } from '@/lib/formStyles'
 import { fmtCurrency } from '@/lib/formatting'
