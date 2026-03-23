@@ -166,7 +166,6 @@ function QuotesList() {
   const [page, setPage] = useState(1)
   const [filters, setFilters] = useState<FilterValues>({})
   const [debouncedFilters, setDebouncedFilters] = useState<FilterValues>({})
-  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editId, setEditId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [showMobileFilters, setShowMobileFilters] = useState(false)
@@ -392,9 +391,8 @@ function QuotesList() {
                 quotes.map((q) => {
                   const st = STATUS_LABELS[q.status] || { label: q.status, cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' }
                   const typeLabel = q.is_avenant ? `Avenant n°${q.avenant_number}` : (docTypeLabels[q.document_type] || q.document_type)
-                  const isEditable = q.status === 'draft' || q.status === 'sent'
                   return (
-                    <tr key={q.id} onClick={() => isEditable ? setEditId(q.id) : setSelectedId(q.id)} className="border-b border-gray-50 dark:border-gray-700 hover:bg-kerpta-50/50 dark:hover:bg-kerpta-900/30 cursor-pointer transition">
+                    <tr key={q.id} onClick={() => setEditId(q.id)} className="border-b border-gray-50 dark:border-gray-700 hover:bg-kerpta-50/50 dark:hover:bg-kerpta-900/30 cursor-pointer transition">
                       <td className="pl-3 pr-1 py-3 w-[1%] whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
@@ -436,11 +434,10 @@ function QuotesList() {
             quotes.map((q) => {
               const st = STATUS_LABELS[q.status] || { label: q.status, cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' }
               const typeLabel = q.is_avenant ? `Avenant n°${q.avenant_number}` : (docTypeLabels[q.document_type] || q.document_type)
-              const isEditable = q.status === 'draft' || q.status === 'sent'
               return (
                 <div
                   key={q.id}
-                  onClick={() => isEditable ? setEditId(q.id) : setSelectedId(q.id)}
+                  onClick={() => setEditId(q.id)}
                   className={`${CARD} p-4 cursor-pointer hover:border-kerpta-200 dark:hover:border-kerpta-700 transition active:bg-kerpta-50/50 dark:active:bg-kerpta-900/30`}
                 >
                   <div className="flex items-center justify-between mb-1.5">
@@ -484,14 +481,7 @@ function QuotesList() {
           </div>
         )}
         {/* Panneau détail devis (lecture seule) */}
-        {selectedId && (
-          <QuoteDetailPanel
-            quoteId={selectedId}
-            onClose={() => { setSelectedId(null); invalidate() }}
-          />
-        )}
-
-        {/* Formulaire édition en overlay */}
+        {/* Formulaire edition/consultation en overlay */}
         {editId && (
           <QuoteFormPage
             quoteId={editId}
@@ -519,9 +509,9 @@ function QuotesList() {
   )
 }
 
-// ── Détail ─────────────────────────────────────────────────────────────────────
+// QuoteDetailPanel supprime - remplace par QuoteFormPage avec mode readOnly
 
-function QuoteDetailPanel({ quoteId, onClose }: { quoteId: string; onClose: () => void }) {
+function _QuoteDetailPanel_UNUSED({ quoteId, onClose }: { quoteId: string; onClose: () => void }) {
   const [quote, setQuote] = useState<QuoteDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState('')
@@ -733,6 +723,8 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
     { rate: '5.5', label: 'TVA 5,5%' }, { rate: '2.1', label: 'TVA 2,1%' },
     { rate: '0', label: 'TVA 0%' },
   ])
+  const [quoteStatus, setQuoteStatus] = useState<string>('draft')
+  const readOnly = isEdit && quoteStatus !== 'draft' && quoteStatus !== 'sent'
   const [loading, setLoading] = useState(isEdit)
   const [saving, setSaving] = useState(false)
   const [clientPanelId, setClientPanelId] = useState<string | null>(null)
@@ -803,6 +795,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
     setLoading(true)
     orgGet<QuoteDetail>(`/quotes/${quoteId}`)
       .then((q) => {
+        setQuoteStatus(q.status)
         setClientId(q.client_id)
         setDocumentType(q.document_type)
         setIssueDate(q.issue_date)
@@ -988,9 +981,16 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
   const formContent = (
     <>
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-            {isEdit ? 'Modifier le devis' : 'Nouveau devis'}
-          </h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+              {isEdit ? 'Modifier le devis' : 'Nouveau devis'}
+            </h1>
+            {isEdit && quoteStatus && STATUS_LABELS[quoteStatus] && (
+              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_LABELS[quoteStatus].cls}`}>
+                {STATUS_LABELS[quoteStatus].label}
+              </span>
+            )}
+          </div>
           {onClose && (
             <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
               <X className="w-5 h-5 text-gray-400 dark:text-gray-500" />
@@ -1377,34 +1377,54 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
           >
             Annuler
           </button>
-          <button
-            onClick={() => handleSave(false)}
-            disabled={saving || !clientId}
-            className="px-5 py-2.5 text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold rounded-lg transition disabled:opacity-50"
-          >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
-          </button>
-          <button
-            onClick={() => handleSave(false, true)}
-            disabled={saving || !clientId}
-            className="flex items-center gap-1.5 px-5 py-2.5 text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold rounded-lg transition disabled:opacity-50"
-          >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><FileDown className="w-4 h-4" /> Télécharger PDF</>}
-          </button>
-          <button
-            onClick={() => handleSave(true)}
-            disabled={saving || !clientId}
-            className={`${BTN} px-5 py-2.5`}
-          >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Send className="w-4 h-4" /> Envoyer</>}
-          </button>
-          <button
-            onClick={() => handleSave(false, false, true)}
-            disabled={saving || !clientId}
-            className="flex items-center gap-1.5 px-5 py-2.5 text-sm bg-green-600 hover:bg-green-500 text-white font-semibold rounded-lg transition disabled:opacity-50"
-          >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4" /> Accepter</>}
-          </button>
+          {!readOnly && (
+            <>
+              <button
+                onClick={() => handleSave(false)}
+                disabled={saving || !clientId}
+                className="px-5 py-2.5 text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold rounded-lg transition disabled:opacity-50"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
+              </button>
+              <button
+                onClick={() => handleSave(false, true)}
+                disabled={saving || !clientId}
+                className="flex items-center gap-1.5 px-5 py-2.5 text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold rounded-lg transition disabled:opacity-50"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><FileDown className="w-4 h-4" /> Telecharger PDF</>}
+              </button>
+              <button
+                onClick={() => handleSave(true)}
+                disabled={saving || !clientId}
+                className={`${BTN} px-5 py-2.5`}
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Send className="w-4 h-4" /> Envoyer</>}
+              </button>
+              <button
+                onClick={() => handleSave(false, false, true)}
+                disabled={saving || !clientId}
+                className="flex items-center gap-1.5 px-5 py-2.5 text-sm bg-green-600 hover:bg-green-500 text-white font-semibold rounded-lg transition disabled:opacity-50"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4" /> Accepter</>}
+              </button>
+            </>
+          )}
+          {readOnly && (
+            <>
+              <button
+                onClick={() => void orgDownload(`/quotes/${quoteId}/pdf?download=1`, 'devis.pdf')}
+                className="flex items-center gap-1.5 px-5 py-2.5 text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold rounded-lg transition"
+              >
+                <FileDown className="w-4 h-4" /> Telecharger PDF
+              </button>
+              <button
+                onClick={async () => { await orgPost(`/quotes/${quoteId}/duplicate`, {}); onClose?.() }}
+                className={`${BTN} px-5 py-2.5`}
+              >
+                <Copy className="w-4 h-4" /> Dupliquer
+              </button>
+            </>
+          )}
         </div>
 
         {/* Modale fiche client */}
