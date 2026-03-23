@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Emmanuel Kervizic
 // Licence : AGPL-3.0 - https://www.gnu.org/licenses/agpl-3.0.html
 
-import { useState } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Loader2, X, Plus, FileText, Receipt, Archive, ArchiveRestore,
@@ -10,8 +10,10 @@ import {
 } from 'lucide-react'
 import { orgGet, orgPost } from '@/lib/orgApi'
 import ClientCombobox from '@/components/app/ClientCombobox'
+import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
+import MobileFilterPanel from '@/components/app/MobileFilterPanel'
 import PageLayout from '@/components/app/PageLayout'
-import { BTN, BTN_SM, BTN_SECONDARY, CARD, INPUT, SELECT, TEXTAREA, LABEL, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER } from '@/lib/formStyles'
+import { BTN, BTN_SM, BTN_SECONDARY, CARD, INPUT, SELECT, TEXTAREA, LABEL, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER, BADGE_COUNT } from '@/lib/formStyles'
 import { fmtCurrency } from '@/lib/formatting'
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -67,20 +69,12 @@ interface OrderDetail extends Order {
 
 // ── Constantes ───────────────────────────────────────────────────────────────
 
-const STATUS_LABELS: Record<string, string> = {
-  draft: 'Brouillon',
-  confirmed: 'Confirmee',
-  partially_invoiced: 'Partiellement facturee',
-  invoiced: 'Facturee',
-  cancelled: 'Annulee',
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  draft: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
-  confirmed: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
-  partially_invoiced: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300',
-  invoiced: 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300',
-  cancelled: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300',
+const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
+  draft: { label: 'Brouillon', cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' },
+  confirmed: { label: 'Confirmee', cls: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400' },
+  partially_invoiced: { label: 'Part. facturee', cls: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400' },
+  invoiced: { label: 'Facturee', cls: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' },
+  cancelled: { label: 'Annulee', cls: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400' },
 }
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -90,177 +84,293 @@ const SOURCE_LABELS: Record<string, string> = {
   manual: 'Manuelle',
 }
 
+// ── Filtres ──────────────────────────────────────────────────────────────────
+
+const ORDER_FILTERS: FilterOption[] = [
+  { column: 'reference', label: 'Reference', type: 'text', placeholder: 'Rechercher...' },
+  { column: 'client', label: 'Client', type: 'text', placeholder: 'Rechercher un client...' },
+  { column: 'source', label: 'Source', type: 'select', options: [
+    { value: 'quote_validation', label: 'Validation devis' },
+    { value: 'quote_invoice', label: 'Facturation devis' },
+    { value: 'client_document', label: 'BC client' },
+    { value: 'manual', label: 'Manuelle' },
+  ] },
+  { column: 'date', label: 'Date', type: 'date-range' },
+  { column: 'status', label: 'Statut', type: 'multi-select', options: [
+    { value: 'draft', label: 'Brouillon' },
+    { value: 'confirmed', label: 'Confirmee' },
+    { value: 'partially_invoiced', label: 'Part. facturee' },
+    { value: 'invoiced', label: 'Facturee' },
+    { value: 'cancelled', label: 'Annulee' },
+  ] },
+]
+
 // ── Composant principal ──────────────────────────────────────────────────────
 
 export default function OrdersPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [page, setPage] = useState(1)
-  const [statusFilter, setStatusFilter] = useState('')
-  const [search, setSearch] = useState('')
-  const [showArchived, setShowArchived] = useState(false)
-  const qc = useQueryClient()
+  const [filters, setFilters] = useState<FilterValues>({})
+  const [debouncedFilters, setDebouncedFilters] = useState<FilterValues>({})
+  const [showMobileFilters, setShowMobileFilters] = useState(false)
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['orders', page, statusFilter, search, showArchived],
+  // Selection multiple + archivage
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [showArchived, setShowArchived] = useState(false)
+  const [batchLoading, setBatchLoading] = useState(false)
+
+  const qc = useQueryClient()
+  const invalidate = () => { setSelected(new Set()); void qc.invalidateQueries({ queryKey: ['orders'] }) }
+
+  const updateFilter = (column: string, value: string | string[]) => {
+    setFilters((prev) => ({ ...prev, [column]: value }))
+    setPage(1)
+  }
+
+  // Debounce des filtres (300ms)
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  useEffect(() => {
+    debounceRef.current = setTimeout(() => setDebouncedFilters(filters), 300)
+    return () => clearTimeout(debounceRef.current)
+  }, [filters])
+
+  const { data: rawData, isLoading } = useQuery({
+    queryKey: ['orders', { page, filters: debouncedFilters, showArchived }],
     queryFn: () => {
-      const params = new URLSearchParams()
-      params.set('page', String(page))
-      params.set('page_size', '25')
-      if (statusFilter) params.set('status', statusFilter)
-      if (search) params.set('search', search)
-      if (showArchived) params.set('archived', 'true')
-      return orgGet<{ items: Order[]; total: number; page: number; page_size: number }>(
-        `/orders?${params.toString()}`
-      )
+      const params: Record<string, string | number | undefined> = { page, page_size: 25 }
+      if (debouncedFilters.reference) params.search = debouncedFilters.reference as string
+      if (debouncedFilters.client) params.client_search = debouncedFilters.client as string
+      if (debouncedFilters.source) params.source = debouncedFilters.source as string
+      const dateArr = debouncedFilters.date as string[] | undefined
+      if (dateArr?.[0]) params.date_from = dateArr[0]
+      if (dateArr?.[1]) params.date_to = dateArr[1]
+      const statusArr = debouncedFilters.status as string[] | undefined
+      if (statusArr?.length === 1) params.status = statusArr[0]
+      if (showArchived) params.archived = 'true'
+      return orgGet<{ items: Order[]; total: number }>('/orders', params)
     },
   })
 
-  const orders = data?.items ?? []
-  const total = data?.total ?? 0
+  const statusArr = debouncedFilters.status as string[] | undefined
+  const orders = useMemo(() => {
+    let items = rawData?.items ?? []
+    if (statusArr && statusArr.length > 1) {
+      items = items.filter((o) => statusArr.includes(o.status))
+    }
+    return items
+  }, [rawData, statusArr])
+  const total = rawData?.total ?? 0
   const totalPages = Math.ceil(total / 25)
+
+  const activeFilterCount = Object.values(filters).filter((v) =>
+    (typeof v === 'string' && v) || (Array.isArray(v) && v.some(Boolean))
+  ).length
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  function toggleSelectAll() {
+    if (selected.size === orders.length) {
+      setSelected(new Set())
+    } else {
+      setSelected(new Set(orders.map((o) => o.id)))
+    }
+  }
+
+  async function batchArchive() {
+    if (selected.size === 0) return
+    setBatchLoading(true)
+    try {
+      await orgPost('/orders/batch/archive', { ids: [...selected], archive: !showArchived })
+      invalidate()
+    } catch { /* */ }
+    setBatchLoading(false)
+  }
 
   return (
     <PageLayout
       icon={<ShoppingCart className="w-5 h-5 text-kerpta" />}
       title="Commandes"
-      subtitle={`${total} commande${total > 1 ? 's' : ''}`}
-    >
-      {/* Filtres */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        <button onClick={() => setShowCreate(true)} className={BTN}>
-          <Plus className="w-4 h-4" /> Nouvelle commande
-        </button>
-      </div>
-      <div className="flex flex-wrap gap-2 mb-4">
-        <input
-          className={INPUT + ' max-w-xs'}
-          placeholder="Rechercher..."
-          value={search}
-          onChange={e => { setSearch(e.target.value); setPage(1) }}
-        />
-        <select
-          className={SELECT + ' max-w-[180px]'}
-          value={statusFilter}
-          onChange={e => { setStatusFilter(e.target.value); setPage(1) }}
-        >
-          <option value="">Tous les statuts</option>
-          {Object.entries(STATUS_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>{v}</option>
-          ))}
-        </select>
-        <button
-          onClick={() => setShowArchived(!showArchived)}
-          className={BTN_SM}
-        >
-          {showArchived ? <ArchiveRestore className="w-3.5 h-3.5" /> : <Archive className="w-3.5 h-3.5" />}
-          {showArchived ? 'Masquer archivees' : 'Voir archivees'}
-        </button>
-      </div>
-
-      {/* Chargement */}
-      {isLoading && (
-        <div className="flex justify-center py-12">
-          <Loader2 className="w-6 h-6 animate-spin text-kerpta" />
-        </div>
-      )}
-
-      {/* Liste vide */}
-      {!isLoading && orders.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-16 text-gray-400 dark:text-gray-600">
-          <ShoppingCart className="w-12 h-12 mb-3" />
-          <span className="text-sm">Aucune commande</span>
-          <span className="text-xs mt-1">Les commandes sont creees automatiquement lors de la validation d'un devis</span>
-        </div>
-      )}
-
-      {/* Table desktop */}
-      {!isLoading && orders.length > 0 && (
-        <>
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
-                  <th className="py-2 px-3 font-medium">Reference</th>
-                  <th className="py-2 px-3 font-medium">Client</th>
-                  <th className="py-2 px-3 font-medium">Source</th>
-                  <th className="py-2 px-3 font-medium">Date</th>
-                  <th className="py-2 px-3 font-medium text-right">Total TTC</th>
-                  <th className="py-2 px-3 font-medium">Statut</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.map(o => (
-                  <tr
-                    key={o.id}
-                    onClick={() => setSelectedId(o.id)}
-                    className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer transition"
-                  >
-                    <td className="py-2.5 px-3 font-medium text-gray-900 dark:text-white">
-                      {o.display_reference || '-'}
-                    </td>
-                    <td className="py-2.5 px-3 text-gray-600 dark:text-gray-400">
-                      {o.client_name || '-'}
-                    </td>
-                    <td className="py-2.5 px-3 text-gray-500 dark:text-gray-400 text-xs">
-                      {SOURCE_LABELS[o.source] || o.source}
-                    </td>
-                    <td className="py-2.5 px-3 text-gray-500 dark:text-gray-400">
-                      {new Date(o.issue_date).toLocaleDateString('fr-FR')}
-                    </td>
-                    <td className="py-2.5 px-3 text-right font-medium text-gray-900 dark:text-white">
-                      {fmtCurrency(o.total_ttc)}
-                    </td>
-                    <td className="py-2.5 px-3">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[o.status] || ''}`}>
-                        {STATUS_LABELS[o.status] || o.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      actions={<>
+        {activeFilterCount > 0 && (
+          <span className="text-[10px] bg-kerpta-100 text-kerpta-700 dark:bg-kerpta-900/40 dark:text-kerpta-400 px-2 py-0.5 rounded-full font-medium">
+            {activeFilterCount} filtre{activeFilterCount > 1 ? 's' : ''}
+          </span>
+        )}
+        {/* Barre d'actions (selection active) */}
+        {selected.size > 0 && (
+          <div className="flex items-center gap-2 mr-2">
+            <span className="text-xs text-gray-500 dark:text-gray-400">{selected.size} selectionne{selected.size > 1 ? 's' : ''}</span>
+            <button
+              onClick={batchArchive}
+              disabled={batchLoading}
+              className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 rounded-lg transition disabled:opacity-50"
+            >
+              {showArchived ? <ArchiveRestore className="w-3.5 h-3.5" /> : <Archive className="w-3.5 h-3.5" />}
+              {showArchived ? 'Desarchiver' : 'Archiver'}
+            </button>
           </div>
+        )}
+        {/* Toggle archives */}
+        <button
+          onClick={() => { setShowArchived((v) => !v); setPage(1) }}
+          className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition ${
+            showArchived
+              ? 'border-kerpta-300 bg-kerpta-50 text-kerpta-700 dark:border-kerpta-600 dark:bg-kerpta-900/30 dark:text-kerpta-400'
+              : 'border-gray-200 text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700'
+          }`}
+        >
+          <Archive className="w-3.5 h-3.5 inline mr-1" />
+          Archivees
+        </button>
+        {/* Bouton filtres mobile */}
+        <button
+          onClick={() => setShowMobileFilters(true)}
+          className={`md:hidden relative p-2 rounded-lg border transition ${
+            activeFilterCount > 0 ? 'border-kerpta-300 bg-kerpta-50 text-kerpta-600 dark:border-kerpta-600 dark:bg-kerpta-900/30 dark:text-kerpta-400' : 'border-gray-200 text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700'
+          }`}
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
+          {activeFilterCount > 0 && (
+            <span className={`absolute -top-1 -right-1 w-4 h-4 ${BADGE_COUNT}`}>
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
+        <button onClick={() => setShowCreate(true)} className={BTN}>
+          <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Nouvelle commande</span>
+        </button>
+      </>}
+    >
+      {/* Desktop : tableau */}
+      <div className="hidden md:block bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-100 dark:border-gray-700 text-left">
+              <th className="pl-3 pr-1 py-3 w-[1%] whitespace-nowrap">
+                <input
+                  type="checkbox"
+                  checked={orders.length > 0 && selected.size === orders.length}
+                  onChange={toggleSelectAll}
+                  className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-kerpta focus:ring-kerpta-400"
+                />
+              </th>
+              <ColumnFilterHeader filter={ORDER_FILTERS[0]} value={filters.reference || ''} onChange={(v) => updateFilter('reference', v)} />
+              <ColumnFilterHeader filter={ORDER_FILTERS[1]} value={filters.client || ''} onChange={(v) => updateFilter('client', v)} />
+              <ColumnFilterHeader filter={ORDER_FILTERS[2]} value={filters.source || ''} onChange={(v) => updateFilter('source', v)} />
+              <ColumnFilterHeader filter={ORDER_FILTERS[3]} value={filters.date || []} onChange={(v) => updateFilter('date', v)} />
+              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase">Total TTC</th>
+              <ColumnFilterHeader filter={ORDER_FILTERS[4]} value={filters.status || []} onChange={(v) => updateFilter('status', v)} />
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading ? (
+              <tr><td colSpan={7} className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin text-kerpta mx-auto" /></td></tr>
+            ) : orders.length === 0 ? (
+              <tr><td colSpan={7} className="py-12 text-center text-gray-400 dark:text-gray-500 text-sm">Aucune commande trouvee</td></tr>
+            ) : (
+              orders.map((o) => {
+                const st = STATUS_LABELS[o.status] || { label: o.status, cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' }
+                return (
+                  <tr key={o.id} onClick={() => setSelectedId(o.id)} className="border-b border-gray-50 dark:border-gray-700 hover:bg-kerpta-50/50 dark:hover:bg-kerpta-900/30 cursor-pointer transition">
+                    <td className="pl-3 pr-1 py-3 w-[1%] whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selected.has(o.id)}
+                        onChange={() => toggleSelect(o.id)}
+                        className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-kerpta focus:ring-kerpta-400"
+                      />
+                    </td>
+                    <td className="px-4 py-3 font-medium text-gray-900 dark:text-white whitespace-nowrap">{o.display_reference || '-'}</td>
+                    <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{o.client_name || '-'}</td>
+                    <td className="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs whitespace-nowrap">{SOURCE_LABELS[o.source] || o.source}</td>
+                    <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">{o.issue_date}</td>
+                    <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200 whitespace-nowrap">{fmtCurrency(o.total_ttc)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${st.cls}`}>{st.label}</span></td>
+                  </tr>
+                )
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
 
-          {/* Cards mobile */}
-          <div className="md:hidden space-y-2">
-            {orders.map(o => (
+      {/* Mobile : cartes */}
+      <div className="md:hidden space-y-2">
+        {isLoading ? (
+          <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-kerpta" /></div>
+        ) : orders.length === 0 ? (
+          <div className="py-12 text-center text-gray-400 dark:text-gray-500 text-sm">Aucune commande trouvee</div>
+        ) : (
+          orders.map((o) => {
+            const st = STATUS_LABELS[o.status] || { label: o.status, cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' }
+            return (
               <div
                 key={o.id}
                 onClick={() => setSelectedId(o.id)}
-                className={CARD + ' p-3 cursor-pointer hover:border-kerpta transition'}
+                className={`${CARD} p-4 cursor-pointer hover:border-kerpta-200 dark:hover:border-kerpta-700 transition active:bg-kerpta-50/50 dark:active:bg-kerpta-900/30`}
               >
-                <div className="flex justify-between items-start mb-1">
-                  <span className="font-medium text-sm text-gray-900 dark:text-white truncate">
-                    {o.display_reference || '-'}
-                  </span>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${STATUS_COLORS[o.status] || ''}`}>
-                    {STATUS_LABELS[o.status] || o.status}
-                  </span>
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(o.id)}
+                      onChange={() => toggleSelect(o.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-kerpta focus:ring-kerpta-400"
+                    />
+                    <span className="font-medium text-sm text-gray-900 dark:text-white truncate">
+                      {o.display_reference || '-'}
+                    </span>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${st.cls}`}>{st.label}</span>
                 </div>
-                <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
+                <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 pl-6">
                   <span>{o.client_name || '-'}</span>
                   <span className="font-medium text-gray-900 dark:text-white">{fmtCurrency(o.total_ttc)}</span>
                 </div>
+                <div className="flex justify-between text-xs text-gray-400 dark:text-gray-500 mt-0.5 pl-6">
+                  <span>{SOURCE_LABELS[o.source] || o.source}</span>
+                  <span>{o.issue_date}</span>
+                </div>
               </div>
-            ))}
-          </div>
+            )
+          })
+        )}
+      </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex justify-center items-center gap-2 mt-4">
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1} className={BTN_SM}>
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <span className="text-sm text-gray-500">
-                Page {page} / {totalPages}
-              </span>
-              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className={BTN_SM}>
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          )}
-        </>
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-2 mt-4">
+          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1} className={BTN_SM}>
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            Page {page} / {totalPages}
+          </span>
+          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className={BTN_SM}>
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Filtres mobile */}
+      {showMobileFilters && (
+        <MobileFilterPanel
+          filters={ORDER_FILTERS}
+          values={filters}
+          onChange={(col, val) => updateFilter(col, val)}
+          onClose={() => setShowMobileFilters(false)}
+          onReset={() => { setFilters({}); setShowMobileFilters(false) }}
+        />
       )}
 
       {/* Overlay detail */}
@@ -268,7 +378,7 @@ export default function OrdersPage() {
         <OrderDetailOverlay
           orderId={selectedId}
           onClose={() => setSelectedId(null)}
-          onRefresh={() => qc.invalidateQueries({ queryKey: ['orders'] })}
+          onRefresh={invalidate}
         />
       )}
 
@@ -276,7 +386,7 @@ export default function OrdersPage() {
       {showCreate && (
         <CreateOrderModal
           onClose={() => setShowCreate(false)}
-          onCreated={() => { setShowCreate(false); qc.invalidateQueries({ queryKey: ['orders'] }) }}
+          onCreated={() => { setShowCreate(false); invalidate() }}
         />
       )}
     </PageLayout>
@@ -324,8 +434,8 @@ function OrderDetailOverlay({
               {order?.display_reference || 'Commande'}
             </span>
             {order && (
-              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[order.status] || ''}`}>
-                {STATUS_LABELS[order.status] || order.status}
+              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${(STATUS_LABELS[order.status] || { cls: '' }).cls}`}>
+                {(STATUS_LABELS[order.status] || { label: order.status }).label}
               </span>
             )}
           </div>
@@ -345,20 +455,20 @@ function OrderDetailOverlay({
             {/* Infos generales */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
-                <span className={LABEL + ' mb-0.5'}>Client</span>
-                <span className="text-sm font-medium text-gray-900 dark:text-white">{order.client_name || '-'}</span>
+                <span className={LABEL}>Client</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white block">{order.client_name || '-'}</span>
               </div>
               <div>
-                <span className={LABEL + ' mb-0.5'}>Ref. client</span>
-                <span className="text-sm font-medium text-gray-900 dark:text-white">{order.client_reference || '-'}</span>
+                <span className={LABEL}>Ref. client</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white block">{order.client_reference || '-'}</span>
               </div>
               <div>
-                <span className={LABEL + ' mb-0.5'}>Source</span>
-                <span className="text-sm text-gray-700 dark:text-gray-300">{SOURCE_LABELS[order.source] || order.source}</span>
+                <span className={LABEL}>Source</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300 block">{SOURCE_LABELS[order.source] || order.source}</span>
               </div>
               <div>
-                <span className={LABEL + ' mb-0.5'}>Date</span>
-                <span className="text-sm text-gray-700 dark:text-gray-300">{new Date(order.issue_date).toLocaleDateString('fr-FR')}</span>
+                <span className={LABEL}>Date</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300 block">{new Date(order.issue_date).toLocaleDateString('fr-FR')}</span>
               </div>
             </div>
 
