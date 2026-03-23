@@ -406,7 +406,6 @@ export default function OrdersPage() {
           values={filters}
           onChange={(col, val) => updateFilter(col, val)}
           onClose={() => setShowMobileFilters(false)}
-          onReset={() => { setFilters({}); setShowMobileFilters(false) }}
         />
       )}
 
