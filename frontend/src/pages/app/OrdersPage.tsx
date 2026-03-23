@@ -8,12 +8,12 @@ import {
   Loader2, X, Plus, FileText, Receipt, Archive, ArchiveRestore,
   ShoppingCart, ChevronLeft, ChevronRight,
 } from 'lucide-react'
-import { orgGet, orgPost } from '@/lib/orgApi'
+import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
 import ClientCombobox from '@/components/app/ClientCombobox'
 import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
 import MobileFilterPanel from '@/components/app/MobileFilterPanel'
 import PageLayout from '@/components/app/PageLayout'
-import { BTN, BTN_SM, BTN_SECONDARY, CARD, INPUT, SELECT, TEXTAREA, LABEL, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER, BADGE_COUNT } from '@/lib/formStyles'
+import { BTN, BTN_SM, BTN_SECONDARY, CARD, INPUT, SELECT, TEXTAREA, LABEL, LINE_INPUT, LINE_SELECT, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER, BADGE_COUNT } from '@/lib/formStyles'
 import { fmtCurrency } from '@/lib/formatting'
 
 // -- Types --------------------------------------------------------------------
@@ -429,7 +429,48 @@ export default function OrdersPage() {
   )
 }
 
-// -- Detail overlay -----------------------------------------------------------
+// -- Types formulaire ligne ---------------------------------------------------
+
+interface OrderFormLine {
+  key: string
+  product_id: string | null
+  reference: string
+  description: string
+  quantity: string
+  unit: string
+  unit_price: string
+  vat_rate: string
+  discount_percent: string
+}
+
+function emptyOrderLine(): OrderFormLine {
+  return {
+    key: crypto.randomUUID(),
+    product_id: null,
+    reference: '',
+    description: '',
+    quantity: '1',
+    unit: '',
+    unit_price: '0',
+    vat_rate: '20',
+    discount_percent: '0',
+  }
+}
+
+function calcOrderLineHT(line: OrderFormLine): number {
+  const qty = parseFloat(line.quantity) || 0
+  const price = parseFloat(line.unit_price) || 0
+  const disc = (parseFloat(line.discount_percent) || 0) / 100
+  return Math.round(qty * price * (1 - disc) * 100) / 100
+}
+
+function calcOrderLineVAT(line: OrderFormLine): number {
+  const ht = calcOrderLineHT(line)
+  const rate = (parseFloat(line.vat_rate) || 0) / 100
+  return Math.round(ht * rate * 100) / 100
+}
+
+// -- Detail overlay (editable) ------------------------------------------------
 
 function OrderDetailOverlay({
   orderId, onClose, onRefresh,
@@ -438,12 +479,109 @@ function OrderDetailOverlay({
   onClose: () => void
   onRefresh: () => void
 }) {
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [invoicing, setInvoicing] = useState(false)
+  const [order, setOrder] = useState<OrderDetail | null>(null)
 
-  const { data: order, isLoading } = useQuery({
-    queryKey: ['order', orderId],
-    queryFn: () => orgGet<OrderDetail>(`/orders/${orderId}`),
-  })
+  // Form state
+  const [clientId, setClientId] = useState('')
+  const [clientRef, setClientRef] = useState('')
+  const [issueDate, setIssueDate] = useState('')
+  const [deliveryDate, setDeliveryDate] = useState('')
+  const [notes, setNotes] = useState('')
+  const [lines, setLines] = useState<OrderFormLine[]>([emptyOrderLine()])
+
+  // Load order data
+  useEffect(() => {
+    setLoading(true)
+    orgGet<OrderDetail>(`/orders/${orderId}`)
+      .then((data) => {
+        setOrder(data)
+        setClientId(data.client_id)
+        setClientRef(data.client_reference || '')
+        setIssueDate(data.issue_date)
+        setDeliveryDate(data.delivery_date || '')
+        setNotes(data.notes || '')
+        setLines(
+          data.lines.length > 0
+            ? data.lines.map((l) => ({
+                key: l.id,
+                product_id: l.product_id,
+                reference: l.reference || '',
+                description: l.description || '',
+                quantity: String(l.quantity),
+                unit: l.unit || '',
+                unit_price: String(l.unit_price),
+                vat_rate: String(l.vat_rate),
+                discount_percent: String(l.discount_percent),
+              }))
+            : [emptyOrderLine()]
+        )
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [orderId])
+
+  // Live totals
+  const totals = useMemo(() => {
+    let subtotalHT = 0
+    let totalVAT = 0
+    for (const line of lines) {
+      subtotalHT += calcOrderLineHT(line)
+      totalVAT += calcOrderLineVAT(line)
+    }
+    subtotalHT = Math.round(subtotalHT * 100) / 100
+    totalVAT = Math.round(totalVAT * 100) / 100
+    return { subtotalHT, totalVAT, totalTTC: Math.round((subtotalHT + totalVAT) * 100) / 100 }
+  }, [lines])
+
+  // Line management
+  function updateLine(index: number, field: keyof OrderFormLine, value: string | null) {
+    setLines((prev) => prev.map((l, i) => i === index ? { ...l, [field]: value } : l))
+  }
+
+  function removeLine(index: number) {
+    setLines((prev) => prev.length <= 1 ? prev : prev.filter((_, i) => i !== index))
+  }
+
+  const isEditable = order?.status === 'draft' || order?.status === 'confirmed'
+
+  // Save
+  async function handleSave() {
+    if (!clientId || !order) return
+    setSaving(true)
+    try {
+      await orgPatch(`/orders/${orderId}`, {
+        client_id: clientId,
+        client_reference: clientRef || null,
+        issue_date: issueDate,
+        delivery_date: deliveryDate || null,
+        notes: notes || null,
+        lines: lines
+          .filter((l) => l.description.trim() || l.unit_price !== '0')
+          .map((l, i) => ({
+            product_id: l.product_id || undefined,
+            position: i + 1,
+            reference: l.reference || undefined,
+            description: l.description || undefined,
+            quantity: parseFloat(l.quantity) || 1,
+            unit: l.unit || undefined,
+            unit_price: parseFloat(l.unit_price) || 0,
+            vat_rate: parseFloat(l.vat_rate) || 0,
+            discount_percent: parseFloat(l.discount_percent) || 0,
+          })),
+      })
+      // Reload
+      const data = await orgGet<OrderDetail>(`/orders/${orderId}`)
+      setOrder(data)
+      onRefresh()
+    } catch {
+      // silent
+    } finally {
+      setSaving(false)
+    }
+  }
 
   async function handleInvoice() {
     if (!order) return
@@ -453,63 +591,94 @@ function OrderDetailOverlay({
       onRefresh()
       onClose()
     } catch {
-      alert('Erreur lors de la facturation')
+      // silent
     } finally {
       setInvoicing(false)
     }
   }
 
+  const st = order ? (STATUS_LABELS[order.status] || { label: order.status, cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' }) : null
+
   return (
     <div className={OVERLAY_BACKDROP} onClick={onClose}>
-      <div className={OVERLAY_PANEL + ' max-h-[90vh] overflow-y-auto'} onClick={e => e.stopPropagation()}>
+      <div className={OVERLAY_PANEL} onClick={e => e.stopPropagation()}>
         {/* Header */}
-        <div className={OVERLAY_HEADER}>
-          <div className="flex items-center gap-2">
-            <ShoppingCart className="w-4 h-4 text-kerpta" />
-            <span className="font-semibold text-gray-900 dark:text-white">
+        <div className={`${OVERLAY_HEADER} rounded-t-2xl`}>
+          <div className="flex items-center gap-2 min-w-0">
+            <ShoppingCart className="w-4 h-4 text-kerpta shrink-0" />
+            <span className="font-semibold text-gray-900 dark:text-white truncate">
               {order?.display_reference || 'Commande'}
             </span>
-            {order && (
-              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${(STATUS_LABELS[order.status] || { cls: '' }).cls}`}>
-                {(STATUS_LABELS[order.status] || { label: order.status }).label}
+            {st && (
+              <span className={`px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${st.cls}`}>
+                {st.label}
               </span>
             )}
             {order?.contract_id && (
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400">
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400 shrink-0">
                 Contrat
               </span>
             )}
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
-            <X className="w-5 h-5" />
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded ml-3">
+            <X className="w-5 h-5 text-gray-400 dark:text-gray-500" />
           </button>
         </div>
 
-        {isLoading && (
-          <div className="flex justify-center py-12">
-            <Loader2 className="w-6 h-6 animate-spin text-kerpta" />
-          </div>
-        )}
-
-        {order && (
+        {loading ? (
+          <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-kerpta" /></div>
+        ) : !order ? (
+          <div className="py-16 text-center text-gray-400 dark:text-gray-500 text-sm">Commande introuvable</div>
+        ) : (
           <div className="p-4 md:p-6 space-y-6">
-            {/* Infos generales */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {/* Champs editables */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <span className={LABEL}>Client</span>
-                <span className="text-sm font-medium text-gray-900 dark:text-white block">{order.client_name || '-'}</span>
+                <label className={LABEL}>Client</label>
+                <ClientCombobox
+                  value={clientId}
+                  onChange={(id: string) => setClientId(id)}
+                  className={INPUT}
+                  disabled={!isEditable}
+                />
               </div>
               <div>
-                <span className={LABEL}>Ref. client</span>
-                <span className="text-sm font-medium text-gray-900 dark:text-white block">{order.client_reference || '-'}</span>
+                <label className={LABEL}>Reference BC client</label>
+                <input
+                  className={INPUT}
+                  placeholder="Ex: BC-42-2026"
+                  value={clientRef}
+                  onChange={e => setClientRef(e.target.value)}
+                  disabled={!isEditable}
+                />
               </div>
               <div>
-                <span className={LABEL}>Source</span>
-                <span className="text-sm text-gray-700 dark:text-gray-300 block">{SOURCE_LABELS[order.source] || order.source}</span>
+                <label className={LABEL}>Date d'emission</label>
+                <input
+                  className={INPUT}
+                  type="date"
+                  value={issueDate}
+                  onChange={e => setIssueDate(e.target.value)}
+                  disabled={!isEditable}
+                />
               </div>
               <div>
-                <span className={LABEL}>Date</span>
-                <span className="text-sm text-gray-700 dark:text-gray-300 block">{new Date(order.issue_date).toLocaleDateString('fr-FR')}</span>
+                <label className={LABEL}>Date de livraison</label>
+                <input
+                  className={INPUT}
+                  type="date"
+                  value={deliveryDate}
+                  onChange={e => setDeliveryDate(e.target.value)}
+                  disabled={!isEditable}
+                />
+              </div>
+            </div>
+
+            {/* Source (lecture seule) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className={LABEL}>Source</label>
+                <span className="text-sm text-gray-700 dark:text-gray-300 block mt-1">{SOURCE_LABELS[order.source] || order.source}</span>
               </div>
             </div>
 
@@ -547,85 +716,170 @@ function OrderDetailOverlay({
               </div>
             )}
 
-            {/* Lignes */}
-            {order.lines.length > 0 && (
-              <div>
-                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">
-                  Lignes ({order.lines.length})
-                </h3>
-                <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-gray-50 dark:bg-gray-800 text-xs text-gray-500">
-                        <th className="py-2 px-3 text-left font-medium">Description</th>
-                        <th className="py-2 px-3 text-right font-medium">Qte</th>
-                        <th className="py-2 px-3 text-right font-medium">PU HT</th>
-                        <th className="py-2 px-3 text-right font-medium">TVA</th>
-                        <th className="py-2 px-3 text-right font-medium">Total HT</th>
+            {/* Tableau de lignes editable */}
+            <div>
+              <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">
+                Lignes ({lines.length})
+              </h3>
+              <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 dark:bg-gray-800 text-xs text-gray-500 dark:text-gray-400">
+                      <th className="py-2 px-2 text-left font-medium">Description</th>
+                      <th className="py-2 px-2 text-right font-medium w-16">Qte</th>
+                      <th className="py-2 px-2 text-left font-medium w-20">Unite</th>
+                      <th className="py-2 px-2 text-right font-medium w-24">PU HT</th>
+                      <th className="py-2 px-2 text-right font-medium w-20">TVA%</th>
+                      <th className="py-2 px-2 text-right font-medium w-20">Remise%</th>
+                      <th className="py-2 px-2 text-right font-medium w-24">Total HT</th>
+                      {isEditable && <th className="py-2 px-2 w-8" />}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lines.map((line, idx) => (
+                      <tr key={line.key} className="border-t border-gray-100 dark:border-gray-700">
+                        <td className="py-1.5 px-2">
+                          <input
+                            className={LINE_INPUT}
+                            placeholder="Description"
+                            value={line.description}
+                            onChange={e => updateLine(idx, 'description', e.target.value)}
+                            disabled={!isEditable}
+                          />
+                        </td>
+                        <td className="py-1.5 px-2">
+                          <input
+                            className={LINE_INPUT + ' text-right'}
+                            type="number"
+                            step="any"
+                            value={line.quantity}
+                            onChange={e => updateLine(idx, 'quantity', e.target.value)}
+                            disabled={!isEditable}
+                          />
+                        </td>
+                        <td className="py-1.5 px-2">
+                          <input
+                            className={LINE_INPUT}
+                            placeholder="u"
+                            value={line.unit}
+                            onChange={e => updateLine(idx, 'unit', e.target.value)}
+                            disabled={!isEditable}
+                          />
+                        </td>
+                        <td className="py-1.5 px-2">
+                          <input
+                            className={LINE_INPUT + ' text-right'}
+                            type="number"
+                            step="any"
+                            value={line.unit_price}
+                            onChange={e => updateLine(idx, 'unit_price', e.target.value)}
+                            disabled={!isEditable}
+                          />
+                        </td>
+                        <td className="py-1.5 px-2">
+                          <select
+                            className={LINE_SELECT + ' text-right'}
+                            value={line.vat_rate}
+                            onChange={e => updateLine(idx, 'vat_rate', e.target.value)}
+                            disabled={!isEditable}
+                          >
+                            <option value="20">20%</option>
+                            <option value="10">10%</option>
+                            <option value="5.5">5,5%</option>
+                            <option value="2.1">2,1%</option>
+                            <option value="0">0%</option>
+                          </select>
+                        </td>
+                        <td className="py-1.5 px-2">
+                          <input
+                            className={LINE_INPUT + ' text-right'}
+                            type="number"
+                            step="any"
+                            min="0"
+                            max="100"
+                            value={line.discount_percent}
+                            onChange={e => updateLine(idx, 'discount_percent', e.target.value)}
+                            disabled={!isEditable}
+                          />
+                        </td>
+                        <td className="py-1.5 px-2 text-right text-xs font-medium text-gray-900 dark:text-white whitespace-nowrap">
+                          {fmtCurrency(calcOrderLineHT(line))}
+                        </td>
+                        {isEditable && (
+                          <td className="py-1.5 px-1">
+                            <button
+                              onClick={() => removeLine(idx)}
+                              className="p-0.5 text-gray-400 hover:text-red-500 transition"
+                              title="Supprimer la ligne"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        )}
                       </tr>
-                    </thead>
-                    <tbody>
-                      {order.lines.map(ln => (
-                        <tr key={ln.id} className="border-t border-gray-100 dark:border-gray-800">
-                          <td className="py-2 px-3 text-gray-900 dark:text-white">
-                            {ln.reference && <span className="text-xs text-gray-400 mr-1">{ln.reference}</span>}
-                            {ln.description || '-'}
-                          </td>
-                          <td className="py-2 px-3 text-right text-gray-600 dark:text-gray-400">
-                            {ln.quantity}{ln.unit ? ` ${ln.unit}` : ''}
-                          </td>
-                          <td className="py-2 px-3 text-right text-gray-600 dark:text-gray-400">
-                            {fmtCurrency(ln.unit_price)}
-                          </td>
-                          <td className="py-2 px-3 text-right text-gray-600 dark:text-gray-400">
-                            {ln.vat_rate}%
-                          </td>
-                          <td className="py-2 px-3 text-right font-medium text-gray-900 dark:text-white">
-                            {fmtCurrency(ln.total_ht)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            )}
+              {isEditable && (
+                <button
+                  onClick={() => setLines((prev) => [...prev, emptyOrderLine()])}
+                  className={BTN_SM + ' mt-2'}
+                >
+                  <Plus className="w-3.5 h-3.5" /> Ajouter une ligne
+                </button>
+              )}
+            </div>
 
             {/* Totaux */}
             <div className="flex justify-end">
               <div className="w-64 space-y-1 text-sm">
                 <div className="flex justify-between text-gray-600 dark:text-gray-400">
                   <span>Sous-total HT</span>
-                  <span>{fmtCurrency(order.subtotal_ht)}</span>
+                  <span>{fmtCurrency(totals.subtotalHT)}</span>
                 </div>
                 <div className="flex justify-between text-gray-600 dark:text-gray-400">
                   <span>TVA</span>
-                  <span>{fmtCurrency(order.total_vat)}</span>
+                  <span>{fmtCurrency(totals.totalVAT)}</span>
                 </div>
                 <div className="flex justify-between font-semibold text-gray-900 dark:text-white border-t border-gray-200 dark:border-gray-700 pt-1">
                   <span>Total TTC</span>
-                  <span>{fmtCurrency(order.total_ttc)}</span>
+                  <span>{fmtCurrency(totals.totalTTC)}</span>
                 </div>
               </div>
             </div>
 
             {/* Notes */}
-            {order.notes && (
-              <div>
-                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Notes</h3>
-                <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{order.notes}</p>
-              </div>
-            )}
+            <div>
+              <label className={LABEL}>Notes</label>
+              <textarea
+                className={TEXTAREA + ' h-20'}
+                placeholder="Notes internes..."
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                disabled={!isEditable}
+              />
+            </div>
 
             {/* Actions */}
-            {order.status !== 'invoiced' && order.status !== 'cancelled' && (
-              <div className="flex gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-                <button onClick={handleInvoice} disabled={invoicing} className={BTN + ' flex-1'}>
+            <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+              {isEditable && (
+                <button onClick={handleSave} disabled={saving || !clientId} className={BTN}>
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                  Enregistrer
+                </button>
+              )}
+              {isEditable && (
+                <button onClick={handleInvoice} disabled={invoicing} className={BTN}>
                   {invoicing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Receipt className="w-4 h-4" />}
                   Facturer
                 </button>
-              </div>
-            )}
+              )}
+              <div className="flex-1" />
+              <button onClick={onClose} className={BTN_SECONDARY}>
+                Annuler
+              </button>
+            </div>
           </div>
         )}
       </div>
