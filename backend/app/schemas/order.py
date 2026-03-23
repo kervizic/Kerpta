@@ -60,10 +60,15 @@ class OrderCreate(BaseModel):
 
 
 class OrderUpdate(BaseModel):
+    client_id: str | None = None
     client_reference: str | None = Field(None, max_length=255)
+    issue_date: date | None = None
     delivery_date: date | None = None
+    discount_type: str | None = Field(None, pattern=r"^(percent|fixed|none)$")
+    discount_value: Decimal | None = None
     notes: str | None = None
     status: str | None = Field(None, pattern=r"^(draft|confirmed|cancelled)$")
+    lines: list[OrderLineIn] | None = None
 
 
 class OrderOut(BaseModel):

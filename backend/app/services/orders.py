@@ -469,7 +469,11 @@ async def create_from_quote(
 async def update_order(
     org_id: uuid.UUID, order_id: str, data: OrderUpdate, db: AsyncSession
 ) -> dict:
-    """Met a jour une commande (draft ou confirmed uniquement)."""
+    """Met a jour une commande (draft ou confirmed uniquement).
+
+    Supporte la mise a jour complete : en-tete + lignes.
+    Les lignes sont remplacees integralement si fournies.
+    """
     # Verifier statut
     check = await db.execute(
         text("SELECT status FROM orders WHERE id = :oid AND organization_id = :org_id"),
@@ -484,18 +488,82 @@ async def update_order(
     updates = []
     params: dict = {"oid": order_id, "org_id": str(org_id)}
 
+    if data.client_id is not None:
+        updates.append("client_id = :client_id")
+        params["client_id"] = data.client_id
     if data.client_reference is not None:
         updates.append("client_reference = :client_ref")
         params["client_ref"] = data.client_reference
+    if data.issue_date is not None:
+        updates.append("issue_date = :issue_date")
+        params["issue_date"] = data.issue_date
     if data.delivery_date is not None:
         updates.append("delivery_date = :delivery_date")
         params["delivery_date"] = data.delivery_date
+    if data.discount_type is not None:
+        updates.append("discount_type = :disc_type")
+        params["disc_type"] = data.discount_type
+    if data.discount_value is not None:
+        updates.append("discount_value = :disc_val")
+        params["disc_val"] = str(data.discount_value)
     if data.notes is not None:
         updates.append("notes = :notes")
         params["notes"] = data.notes
     if data.status is not None:
         updates.append("status = :status")
         params["status"] = data.status
+
+    # Remplacement complet des lignes si fournies
+    if data.lines is not None:
+        # Supprimer les anciennes lignes
+        await db.execute(
+            text("DELETE FROM order_lines WHERE order_id = :oid"),
+            {"oid": order_id},
+        )
+        # Inserer les nouvelles lignes et recalculer les totaux
+        subtotal_ht = Decimal("0")
+        total_vat = Decimal("0")
+        for i, line in enumerate(data.lines):
+            calc = _calc_order_line(line)
+            subtotal_ht += calc["total_ht"]
+            total_vat += calc["total_vat"]
+            await db.execute(
+                text("""
+                    INSERT INTO order_lines (
+                        id, order_id, product_id, position,
+                        reference, description, quantity, unit,
+                        unit_price, vat_rate, discount_percent,
+                        total_ht, total_vat
+                    ) VALUES (
+                        :lid, :oid, :pid, :pos,
+                        :ref, :desc, :qty, :unit,
+                        :price, :vat_rate, :disc,
+                        :ht, :vat
+                    )
+                """),
+                {
+                    "lid": str(uuid.uuid4()),
+                    "oid": order_id,
+                    "pid": line.product_id,
+                    "pos": i,
+                    "ref": line.reference,
+                    "desc": line.description,
+                    "qty": str(line.quantity),
+                    "unit": line.unit,
+                    "price": str(line.unit_price),
+                    "vat_rate": str(line.vat_rate),
+                    "disc": str(line.discount_percent),
+                    "ht": str(calc["total_ht"]),
+                    "vat": str(calc["total_vat"]),
+                },
+            )
+        total_ttc = subtotal_ht + total_vat
+        updates.append("subtotal_ht = :ht")
+        updates.append("total_vat = :vat")
+        updates.append("total_ttc = :ttc")
+        params["ht"] = str(subtotal_ht)
+        params["vat"] = str(total_vat)
+        params["ttc"] = str(total_ttc)
 
     if not updates:
         return {"id": order_id}
