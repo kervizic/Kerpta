@@ -895,7 +895,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
   }
 
   // Sauvegarde
-  async function handleSave(andSend = false, andPrint = false) {
+  async function handleSave(andSend = false, andPrint = false, andAccept = false) {
     if (!clientId) return
     setSaving(true)
 
@@ -959,6 +959,10 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
 
       if (andSend && resultId) {
         await orgPost(`/quotes/${resultId}/send`)
+      }
+
+      if (andAccept && resultId) {
+        await orgPost(`/quotes/${resultId}/accept`, {})
       }
 
       if (andPrint && resultId) {
@@ -1393,6 +1397,13 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
             className={`${BTN} px-5 py-2.5`}
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Send className="w-4 h-4" /> Envoyer</>}
+          </button>
+          <button
+            onClick={() => handleSave(false, false, true)}
+            disabled={saving || !clientId}
+            className="flex items-center gap-1.5 px-5 py-2.5 text-sm bg-green-600 hover:bg-green-500 text-white font-semibold rounded-lg transition disabled:opacity-50"
+          >
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4" /> Accepter</>}
           </button>
         </div>
 
