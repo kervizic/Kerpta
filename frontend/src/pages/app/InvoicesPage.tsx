@@ -6,7 +6,7 @@ import { useEffect, useState, useMemo, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Loader2, Send, Check, FileText, Plus, Trash2, Pencil, RefreshCw,
-  ShieldCheck, Printer, Lock, X, FileDown, Archive, ArchiveRestore,
+  ShieldCheck, Lock, X, FileDown, Archive, ArchiveRestore,
 } from 'lucide-react'
 import { orgGet, orgPost, orgPatch, orgDownload } from '@/lib/orgApi'
 import UnitCombobox from '@/components/app/UnitCombobox'
@@ -189,7 +189,6 @@ function InvoicesList() {
   const [page, setPage] = useState(1)
   const [filters, setFilters] = useState<FilterValues>({})
   const [debouncedFilters, setDebouncedFilters] = useState<FilterValues>({})
-  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editId, setEditId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [showMobileFilters, setShowMobileFilters] = useState(false)
@@ -406,9 +405,8 @@ function InvoicesList() {
               ) : (
                 invoices.map((inv) => {
                   const st = STATUS_LABELS[inv.status] || { label: inv.status, cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' }
-                  const isEditable = ['draft', 'validated'].includes(inv.status)
                   return (
-                    <tr key={inv.id} onClick={() => isEditable ? setEditId(inv.id) : setSelectedId(inv.id)} className="border-b border-gray-50 dark:border-gray-700 hover:bg-kerpta-50/50 dark:hover:bg-kerpta-900/30 cursor-pointer transition">
+                    <tr key={inv.id} onClick={() => setEditId(inv.id)} className="border-b border-gray-50 dark:border-gray-700 hover:bg-kerpta-50/50 dark:hover:bg-kerpta-900/30 cursor-pointer transition">
                       <td className="pl-3 pr-1 py-3 w-[1%] whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
@@ -455,11 +453,10 @@ function InvoicesList() {
           ) : (
             invoices.map((inv) => {
               const st = STATUS_LABELS[inv.status] || { label: inv.status, cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' }
-              const isEditable = ['draft', 'validated'].includes(inv.status)
               return (
                 <div
                   key={inv.id}
-                  onClick={() => isEditable ? setEditId(inv.id) : setSelectedId(inv.id)}
+                  onClick={() => setEditId(inv.id)}
                   className={`${CARD} p-4 cursor-pointer hover:border-kerpta-200 dark:hover:border-kerpta-700 transition active:bg-kerpta-50/50 dark:active:bg-kerpta-900/30`}
                 >
                   <div className="flex items-center justify-between mb-1.5">
@@ -503,15 +500,7 @@ function InvoicesList() {
           </div>
         )}
 
-        {/* Panneau détail facture (lecture seule) */}
-        {selectedId && (
-          <InvoiceDetailPanel
-            invoiceId={selectedId}
-            onClose={() => { setSelectedId(null); invalidate() }}
-          />
-        )}
-
-        {/* Formulaire édition en overlay */}
+        {/* Formulaire édition/consultation en overlay */}
         {editId && (
           <InvoiceFormPage
             invoiceId={editId}
@@ -539,186 +528,7 @@ function InvoicesList() {
   )
 }
 
-// ── Détail (panneau overlay aligné en haut) ──────────────────────────────────
-
-function InvoiceDetailPanel({ invoiceId, onClose }: { invoiceId: string; onClose: () => void }) {
-  const [invoice, setInvoice] = useState<InvoiceDetail | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [actionLoading, setActionLoading] = useState('')
-
-  useEffect(() => {
-    setLoading(true)
-    orgGet<InvoiceDetail>(`/invoices/${invoiceId}`)
-      .then(setInvoice)
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [invoiceId])
-
-  async function doAction(action: string) {
-    setActionLoading(action)
-    try {
-      await orgPost(`/invoices/${invoiceId}/${action}`)
-      const data = await orgGet<InvoiceDetail>(`/invoices/${invoiceId}`)
-      setInvoice(data)
-    } catch { /* ignore */ }
-    setActionLoading('')
-  }
-
-  const st = invoice ? (STATUS_LABELS[invoice.status] || { label: invoice.status, cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' }) : null
-
-  return (
-    <div
-      className={OVERLAY_BACKDROP}
-      onClick={onClose}
-    >
-      <div
-        className={OVERLAY_PANEL}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {loading ? (
-          <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-kerpta" /></div>
-        ) : !invoice ? (
-          <div className="py-16 text-center text-gray-400 dark:text-gray-500 text-sm">Facture introuvable</div>
-        ) : (
-          <>
-        {/* En-tête */}
-        <div className={`${OVERLAY_HEADER} rounded-t-2xl`}>
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-kerpta-50 dark:bg-kerpta-900/30 border border-kerpta-200 dark:border-kerpta-700 flex items-center justify-center shrink-0">
-              <FileText className="w-5 h-5 text-kerpta-600 dark:text-kerpta-400" />
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white truncate">
-                {invoice.is_credit_note ? 'Avoir' : invoice.number ? 'Facture' : 'Proforma'} {invoice.number || invoice.proforma_number}
-                {invoice.is_situation && <span className="text-gray-400 dark:text-gray-500 ml-2 text-sm">(Situation n°{invoice.situation_number})</span>}
-              </h2>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-xs text-gray-500 dark:text-gray-400">{invoice.client_name} — {invoice.issue_date}</span>
-                {st && <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${st.cls}`}>{st.label}</span>}
-              </div>
-            </div>
-          </div>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition ml-3">
-            <X className="w-5 h-5 text-gray-400 dark:text-gray-500" />
-          </button>
-        </div>
-
-        <div className="px-6 py-5">
-        {/* Actions */}
-        <div className="flex flex-wrap gap-2 mb-5">
-          {invoice.status === 'draft' && (
-            <>
-              <button onClick={() => doAction('validate')} disabled={!!actionLoading} className={BTN}>
-                {actionLoading === 'validate' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />} Valider
-              </button>
-              <button onClick={() => void orgDownload(`/invoices/${invoiceId}/pdf?proforma=true&download=1`, 'proforma.pdf')} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 text-sm font-medium rounded-lg transition">
-                <Printer className="w-4 h-4" /> Imprimer proforma
-              </button>
-              <button onClick={() => doAction('send')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 dark:bg-blue-900/40 dark:hover:bg-blue-900/60 dark:text-blue-400 text-sm font-medium rounded-lg transition disabled:opacity-50">
-                {actionLoading === 'send' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Envoyer proforma
-              </button>
-            </>
-          )}
-          {invoice.status === 'validated' && (
-            <>
-              <button onClick={() => void orgDownload(`/invoices/${invoiceId}/pdf?download=1`, 'facture.pdf')} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 text-sm font-medium rounded-lg transition">
-                <Printer className="w-4 h-4" /> Imprimer facture
-              </button>
-              <button onClick={() => doAction('send')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
-                {actionLoading === 'send' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Envoyer facture
-              </button>
-            </>
-          )}
-          {['sent', 'partial', 'overdue'].includes(invoice.status) && (
-            <>
-              <button onClick={() => void orgDownload(`/invoices/${invoiceId}/pdf?download=1`, 'facture.pdf')} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 text-sm font-medium rounded-lg transition">
-                <Printer className="w-4 h-4" /> Imprimer facture
-              </button>
-              <button onClick={() => doAction('mark-paid')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
-                {actionLoading === 'mark-paid' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Marquer payée
-              </button>
-            </>
-          )}
-          {!invoice.is_credit_note && !['draft', 'validated', 'cancelled'].includes(invoice.status) && (
-            <button onClick={() => doAction('credit-note')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 dark:bg-red-900/40 dark:hover:bg-red-900/60 dark:text-red-400 text-sm font-medium rounded-lg transition disabled:opacity-50">
-              {actionLoading === 'credit-note' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} Créer un avoir
-            </button>
-          )}
-        </div>
-
-        {/* Totaux */}
-        <div className="grid grid-cols-4 gap-4 mb-6">
-          <div className={`${CARD} p-4`}>
-            <p className="text-xs text-gray-400 dark:text-gray-500 uppercase font-semibold mb-1">Total HT</p>
-            <p className="text-lg font-bold text-gray-900 dark:text-white">{fmtCurrency(invoice.subtotal_ht)}</p>
-          </div>
-          <div className={`${CARD} p-4`}>
-            <p className="text-xs text-gray-400 dark:text-gray-500 uppercase font-semibold mb-1">TVA</p>
-            <p className="text-lg font-bold text-gray-900 dark:text-white">{fmtCurrency(invoice.total_vat)}</p>
-          </div>
-          <div className={`${CARD} p-4`}>
-            <p className="text-xs text-gray-400 dark:text-gray-500 uppercase font-semibold mb-1">Total TTC</p>
-            <p className="text-lg font-bold text-kerpta-600 dark:text-kerpta-400">{fmtCurrency(invoice.total_ttc)}</p>
-          </div>
-          <div className={`${CARD} p-4`}>
-            <p className="text-xs text-gray-400 dark:text-gray-500 uppercase font-semibold mb-1">Payé</p>
-            <p className={`text-lg font-bold ${Number(invoice.amount_paid) >= Number(invoice.total_ttc) ? 'text-green-600' : 'text-gray-500'}`}>{fmtCurrency(invoice.amount_paid)}</p>
-          </div>
-        </div>
-
-        {/* Lignes */}
-        <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100 dark:border-gray-700 text-left text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase">
-                <th className="px-4 py-3">Description</th>
-                <th className="px-4 py-3 text-right">Qté</th>
-                <th className="px-4 py-3 text-right">PU HT</th>
-                <th className="px-4 py-3 text-right">TVA</th>
-                <th className="px-4 py-3 text-right">Total HT</th>
-                <th className="px-4 py-3 text-right">Total TTC</th>
-              </tr>
-            </thead>
-            <tbody>
-              {invoice.lines.map((l) => (
-                <tr key={l.id} className="border-b border-gray-50 dark:border-gray-700">
-                  <td className="px-4 py-3 text-gray-900 dark:text-white">{l.description || '—'}</td>
-                  <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">{Number(l.quantity)} {l.unit || ''}</td>
-                  <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">{fmtCurrency(l.unit_price)}</td>
-                  <td className="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{Number(l.vat_rate)}%</td>
-                  <td className="px-4 py-3 text-right font-medium text-gray-900 dark:text-white">{fmtCurrency(l.total_ht)}</td>
-                  <td className="px-4 py-3 text-right font-medium text-gray-900 dark:text-white">{fmtCurrency(l.total_ht + (l.total_ht * l.vat_rate / 100))}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-
-        {/* Info complémentaire */}
-        {(invoice.notes || invoice.payment_method || invoice.footer || invoice.customer_reference || invoice.purchase_order_number) && (
-          <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5 mt-4 space-y-2 text-sm">
-            {invoice.customer_reference && <p><span className="text-gray-400 dark:text-gray-500">Référence client :</span> {invoice.customer_reference}</p>}
-            {invoice.purchase_order_number && <p><span className="text-gray-400 dark:text-gray-500">N° commande :</span> {invoice.purchase_order_number}</p>}
-            {invoice.payment_method && <p><span className="text-gray-400 dark:text-gray-500">Mode de règlement :</span> {invoice.payment_method}</p>}
-            {invoice.due_date && <p><span className="text-gray-400 dark:text-gray-500">Échéance :</span> {invoice.due_date}</p>}
-            {invoice.notes && <p><span className="text-gray-400 dark:text-gray-500">Notes :</span> {invoice.notes}</p>}
-            {invoice.footer && (
-              <div className="border-t border-gray-100 dark:border-gray-700 pt-2 mt-2">
-                <p className="text-xs text-gray-400 dark:text-gray-500 uppercase font-semibold mb-1">Mentions légales</p>
-                <p className="text-gray-600 dark:text-gray-300 whitespace-pre-line text-xs">{invoice.footer}</p>
-              </div>
-            )}
-          </section>
-        )}
-        </div>
-          </>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// ── Formulaire création/édition ──────────────────────────────────────────────
+// ── Formulaire création/édition/consultation ─────────────────────────────────
 
 function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?: () => void }) {
   const isEdit = !!invoiceId
@@ -758,11 +568,24 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
     { rate: '0', label: 'TVA 0%' },
   ])
   const [invoiceStatus, setInvoiceStatus] = useState('draft')
+  const [actionLoading, setActionLoading] = useState('')
   const [loading, setLoading] = useState(isEdit)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  const isValidated = invoiceStatus === 'validated'
+  const readOnly = isEdit && invoiceStatus !== 'draft'
+
+  // Action sur facture (envoyer, valider, marquer payee, avoir)
+  async function doAction(action: string) {
+    if (!invoiceId) return
+    setActionLoading(action)
+    try {
+      await orgPost(`/invoices/${invoiceId}/${action}`)
+      const data = await orgGet<InvoiceDetail>(`/invoices/${invoiceId}`)
+      setInvoiceStatus(data.status)
+    } catch { /* ignore */ }
+    setActionLoading('')
+  }
 
   // Charger les données de référence
   useEffect(() => {
@@ -1046,9 +869,16 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
   const formContent = (
     <>
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-            {isEdit ? 'Modifier la facture' : 'Nouvelle facture'}
-          </h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+              {isEdit ? (readOnly ? 'Facture' : 'Modifier la facture') : 'Nouvelle facture'}
+            </h1>
+            {isEdit && invoiceStatus && STATUS_LABELS[invoiceStatus] && (
+              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_LABELS[invoiceStatus].cls}`}>
+                {STATUS_LABELS[invoiceStatus].label}
+              </span>
+            )}
+          </div>
           {onClose && (
             <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
               <X className="w-5 h-5 text-gray-400 dark:text-gray-500" />
@@ -1060,13 +890,13 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
           <div className="p-3 mb-4 bg-red-50 dark:bg-red-900/40 border border-red-200 dark:border-red-700 rounded-lg text-sm text-red-700 dark:text-red-400">{error}</div>
         )}
 
-        {isValidated && (
+        {readOnly && (
           <div className="flex items-start gap-3 px-5 py-4 bg-kerpta-50 dark:bg-kerpta-900/30 border border-kerpta-200 dark:border-kerpta-700 rounded-2xl mb-4">
             <Lock className="w-5 h-5 text-kerpta shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-semibold text-kerpta-800 dark:text-kerpta-400">Facture validée</p>
+              <p className="text-sm font-semibold text-kerpta-800 dark:text-kerpta-400">Facture non modifiable</p>
               <p className="text-xs text-kerpta-600 dark:text-kerpta-400 mt-0.5">
-                Seuls les notes internes et le mode de règlement sont modifiables après validation (obligation légale française).
+                Une facture validee ne peut plus etre modifiee (obligation legale française).
               </p>
             </div>
           </div>
@@ -1084,7 +914,7 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
                   onChange={handleClientChange}
                   onNewClient={() => setShowNewClient(true)}
                   className={INPUT}
-                  disabled={isValidated}
+                  disabled={readOnly}
                 />
                 {clientId && (
                   <button onClick={() => setClientPanelId(clientId)} className="shrink-0 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition" title="Voir le client">
@@ -1099,7 +929,7 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
                 <select value={billingProfileId} onChange={(e) => {
                   if (e.target.value === '__new__') { setProfileModal('new'); return }
                   handleProfileChange(e.target.value)
-                }} className={SELECT} disabled={isValidated}>
+                }} className={SELECT} disabled={readOnly}>
                   <option value="">— Aucun —</option>
                   {profiles.map((p) => <option key={p.id} value={p.id}>{p.name}{p.is_default ? ' (défaut)' : ''}</option>)}
                   <option value="__new__">+ Nouveau profil</option>
@@ -1118,11 +948,11 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             <div>
               <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Date d'émission</label>
-              <DatePicker value={issueDate} onChange={handleIssueDateChange} className={INPUT} disabled={isValidated} placeholder="Date d'émission" />
+              <DatePicker value={issueDate} onChange={handleIssueDateChange} className={INPUT} disabled={readOnly} placeholder="Date d'émission" />
             </div>
             <div>
               <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Date d'échéance</label>
-              <DatePicker value={dueDate} onChange={setDueDate} className={INPUT} disabled={isValidated} placeholder="Date d'échéance" clearable />
+              <DatePicker value={dueDate} onChange={setDueDate} className={INPUT} disabled={readOnly} placeholder="Date d'échéance" clearable />
             </div>
             <div>
               <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Mode de règlement</label>
@@ -1135,11 +965,11 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Référence client</label>
-              <input type="text" value={customerReference} onChange={(e) => setCustomerReference(e.target.value)} placeholder="N° devis, contrat, marché..." className={INPUT} disabled={isValidated} />
+              <input type="text" value={customerReference} onChange={(e) => setCustomerReference(e.target.value)} placeholder="N° devis, contrat, marché..." className={INPUT} disabled={readOnly} />
             </div>
             <div>
               <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">N° commande</label>
-              <input type="text" value={purchaseOrderNumber} onChange={(e) => setPurchaseOrderNumber(e.target.value)} placeholder="N° bon de commande" className={INPUT} disabled={isValidated} />
+              <input type="text" value={purchaseOrderNumber} onChange={(e) => setPurchaseOrderNumber(e.target.value)} placeholder="N° bon de commande" className={INPUT} disabled={readOnly} />
             </div>
           </div>
         </div>
@@ -1180,7 +1010,7 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
                     <tr key={line.key} className="border-b border-gray-50 dark:border-gray-700 align-middle">
                       {docColumns.reference && (
                         <td className="px-1 py-1.5">
-                          <input type="text" value={line.reference} onChange={(e) => updateLine(i, 'reference', e.target.value)} placeholder="Réf" className={LINE_INPUT} disabled={isValidated} />
+                          <input type="text" value={line.reference} onChange={(e) => updateLine(i, 'reference', e.target.value)} placeholder="Réf" className={LINE_INPUT} disabled={readOnly} />
                         </td>
                       )}
                       <td className="px-1 py-1.5">
@@ -1191,7 +1021,7 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
                           clientId={clientId || null}
                           className={LINE_INPUT}
                           placeholder="Désignation"
-                          disabled={isValidated}
+                          disabled={readOnly}
                         />
                         <textarea
                           value={line.description.includes('\n') ? line.description.split('\n').slice(1).join('\n') : ''}
@@ -1201,31 +1031,31 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
                           }}
                           placeholder="Description (optionnel)"
                           rows={1}
-                          disabled={isValidated}
+                          disabled={readOnly}
                           className={`${LINE_INPUT} mt-1 text-xs text-gray-500 dark:text-gray-400 resize-none`}
                         />
                       </td>
                       <td className="px-1 py-1.5">
-                        <input type="number" step="0.01" min="0.01" value={line.quantity} onChange={(e) => updateLine(i, 'quantity', e.target.value)} className={`${LINE_INPUT} text-right`} disabled={isValidated} />
+                        <input type="number" step="0.01" min="0.01" value={line.quantity} onChange={(e) => updateLine(i, 'quantity', e.target.value)} className={`${LINE_INPUT} text-right`} disabled={readOnly} />
                       </td>
                       {docColumns.unit && (
                         <td className="px-1 py-1.5">
-                          <UnitCombobox value={line.unit} onChange={(v) => updateLine(i, 'unit', v)} className={LINE_INPUT} disabled={isValidated} />
+                          <UnitCombobox value={line.unit} onChange={(v) => updateLine(i, 'unit', v)} className={LINE_INPUT} disabled={readOnly} />
                         </td>
                       )}
                       <td className="px-1 py-1.5">
-                        <input type="number" step="0.01" value={line.unit_price} onChange={(e) => updateLine(i, 'unit_price', e.target.value)} className={`${LINE_INPUT} text-right`} disabled={isValidated} />
+                        <input type="number" step="0.01" value={line.unit_price} onChange={(e) => updateLine(i, 'unit_price', e.target.value)} className={`${LINE_INPUT} text-right`} disabled={readOnly} />
                       </td>
                       {docColumns.vat_rate && (
                         <td className="px-1 py-1.5">
-                          <select value={line.vat_rate} onChange={(e) => updateLine(i, 'vat_rate', e.target.value)} className={LINE_SELECT} disabled={isValidated}>
+                          <select value={line.vat_rate} onChange={(e) => updateLine(i, 'vat_rate', e.target.value)} className={LINE_SELECT} disabled={readOnly}>
                             {vatRates.map((vr) => <option key={vr.rate} value={vr.rate}>{vr.rate}%</option>)}
                           </select>
                         </td>
                       )}
                       {docColumns.discount_percent && (
                         <td className="px-1 py-1.5">
-                          <input type="number" step="0.1" min="0" max="100" value={line.discount_percent} onChange={(e) => updateLine(i, 'discount_percent', e.target.value)} className={`${LINE_INPUT} text-right`} disabled={isValidated} />
+                          <input type="number" step="0.1" min="0" max="100" value={line.discount_percent} onChange={(e) => updateLine(i, 'discount_percent', e.target.value)} className={`${LINE_INPUT} text-right`} disabled={readOnly} />
                         </td>
                       )}
                       <td className="px-2 text-right text-xs font-medium text-gray-900 dark:text-white whitespace-nowrap">
@@ -1242,12 +1072,12 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
                             const newTTC = parseFloat(e.target.value) || 0
                             updateLine(i, 'unit_price', unitPriceFromTTC(newTTC, line))
                           }}
-                          disabled={isValidated}
+                          disabled={readOnly}
                           className={`${LINE_INPUT} text-right`}
                         />
                       </td>
                       )}
-                      {!isValidated && (
+                      {!readOnly && (
                         <td className="px-1 py-1.5">
                           <div className="flex gap-0.5">
                             {line.product_id && (
@@ -1288,7 +1118,7 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
                     clientId={clientId || null}
                     className={INPUT}
                     placeholder="Désignation"
-                    disabled={isValidated}
+                    disabled={readOnly}
                   />
                   <textarea
                     value={line.description.includes('\n') ? line.description.split('\n').slice(1).join('\n') : ''}
@@ -1298,7 +1128,7 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
                     }}
                     placeholder="Description (optionnel)"
                     rows={1}
-                    disabled={isValidated}
+                    disabled={readOnly}
                     className={`${INPUT} mt-1 text-xs text-gray-500 dark:text-gray-400 resize-none`}
                   />
 
@@ -1307,27 +1137,27 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
                     {docColumns.reference && (
                       <div>
                         <label className="text-[10px] text-gray-400 dark:text-gray-500 mb-0.5 block">Réf.</label>
-                        <input type="text" value={line.reference} onChange={(e) => updateLine(i, 'reference', e.target.value)} placeholder="Réf" className={INPUT} disabled={isValidated} />
+                        <input type="text" value={line.reference} onChange={(e) => updateLine(i, 'reference', e.target.value)} placeholder="Réf" className={INPUT} disabled={readOnly} />
                       </div>
                     )}
                     <div>
                       <label className="text-[10px] text-gray-400 dark:text-gray-500 mb-0.5 block">Qté</label>
-                      <input type="number" step="0.01" min="0.01" value={line.quantity} onChange={(e) => updateLine(i, 'quantity', e.target.value)} className={`${INPUT} text-right`} disabled={isValidated} />
+                      <input type="number" step="0.01" min="0.01" value={line.quantity} onChange={(e) => updateLine(i, 'quantity', e.target.value)} className={`${INPUT} text-right`} disabled={readOnly} />
                     </div>
                     {docColumns.unit && (
                       <div>
                         <label className="text-[10px] text-gray-400 dark:text-gray-500 mb-0.5 block">Unité</label>
-                        <UnitCombobox value={line.unit} onChange={(v) => updateLine(i, 'unit', v)} className={INPUT} disabled={isValidated} />
+                        <UnitCombobox value={line.unit} onChange={(v) => updateLine(i, 'unit', v)} className={INPUT} disabled={readOnly} />
                       </div>
                     )}
                     <div>
                       <label className="text-[10px] text-gray-400 dark:text-gray-500 mb-0.5 block">PU HT</label>
-                      <input type="number" step="0.01" value={line.unit_price} onChange={(e) => updateLine(i, 'unit_price', e.target.value)} className={`${INPUT} text-right`} disabled={isValidated} />
+                      <input type="number" step="0.01" value={line.unit_price} onChange={(e) => updateLine(i, 'unit_price', e.target.value)} className={`${INPUT} text-right`} disabled={readOnly} />
                     </div>
                     {docColumns.vat_rate && (
                       <div>
                         <label className="text-[10px] text-gray-400 dark:text-gray-500 mb-0.5 block">TVA %</label>
-                        <select value={line.vat_rate} onChange={(e) => updateLine(i, 'vat_rate', e.target.value)} className={SELECT} disabled={isValidated}>
+                        <select value={line.vat_rate} onChange={(e) => updateLine(i, 'vat_rate', e.target.value)} className={SELECT} disabled={readOnly}>
                           {vatRates.map((vr) => <option key={vr.rate} value={vr.rate}>{vr.rate}%</option>)}
                         </select>
                       </div>
@@ -1335,7 +1165,7 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
                     {docColumns.discount_percent && (
                       <div>
                         <label className="text-[10px] text-gray-400 dark:text-gray-500 mb-0.5 block">Rem. %</label>
-                        <input type="number" step="0.1" min="0" max="100" value={line.discount_percent} onChange={(e) => updateLine(i, 'discount_percent', e.target.value)} className={`${INPUT} text-right`} disabled={isValidated} />
+                        <input type="number" step="0.1" min="0" max="100" value={line.discount_percent} onChange={(e) => updateLine(i, 'discount_percent', e.target.value)} className={`${INPUT} text-right`} disabled={readOnly} />
                       </div>
                     )}
                   </div>
@@ -1354,13 +1184,13 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
                               const newTTC = parseFloat(e.target.value) || 0
                               updateLine(i, 'unit_price', unitPriceFromTTC(newTTC, line))
                             }}
-                            disabled={isValidated}
+                            disabled={readOnly}
                             className={`${INPUT} w-24 text-right text-sm`}
                           />
                         </div>
                       )}
                     </div>
-                    {!isValidated && (
+                    {!readOnly && (
                       <div className="flex items-center gap-1 ml-auto">
                         {line.product_id && (
                           <button onClick={() => setEditProductId(line.product_id)} className="p-1.5 rounded hover:bg-kerpta-50 dark:hover:bg-kerpta-900/30 transition">
@@ -1383,7 +1213,7 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
             })}
           </div>
 
-          {!isValidated && (
+          {!readOnly && (
             <button
               onClick={() => setLines((prev) => [...prev, emptyLine()])}
               className="mt-2 flex items-center gap-1.5 text-xs text-kerpta-600 hover:text-kerpta-700 dark:text-kerpta-400 dark:hover:text-kerpta-300 font-medium transition px-2 py-1"
@@ -1415,14 +1245,14 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
             <div>
               <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Remise globale</label>
               <div className="flex gap-2">
-                <select value={discountType} onChange={(e) => setDiscountType(e.target.value)} className={SELECT} disabled={isValidated}>
+                <select value={discountType} onChange={(e) => setDiscountType(e.target.value)} className={SELECT} disabled={readOnly}>
                   <option value="none">Aucune</option>
                   <option value="percent">Pourcentage</option>
                   <option value="fixed">Montant fixe</option>
                 </select>
                 {discountType !== 'none' && (
                   <input type="number" step="0.01" value={discountValue} onChange={(e) => setDiscountValue(e.target.value)}
-                    placeholder={discountType === 'percent' ? '%' : '€'} className={`w-24 ${INPUT}`} disabled={isValidated} />
+                    placeholder={discountType === 'percent' ? '%' : '€'} className={`w-24 ${INPUT}`} disabled={readOnly} />
                 )}
               </div>
             </div>
@@ -1467,32 +1297,62 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
         </div>
 
         {/* Actions */}
-        <div className="flex justify-end gap-3">
-          {isEdit && invoiceId && (
-            <button
-              onClick={() => void orgDownload(`/invoices/${invoiceId}/pdf?proforma=true&download=1`, 'proforma.pdf')}
-              className="flex items-center gap-1.5 px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 text-sm font-semibold rounded-lg transition"
-            >
-              <Printer className="w-4 h-4" /> Imprimer
-            </button>
-          )}
+        <div className="flex flex-wrap justify-end gap-3 pb-8">
           <button
-            onClick={() => handleSave(false)}
-            disabled={saving || !clientId}
-            className="flex items-center gap-1.5 px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 text-sm font-semibold rounded-lg transition disabled:opacity-50"
+            onClick={() => onClose?.()}
+            className="px-4 py-2.5 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
           >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-            Enregistrer
+            Annuler
           </button>
-          {!isValidated && (
-            <button
-              onClick={() => handleSave(false, true)}
-              disabled={saving || !clientId}
-              className={`${BTN} px-5 py-2.5`}
-            >
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
-              Valider
-            </button>
+          {!readOnly && (
+            <>
+              <button
+                onClick={() => handleSave(false)}
+                disabled={saving || !clientId}
+                className="px-5 py-2.5 text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold rounded-lg transition disabled:opacity-50"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
+              </button>
+              <button
+                onClick={() => void orgDownload(`/invoices/${invoiceId || ''}/pdf?proforma=true&download=1`, 'proforma.pdf')}
+                disabled={!isEdit}
+                className="flex items-center gap-1.5 px-5 py-2.5 text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold rounded-lg transition disabled:opacity-50"
+              >
+                <FileDown className="w-4 h-4" /> Telecharger PDF
+              </button>
+              <button
+                onClick={() => handleSave(false, true)}
+                disabled={saving || !clientId}
+                className={`${BTN} px-5 py-2.5`}
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><ShieldCheck className="w-4 h-4" /> Valider</>}
+              </button>
+            </>
+          )}
+          {readOnly && invoiceId && (
+            <>
+              <button
+                onClick={() => void orgDownload(`/invoices/${invoiceId}/pdf?download=1`, 'facture.pdf')}
+                className="flex items-center gap-1.5 px-5 py-2.5 text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold rounded-lg transition"
+              >
+                <FileDown className="w-4 h-4" /> Telecharger PDF
+              </button>
+              {invoiceStatus === 'validated' && (
+                <button onClick={() => doAction('send')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-5 py-2.5 text-sm bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg transition disabled:opacity-50">
+                  {actionLoading === 'send' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Envoyer
+                </button>
+              )}
+              {['sent', 'partial', 'overdue'].includes(invoiceStatus) && (
+                <button onClick={() => doAction('mark-paid')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-5 py-2.5 text-sm bg-green-600 hover:bg-green-500 text-white font-semibold rounded-lg transition disabled:opacity-50">
+                  {actionLoading === 'mark-paid' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Marquer payee
+                </button>
+              )}
+              {!(['draft', 'validated', 'cancelled'].includes(invoiceStatus)) && (
+                <button onClick={() => doAction('credit-note')} disabled={!!actionLoading} className="flex items-center gap-1.5 px-5 py-2.5 text-sm bg-red-100 hover:bg-red-200 text-red-700 dark:bg-red-900/40 dark:hover:bg-red-900/60 dark:text-red-400 font-medium rounded-lg transition disabled:opacity-50">
+                  {actionLoading === 'credit-note' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} Creer un avoir
+                </button>
+              )}
+            </>
           )}
         </div>
 
