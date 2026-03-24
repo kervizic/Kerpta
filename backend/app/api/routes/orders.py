@@ -84,6 +84,24 @@ async def link_quotes(
     return await svc.link_quotes(ctx.org_id, order_id, quote_ids, db)
 
 
+@router.post("/{order_id}/cancel")
+async def cancel_order(
+    order_id: str,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await svc.cancel_order(ctx.org_id, order_id, db)
+
+
+@router.post("/{order_id}/restore")
+async def restore_order(
+    order_id: str,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await svc.restore_order(ctx.org_id, order_id, db)
+
+
 @router.post("/batch/archive")
 async def batch_archive(
     ids: list[str] = Body(...),

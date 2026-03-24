@@ -875,9 +875,25 @@ function OrderDetailOverlay({
                   Facturer
                 </button>
               )}
+              {isEditable && (
+                <button
+                  onClick={async () => { await orgPost(`/orders/${orderId}/cancel`, {}); onRefresh(); onClose() }}
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg transition border border-red-300 text-red-600 bg-white hover:bg-red-50 dark:bg-gray-800 dark:text-red-400 dark:border-red-700 dark:hover:bg-red-900/20"
+                >
+                  <X className="w-4 h-4" /> Annuler la commande
+                </button>
+              )}
+              {order?.status === 'cancelled' && (
+                <button
+                  onClick={async () => { await orgPost(`/orders/${orderId}/restore`, {}); onRefresh(); onClose() }}
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg transition border border-green-300 text-green-600 bg-white hover:bg-green-50 dark:bg-gray-800 dark:text-green-400 dark:border-green-700 dark:hover:bg-green-900/20"
+                >
+                  <ArchiveRestore className="w-4 h-4" /> Restaurer
+                </button>
+              )}
               <div className="flex-1" />
               <button onClick={onClose} className={BTN_SECONDARY}>
-                Annuler
+                Fermer
               </button>
             </div>
           </div>

@@ -678,6 +678,79 @@ async def link_quotes(
     return {"linked": count}
 
 
+# ── Annulation / Restauration ─────────────────────────────────────────────────
+
+
+async def cancel_order(
+    org_id: uuid.UUID, order_id: str, db: AsyncSession
+) -> dict:
+    """Annule une commande et repasse les devis lies en draft.
+
+    Reversible via restore_order.
+    Interdit si la commande a deja ete facturee (invoiced/partially_invoiced).
+    """
+    row = (await db.execute(
+        text("SELECT status FROM orders WHERE id = :oid AND organization_id = :org_id"),
+        {"oid": order_id, "org_id": str(org_id)},
+    )).mappings().first()
+    if not row:
+        raise HTTPException(404, "Commande introuvable")
+    if row["status"] in ("invoiced", "partially_invoiced"):
+        raise HTTPException(422, "Impossible d'annuler une commande deja facturee")
+
+    # Passer la commande en cancelled
+    await db.execute(
+        text("UPDATE orders SET status = 'cancelled', updated_at = now() WHERE id = :oid AND organization_id = :org_id"),
+        {"oid": order_id, "org_id": str(org_id)},
+    )
+
+    # Repasser les devis lies en draft
+    await db.execute(
+        text("""
+            UPDATE quotes SET status = 'draft', updated_at = now()
+            WHERE id IN (SELECT quote_id FROM order_quotes WHERE order_id = :oid)
+              AND organization_id = :org_id
+        """),
+        {"oid": order_id, "org_id": str(org_id)},
+    )
+
+    await db.commit()
+    return {"status": "cancelled"}
+
+
+async def restore_order(
+    org_id: uuid.UUID, order_id: str, db: AsyncSession
+) -> dict:
+    """Restaure une commande annulee et repasse les devis lies en accepted."""
+    row = (await db.execute(
+        text("SELECT status FROM orders WHERE id = :oid AND organization_id = :org_id"),
+        {"oid": order_id, "org_id": str(org_id)},
+    )).mappings().first()
+    if not row:
+        raise HTTPException(404, "Commande introuvable")
+    if row["status"] != "cancelled":
+        raise HTTPException(422, "Seule une commande annulee peut etre restauree")
+
+    # Repasser en confirmed
+    await db.execute(
+        text("UPDATE orders SET status = 'confirmed', updated_at = now() WHERE id = :oid AND organization_id = :org_id"),
+        {"oid": order_id, "org_id": str(org_id)},
+    )
+
+    # Repasser les devis lies en accepted
+    await db.execute(
+        text("""
+            UPDATE quotes SET status = 'accepted', updated_at = now()
+            WHERE id IN (SELECT quote_id FROM order_quotes WHERE order_id = :oid)
+              AND organization_id = :org_id
+        """),
+        {"oid": order_id, "org_id": str(org_id)},
+    )
+
+    await db.commit()
+    return {"status": "confirmed"}
+
+
 # ── Archivage ─────────────────────────────────────────────────────────────────
 
 

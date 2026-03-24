@@ -20,7 +20,7 @@ import DatePicker from '@/components/app/DatePicker'
 import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
 import MobileFilterPanel from '@/components/app/MobileFilterPanel'
 import PageLayout from '@/components/app/PageLayout'
-import { INPUT, SELECT, LINE_INPUT, LINE_SELECT, BTN, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER, BADGE_COUNT, CARD } from '@/lib/formStyles'
+import { INPUT, SELECT, LINE_INPUT, LINE_SELECT, BTN, OVERLAY_BACKDROP, OVERLAY_PANEL, BADGE_COUNT, CARD } from '@/lib/formStyles'
 import { fmtCurrency } from '@/lib/formatting'
 import { ApiError } from '@/lib/api'
 
