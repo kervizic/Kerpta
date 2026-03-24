@@ -110,7 +110,6 @@ export default function ProductAutocomplete({
     }
   }, [])
 
-
   return (
     <div ref={ref} className="relative">
       <input

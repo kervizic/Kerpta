@@ -566,9 +566,6 @@ function VatRatesSection() {
   )
 }
 
-// ── Page principale ──────────────────────────────────────────────────────────
-
-
 // ── Section Arrondis ─────────────────────────────────────────────────────
 
 interface RoundingConfig {
