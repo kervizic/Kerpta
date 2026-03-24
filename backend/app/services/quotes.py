@@ -413,13 +413,15 @@ async def accept_quote(
     if contract_id:
         await _update_contract_budget(contract_id, db)
 
-    # Creer une commande automatiquement
+    # Creer une commande si le module est active
     order_id = None
     if create_order:
-        from app.services.orders import create_from_quote
-        order_id = await create_from_quote(
-            org_id, quote_id, "quote_validation", client_reference, db,
-        )
+        orders_enabled = await _is_module_enabled(org_id, "module_purchase_orders_enabled", db)
+        if orders_enabled:
+            from app.services.orders import create_from_quote
+            order_id = await create_from_quote(
+                org_id, quote_id, "quote_validation", client_reference, db,
+            )
 
     await db.commit()
     return {"status": "accepted", "order_id": order_id}
@@ -432,29 +434,39 @@ async def invoice_quote(
     *,
     client_reference: str | None = None,
 ) -> dict:
-    """Accepte le devis, cree une commande et une facture en une seule action.
+    """Accepte le devis et cree une facture.
 
+    Si le module commandes est active : cree commande + facture.
+    Si le module commandes est desactive : cree la facture directement.
     Retourne l'ID de la facture creee pour redirection frontend.
     """
-    # 1. Accepter le devis et creer la commande
+    orders_enabled = await _is_module_enabled(org_id, "module_purchase_orders_enabled", db)
+
+    # 1. Accepter le devis (cree la commande seulement si module active)
     result = await accept_quote(
         org_id, quote_id, db,
         client_reference=client_reference,
         create_order=True,
     )
     order_id = result.get("order_id")
-    if not order_id:
-        raise HTTPException(500, "La commande n'a pas ete creee")
 
-    # 2. Facturer la commande
-    from app.services.orders import invoice_order
-    invoice_result = await invoice_order(org_id, order_id, db)
-
-    return {
-        "status": "invoiced",
-        "order_id": order_id,
-        "invoice_id": invoice_result["invoice_id"],
-    }
+    if orders_enabled and order_id:
+        # Module commandes actif : facturer via la commande
+        from app.services.orders import invoice_order
+        invoice_result = await invoice_order(org_id, order_id, db)
+        return {
+            "status": "invoiced",
+            "order_id": order_id,
+            "invoice_id": invoice_result["invoice_id"],
+        }
+    else:
+        # Module commandes desactive : creer la facture directement depuis le devis
+        invoice_id = await _create_invoice_from_quote(org_id, quote_id, client_reference, db)
+        return {
+            "status": "invoiced",
+            "order_id": None,
+            "invoice_id": invoice_id,
+        }
 
 
 async def refuse_quote(
@@ -565,6 +577,77 @@ async def batch_archive(
     )
     await db.commit()
     return {"count": result.rowcount}
+
+
+async def _is_module_enabled(
+    org_id: uuid.UUID, column: str, db: AsyncSession
+) -> bool:
+    """Verifie si un module est active pour l'organisation."""
+    row = (await db.execute(
+        text(f"SELECT {column} FROM organizations WHERE id = :org_id"),
+        {"org_id": str(org_id)},
+    )).scalar()
+    return bool(row)
+
+
+async def _create_invoice_from_quote(
+    org_id: uuid.UUID, quote_id: str, client_reference: str | None, db: AsyncSession
+) -> str:
+    """Cree une facture directement depuis un devis (sans passer par une commande)."""
+    from app.services.invoices import create_invoice
+    from app.schemas.invoices import InvoiceCreate, InvoiceLineIn
+    from datetime import date
+
+    # Charger le devis
+    q = (await db.execute(
+        text("""
+            SELECT client_id::text, contract_id::text, billing_profile_id::text,
+                   discount_type, discount_value
+            FROM quotes WHERE id = :qid AND organization_id = :org_id
+        """),
+        {"qid": quote_id, "org_id": str(org_id)},
+    )).mappings().first()
+    if not q:
+        raise HTTPException(404, "Devis introuvable")
+
+    # Charger les lignes du devis
+    lines_rows = (await db.execute(
+        text("""
+            SELECT product_id::text, position, reference, description,
+                   quantity, unit, unit_price, vat_rate, discount_percent
+            FROM quote_lines WHERE quote_id = :qid ORDER BY position
+        """),
+        {"qid": quote_id},
+    )).mappings().all()
+
+    invoice_lines = [
+        InvoiceLineIn(
+            product_id=ln["product_id"],
+            position=ln["position"],
+            reference=ln.get("reference"),
+            description=ln.get("description"),
+            quantity=ln["quantity"],
+            unit=ln.get("unit"),
+            unit_price=ln["unit_price"],
+            vat_rate=ln["vat_rate"],
+            discount_percent=ln.get("discount_percent", 0),
+        )
+        for ln in lines_rows
+    ]
+
+    invoice_data = InvoiceCreate(
+        client_id=q["client_id"],
+        quote_id=quote_id,
+        contract_id=q["contract_id"],
+        issue_date=date.today(),
+        discount_type=q.get("discount_type", "none"),
+        discount_value=q.get("discount_value", 0),
+        purchase_order_number=client_reference,
+        lines=invoice_lines,
+    )
+
+    result = await create_invoice(org_id, uuid.UUID(int=0), invoice_data, db)
+    return result["id"]
 
 
 async def _update_contract_budget(contract_id: str, db: AsyncSession) -> None:
