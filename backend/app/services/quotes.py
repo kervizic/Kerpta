@@ -413,15 +413,14 @@ async def accept_quote(
     if contract_id:
         await _update_contract_budget(contract_id, db)
 
-    # Creer une commande si le module est active
+    # Toujours creer une commande (tracabilite + ref BC client)
+    # Le module commandes controle uniquement la visibilite dans le menu
     order_id = None
     if create_order:
-        orders_enabled = await _is_module_enabled(org_id, "module_purchase_orders_enabled", db)
-        if orders_enabled:
-            from app.services.orders import create_from_quote
-            order_id = await create_from_quote(
-                org_id, quote_id, "quote_validation", client_reference, db,
-            )
+        from app.services.orders import create_from_quote
+        order_id = await create_from_quote(
+            org_id, quote_id, "quote_validation", client_reference, db,
+        )
 
     await db.commit()
     return {"status": "accepted", "order_id": order_id}
@@ -440,33 +439,25 @@ async def invoice_quote(
     Si le module commandes est desactive : cree la facture directement.
     Retourne l'ID de la facture creee pour redirection frontend.
     """
-    orders_enabled = await _is_module_enabled(org_id, "module_purchase_orders_enabled", db)
-
-    # 1. Accepter le devis (cree la commande seulement si module active)
+    # 1. Accepter le devis + creer la commande (toujours)
     result = await accept_quote(
         org_id, quote_id, db,
         client_reference=client_reference,
         create_order=True,
     )
     order_id = result.get("order_id")
+    if not order_id:
+        raise HTTPException(500, "La commande n'a pas ete creee")
 
-    if orders_enabled and order_id:
-        # Module commandes actif : facturer via la commande
-        from app.services.orders import invoice_order
-        invoice_result = await invoice_order(org_id, order_id, db)
-        return {
-            "status": "invoiced",
-            "order_id": order_id,
-            "invoice_id": invoice_result["invoice_id"],
-        }
-    else:
-        # Module commandes desactive : creer la facture directement depuis le devis
-        invoice_id = await _create_invoice_from_quote(org_id, quote_id, client_reference, db)
-        return {
-            "status": "invoiced",
-            "order_id": None,
-            "invoice_id": invoice_id,
-        }
+    # 2. Facturer la commande
+    from app.services.orders import invoice_order
+    invoice_result = await invoice_order(org_id, order_id, db)
+
+    return {
+        "status": "invoiced",
+        "order_id": order_id,
+        "invoice_id": invoice_result["invoice_id"],
+    }
 
 
 async def refuse_quote(
