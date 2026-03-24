@@ -1323,7 +1323,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
                 : 'Le devis sera accepte et une commande sera creee automatiquement.'}
             </p>
             <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">
-              Numero de commande client disponible
+              Numero de commande client
             </label>
             <input
               className={INPUT}
