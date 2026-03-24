@@ -18,7 +18,7 @@ import ClientPanel from '@/components/app/ClientPanel'
 import { CreateClientForm } from '@/pages/app/ClientsPage'
 import { ProductDetailModal } from '@/pages/app/CatalogPage'
 import PageLayout from '@/components/app/PageLayout'
-import { INPUT, SELECT, LINE_INPUT, LINE_SELECT, BTN, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER, BADGE_COUNT, CARD } from '@/lib/formStyles'
+import { INPUT, SELECT, LINE_INPUT, LINE_SELECT, BTN, OVERLAY_BACKDROP, OVERLAY_PANEL, BADGE_COUNT, CARD } from '@/lib/formStyles'
 import { fmtCurrency } from '@/lib/formatting'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
