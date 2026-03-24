@@ -1323,11 +1323,11 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
                 : 'Le devis sera accepte et une commande sera creee automatiquement.'}
             </p>
             <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">
-              N de commande client (optionnel)
+              Numero de commande client disponible
             </label>
             <input
               className={INPUT}
-              placeholder="Ex: BC-42-2026"
+              placeholder="Laisser vide si non disponible"
               value={acceptClientRef}
               onChange={e => setAcceptClientRef(e.target.value)}
               autoFocus
