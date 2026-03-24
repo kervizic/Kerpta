@@ -27,7 +27,7 @@ from typing import Any
 _log = logging.getLogger(__name__)
 
 import asyncpg
-from sqlalchemy import select, text
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 # Chemin du .env — /app/.env dans Docker (parents[2] = /app)

@@ -7,7 +7,6 @@
 import json
 import logging
 import uuid
-from datetime import datetime, timezone
 
 import httpx
 from fastapi import HTTPException

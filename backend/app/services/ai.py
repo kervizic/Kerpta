@@ -428,12 +428,12 @@ async def ocr_vlm(
     is_pdf = content_type == "application/pdf" or file_bytes[:5] == b"%PDF-"
 
     # Convertir en images base64 (150 DPI)
-    print(f"[OCR-VLM] Conversion en images (is_pdf={is_pdf})...", flush=True)
+    _log.info("OCR-VLM conversion en images (is_pdf=%s)", is_pdf)
     if is_pdf:
         images_b64 = _pdf_pages_to_b64(file_bytes)
     else:
         images_b64 = [_image_to_jpeg_b64(file_bytes, content_type)]
-    print(f"[OCR-VLM] {len(images_b64)} page(s), tailles b64: {[len(b) for b in images_b64]}", flush=True)
+    _log.info("OCR-VLM %d page(s)", len(images_b64))
 
     # Envoyer page par page pour eviter de surcharger le modele
     start = time.monotonic()
@@ -453,12 +453,12 @@ async def ocr_vlm(
         ]
         messages = [{"role": "user", "content": content}]
 
-        print(f"[OCR-VLM] Page {i+1}/{len(images_b64)} - appel LiteLLM ({model['litellm_name']})...", flush=True)
+        _log.info("OCR-VLM page %d/%d - appel LiteLLM (%s)", i + 1, len(images_b64), model["litellm_name"])
         resp = await _call_litellm(
             config["litellm_url"], config["litellm_key"],
             model["litellm_name"], messages, max_tokens=4096, timeout=300.0,
         )
-        print(f"[OCR-VLM] Page {i+1} - reponse recue en {time.monotonic()-start:.1f}s", flush=True)
+        _log.info("OCR-VLM page %d - reponse recue en %.1fs", i + 1, time.monotonic() - start)
 
         usage = resp.get("usage", {})
         total_tokens_in += usage.get("prompt_tokens", 0)
