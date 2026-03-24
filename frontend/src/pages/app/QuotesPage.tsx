@@ -786,15 +786,24 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
     try {
       // Sauvegarder d'abord si besoin
       await handleSave(false)
-      // Accepter (cree la commande)
-      await orgPost(`/quotes/${quoteId}/accept`, { client_reference: acceptClientRef || null })
+      const body = { client_reference: acceptClientRef || null }
       if (mode === 'invoice') {
-        // Facturer (cree la facture depuis la commande)
-        await orgPost(`/quotes/${quoteId}/invoice`, { client_reference: acceptClientRef || null })
+        // Un seul appel : accepte + cree commande + cree facture
+        const resp = await orgPost<{ invoice_id?: string }>(`/quotes/${quoteId}/invoice`, body)
+        setShowAcceptModal(null)
+        setAcceptClientRef('')
+        onClose?.()
+        // Rediriger vers la facture creee
+        if (resp.invoice_id) {
+          window.location.href = `/app/factures?open=${resp.invoice_id}`
+        }
+      } else {
+        // Accepter seulement (cree la commande)
+        await orgPost(`/quotes/${quoteId}/accept`, body)
+        setShowAcceptModal(null)
+        setAcceptClientRef('')
+        onClose?.()
       }
-      setShowAcceptModal(null)
-      setAcceptClientRef('')
-      onClose?.()
     } catch { /* */ }
     setSaving(false)
   }

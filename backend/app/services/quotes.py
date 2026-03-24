@@ -425,6 +425,38 @@ async def accept_quote(
     return {"status": "accepted", "order_id": order_id}
 
 
+async def invoice_quote(
+    org_id: uuid.UUID,
+    quote_id: str,
+    db: AsyncSession,
+    *,
+    client_reference: str | None = None,
+) -> dict:
+    """Accepte le devis, cree une commande et une facture en une seule action.
+
+    Retourne l'ID de la facture creee pour redirection frontend.
+    """
+    # 1. Accepter le devis et creer la commande
+    result = await accept_quote(
+        org_id, quote_id, db,
+        client_reference=client_reference,
+        create_order=True,
+    )
+    order_id = result.get("order_id")
+    if not order_id:
+        raise HTTPException(500, "La commande n'a pas ete creee")
+
+    # 2. Facturer la commande
+    from app.services.orders import invoice_order
+    invoice_result = await invoice_order(org_id, order_id, db)
+
+    return {
+        "status": "invoiced",
+        "order_id": order_id,
+        "invoice_id": invoice_result["invoice_id"],
+    }
+
+
 async def refuse_quote(
     org_id: uuid.UUID, quote_id: str, db: AsyncSession
 ) -> dict:

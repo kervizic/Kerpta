@@ -698,9 +698,9 @@ async def cancel_order(
     if row["status"] in ("invoiced", "partially_invoiced"):
         raise HTTPException(422, "Impossible d'annuler une commande deja facturee")
 
-    # Passer la commande en cancelled
+    # Passer la commande en cancelled + archiver automatiquement
     await db.execute(
-        text("UPDATE orders SET status = 'cancelled', updated_at = now() WHERE id = :oid AND organization_id = :org_id"),
+        text("UPDATE orders SET status = 'cancelled', is_archived = true, updated_at = now() WHERE id = :oid AND organization_id = :org_id"),
         {"oid": order_id, "org_id": str(org_id)},
     )
 
@@ -731,9 +731,9 @@ async def restore_order(
     if row["status"] != "cancelled":
         raise HTTPException(422, "Seule une commande annulee peut etre restauree")
 
-    # Repasser en confirmed
+    # Repasser en confirmed + desarchiver
     await db.execute(
-        text("UPDATE orders SET status = 'confirmed', updated_at = now() WHERE id = :oid AND organization_id = :org_id"),
+        text("UPDATE orders SET status = 'confirmed', is_archived = false, updated_at = now() WHERE id = :oid AND organization_id = :org_id"),
         {"oid": order_id, "org_id": str(org_id)},
     )
 

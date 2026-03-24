@@ -189,7 +189,10 @@ function InvoicesList() {
   const [page, setPage] = useState(1)
   const [filters, setFilters] = useState<FilterValues>({})
   const [debouncedFilters, setDebouncedFilters] = useState<FilterValues>({})
-  const [editId, setEditId] = useState<string | null>(null)
+
+  // Ouvrir une facture via ?open=<id> (redirection depuis devis)
+  const openParam = new URLSearchParams(window.location.search).get('open')
+  const [editId, setEditId] = useState<string | null>(openParam)
   const [showCreate, setShowCreate] = useState(false)
   const [showMobileFilters, setShowMobileFilters] = useState(false)
 
