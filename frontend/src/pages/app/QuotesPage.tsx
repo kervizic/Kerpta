@@ -540,6 +540,8 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
   ])
   const [quoteStatus, setQuoteStatus] = useState<string>('draft')
   const readOnly = isEdit && quoteStatus !== 'draft' && quoteStatus !== 'sent'
+  const [showAcceptModal, setShowAcceptModal] = useState<'accept' | 'invoice' | null>(null)
+  const [acceptClientRef, setAcceptClientRef] = useState('')
   const [loading, setLoading] = useState(isEdit)
   const [saving, setSaving] = useState(false)
   const [clientPanelId, setClientPanelId] = useState<string | null>(null)
@@ -703,7 +705,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
   }
 
   // Sauvegarde
-  async function handleSave(andSend = false, andPrint = false, andAccept = false) {
+  async function handleSave(andSend = false, andPrint = false) {
     if (!clientId) return
     setSaving(true)
 
@@ -769,14 +771,29 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
         await orgPost(`/quotes/${resultId}/send`)
       }
 
-      if (andAccept && resultId) {
-        await orgPost(`/quotes/${resultId}/accept`, {})
-      }
-
       if (andPrint && resultId) {
         void orgDownload(`/quotes/${resultId}/pdf?download=1`, 'devis.pdf')
       }
 
+      onClose?.()
+    } catch { /* */ }
+    setSaving(false)
+  }
+
+  async function handleAcceptOrInvoice(mode: 'accept' | 'invoice') {
+    if (!quoteId) return
+    setSaving(true)
+    try {
+      // Sauvegarder d'abord si besoin
+      await handleSave(false)
+      // Accepter (cree la commande)
+      await orgPost(`/quotes/${quoteId}/accept`, { client_reference: acceptClientRef || null })
+      if (mode === 'invoice') {
+        // Facturer (cree la facture depuis la commande)
+        await orgPost(`/quotes/${quoteId}/invoice`, { client_reference: acceptClientRef || null })
+      }
+      setShowAcceptModal(null)
+      setAcceptClientRef('')
       onClose?.()
     } catch { /* */ }
     setSaving(false)
@@ -1216,11 +1233,18 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Send className="w-4 h-4" /> Envoyer</>}
               </button>
               <button
-                onClick={() => handleSave(false, false, true)}
+                onClick={() => setShowAcceptModal('accept')}
                 disabled={saving || !clientId}
                 className="flex items-center gap-1.5 px-5 py-2.5 text-sm bg-green-600 hover:bg-green-500 text-white font-semibold rounded-lg transition disabled:opacity-50"
               >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4" /> Accepter</>}
+                <Check className="w-4 h-4" /> Accepter
+              </button>
+              <button
+                onClick={() => setShowAcceptModal('invoice')}
+                disabled={saving || !clientId}
+                className="flex items-center gap-1.5 px-5 py-2.5 text-sm bg-kerpta hover:bg-kerpta-600 text-white font-semibold rounded-lg transition disabled:opacity-50"
+              >
+                <FileDown className="w-4 h-4" /> Facturer
               </button>
             </>
           )}
@@ -1273,17 +1297,61 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
   )
 
   return (
-    <div
-      className={OVERLAY_BACKDROP}
-      onClick={onClose}
-    >
+    <>
       <div
-        className={`${OVERLAY_PANEL} px-3 md:px-6 py-4 md:py-6`}
-        onClick={(e) => e.stopPropagation()}
+        className={OVERLAY_BACKDROP}
+        onClick={onClose}
       >
-        {formContent}
+        <div
+          className={`${OVERLAY_PANEL} px-3 md:px-6 py-4 md:py-6`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {formContent}
+        </div>
       </div>
-    </div>
+
+      {/* Modale confirmation acceptation / facturation */}
+      {showAcceptModal && (
+        <div className={OVERLAY_BACKDROP} onClick={() => setShowAcceptModal(null)} style={{ zIndex: 60 }}>
+          <div className={`${OVERLAY_PANEL} max-w-md p-6`} onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+              {showAcceptModal === 'invoice' ? 'Facturer le devis' : 'Accepter le devis'}
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              {showAcceptModal === 'invoice'
+                ? 'Le devis sera accepte, une commande et une facture seront creees automatiquement.'
+                : 'Le devis sera accepte et une commande sera creee automatiquement.'}
+            </p>
+            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">
+              N de commande client (optionnel)
+            </label>
+            <input
+              className={INPUT}
+              placeholder="Ex: BC-42-2026"
+              value={acceptClientRef}
+              onChange={e => setAcceptClientRef(e.target.value)}
+              autoFocus
+            />
+            <div className="flex justify-end gap-2 mt-4">
+              <button onClick={() => { setShowAcceptModal(null); setAcceptClientRef('') }} className={BTN + ' border-gray-300 text-gray-700 dark:text-gray-300'}>
+                Annuler
+              </button>
+              <button
+                onClick={() => handleAcceptOrInvoice(showAcceptModal)}
+                disabled={saving}
+                className={showAcceptModal === 'invoice'
+                  ? 'flex items-center gap-1.5 px-4 py-2 bg-kerpta hover:bg-kerpta-600 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50'
+                  : 'flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50'}
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : showAcceptModal === 'invoice'
+                  ? <><FileDown className="w-4 h-4" /> Facturer</>
+                  : <><Check className="w-4 h-4" /> Accepter</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 
