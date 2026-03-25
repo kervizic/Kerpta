@@ -717,6 +717,71 @@ async def invoice_order(
     return {"order_id": order_id, "invoice_id": invoice_id}
 
 
+# ── Annuler la facturation ────────────────────────────────────────────────────
+
+
+async def uninvoice_order(
+    org_id: uuid.UUID, order_id: str, db: AsyncSession
+) -> dict:
+    """Annule la facturation d'une commande si les factures liees sont en brouillon.
+
+    Supprime les factures brouillon liees, les liaisons order_invoices,
+    et repasse la commande en confirmed.
+    """
+    # Verifier la commande
+    row = (await db.execute(
+        text("SELECT status FROM orders WHERE id = :oid AND organization_id = :org_id"),
+        {"oid": order_id, "org_id": str(org_id)},
+    )).mappings().first()
+    if not row:
+        raise HTTPException(404, "Commande introuvable")
+    if row["status"] not in ("invoiced", "partially_invoiced"):
+        raise HTTPException(422, "Cette commande n'est pas facturee")
+
+    # Verifier que toutes les factures liees sont en brouillon
+    invoices = (await db.execute(
+        text("""
+            SELECT i.id, i.status FROM invoices i
+            JOIN order_invoices oi ON oi.invoice_id = i.id
+            WHERE oi.order_id = :oid AND i.organization_id = :org_id
+        """),
+        {"oid": order_id, "org_id": str(org_id)},
+    )).mappings().all()
+
+    non_draft = [inv for inv in invoices if inv["status"] != "draft"]
+    if non_draft:
+        raise HTTPException(
+            422,
+            "Impossible d'annuler : certaines factures ne sont plus en brouillon"
+        )
+
+    # Supprimer les factures brouillon et leurs lignes
+    for inv in invoices:
+        await db.execute(
+            text("DELETE FROM invoice_lines WHERE invoice_id = :iid"),
+            {"iid": inv["id"]},
+        )
+        await db.execute(
+            text("DELETE FROM invoices WHERE id = :iid AND organization_id = :org_id"),
+            {"iid": inv["id"], "org_id": str(org_id)},
+        )
+
+    # Supprimer les liaisons order_invoices
+    await db.execute(
+        text("DELETE FROM order_invoices WHERE order_id = :oid"),
+        {"oid": order_id},
+    )
+
+    # Repasser la commande en confirmed
+    await db.execute(
+        text("UPDATE orders SET status = 'confirmed', updated_at = now() WHERE id = :oid AND organization_id = :org_id"),
+        {"oid": order_id, "org_id": str(org_id)},
+    )
+
+    await db.commit()
+    return {"status": "confirmed", "deleted_invoices": len(invoices)}
+
+
 # ── Lier des devis ────────────────────────────────────────────────────────────
 
 

@@ -1068,6 +1068,22 @@ function OrderDetailOverlay({
                   <X className="w-4 h-4" /> Annuler la commande
                 </button>
               )}
+              {(order?.status === 'invoiced' || order?.status === 'partially_invoiced') && (
+                <button
+                  onClick={async () => {
+                    try {
+                      await orgPost(`/orders/${orderId}/uninvoice`, {})
+                      onRefresh(); onClose()
+                    } catch (e: unknown) {
+                      const msg = (e as { data?: { detail?: string } })?.data?.detail || 'Erreur'
+                      alert(msg)
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg transition border border-orange-300 text-orange-600 bg-white hover:bg-orange-50 dark:bg-gray-800 dark:text-orange-400 dark:border-orange-700 dark:hover:bg-orange-900/20"
+                >
+                  <ArchiveRestore className="w-4 h-4" /> Annuler la facturation
+                </button>
+              )}
               {order?.status === 'cancelled' && (
                 <button
                   onClick={async () => { await orgPost(`/orders/${orderId}/restore`, {}); onRefresh(); onClose() }}
