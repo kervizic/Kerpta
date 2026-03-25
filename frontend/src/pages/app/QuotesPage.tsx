@@ -19,6 +19,8 @@ import { CreateClientForm } from '@/pages/app/ClientsPage'
 import { ProductDetailModal } from '@/pages/app/CatalogPage'
 import PageLayout from '@/components/app/PageLayout'
 import ImportDocumentModal from '@/components/app/ImportDocumentModal'
+import AttachDocumentButton from '@/components/app/AttachDocumentButton'
+import AttachmentsList from '@/components/app/AttachmentsList'
 import { INPUT, SELECT, LINE_INPUT, LINE_SELECT, BTN, BTN_SECONDARY, OVERLAY_BACKDROP, OVERLAY_PANEL, BADGE_COUNT, CARD } from '@/lib/formStyles'
 import { fmtCurrency } from '@/lib/formatting'
 
@@ -542,6 +544,7 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
   const [notes, setNotes] = useState('')
   const [footer, setFooter] = useState('')
   const [lines, setLines] = useState<FormLine[]>([emptyLine()])
+  const [attachRefresh, setAttachRefresh] = useState(0)
 
   // Données de référence
   const [profiles, setProfiles] = useState<BillingProfile[]>([])
@@ -1227,8 +1230,18 @@ function QuoteFormPage({ quoteId, onClose }: { quoteId?: string; onClose?: () =>
           </div>
         </div>
 
+        {/* Pieces jointes */}
+        {readOnly && quoteId && (
+          <div className="mb-4">
+            <AttachmentsList parentType="quote" parentId={quoteId} refreshKey={attachRefresh} />
+          </div>
+        )}
+
         {/* Actions */}
         <div className="flex justify-end gap-3 pb-8">
+          {readOnly && quoteId && (
+            <AttachDocumentButton parentType="quote" parentId={quoteId} onAttached={() => setAttachRefresh(n => n + 1)} />
+          )}
           <button
             onClick={() => onClose?.()}
             className="px-4 py-2.5 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"

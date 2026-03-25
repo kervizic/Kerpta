@@ -21,6 +21,8 @@ import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/comp
 import MobileFilterPanel from '@/components/app/MobileFilterPanel'
 import PageLayout from '@/components/app/PageLayout'
 import ImportDocumentModal from '@/components/app/ImportDocumentModal'
+import AttachDocumentButton from '@/components/app/AttachDocumentButton'
+import AttachmentsList from '@/components/app/AttachmentsList'
 import { INPUT, SELECT, LINE_INPUT, LINE_SELECT, BTN, BTN_SECONDARY, OVERLAY_BACKDROP, OVERLAY_PANEL, BADGE_COUNT, CARD } from '@/lib/formStyles'
 import { fmtCurrency } from '@/lib/formatting'
 import { ApiError } from '@/lib/api'
@@ -568,6 +570,7 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
   const [footer, setFooter] = useState('')
   const [bankDetails, setBankDetails] = useState<{ iban?: string; bic?: string; bank_name?: string } | null>(null)
   const [lines, setLines] = useState<FormLine[]>([emptyLine()])
+  const [attachRefresh, setAttachRefresh] = useState(0)
 
   // Données de référence
   const [clients, setClients] = useState<ClientOption[]>([])
@@ -1316,8 +1319,18 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
           </div>
         </div>
 
+        {/* Pieces jointes */}
+        {readOnly && invoiceId && (
+          <div className="mb-4">
+            <AttachmentsList parentType="invoice" parentId={invoiceId} refreshKey={attachRefresh} />
+          </div>
+        )}
+
         {/* Actions */}
         <div className="flex flex-wrap justify-end gap-3 pb-8">
+          {readOnly && invoiceId && (
+            <AttachDocumentButton parentType="invoice" parentId={invoiceId} onAttached={() => setAttachRefresh(n => n + 1)} />
+          )}
           <button
             onClick={() => onClose?.()}
             className="px-4 py-2.5 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"

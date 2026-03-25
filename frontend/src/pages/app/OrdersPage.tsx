@@ -14,6 +14,8 @@ import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/comp
 import MobileFilterPanel from '@/components/app/MobileFilterPanel'
 import PageLayout from '@/components/app/PageLayout'
 import ImportDocumentModal from '@/components/app/ImportDocumentModal'
+import AttachDocumentButton from '@/components/app/AttachDocumentButton'
+import AttachmentsList from '@/components/app/AttachmentsList'
 import { BTN, BTN_SM, BTN_SECONDARY, CARD, INPUT, SELECT, TEXTAREA, LABEL, LINE_INPUT, LINE_SELECT, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER, BADGE_COUNT } from '@/lib/formStyles'
 import { fmtCurrency } from '@/lib/formatting'
 
@@ -529,6 +531,7 @@ function OrderDetailOverlay({
   const [saving, setSaving] = useState(false)
   const [invoicing, setInvoicing] = useState(false)
   const [order, setOrder] = useState<OrderDetail | null>(null)
+  const [attachRefresh, setAttachRefresh] = useState(0)
 
   // Form state
   const [clientId, setClientId] = useState('')
@@ -1060,8 +1063,12 @@ function OrderDetailOverlay({
               />
             </div>
 
+            {/* Pieces jointes */}
+            <AttachmentsList parentType="order" parentId={orderId} refreshKey={attachRefresh} />
+
             {/* Actions */}
             <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+              <AttachDocumentButton parentType="order" parentId={orderId} onAttached={() => setAttachRefresh(n => n + 1)} />
               {isEditable && (
                 <button onClick={handleSave} disabled={saving || !clientId} className={BTN}>
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}

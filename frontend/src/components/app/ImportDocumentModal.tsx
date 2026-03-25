@@ -1,21 +1,24 @@
-// Kerpta - Modale d'import de document via extraction IA
+// Kerpta - Modale d'import de document via extraction IA (flux staging)
 // Copyright (C) 2026 Emmanuel Kervizic
 // Licence : AGPL-3.0 - https://www.gnu.org/licenses/agpl-3.0.html
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import {
-  Upload, FileText, Loader2, Trash2, X, Plus, CheckCircle2, AlertCircle, ExternalLink,
+  Upload, FileText, Loader2, Trash2, X, Plus, CheckCircle2, AlertCircle, ExternalLink, XCircle,
 } from 'lucide-react'
 import { orgClient } from '@/lib/api'
+import { orgGet } from '@/lib/orgApi'
+import ClientCombobox from '@/components/app/ClientCombobox'
 import {
-  INPUT, LINE_INPUT, BTN, BTN_SECONDARY,
-  OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER, LABEL,
+  INPUT, LINE_INPUT, BTN, BTN_SECONDARY, BTN_DANGER,
+  OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER, LABEL, SELECT,
 } from '@/lib/formStyles'
 
 // -- Types --------------------------------------------------------------------
 
 interface ImportDocumentModalProps {
   documentType: 'quote' | 'invoice' | 'order'
+  parentId?: string
   onClose: () => void
   onImported: (id: string) => void
 }
@@ -46,7 +49,21 @@ interface ExtractedData {
   [key: string]: unknown
 }
 
-type Step = 'upload' | 'verify' | 'done'
+interface ExtractResponse {
+  import_id: string
+  extracted_json: ExtractedData
+  suggested_client: { id: string; name: string } | null
+}
+
+interface SearchDoc {
+  id: string
+  number: string | null
+  display_reference?: string | null
+  client_name?: string | null
+}
+
+type Step = 'upload' | 'extracting' | 'verify' | 'done'
+type ActionMode = 'create' | 'attach'
 
 const DOC_LABELS: Record<string, string> = {
   quote: 'devis',
@@ -54,43 +71,77 @@ const DOC_LABELS: Record<string, string> = {
   order: 'commande',
 }
 
+const DOC_ENDPOINTS: Record<string, string> = {
+  quote: '/quotes',
+  invoice: '/invoices',
+  order: '/orders',
+}
+
 // -- Component ----------------------------------------------------------------
 
-export default function ImportDocumentModal({ documentType, onClose, onImported }: ImportDocumentModalProps) {
+export default function ImportDocumentModal({ documentType, parentId, onClose, onImported }: ImportDocumentModalProps) {
   const [step, setStep] = useState<Step>('upload')
 
   // Upload state
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
-  const [extracting, setExtracting] = useState(false)
   const [extractError, setExtractError] = useState('')
   const [chrono, setChrono] = useState(0)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  // Extracted data (editable)
+  // Staging state
+  const [importId, setImportId] = useState<string | null>(null)
   const [data, setData] = useState<ExtractedData | null>(null)
 
-  // Import state
-  const [importing, setImporting] = useState(false)
-  const [importError, setImportError] = useState('')
-  const [createdId, setCreatedId] = useState<string | null>(null)
+  // Client
+  const [clientId, setClientId] = useState('')
+
+  // Action mode
+  const [actionMode, setActionMode] = useState<ActionMode>(parentId ? 'attach' : 'create')
+  const [targetId, setTargetId] = useState(parentId || '')
+  const [searchDocs, setSearchDocs] = useState<SearchDoc[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
+
+  // For orders: linked quotes
+  const [linkedQuoteId, setLinkedQuoteId] = useState('')
+  const [availableQuotes, setAvailableQuotes] = useState<SearchDoc[]>([])
+
+  // Validation state
+  const [validating, setValidating] = useState(false)
+  const [validateError, setValidateError] = useState('')
 
   // Live chrono during extraction
   useEffect(() => {
-    if (!extracting) { setChrono(0); return }
+    if (step !== 'extracting') { setChrono(0); return }
     const start = performance.now()
     const id = setInterval(() => setChrono(Math.round(performance.now() - start)), 100)
     return () => clearInterval(id)
-  }, [extracting])
+  }, [step])
+
+  // Load documents for "attach" mode search
+  useEffect(() => {
+    if (actionMode !== 'attach') return
+    const endpoint = DOC_ENDPOINTS[documentType]
+    orgGet<{ items: SearchDoc[] }>(endpoint, { page_size: 50, search: searchQuery || undefined })
+      .then(d => setSearchDocs(d.items))
+      .catch(() => {})
+  }, [actionMode, documentType, searchQuery])
+
+  // Load available quotes when in order mode
+  useEffect(() => {
+    if (documentType !== 'order') return
+    orgGet<{ items: SearchDoc[] }>('/quotes', { page_size: 50, status: 'accepted' })
+      .then(d => setAvailableQuotes(d.items))
+      .catch(() => {})
+  }, [documentType])
 
   // -- File handling ----------------------------------------------------------
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0]
-    if (!f) return
+  function setFileFromInput(f: File) {
     setFile(f)
     setExtractError('')
     setData(null)
+    setImportId(null)
 
     if (f.type.startsWith('image/')) {
       const reader = new FileReader()
@@ -101,27 +152,22 @@ export default function ImportDocumentModal({ documentType, onClose, onImported 
     }
   }
 
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]
+    if (f) setFileFromInput(f)
+  }
+
   function handleDrop(e: React.DragEvent) {
     e.preventDefault()
     const f = e.dataTransfer.files?.[0]
-    if (!f) return
-    setFile(f)
-    setExtractError('')
-    setData(null)
-
-    if (f.type.startsWith('image/')) {
-      const reader = new FileReader()
-      reader.onload = (ev) => setPreview(ev.target?.result as string)
-      reader.readAsDataURL(f)
-    } else {
-      setPreview(null)
-    }
+    if (f) setFileFromInput(f)
   }
 
   function clearFile() {
     setFile(null)
     setPreview(null)
     setData(null)
+    setImportId(null)
     setExtractError('')
   }
 
@@ -129,20 +175,23 @@ export default function ImportDocumentModal({ documentType, onClose, onImported 
 
   async function runExtract() {
     if (!file) return
-    setExtracting(true)
+    setStep('extracting')
     setExtractError('')
 
     try {
       const formData = new FormData()
       formData.append('file', file)
-      const resp = await orgClient.post<ExtractedData>('/ai/extract-document', formData)
-      setData(resp)
+      const resp = await orgClient.post<ExtractResponse>('/ai/extract-document', formData)
+      setImportId(resp.import_id)
+      setData(resp.extracted_json)
+      if (resp.suggested_client?.id) {
+        setClientId(resp.suggested_client.id)
+      }
       setStep('verify')
     } catch (err: unknown) {
       const msg = (err as { data?: { detail?: string } })?.data?.detail || 'Erreur lors de l\'extraction'
       setExtractError(String(msg))
-    } finally {
-      setExtracting(false)
+      setStep('upload')
     }
   }
 
@@ -178,28 +227,46 @@ export default function ImportDocumentModal({ documentType, onClose, onImported 
     })
   }, [])
 
-  // -- Import -----------------------------------------------------------------
+  // -- Validate / Reject ------------------------------------------------------
 
-  async function runImport() {
-    if (!data) return
-    setImporting(true)
-    setImportError('')
-
-    const endpoint = documentType === 'quote' ? '/quotes/import'
-      : documentType === 'invoice' ? '/invoices/import'
-      : '/orders/import'
+  async function handleValidate() {
+    if (!importId || !data) return
+    setValidating(true)
+    setValidateError('')
 
     try {
-      const resp = await orgClient.post<{ id: string }>(endpoint, data)
-      setCreatedId(resp.id)
+      const body: Record<string, unknown> = {
+        action: actionMode,
+        target_type: documentType,
+        client_id: clientId || undefined,
+        corrected_json: data,
+      }
+      if (actionMode === 'attach' && targetId) {
+        body.target_id = targetId
+      }
+      if (documentType === 'order' && linkedQuoteId) {
+        body.linked_quote_id = linkedQuoteId
+      }
+
+      const resp = await orgClient.post<{ id: string }>(`/imports/${importId}/validate`, body)
       setStep('done')
       onImported(resp.id)
     } catch (err: unknown) {
-      const msg = (err as { data?: { detail?: string } })?.data?.detail || 'Erreur lors de l\'import'
-      setImportError(String(msg))
+      const msg = (err as { data?: { detail?: string } })?.data?.detail || 'Erreur lors de la validation'
+      setValidateError(String(msg))
     } finally {
-      setImporting(false)
+      setValidating(false)
     }
+  }
+
+  async function handleReject() {
+    if (!importId) return
+    try {
+      await orgClient.post(`/imports/${importId}/reject`, {})
+    } catch {
+      // silent
+    }
+    onClose()
   }
 
   // -- Confidence badge -------------------------------------------------------
@@ -243,8 +310,9 @@ export default function ImportDocumentModal({ documentType, onClose, onImported 
         <div className="flex items-center gap-2 px-6 py-3 border-b border-gray-100 dark:border-gray-700">
           {[
             { key: 'upload', label: '1. Upload' },
-            { key: 'verify', label: '2. Verification' },
-            { key: 'done', label: '3. Import' },
+            { key: 'extracting', label: '2. Extraction' },
+            { key: 'verify', label: '3. Verification' },
+            { key: 'done', label: '4. Confirmation' },
           ].map((s, i) => (
             <div key={s.key} className="flex items-center gap-2">
               {i > 0 && <div className="w-8 h-px bg-gray-300 dark:bg-gray-600" />}
@@ -258,7 +326,7 @@ export default function ImportDocumentModal({ documentType, onClose, onImported 
         </div>
 
         <div className="p-6">
-          {/* ── Step 1: Upload ─────────────────────────────────────────────── */}
+          {/* -- Step 1: Upload ------------------------------------------------- */}
           {step === 'upload' && (
             <div className="space-y-4">
               {/* Drop zone */}
@@ -294,9 +362,9 @@ export default function ImportDocumentModal({ documentType, onClose, onImported 
 
               {file && (
                 <div className="flex gap-2">
-                  <button onClick={runExtract} disabled={extracting} className={BTN + ' flex-1'}>
-                    {extracting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                    {extracting ? `Extraction... ${(chrono / 1000).toFixed(1)}s` : 'Extraire les donnees'}
+                  <button onClick={runExtract} className={BTN + ' flex-1'}>
+                    <Upload className="w-4 h-4" />
+                    Extraire les donnees
                   </button>
                   <button onClick={clearFile} className={BTN_SECONDARY}>
                     <Trash2 className="w-4 h-4" />
@@ -313,9 +381,33 @@ export default function ImportDocumentModal({ documentType, onClose, onImported 
             </div>
           )}
 
-          {/* ── Step 2: Verification ──────────────────────────────────────── */}
+          {/* -- Step 2: Extracting -------------------------------------------- */}
+          {step === 'extracting' && (
+            <div className="flex flex-col items-center gap-4 py-12">
+              <Loader2 className="w-10 h-10 animate-spin text-kerpta" />
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Extraction en cours... {(chrono / 1000).toFixed(1)}s
+              </p>
+              <p className="text-xs text-gray-400 dark:text-gray-500">
+                L'IA analyse le document pour en extraire les donnees
+              </p>
+            </div>
+          )}
+
+          {/* -- Step 3: Verification ------------------------------------------ */}
           {step === 'verify' && data && (
             <div className="space-y-6">
+              {/* Client */}
+              <div>
+                <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Client</h4>
+                <ClientCombobox
+                  value={clientId}
+                  onChange={setClientId}
+                  className={INPUT}
+                  placeholder="Selectionner un client..."
+                />
+              </div>
+
               {/* Emetteur */}
               <div>
                 <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Emetteur</h4>
@@ -516,40 +608,122 @@ export default function ImportDocumentModal({ documentType, onClose, onImported 
                 </div>
               </div>
 
-              {/* Import error */}
-              {importError && (
+              {/* Action mode */}
+              <div>
+                <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Action</h4>
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="action-mode"
+                      checked={actionMode === 'create'}
+                      onChange={() => { setActionMode('create'); setTargetId('') }}
+                      className="text-kerpta focus:ring-kerpta"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                      Creer un nouveau {docLabel}
+                    </span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="action-mode"
+                      checked={actionMode === 'attach'}
+                      onChange={() => setActionMode('attach')}
+                      className="text-kerpta focus:ring-kerpta"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                      Attacher a un {docLabel} existant
+                    </span>
+                  </label>
+
+                  {actionMode === 'attach' && (
+                    <div className="ml-6">
+                      <label className={LABEL}>Rechercher un {docLabel}</label>
+                      <input
+                        className={INPUT}
+                        placeholder={`Rechercher par numero ou reference...`}
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                      />
+                      {searchDocs.length > 0 && (
+                        <select
+                          className={SELECT + ' mt-2'}
+                          value={targetId}
+                          onChange={e => setTargetId(e.target.value)}
+                        >
+                          <option value="">-- Selectionner --</option>
+                          {searchDocs.map(d => (
+                            <option key={d.id} value={d.id}>
+                              {d.display_reference || d.number || d.id} {d.client_name ? `- ${d.client_name}` : ''}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Linked quotes for orders */}
+                  {documentType === 'order' && actionMode === 'create' && availableQuotes.length > 0 && (
+                    <div className="mt-3">
+                      <label className={LABEL}>Lier a un devis (optionnel)</label>
+                      <select
+                        className={SELECT}
+                        value={linkedQuoteId}
+                        onChange={e => setLinkedQuoteId(e.target.value)}
+                      >
+                        <option value="">-- Aucun --</option>
+                        {availableQuotes.map(q => (
+                          <option key={q.id} value={q.id}>
+                            {q.number || q.id} {q.client_name ? `- ${q.client_name}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Validation error */}
+              {validateError && (
                 <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-600 dark:text-red-400 flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" />
-                  {importError}
+                  {validateError}
                 </div>
               )}
 
               {/* Actions */}
               <div className="flex justify-between pt-2">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setStep('upload'); setData(null); setImportId(null) }}
+                    className={BTN_SECONDARY}
+                  >
+                    Retour
+                  </button>
+                  <button onClick={handleReject} className={BTN_DANGER}>
+                    <XCircle className="w-4 h-4" />
+                    Rejeter
+                  </button>
+                </div>
                 <button
-                  onClick={() => setStep('upload')}
-                  className={BTN_SECONDARY}
-                >
-                  Retour
-                </button>
-                <button
-                  onClick={runImport}
-                  disabled={importing}
+                  onClick={handleValidate}
+                  disabled={validating || (actionMode === 'attach' && !targetId)}
                   className={BTN}
                 >
-                  {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                  {importing ? 'Import...' : `Importer comme ${docLabel}`}
+                  {validating ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                  {validating ? 'Validation...' : 'Valider'}
                 </button>
               </div>
             </div>
           )}
 
-          {/* ── Step 3: Done ──────────────────────────────────────────────── */}
-          {step === 'done' && createdId && (
+          {/* -- Step 4: Done -------------------------------------------------- */}
+          {step === 'done' && (
             <div className="flex flex-col items-center gap-4 py-8">
               <CheckCircle2 className="w-12 h-12 text-green-500" />
               <p className="text-sm text-gray-700 dark:text-gray-300">
-                Le {docLabel} a ete importe avec succes.
+                Le {docLabel} a ete {actionMode === 'create' ? 'cree' : 'attache'} avec succes.
               </p>
               <div className="flex gap-2">
                 <button onClick={onClose} className={BTN_SECONDARY}>
@@ -560,7 +734,7 @@ export default function ImportDocumentModal({ documentType, onClose, onImported 
                     const base = documentType === 'quote' ? '/app/quotes'
                       : documentType === 'invoice' ? '/app/invoices'
                       : '/app/orders'
-                    window.location.href = `${base}?id=${createdId}`
+                    window.location.href = `${base}?id=${importId}`
                   }}
                   className={BTN}
                 >
