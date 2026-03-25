@@ -270,8 +270,11 @@ async def sync_models(
             )
             _log.info("Modele supprime (absent du provider) : %s", row[1])
 
-    # Enregistrer chaque modele dans LiteLLM (si configure)
+    # Nettoyer LiteLLM : supprimer tous les modeles de ce provider puis re-enregistrer
     if litellm_url and litellm_key:
+        await _purge_provider_models_from_litellm(
+            litellm_url, litellm_key, provider_type,
+        )
         for m in models_data:
             await register_model_in_litellm(
                 litellm_url, litellm_key,
@@ -340,6 +343,53 @@ async def register_model_in_litellm(
     except Exception as exc:
         _log.warning("Erreur LiteLLM register model %s: %s", litellm_model_name, exc)
         return False
+
+
+async def _purge_provider_models_from_litellm(
+    litellm_url: str,
+    litellm_key: str,
+    provider_type: str,
+) -> int:
+    """Supprime TOUS les modeles d'un provider dans LiteLLM.
+
+    Recupere la liste des modeles via /model/info, filtre par provider,
+    et supprime chacun par son ID interne LiteLLM.
+    """
+    ll_provider = _litellm_provider(provider_type)
+    deleted = 0
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            # Lister tous les modeles dans LiteLLM
+            resp = await client.get(
+                f"{litellm_url.rstrip('/')}/v1/model/info",
+                headers={"Authorization": f"Bearer {litellm_key}"},
+            )
+            if resp.status_code != 200:
+                _log.warning("LiteLLM /model/info erreur %s", resp.status_code)
+                return 0
+
+            all_models = resp.json().get("data", [])
+
+            # Filtrer les modeles de ce provider
+            for m in all_models:
+                model_name = m.get("litellm_params", {}).get("model", "")
+                model_info_id = m.get("model_info", {}).get("id")
+                if model_name.startswith(f"{ll_provider}/") and model_info_id:
+                    del_resp = await client.post(
+                        f"{litellm_url.rstrip('/')}/model/delete",
+                        json={"id": model_info_id},
+                        headers={"Authorization": f"Bearer {litellm_key}"},
+                    )
+                    if del_resp.status_code in (200, 201):
+                        deleted += 1
+                    else:
+                        _log.warning("LiteLLM delete %s: %s", model_info_id, del_resp.status_code)
+    except Exception as exc:
+        _log.warning("Erreur purge LiteLLM provider %s: %s", provider_type, exc)
+
+    if deleted:
+        _log.info("LiteLLM purge : %d modeles supprimes pour provider %s", deleted, provider_type)
+    return deleted
 
 
 async def remove_model_from_litellm(
