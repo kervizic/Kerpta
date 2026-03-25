@@ -183,7 +183,43 @@ export default function ImportDocumentModal({ documentType, parentId, onClose, o
       formData.append('file', file)
       const resp = await orgClient.post<ExtractResponse>('/ai/extract-document', formData)
       setImportId(resp.import_id)
-      setData(resp.extracted_json)
+
+      // Mapper le JSON Factur-X vers l'interface ExtractedData
+      const raw = resp.extracted_json as Record<string, unknown>
+      const parties = (raw.parties || {}) as Record<string, unknown>
+      const emetteur = (parties.emetteur || {}) as Record<string, unknown>
+      const emetteurAddr = (emetteur.adresse || {}) as Record<string, unknown>
+      const emetteurIds = (emetteur.identifiants || {}) as Record<string, unknown>
+      const doc = (raw.document || {}) as Record<string, unknown>
+      const totaux = (raw.totaux || {}) as Record<string, unknown>
+      const paiement = (raw.paiement || {}) as Record<string, unknown>
+      const meta = (raw.meta || {}) as Record<string, unknown>
+      const rawLines = (raw.lignes || raw.lines || []) as Record<string, unknown>[]
+
+      const mapped: ExtractedData = {
+        supplier_name: (emetteur.designation as string) || null,
+        supplier_address: [emetteurAddr.rue, [emetteurAddr.code_postal, emetteurAddr.ville].filter(Boolean).join(' ')].filter(Boolean).join(', ') || null,
+        supplier_siret: (emetteurIds.siret as string) || (emetteurIds.siren as string) || null,
+        document_number: (doc.numero as string) || null,
+        issue_date: (doc.date_emission as string) || null,
+        due_date: (doc.date_echeance as string) || null,
+        total_ht: (totaux.total_ht as number) ?? null,
+        total_tva: (totaux.total_tva as number) ?? null,
+        total_ttc: (totaux.total_ttc as number) ?? null,
+        payment_method: (paiement.mode as string) || null,
+        iban: (paiement.iban as string) || null,
+        confidence: (meta.confiance as number) ?? null,
+        lines: rawLines.map(l => ({
+          description: (l.designation as string) || (l.description as string) || '',
+          quantity: (l.quantite as number) ?? (l.quantity as number) ?? 1,
+          unit: (l.unite as string) || null,
+          unit_price: (l.prix_unitaire_ht as number) ?? (l.unit_price as number) ?? 0,
+          vat_rate: (l.taux_tva as number) ?? (l.vat_rate as number) ?? 20,
+          total_ht: (l.montant_ht as number) ?? (l.total_ht as number) ?? 0,
+        })),
+      }
+
+      setData(mapped)
       if (resp.suggested_client?.id) {
         setClientId(resp.suggested_client.id)
       }
