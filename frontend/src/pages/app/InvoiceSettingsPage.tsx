@@ -14,7 +14,7 @@ import PageLayout from '@/components/app/PageLayout'
 import BillingProfileModal, { type BillingProfileData } from '@/components/app/BillingProfileModal'
 import ModalOverlay from '@/components/app/ModalOverlay'
 
-import { INPUT, BTN, BTN_SM } from '@/lib/formStyles'
+import { INPUT, SELECT, BTN, BTN_SM } from '@/lib/formStyles'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -651,6 +651,150 @@ function RoundingSection() {
   )
 }
 
+// ── Section Types de commande ────────────────────────────────────────────
+
+interface OrderType {
+  id: string
+  label: string
+  billing_mode: 'one_shot' | 'progress' | 'recurring'
+  is_default: boolean
+  position: number
+  is_archived: boolean
+}
+
+const BILLING_MODE_LABELS: Record<string, { label: string; cls: string }> = {
+  one_shot: { label: 'Ponctuelle', cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' },
+  progress: { label: 'Situations', cls: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400' },
+  recurring: { label: 'Recurrente', cls: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400' },
+}
+
+function OrderTypesSection() {
+  const qc = useQueryClient()
+  const { data: items = [], isLoading: loading } = useQuery({
+    queryKey: ['order-types'],
+    queryFn: () => orgGet<OrderType[]>('/orders/types'),
+  })
+  const [modal, setModal] = useState<OrderType | 'new' | null>(null)
+  const [formLabel, setFormLabel] = useState('')
+  const [formMode, setFormMode] = useState<'one_shot' | 'progress' | 'recurring'>('one_shot')
+  const [saving, setSaving] = useState(false)
+
+  function openModal(item: OrderType | 'new') {
+    if (item === 'new') {
+      setFormLabel('')
+      setFormMode('one_shot')
+    } else {
+      setFormLabel(item.label)
+      setFormMode(item.billing_mode)
+    }
+    setModal(item)
+  }
+
+  async function handleSave() {
+    if (!formLabel.trim()) return
+    setSaving(true)
+    try {
+      const body = { label: formLabel.trim(), billing_mode: formMode }
+      if (modal === 'new') {
+        await orgPost('/orders/types', body)
+      } else if (modal) {
+        await orgPatch(`/orders/types/${(modal as OrderType).id}`, body)
+      }
+      setModal(null)
+      await qc.invalidateQueries({ queryKey: ['order-types'] })
+    } catch { /* */ }
+    setSaving(false)
+  }
+
+  async function handleArchive(id: string) {
+    if (!confirm('Archiver ce type de commande ?')) return
+    try {
+      await orgDelete(`/orders/types/${id}`)
+      await qc.invalidateQueries({ queryKey: ['order-types'] })
+    } catch { /* */ }
+  }
+
+  return (
+    <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">Types de commande</h2>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Commande, Contrat, Abonnement, Bail, Marche...</p>
+        </div>
+        <button onClick={() => openModal('new')} className={BTN_SM}>
+          <Plus className="w-3.5 h-3.5" /> Ajouter
+        </button>
+      </div>
+      {loading ? (
+        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-kerpta" /></div>
+      ) : items.length === 0 ? (
+        <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-6">Aucun type de commande</p>
+      ) : (
+        <table className="w-full text-sm">
+          <thead><tr className="border-b border-gray-100 dark:border-gray-700 text-left text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase">
+            <th className="px-3 py-2">Label</th>
+            <th className="px-3 py-2">Mode de facturation</th>
+            <th className="px-3 py-2"></th>
+          </tr></thead>
+          <tbody>{items.filter((t) => !t.is_archived).map((t) => {
+            const mode = BILLING_MODE_LABELS[t.billing_mode] || BILLING_MODE_LABELS.one_shot
+            return (
+              <tr key={t.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50/50 dark:hover:bg-gray-700/50">
+                <td className="px-3 py-2 font-medium text-gray-900 dark:text-white">{t.label}</td>
+                <td className="px-3 py-2">
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${mode.cls}`}>{mode.label}</span>
+                </td>
+                <td className="px-3 py-2">
+                  <div className="flex gap-1 justify-end">
+                    <button onClick={() => openModal(t)} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700"><Pencil className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" /></button>
+                    <button onClick={() => handleArchive(t.id)} className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/30"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
+                  </div>
+                </td>
+              </tr>
+            )
+          })}</tbody>
+        </table>
+      )}
+
+      {modal !== null && (
+        <Modal title={modal === 'new' ? 'Nouveau type de commande' : 'Modifier le type'} onClose={() => setModal(null)}>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Label</label>
+              <input
+                type="text"
+                value={formLabel}
+                onChange={(e) => setFormLabel(e.target.value)}
+                placeholder="Ex: Contrat, Abonnement, Bail..."
+                className={INPUT}
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Mode de facturation</label>
+              <select
+                value={formMode}
+                onChange={(e) => setFormMode(e.target.value as 'one_shot' | 'progress' | 'recurring')}
+                className={SELECT}
+              >
+                <option value="one_shot">Ponctuelle</option>
+                <option value="progress">Situations</option>
+                <option value="recurring">Recurrente</option>
+              </select>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" onClick={() => setModal(null)} className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">Annuler</button>
+              <button onClick={handleSave} disabled={saving || !formLabel.trim()} className={BTN}>
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </section>
+  )
+}
+
 // ── Page principale ──────────────────────────────────────────────────────
 
 export default function InvoiceSettingsPage() {
@@ -660,6 +804,7 @@ export default function InvoiceSettingsPage() {
       title="Paramètres de vente"
     >
       <div className="space-y-6">
+        <OrderTypesSection />
         <BankAccountsSection />
         <BillingProfilesSection />
         <PaymentMethodsSection />

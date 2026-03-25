@@ -6,7 +6,7 @@ import { useEffect, useState, useMemo, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Loader2, X, Plus, FileText, Receipt, Archive, ArchiveRestore,
-  ShoppingCart, ChevronLeft, ChevronRight,
+  ShoppingCart, ChevronLeft, ChevronRight, Pencil,
 } from 'lucide-react'
 import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
 import ClientCombobox from '@/components/app/ClientCombobox'
@@ -66,6 +66,30 @@ interface OrderDetail extends Order {
   linked_quotes: LinkedDoc[]
   linked_invoices: LinkedDoc[]
 }
+
+interface OrderType {
+  id: string
+  label: string
+  billing_mode: 'one_shot' | 'progress' | 'recurring'
+  is_default: boolean
+  position: number
+  is_archived: boolean
+}
+
+const BILLING_MODE_LABELS: Record<string, { label: string; cls: string }> = {
+  one_shot: { label: 'Ponctuelle', cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' },
+  progress: { label: 'Situations', cls: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400' },
+  recurring: { label: 'Recurrente', cls: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400' },
+}
+
+const RECURRENCE_OPTIONS = [
+  { value: 'weekly', label: 'Hebdomadaire' },
+  { value: 'monthly', label: 'Mensuel' },
+  { value: 'quarterly', label: 'Trimestriel' },
+  { value: 'biannual', label: 'Semestriel' },
+  { value: 'annual', label: 'Annuel' },
+  { value: 'custom', label: 'Personnalise' },
+]
 
 // -- Constantes ---------------------------------------------------------------
 
@@ -492,6 +516,25 @@ function OrderDetailOverlay({
   const [notes, setNotes] = useState('')
   const [lines, setLines] = useState<OrderFormLine[]>([emptyOrderLine()])
 
+  // Order type state
+  const [orderTypeId, setOrderTypeId] = useState('')
+  const [billingMode, setBillingMode] = useState<'one_shot' | 'progress' | 'recurring'>('one_shot')
+  const { data: orderTypes = [] } = useQuery({
+    queryKey: ['order-types'],
+    queryFn: () => orgGet<OrderType[]>('/orders/types'),
+  })
+
+  // Recurring fields
+  const [recurrenceFrequency, setRecurrenceFrequency] = useState('monthly')
+  const [recurrenceCustomDays, setRecurrenceCustomDays] = useState('')
+  const [recurrenceStartDate, setRecurrenceStartDate] = useState('')
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState('')
+  const [recurrenceBillingDay, setRecurrenceBillingDay] = useState('')
+
+  // Progress fields
+  const [progressInvoiced, setProgressInvoiced] = useState('0')
+  const [progressRetention, setProgressRetention] = useState('0')
+
   // Load order data
   useEffect(() => {
     setLoading(true)
@@ -653,6 +696,40 @@ function OrderDetailOverlay({
                 />
               </div>
               <div>
+                <label className={LABEL}>Type</label>
+                <div className="flex items-center gap-1.5">
+                  <select
+                    className={`flex-1 ${SELECT}`}
+                    value={orderTypeId}
+                    onChange={e => {
+                      setOrderTypeId(e.target.value)
+                      const ot = orderTypes.find(t => t.id === e.target.value)
+                      if (ot) setBillingMode(ot.billing_mode)
+                    }}
+                    disabled={!isEditable}
+                  >
+                    <option value="">-- Aucun --</option>
+                    {orderTypes.filter(t => !t.is_archived).map(t => (
+                      <option key={t.id} value={t.id}>{t.label}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => { window.location.href = '/app/config/facturation' }}
+                    className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition shrink-0"
+                    title="Configurer les types"
+                  >
+                    <Pencil className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
+                  </button>
+                </div>
+                {orderTypeId && (
+                  <div className="mt-1">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${(BILLING_MODE_LABELS[billingMode] || BILLING_MODE_LABELS.one_shot).cls}`}>
+                      {(BILLING_MODE_LABELS[billingMode] || BILLING_MODE_LABELS.one_shot).label}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div>
                 <label className={LABEL}>Date d'emission</label>
                 <input
                   className={INPUT}
@@ -681,6 +758,106 @@ function OrderDetailOverlay({
                 <span className="text-sm text-gray-700 dark:text-gray-300 block mt-1">{SOURCE_LABELS[order.source] || order.source}</span>
               </div>
             </div>
+
+            {/* Section Recurrence */}
+            {billingMode === 'recurring' && (
+              <div className="bg-purple-50/50 dark:bg-purple-900/10 border border-purple-200 dark:border-purple-800 rounded-xl p-4">
+                <h3 className="text-xs font-semibold text-purple-700 dark:text-purple-400 uppercase mb-3">Recurrence</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className={LABEL}>Frequence</label>
+                    <select
+                      className={SELECT}
+                      value={recurrenceFrequency}
+                      onChange={e => setRecurrenceFrequency(e.target.value)}
+                      disabled={!isEditable}
+                    >
+                      {RECURRENCE_OPTIONS.map(o => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {recurrenceFrequency === 'custom' && (
+                    <div>
+                      <label className={LABEL}>Tous les X jours</label>
+                      <input
+                        className={INPUT}
+                        type="number"
+                        min="1"
+                        placeholder="Ex: 45"
+                        value={recurrenceCustomDays}
+                        onChange={e => setRecurrenceCustomDays(e.target.value)}
+                        disabled={!isEditable}
+                      />
+                    </div>
+                  )}
+                  <div>
+                    <label className={LABEL}>Date de debut</label>
+                    <input
+                      className={INPUT}
+                      type="date"
+                      value={recurrenceStartDate}
+                      onChange={e => setRecurrenceStartDate(e.target.value)}
+                      disabled={!isEditable}
+                    />
+                  </div>
+                  <div>
+                    <label className={LABEL}>Date de fin (optionnel)</label>
+                    <input
+                      className={INPUT}
+                      type="date"
+                      value={recurrenceEndDate}
+                      onChange={e => setRecurrenceEndDate(e.target.value)}
+                      disabled={!isEditable}
+                    />
+                  </div>
+                  <div>
+                    <label className={LABEL}>Jour de facturation</label>
+                    <input
+                      className={INPUT}
+                      type="number"
+                      min="1"
+                      max="31"
+                      placeholder="Ex: 1"
+                      value={recurrenceBillingDay}
+                      onChange={e => setRecurrenceBillingDay(e.target.value)}
+                      disabled={!isEditable}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Section Avancement */}
+            {billingMode === 'progress' && (
+              <div className="bg-blue-50/50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
+                <h3 className="text-xs font-semibold text-blue-700 dark:text-blue-400 uppercase mb-3">Avancement</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className={LABEL}>Avancement facture (%)</label>
+                    <input
+                      className={INPUT + ' bg-gray-50 dark:bg-gray-900'}
+                      type="number"
+                      value={progressInvoiced}
+                      disabled
+                    />
+                  </div>
+                  <div>
+                    <label className={LABEL}>Retenue de garantie (%)</label>
+                    <input
+                      className={INPUT}
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={progressRetention}
+                      onChange={e => setProgressRetention(e.target.value)}
+                      disabled={!isEditable}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Devis lies */}
             {order.linked_quotes.length > 0 && (
@@ -914,6 +1091,21 @@ function CreateOrderModal({ onClose, onCreated }: { onClose: () => void; onCreat
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  // Order type
+  const [orderTypeId, setOrderTypeId] = useState('')
+  const [billingMode, setBillingMode] = useState<'one_shot' | 'progress' | 'recurring'>('one_shot')
+  const { data: orderTypes = [] } = useQuery({
+    queryKey: ['order-types'],
+    queryFn: () => orgGet<OrderType[]>('/orders/types'),
+  })
+
+  // Recurring fields
+  const [recurrenceFrequency, setRecurrenceFrequency] = useState('monthly')
+  const [recurrenceCustomDays, setRecurrenceCustomDays] = useState('')
+  const [recurrenceStartDate, setRecurrenceStartDate] = useState('')
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState('')
+  const [recurrenceBillingDay, setRecurrenceBillingDay] = useState('')
+
   async function handleSave() {
     if (!clientId) { setError('Selectionnez un client'); return }
     setSaving(true)
@@ -922,6 +1114,7 @@ function CreateOrderModal({ onClose, onCreated }: { onClose: () => void; onCreat
       await orgPost('/orders', {
         client_id: clientId,
         client_reference: clientRef || null,
+        order_type_id: orderTypeId || null,
         source,
         issue_date: issueDate,
         notes: notes || null,
@@ -955,6 +1148,41 @@ function CreateOrderModal({ onClose, onCreated }: { onClose: () => void; onCreat
           </div>
 
           <div>
+            <label className={LABEL}>Type</label>
+            <div className="flex items-center gap-1.5">
+              <select
+                className={`flex-1 ${SELECT}`}
+                value={orderTypeId}
+                onChange={e => {
+                  setOrderTypeId(e.target.value)
+                  const ot = orderTypes.find(t => t.id === e.target.value)
+                  if (ot) setBillingMode(ot.billing_mode)
+                  else setBillingMode('one_shot')
+                }}
+              >
+                <option value="">-- Aucun --</option>
+                {orderTypes.filter(t => !t.is_archived).map(t => (
+                  <option key={t.id} value={t.id}>{t.label}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => { window.location.href = '/app/config/facturation' }}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition shrink-0"
+                title="Configurer les types"
+              >
+                <Pencil className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
+              </button>
+            </div>
+            {orderTypeId && (
+              <div className="mt-1">
+                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${(BILLING_MODE_LABELS[billingMode] || BILLING_MODE_LABELS.one_shot).cls}`}>
+                  {(BILLING_MODE_LABELS[billingMode] || BILLING_MODE_LABELS.one_shot).label}
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div>
             <label className={LABEL}>Reference BC client</label>
             <input className={INPUT} placeholder="Ex: BC-42-2026" value={clientRef} onChange={e => setClientRef(e.target.value)} />
           </div>
@@ -971,6 +1199,50 @@ function CreateOrderModal({ onClose, onCreated }: { onClose: () => void; onCreat
             <label className={LABEL}>Date</label>
             <input className={INPUT} type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)} />
           </div>
+
+          {/* Section Recurrence (creation) */}
+          {billingMode === 'recurring' && (
+            <div className="bg-purple-50/50 dark:bg-purple-900/10 border border-purple-200 dark:border-purple-800 rounded-xl p-4 space-y-3">
+              <h4 className="text-xs font-semibold text-purple-700 dark:text-purple-400 uppercase">Recurrence</h4>
+              <div>
+                <label className={LABEL}>Frequence</label>
+                <select
+                  className={SELECT}
+                  value={recurrenceFrequency}
+                  onChange={e => setRecurrenceFrequency(e.target.value)}
+                >
+                  {RECURRENCE_OPTIONS.map(o => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+              {recurrenceFrequency === 'custom' && (
+                <div>
+                  <label className={LABEL}>Tous les X jours</label>
+                  <input
+                    className={INPUT}
+                    type="number"
+                    min="1"
+                    placeholder="Ex: 45"
+                    value={recurrenceCustomDays}
+                    onChange={e => setRecurrenceCustomDays(e.target.value)}
+                  />
+                </div>
+              )}
+              <div>
+                <label className={LABEL}>Date de debut</label>
+                <input className={INPUT} type="date" value={recurrenceStartDate} onChange={e => setRecurrenceStartDate(e.target.value)} />
+              </div>
+              <div>
+                <label className={LABEL}>Date de fin (optionnel)</label>
+                <input className={INPUT} type="date" value={recurrenceEndDate} onChange={e => setRecurrenceEndDate(e.target.value)} />
+              </div>
+              <div>
+                <label className={LABEL}>Jour de facturation</label>
+                <input className={INPUT} type="number" min="1" max="31" placeholder="Ex: 1" value={recurrenceBillingDay} onChange={e => setRecurrenceBillingDay(e.target.value)} />
+              </div>
+            </div>
+          )}
 
           <div>
             <label className={LABEL}>Notes</label>
