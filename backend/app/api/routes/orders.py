@@ -9,10 +9,52 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import OrgContext, get_org_context
-from app.schemas.order import OrderCreate, OrderDetailOut, OrderUpdate
+from app.schemas.order import OrderCreate, OrderDetailOut, OrderTypeCreate, OrderTypeUpdate, OrderUpdate
 from app.services import orders as svc
 
 router = APIRouter(prefix="/api/v1/orders", tags=["orders"])
+
+
+# ── Types de commande ────────────────────────────────────────────────────────
+
+
+@router.get("/types")
+async def list_order_types(
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await svc.list_order_types(ctx.org_id, db)
+
+
+@router.post("/types", status_code=201)
+async def create_order_type(
+    data: OrderTypeCreate,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await svc.create_order_type(ctx.org_id, data, db)
+
+
+@router.patch("/types/{type_id}")
+async def update_order_type(
+    type_id: str,
+    data: OrderTypeUpdate,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await svc.update_order_type(ctx.org_id, type_id, data, db)
+
+
+@router.delete("/types/{type_id}")
+async def delete_order_type(
+    type_id: str,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await svc.delete_order_type(ctx.org_id, type_id, db)
+
+
+# ── Commandes ────────────────────────────────────────────────────────────────
 
 
 @router.get("")

@@ -10,6 +10,33 @@ from decimal import Decimal
 from pydantic import BaseModel, ConfigDict, Field
 
 
+# ── Types de commande ────────────────────────────────────────────────────────
+
+
+class OrderTypeCreate(BaseModel):
+    label: str = Field(..., min_length=1, max_length=100)
+    billing_mode: str = Field("one_shot", pattern=r"^(one_shot|progress|recurring)$")
+    is_default: bool = False
+
+
+class OrderTypeUpdate(BaseModel):
+    label: str | None = Field(None, min_length=1, max_length=100)
+    billing_mode: str | None = Field(None, pattern=r"^(one_shot|progress|recurring)$")
+    is_default: bool | None = None
+    position: int | None = None
+
+
+class OrderTypeOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    label: str
+    billing_mode: str
+    is_default: bool
+    position: int
+    is_archived: bool = False
+
+
 # ── Lignes ────────────────────────────────────────────────────────────────────
 
 
@@ -48,6 +75,7 @@ class OrderLineOut(BaseModel):
 class OrderCreate(BaseModel):
     client_id: str
     contract_id: str | None = None
+    order_type_id: str | None = None
     client_reference: str | None = Field(None, max_length=255)
     source: str = Field(..., pattern=r"^(quote_validation|quote_invoice|client_document|manual)$")
     issue_date: date
@@ -61,6 +89,7 @@ class OrderCreate(BaseModel):
 
 class OrderUpdate(BaseModel):
     client_id: str | None = None
+    order_type_id: str | None = None
     client_reference: str | None = Field(None, max_length=255)
     issue_date: date | None = None
     delivery_date: date | None = None
@@ -69,6 +98,18 @@ class OrderUpdate(BaseModel):
     notes: str | None = None
     status: str | None = Field(None, pattern=r"^(draft|confirmed|cancelled)$")
     lines: list[OrderLineIn] | None = None
+    # Facturation recurrente
+    recurring_frequency: str | None = Field(
+        None, pattern=r"^(weekly|monthly|quarterly|biannual|yearly|custom)$"
+    )
+    recurring_interval_days: int | None = Field(None, ge=1)
+    recurring_day: int | None = Field(None, ge=1, le=31)
+    recurring_start: date | None = None
+    recurring_end: date | None = None
+    recurring_next_date: date | None = None
+    # Facturation par avancement
+    progress_total_pct: Decimal | None = Field(None, ge=0, le=100)
+    retention_pct: Decimal | None = Field(None, ge=0, le=100)
 
 
 class OrderOut(BaseModel):
@@ -94,6 +135,10 @@ class OrderOut(BaseModel):
     is_archived: bool = False
     created_at: datetime
     updated_at: datetime
+    # Type et mode de facturation
+    order_type_id: str | None = None
+    order_type_label: str | None = None
+    billing_mode: str = "one_shot"
 
 
 class LinkedQuote(BaseModel):
@@ -111,3 +156,13 @@ class OrderDetailOut(OrderOut):
     lines: list[OrderLineOut] = []
     linked_quotes: list[LinkedQuote] = []
     linked_invoices: list[LinkedInvoice] = []
+    # Champs recurrence
+    recurring_frequency: str | None = None
+    recurring_interval_days: int | None = None
+    recurring_day: int | None = None
+    recurring_start: date | None = None
+    recurring_end: date | None = None
+    recurring_next_date: date | None = None
+    # Champs avancement
+    progress_total_pct: Decimal = Decimal("0")
+    retention_pct: Decimal = Decimal("0")

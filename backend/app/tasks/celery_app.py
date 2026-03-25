@@ -12,6 +12,7 @@ L'instance `celery` est importée par :
 from __future__ import annotations
 
 from celery import Celery
+from celery.schedules import crontab
 
 from app.core.config import settings
 
@@ -23,6 +24,7 @@ celery = Celery(
         # "app.tasks.email",
         # "app.tasks.pdf",
         # "app.tasks.ocr",
+        "app.tasks.recurring_invoices",
     ],
 )
 
@@ -32,11 +34,14 @@ celery.conf.update(
     result_serializer="json",
     timezone="Europe/Paris",
     enable_utc=True,
-    # Retry automatique sur les tâches non acquittées
+    # Retry automatique sur les taches non acquittees
     task_acks_late=True,
     task_reject_on_worker_lost=True,
-    # ── Celery Beat — tâches planifiées ────────────────────────────────────────
-    # Le cache SIRENE est maintenu en lazy caching par FastAPI (get_company_details).
-    # Pas de tâche nocturne — les données sont rafraîchies à la consultation.
-    beat_schedule={},
+    # ── Celery Beat - taches planifiees ────────────────────────────────────────
+    beat_schedule={
+        "generate-recurring-invoices": {
+            "task": "app.tasks.recurring_invoices.generate_recurring_invoices",
+            "schedule": crontab(hour=6, minute=0),  # Tous les jours a 6h du matin
+        },
+    },
 )

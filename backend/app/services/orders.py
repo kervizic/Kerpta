@@ -17,7 +17,7 @@ from fastapi import HTTPException
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.schemas.order import OrderCreate, OrderLineIn, OrderUpdate
+from app.schemas.order import OrderCreate, OrderLineIn, OrderTypeCreate, OrderTypeUpdate, OrderUpdate
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -125,9 +125,12 @@ async def list_orders(
                    o.discount_type, o.discount_value,
                    o.notes, o.is_archived,
                    o.created_at, o.updated_at,
-                   o.contract_id::text
+                   o.contract_id::text,
+                   o.order_type_id::text, ot.label AS order_type_label,
+                   o.billing_mode
             FROM orders o
             LEFT JOIN clients c ON c.id = o.client_id
+            LEFT JOIN order_types ot ON ot.id = o.order_type_id
             WHERE {where}
             ORDER BY o.created_at DESC
             LIMIT :limit OFFSET :offset
@@ -168,6 +171,9 @@ async def list_orders(
             "created_at": r[15],
             "updated_at": r[16],
             "contract_id": r[17],
+            "order_type_id": r[18],
+            "order_type_label": r[19],
+            "billing_mode": r[20],
         })
 
     return {"items": items, "total": total, "page": page, "page_size": page_size}
@@ -189,9 +195,16 @@ async def get_order(
                    o.discount_type, o.discount_value,
                    o.notes, o.client_document_url, o.is_archived,
                    o.created_at, o.updated_at,
-                   o.contract_id::text
+                   o.contract_id::text,
+                   o.order_type_id::text, ot.label AS order_type_label,
+                   o.billing_mode,
+                   o.recurring_frequency, o.recurring_interval_days,
+                   o.recurring_day, o.recurring_start, o.recurring_end,
+                   o.recurring_next_date,
+                   o.progress_total_pct, o.retention_pct
             FROM orders o
             LEFT JOIN clients c ON c.id = o.client_id
+            LEFT JOIN order_types ot ON ot.id = o.order_type_id
             WHERE o.id = :oid AND o.organization_id = :org_id
         """),
         {"oid": order_id, "org_id": str(org_id)},
@@ -262,6 +275,17 @@ async def get_order(
         "created_at": r[17],
         "updated_at": r[18],
         "contract_id": r[19],
+        "order_type_id": r[20],
+        "order_type_label": r[21],
+        "billing_mode": r[22],
+        "recurring_frequency": r[23],
+        "recurring_interval_days": r[24],
+        "recurring_day": r[25],
+        "recurring_start": r[26],
+        "recurring_end": r[27],
+        "recurring_next_date": r[28],
+        "progress_total_pct": r[29],
+        "retention_pct": r[30],
         "lines": lines,
         "linked_quotes": linked_quotes,
         "linked_invoices": linked_invoices,
@@ -285,10 +309,22 @@ async def create_order(
         total_vat += calc["total_vat"]
     total_ttc = subtotal_ht + total_vat
 
+    # Recuperer le billing_mode depuis le type de commande si fourni
+    billing_mode = "one_shot"
+    if data.order_type_id:
+        ot_result = await db.execute(
+            text("SELECT billing_mode FROM order_types WHERE id = :tid AND organization_id = :org_id"),
+            {"tid": data.order_type_id, "org_id": str(org_id)},
+        )
+        ot_row = ot_result.fetchone()
+        if ot_row:
+            billing_mode = ot_row[0]
+
     await db.execute(
         text("""
             INSERT INTO orders (
                 id, organization_id, client_id, contract_id,
+                order_type_id, billing_mode,
                 client_reference, source, status,
                 issue_date, delivery_date,
                 subtotal_ht, total_vat, total_ttc,
@@ -296,6 +332,7 @@ async def create_order(
                 notes, created_at, updated_at
             ) VALUES (
                 :id, :org_id, :client_id, :contract_id,
+                :order_type_id, :billing_mode,
                 :client_ref, :source, 'draft',
                 :issue_date, :delivery_date,
                 :ht, :vat, :ttc,
@@ -308,6 +345,8 @@ async def create_order(
             "org_id": str(org_id),
             "client_id": data.client_id,
             "contract_id": data.contract_id,
+            "order_type_id": data.order_type_id,
+            "billing_mode": billing_mode,
             "client_ref": data.client_reference,
             "source": data.source,
             "issue_date": data.issue_date,
@@ -488,6 +527,18 @@ async def update_order(
     updates = []
     params: dict = {"oid": order_id, "org_id": str(org_id)}
 
+    if data.order_type_id is not None:
+        updates.append("order_type_id = :order_type_id")
+        params["order_type_id"] = data.order_type_id
+        # Copier le billing_mode du type
+        ot_result = await db.execute(
+            text("SELECT billing_mode FROM order_types WHERE id = :tid AND organization_id = :org_id"),
+            {"tid": data.order_type_id, "org_id": str(org_id)},
+        )
+        ot_row = ot_result.fetchone()
+        if ot_row:
+            updates.append("billing_mode = :billing_mode")
+            params["billing_mode"] = ot_row[0]
     if data.client_id is not None:
         updates.append("client_id = :client_id")
         params["client_id"] = data.client_id
@@ -512,6 +563,28 @@ async def update_order(
     if data.status is not None:
         updates.append("status = :status")
         params["status"] = data.status
+
+    # Champs facturation recurrente
+    recurring_fields = {
+        "recurring_frequency": data.recurring_frequency,
+        "recurring_interval_days": data.recurring_interval_days,
+        "recurring_day": data.recurring_day,
+        "recurring_start": data.recurring_start,
+        "recurring_end": data.recurring_end,
+        "recurring_next_date": data.recurring_next_date,
+    }
+    for field_name, field_value in recurring_fields.items():
+        if field_value is not None:
+            updates.append(f"{field_name} = :{field_name}")
+            params[field_name] = field_value
+
+    # Champs facturation par avancement
+    if data.progress_total_pct is not None:
+        updates.append("progress_total_pct = :progress_total_pct")
+        params["progress_total_pct"] = str(data.progress_total_pct)
+    if data.retention_pct is not None:
+        updates.append("retention_pct = :retention_pct")
+        params["retention_pct"] = str(data.retention_pct)
 
     # Remplacement complet des lignes si fournies
     if data.lines is not None:
@@ -768,3 +841,139 @@ async def archive_orders(
         )
     await db.commit()
     return {"archived": len(order_ids)}
+
+
+# ── Types de commande (CRUD) ─────────────────────────────────────────────────
+
+
+DEFAULT_ORDER_TYPES = [
+    {"label": "Commande", "billing_mode": "one_shot", "is_default": True, "position": 0},
+    {"label": "Contrat", "billing_mode": "progress", "is_default": False, "position": 1},
+    {"label": "Abonnement", "billing_mode": "recurring", "is_default": False, "position": 2},
+    {"label": "Bail", "billing_mode": "recurring", "is_default": False, "position": 3},
+    {"label": "Marche", "billing_mode": "progress", "is_default": False, "position": 4},
+]
+
+
+async def seed_default_order_types(org_id: uuid.UUID, db: AsyncSession) -> None:
+    """Cree les types de commande par defaut pour une organisation."""
+    for ot in DEFAULT_ORDER_TYPES:
+        await db.execute(
+            text("""
+                INSERT INTO order_types (id, organization_id, label, billing_mode, is_default, position)
+                VALUES (:id, :org_id, :label, :mode, :default, :pos)
+            """),
+            {
+                "id": str(uuid.uuid4()),
+                "org_id": str(org_id),
+                "label": ot["label"],
+                "mode": ot["billing_mode"],
+                "default": ot["is_default"],
+                "pos": ot["position"],
+            },
+        )
+
+
+async def list_order_types(org_id: uuid.UUID, db: AsyncSession) -> list[dict]:
+    """Liste les types de commande non archives."""
+    result = await db.execute(
+        text("""
+            SELECT id::text, label, billing_mode, is_default, position, is_archived
+            FROM order_types
+            WHERE organization_id = :org_id AND is_archived = false
+            ORDER BY position, label
+        """),
+        {"org_id": str(org_id)},
+    )
+    rows = [dict(row._mapping) for row in result.fetchall()]
+    if not rows:
+        # Auto-seed les valeurs par defaut pour les orgs existantes
+        await seed_default_order_types(org_id, db)
+        await db.commit()
+        return await list_order_types(org_id, db)
+    return rows
+
+
+async def create_order_type(
+    org_id: uuid.UUID, data: OrderTypeCreate, db: AsyncSession
+) -> dict:
+    type_id = uuid.uuid4()
+
+    pos_result = await db.execute(
+        text("SELECT COALESCE(MAX(position), -1) + 1 FROM order_types WHERE organization_id = :org_id"),
+        {"org_id": str(org_id)},
+    )
+    position = pos_result.scalar() or 0
+
+    # Si is_default, retirer le default des autres
+    if data.is_default:
+        await db.execute(
+            text("UPDATE order_types SET is_default = false WHERE organization_id = :org_id"),
+            {"org_id": str(org_id)},
+        )
+
+    await db.execute(
+        text("""
+            INSERT INTO order_types (id, organization_id, label, billing_mode, is_default, position)
+            VALUES (:id, :org_id, :label, :mode, :default, :pos)
+        """),
+        {
+            "id": str(type_id),
+            "org_id": str(org_id),
+            "label": data.label,
+            "mode": data.billing_mode,
+            "default": data.is_default,
+            "pos": position,
+        },
+    )
+    await db.commit()
+    return {"id": str(type_id), "label": data.label, "billing_mode": data.billing_mode}
+
+
+async def update_order_type(
+    org_id: uuid.UUID, type_id: str, data: OrderTypeUpdate, db: AsyncSession
+) -> dict:
+    updates = data.model_dump(exclude_unset=True)
+    if not updates:
+        raise HTTPException(422, "Aucun champ a mettre a jour")
+
+    # Si is_default passe a true, retirer le default des autres
+    if updates.get("is_default"):
+        await db.execute(
+            text("UPDATE order_types SET is_default = false WHERE organization_id = :org_id"),
+            {"org_id": str(org_id)},
+        )
+
+    set_parts = []
+    params: dict = {"tid": type_id, "org_id": str(org_id)}
+    for key, value in updates.items():
+        set_parts.append(f"{key} = :{key}")
+        params[key] = value
+
+    set_parts.append("updated_at = now()")
+
+    result = await db.execute(
+        text(f"UPDATE order_types SET {', '.join(set_parts)} WHERE id = :tid AND organization_id = :org_id"),
+        params,
+    )
+    if result.rowcount == 0:
+        raise HTTPException(404, "Type de commande introuvable")
+    await db.commit()
+    return {"status": "updated"}
+
+
+async def delete_order_type(
+    org_id: uuid.UUID, type_id: str, db: AsyncSession
+) -> dict:
+    """Soft delete (archivage) d'un type de commande."""
+    result = await db.execute(
+        text("""
+            UPDATE order_types SET is_archived = true, updated_at = now()
+            WHERE id = :tid AND organization_id = :org_id AND is_archived = false
+        """),
+        {"tid": type_id, "org_id": str(org_id)},
+    )
+    if result.rowcount == 0:
+        raise HTTPException(404, "Type de commande introuvable")
+    await db.commit()
+    return {"status": "archived"}
