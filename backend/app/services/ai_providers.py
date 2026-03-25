@@ -251,13 +251,17 @@ async def sync_models(
         )
         synced += 1
 
-    # Supprimer les modeles Kerpta qui ne sont plus sur le provider
+    # Lister les modeles existants en base pour ce provider
     provider_model_ids = {m["model_id"] for m in models_data}
     existing = await db.execute(
         text("SELECT id, model_id FROM ai_models WHERE provider_id = :pid"),
         {"pid": str(provider_id)},
     )
-    for row in existing.fetchall():
+    existing_rows = existing.fetchall()
+    existing_model_ids = {row[1] for row in existing_rows}
+
+    # Supprimer les modeles qui n'existent plus chez le provider
+    for row in existing_rows:
         if row[1] not in provider_model_ids:
             # Supprimer de LiteLLM
             if litellm_url and litellm_key:
@@ -270,17 +274,15 @@ async def sync_models(
             )
             _log.info("Modele supprime (absent du provider) : %s", row[1])
 
-    # Nettoyer LiteLLM : supprimer tous les modeles de ce provider puis re-enregistrer
+    # Enregistrer dans LiteLLM uniquement les nouveaux modeles
     if litellm_url and litellm_key:
-        await _purge_provider_models_from_litellm(
-            litellm_url, litellm_key, provider_type,
-        )
         for m in models_data:
-            await register_model_in_litellm(
-                litellm_url, litellm_key,
-                provider_type, m["model_id"],
-                api_key=api_key, base_url=base_url,
-            )
+            if m["model_id"] not in existing_model_ids:
+                await register_model_in_litellm(
+                    litellm_url, litellm_key,
+                    provider_type, m["model_id"],
+                    api_key=api_key, base_url=base_url,
+                )
 
     # Mettre a jour last_check
     await db.execute(
@@ -428,20 +430,62 @@ async def _purge_provider_models_from_litellm(
     return deleted
 
 
+async def _find_litellm_model_id(
+    client: httpx.AsyncClient,
+    litellm_url: str,
+    litellm_key: str,
+    model_name: str,
+) -> str | None:
+    """Cherche le model_info.id LiteLLM pour un modele donne par son model_name."""
+    base = litellm_url.rstrip("/")
+    headers = {"Authorization": f"Bearer {litellm_key}"}
+    for endpoint in ["/model/info", "/v1/model/info"]:
+        try:
+            resp = await client.get(f"{base}{endpoint}", headers=headers)
+            if resp.status_code != 200:
+                continue
+            for m in resp.json().get("data", []):
+                if m.get("model_name", "") == model_name:
+                    mid = m.get("model_info", {}).get("id")
+                    if mid:
+                        return mid
+            break  # endpoint OK, modele non trouve
+        except Exception:
+            continue
+    return None
+
+
 async def remove_model_from_litellm(
     litellm_url: str,
     litellm_key: str,
     litellm_model_name: str,
 ) -> bool:
-    """Supprime un modele de LiteLLM via POST /model/delete."""
+    """Supprime un modele de LiteLLM via POST /model/delete.
+
+    Cherche d'abord le model_info.id reel car LiteLLM attend un UUID,
+    pas le model_name.
+    """
+    base = litellm_url.rstrip("/")
+    headers = {"Authorization": f"Bearer {litellm_key}"}
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.post(
-                f"{litellm_url.rstrip('/')}/model/delete",
-                json={"id": litellm_model_name},
-                headers={"Authorization": f"Bearer {litellm_key}"},
+            # Trouver le vrai ID LiteLLM
+            real_id = await _find_litellm_model_id(
+                client, litellm_url, litellm_key, litellm_model_name,
             )
-            return resp.status_code in (200, 201)
+            if not real_id:
+                _log.warning("LiteLLM modele introuvable pour suppression : %s", litellm_model_name)
+                return False
+            resp = await client.post(
+                f"{base}/model/delete",
+                json={"id": real_id},
+                headers=headers,
+            )
+            if resp.status_code in (200, 201):
+                _log.info("LiteLLM modele supprime : %s (id=%s)", litellm_model_name, real_id)
+                return True
+            _log.warning("LiteLLM echec suppression %s: %s %s", litellm_model_name, resp.status_code, resp.text[:200])
+            return False
     except Exception as exc:
         _log.warning("Erreur LiteLLM delete model %s: %s", litellm_model_name, exc)
         return False
