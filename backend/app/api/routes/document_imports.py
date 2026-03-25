@@ -1,0 +1,72 @@
+# Kerpta — Application comptable web francaise
+# Copyright (C) 2026 Emmanuel Kervizic
+# Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
+
+"""Routes API - Staging des imports IA (document_imports)."""
+
+from pydantic import BaseModel
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.database import get_db
+from app.core.dependencies import OrgContext, get_org_context
+from app.services import document_import as import_svc
+
+router = APIRouter(prefix="/api/v1/imports", tags=["Imports IA"])
+
+
+class ValidateImportBody(BaseModel):
+    action: str           # create ou attach
+    target_type: str      # quote, invoice, order
+    target_id: str | None = None
+    client_id: str | None = None
+    corrected_json: dict | None = None
+
+
+@router.get("")
+async def list_imports(
+    status: str | None = Query(None, description="Filtrer par statut (pending, validated, rejected)"),
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    """Liste les imports IA, filtrable par statut."""
+    return await import_svc.list_imports(ctx.org_id, status, db)
+
+
+@router.get("/{import_id}")
+async def get_import(
+    import_id: str,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    """Detail d'un import."""
+    return await import_svc.get_import(ctx.org_id, import_id, db)
+
+
+@router.post("/{import_id}/validate")
+async def validate_import(
+    import_id: str,
+    body: ValidateImportBody,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    """Valide un import : cree le document ou attache le fichier."""
+    return await import_svc.validate_import(
+        ctx.org_id, import_id,
+        action=body.action,
+        target_type=body.target_type,
+        client_id=body.client_id,
+        corrected_json=body.corrected_json,
+        db=db,
+        target_id=body.target_id,
+    )
+
+
+@router.post("/{import_id}/reject")
+async def reject_import(
+    import_id: str,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    """Rejette un import."""
+    return await import_svc.reject_import(ctx.org_id, import_id, db)

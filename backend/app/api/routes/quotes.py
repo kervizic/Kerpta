@@ -13,10 +13,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import OrgContext, get_org_context
-from app.schemas.quotes import DocumentImport, PaginatedQuotes, QuoteCreate, QuoteDetailOut, QuoteUpdate
+from app.schemas.quotes import PaginatedQuotes, QuoteCreate, QuoteDetailOut, QuoteUpdate
 from app.services import quotes as svc
 from app.services import pdf as pdf_svc
-from app.services import document_import as import_svc
 
 router = APIRouter(prefix="/api/v1/quotes", tags=["quotes"])
 
@@ -135,20 +134,6 @@ async def convert_to_contract(
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.convert_to_contract(ctx.org_id, ctx.user_id, quote_id, db)
-
-
-@router.post("/import", status_code=201)
-async def import_quote(
-    data: DocumentImport,
-    ctx: OrgContext = Depends(get_org_context),
-    db: AsyncSession = Depends(get_db),
-):
-    """Importe un devis depuis un JSON Factur-X extrait par l'IA."""
-    return await import_svc.import_as_quote(
-        ctx.org_id, data.extracted_data, db,
-        client_id=data.client_id,
-        source_filename=data.source_filename,
-    )
 
 
 @router.post("/batch/archive")

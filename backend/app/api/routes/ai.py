@@ -117,21 +117,70 @@ async def extract_document(
     user_id: UUID = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
 ):
-    """Extrait les donnees d'un document via le modele VL et retourne le JSON Factur-X."""
+    """Extrait les donnees d'un document via le modele VL.
+
+    Stocke le resultat dans le staging (document_imports) et uploade
+    le fichier source sur S3. Retourne l'import_id + le JSON extrait.
+    """
     _log.info("extract-document requete - fichier=%s, content_type=%s, org=%s", file.filename, file.content_type, x_organization_id)
     await _require_ai_enabled(db, x_organization_id)
     file_bytes = await file.read()
     content_type = file.content_type or "image/jpeg"
     result = await ai_svc.ocr_vlm(db, file_bytes, x_organization_id, user_id, content_type)
 
+    # Uploader le fichier source sur S3
+    from app.services import storage as storage_svc
+    from app.storage.utils import sanitize_filename
+    import uuid as _uuid
+
+    source_file_url = None
+    try:
+        base_name = sanitize_filename(file.filename or "document")
+        unique_suffix = _uuid.uuid4().hex[:8]
+        s3_filename = f"import-{base_name}-{unique_suffix}.pdf" if content_type == "application/pdf" else f"import-{base_name}-{unique_suffix}"
+        remote_path = await storage_svc.build_document_path(
+            x_organization_id, db,
+            doc_type="piece-jointe",
+            filename=s3_filename,
+        )
+        source_file_url = await storage_svc.upload_document(
+            x_organization_id, file_bytes, remote_path, db,
+            content_type=content_type,
+        )
+    except Exception as exc:
+        _log.warning("Upload fichier source echoue : %s", exc)
+
+    # Creer l'import dans le staging
+    from app.services.document_import import create_import, suggest_client
+
+    # Extraire les metadonnees de l'extraction (ne pas stocker dans extracted_json)
+    duration_ms = result.pop("duration_ms", None)
+    model_used = result.pop("model", None)
+    result.pop("pages_count", None)
+    result.pop("tokens_in", None)
+    result.pop("tokens_out", None)
+    confidence = None  # le VLM ne retourne pas de score de confiance
+
+    staging = await create_import(
+        x_organization_id,
+        extracted_json=result,
+        source_file_url=source_file_url,
+        source_filename=file.filename,
+        confidence=confidence,
+        model_used=model_used,
+        duration_ms=duration_ms,
+        db=db,
+    )
+
     # Pre-matcher le client par le nom extrait
-    from app.services.document_import import suggest_client
     emetteur_name = ((result.get("parties") or {}).get("emetteur") or {}).get("designation")
     suggested = await suggest_client(x_organization_id, emetteur_name, db) if emetteur_name else None
-    if suggested:
-        result["suggested_client"] = suggested
 
-    return result
+    return {
+        "import_id": staging["import_id"],
+        "extracted_json": result,
+        "suggested_client": suggested,
+    }
 
 
 @router.post("/categorize", response_model=AiCategorizeResponse)

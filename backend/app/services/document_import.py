@@ -2,15 +2,21 @@
 # Copyright (C) 2026 Emmanuel Kervizic
 # Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
-"""Service d'import de documents depuis le JSON Factur-X extrait par l'IA.
+"""Service d'import de documents via staging IA.
 
-Mapping JSON Factur-X -> devis / facture / commande Kerpta.
-Les documents importes sont toujours crees en brouillon (draft).
+Workflow :
+1. extract-document -> create_import (status=pending)
+2. L'utilisateur corrige le JSON dans le frontend
+3. validate_import (cree le document) ou reject_import
+
+Les fonctions internes import_as_quote/invoice/order restent disponibles
+pour la creation effective depuis validate_import.
 """
 
+import json
 import logging
 import uuid
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import ROUND_HALF_UP, Decimal
 
 from fastapi import HTTPException
@@ -197,6 +203,325 @@ async def _insert_lines(
         )
 
 
+# ── Staging : CRUD des imports IA ────────────────────────────────────────────
+
+
+async def create_import(
+    org_id: uuid.UUID,
+    extracted_json: dict,
+    source_file_url: str | None,
+    source_filename: str | None,
+    confidence: float | None,
+    model_used: str | None,
+    duration_ms: int | None,
+    db: AsyncSession,
+) -> dict:
+    """Cree un import en staging (status=pending).
+
+    Appele par la route extract-document apres extraction IA.
+    """
+    import_id = uuid.uuid4()
+    now = datetime.now(timezone.utc)
+
+    await db.execute(
+        text("""
+            INSERT INTO document_imports
+                (id, organization_id, status, source_file_url, source_filename,
+                 extracted_json, confidence, model_used, extraction_duration_ms, created_at)
+            VALUES (:id, :org_id, 'pending', :file_url, :filename,
+                    CAST(:extracted AS jsonb), :confidence, :model, :duration, :now)
+        """),
+        {
+            "id": str(import_id),
+            "org_id": str(org_id),
+            "file_url": source_file_url,
+            "filename": source_filename,
+            "extracted": json.dumps(extracted_json),
+            "confidence": confidence,
+            "model": model_used,
+            "duration": duration_ms,
+            "now": now,
+        },
+    )
+    await db.commit()
+
+    _log.info("Import cree : %s (source=%s)", import_id, source_filename)
+    return {
+        "import_id": str(import_id),
+        "status": "pending",
+        "extracted_json": extracted_json,
+    }
+
+
+async def get_import(
+    org_id: uuid.UUID,
+    import_id: str,
+    db: AsyncSession,
+) -> dict:
+    """Recupere le detail d'un import."""
+    result = await db.execute(
+        text("""
+            SELECT di.id::text, di.status, di.source_file_url, di.source_filename,
+                   di.extracted_json, di.corrected_json,
+                   di.client_id::text, di.target_type, di.target_id::text,
+                   di.action, di.confidence, di.model_used,
+                   di.extraction_duration_ms, di.created_at, di.validated_at,
+                   c.name AS client_name
+            FROM document_imports di
+            LEFT JOIN clients c ON c.id = di.client_id
+            WHERE di.id = :iid AND di.organization_id = :org_id
+        """),
+        {"iid": import_id, "org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    if not row:
+        raise HTTPException(404, "Import introuvable")
+
+    return {
+        "id": row[0],
+        "status": row[1],
+        "source_file_url": row[2],
+        "source_filename": row[3],
+        "extracted_json": row[4],
+        "corrected_json": row[5],
+        "client_id": row[6],
+        "target_type": row[7],
+        "target_id": row[8],
+        "action": row[9],
+        "confidence": float(row[10]) if row[10] is not None else None,
+        "model_used": row[11],
+        "extraction_duration_ms": row[12],
+        "created_at": str(row[13]) if row[13] else None,
+        "validated_at": str(row[14]) if row[14] else None,
+        "client_name": row[15],
+    }
+
+
+async def list_imports(
+    org_id: uuid.UUID,
+    status: str | None,
+    db: AsyncSession,
+) -> list[dict]:
+    """Liste les imports d'une organisation, filtrable par statut."""
+    query = """
+        SELECT di.id::text, di.status, di.source_filename,
+               di.target_type, di.target_id::text, di.action,
+               di.confidence, di.model_used, di.created_at, di.validated_at,
+               c.name AS client_name
+        FROM document_imports di
+        LEFT JOIN clients c ON c.id = di.client_id
+        WHERE di.organization_id = :org_id
+    """
+    params: dict = {"org_id": str(org_id)}
+
+    if status:
+        query += " AND di.status = :status"
+        params["status"] = status
+
+    query += " ORDER BY di.created_at DESC"
+
+    result = await db.execute(text(query), params)
+    return [
+        {
+            "id": r[0],
+            "status": r[1],
+            "source_filename": r[2],
+            "target_type": r[3],
+            "target_id": r[4],
+            "action": r[5],
+            "confidence": float(r[6]) if r[6] is not None else None,
+            "model_used": r[7],
+            "created_at": str(r[8]) if r[8] else None,
+            "validated_at": str(r[9]) if r[9] else None,
+            "client_name": r[10],
+        }
+        for r in result.fetchall()
+    ]
+
+
+async def validate_import(
+    org_id: uuid.UUID,
+    import_id: str,
+    action: str,
+    target_type: str,
+    client_id: str | None,
+    corrected_json: dict | None,
+    db: AsyncSession,
+    *,
+    target_id: str | None = None,
+) -> dict:
+    """Valide un import : cree le document ou attache le fichier source.
+
+    action='create' : cree un devis/facture/commande depuis le JSON
+    action='attach' : rattache le fichier source a un document existant
+    """
+    # Charger l'import
+    result = await db.execute(
+        text("""
+            SELECT status, extracted_json, source_file_url, source_filename
+            FROM document_imports
+            WHERE id = :iid AND organization_id = :org_id
+        """),
+        {"iid": import_id, "org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    if not row:
+        raise HTTPException(404, "Import introuvable")
+    if row[0] != "pending":
+        raise HTTPException(400, f"Import deja traite (status={row[0]})")
+
+    extracted = row[1]
+    source_file_url = row[2]
+    source_filename = row[3]
+
+    # Utiliser le JSON corrige si fourni, sinon l'extrait
+    final_json = corrected_json or extracted
+
+    now = datetime.now(timezone.utc)
+    created_target_id = None
+
+    if action == "create":
+        if target_type not in ("quote", "invoice", "order"):
+            raise HTTPException(422, f"target_type invalide : {target_type}")
+
+        # Creer le document via les fonctions existantes
+        if target_type == "quote":
+            doc = await import_as_quote(
+                org_id, final_json, db,
+                client_id=client_id,
+                source_filename=source_filename,
+            )
+            created_target_id = doc["id"]
+        elif target_type == "invoice":
+            doc = await import_as_invoice(
+                org_id, final_json, db,
+                client_id=client_id,
+                source_filename=source_filename,
+            )
+            created_target_id = doc["id"]
+        elif target_type == "order":
+            doc = await import_as_order(
+                org_id, final_json, db,
+                client_id=client_id,
+                source_filename=source_filename,
+            )
+            created_target_id = doc["id"]
+
+        # Attacher le fichier source au document cree si on a une URL S3
+        if source_file_url and created_target_id:
+            await db.execute(
+                text("""
+                    INSERT INTO import_file_attachments
+                        (id, organization_id, parent_type, parent_id,
+                         file_url, original_filename, import_id, created_at)
+                    VALUES (:id, :org_id, :ptype, :pid,
+                            :furl, :fname, :iid, :now)
+                """),
+                {
+                    "id": str(uuid.uuid4()),
+                    "org_id": str(org_id),
+                    "ptype": target_type,
+                    "pid": created_target_id,
+                    "furl": source_file_url,
+                    "fname": source_filename,
+                    "iid": import_id,
+                    "now": now,
+                },
+            )
+
+    elif action == "attach":
+        if not target_id:
+            raise HTTPException(400, "target_id requis pour action='attach'")
+        if target_type not in ("quote", "invoice", "order"):
+            raise HTTPException(422, f"target_type invalide : {target_type}")
+
+        created_target_id = target_id
+
+        # Attacher le fichier source au document existant
+        if source_file_url:
+            await db.execute(
+                text("""
+                    INSERT INTO import_file_attachments
+                        (id, organization_id, parent_type, parent_id,
+                         file_url, original_filename, import_id, created_at)
+                    VALUES (:id, :org_id, :ptype, :pid,
+                            :furl, :fname, :iid, :now)
+                """),
+                {
+                    "id": str(uuid.uuid4()),
+                    "org_id": str(org_id),
+                    "ptype": target_type,
+                    "pid": target_id,
+                    "furl": source_file_url,
+                    "fname": source_filename,
+                    "iid": import_id,
+                    "now": now,
+                },
+            )
+    else:
+        raise HTTPException(422, f"action invalide : {action}")
+
+    # Mettre a jour l'import
+    await db.execute(
+        text("""
+            UPDATE document_imports
+            SET status = 'validated',
+                action = :action,
+                target_type = :ttype,
+                target_id = :tid,
+                client_id = :cid,
+                corrected_json = CAST(:corrected AS jsonb),
+                validated_at = :now
+            WHERE id = :iid AND organization_id = :org_id
+        """),
+        {
+            "iid": import_id,
+            "org_id": str(org_id),
+            "action": action,
+            "ttype": target_type,
+            "tid": created_target_id,
+            "cid": client_id,
+            "corrected": json.dumps(corrected_json) if corrected_json else None,
+            "now": now,
+        },
+    )
+    await db.commit()
+
+    _log.info("Import valide : %s -> %s %s", import_id, action, target_type)
+    return {
+        "status": "validated",
+        "action": action,
+        "target_type": target_type,
+        "target_id": created_target_id,
+    }
+
+
+async def reject_import(
+    org_id: uuid.UUID,
+    import_id: str,
+    db: AsyncSession,
+) -> dict:
+    """Rejette un import (passe en status=rejected)."""
+    result = await db.execute(
+        text("""
+            UPDATE document_imports
+            SET status = 'rejected', validated_at = :now
+            WHERE id = :iid AND organization_id = :org_id AND status = 'pending'
+        """),
+        {
+            "iid": import_id,
+            "org_id": str(org_id),
+            "now": datetime.now(timezone.utc),
+        },
+    )
+    if result.rowcount == 0:
+        raise HTTPException(404, "Import introuvable ou deja traite")
+    await db.commit()
+
+    _log.info("Import rejete : %s", import_id)
+    return {"status": "rejected"}
+
+
 # ── Import as Quote ─────────────────────────────────────────────────────────
 
 
@@ -279,7 +604,6 @@ async def import_as_quote(
     # Inserer les lignes
     await _insert_lines("quote_lines", "quote_id", str(quote_id), lines, db)
 
-    await db.commit()
     _log.info("Devis importe : %s (%s) - %d lignes", number, quote_id, len(lines))
     return {"id": str(quote_id), "number": number, "client_name": client_name}
 
@@ -373,7 +697,6 @@ async def import_as_invoice(
     # Inserer les lignes
     await _insert_lines("invoice_lines", "invoice_id", str(invoice_id), lines, db)
 
-    await db.commit()
     _log.info("Facture importee : %s (%s) - %d lignes", proforma_number, invoice_id, len(lines))
     return {
         "id": str(invoice_id),
@@ -463,6 +786,5 @@ async def import_as_order(
                 {"oid": str(order_id), "qid": qid},
             )
 
-    await db.commit()
     _log.info("Commande importee : %s - %d lignes", order_id, len(lines))
     return {"id": str(order_id), "client_name": client_name}

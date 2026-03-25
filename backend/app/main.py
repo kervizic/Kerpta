@@ -37,6 +37,8 @@ from app.api.routes.attachments import router as attachments_router
 from app.api.routes.storage import router as storage_router
 from app.api.routes.admin_ai import router as admin_ai_router
 from app.api.routes.ai import router as ai_router
+from app.api.routes.document_imports import router as document_imports_router
+from app.api.routes.document_file_attachments import router as document_file_attachments_router
 from app.companies.router import router as companies_router
 from app.config.router import router as config_router
 from app.core.config import settings
@@ -201,6 +203,10 @@ app.include_router(attachments_router)
 # ── Routes IA ─────────────────────────────────────────────────────────────────
 app.include_router(admin_ai_router)
 app.include_router(ai_router)
+
+# ── Routes import IA & pieces jointes documents ──────────────────────────────
+app.include_router(document_imports_router)
+app.include_router(document_file_attachments_router)
 
 
 # ── Routes de base ────────────────────────────────────────────────────────────

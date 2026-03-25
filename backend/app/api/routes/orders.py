@@ -10,9 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.dependencies import OrgContext, get_org_context
 from app.schemas.order import OrderCreate, OrderDetailOut, OrderTypeCreate, OrderTypeUpdate, OrderUpdate
-from app.schemas.quotes import DocumentImport
 from app.services import orders as svc
-from app.services import document_import as import_svc
 
 router = APIRouter(prefix="/api/v1/orders", tags=["orders"])
 
@@ -153,21 +151,6 @@ async def restore_order(
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.restore_order(ctx.org_id, order_id, db)
-
-
-@router.post("/import", status_code=201)
-async def import_order(
-    data: DocumentImport,
-    ctx: OrgContext = Depends(get_org_context),
-    db: AsyncSession = Depends(get_db),
-):
-    """Importe une commande depuis un JSON Factur-X extrait par l'IA."""
-    return await import_svc.import_as_order(
-        ctx.org_id, data.extracted_data, db,
-        client_id=data.client_id,
-        quote_ids=data.quote_ids,
-        source_filename=data.source_filename,
-    )
 
 
 @router.post("/batch/archive")

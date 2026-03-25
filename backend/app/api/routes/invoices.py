@@ -19,10 +19,8 @@ from app.schemas.invoices import (
     InvoiceUpdate,
     PaginatedInvoices,
 )
-from app.schemas.quotes import DocumentImport
 from app.services import invoices as svc
 from app.services import pdf as pdf_svc
-from app.services import document_import as import_svc
 
 router = APIRouter(prefix="/api/v1/invoices", tags=["invoices"])
 
@@ -116,20 +114,6 @@ async def create_credit_note(
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.create_credit_note(ctx.org_id, ctx.user_id, invoice_id, db)
-
-
-@router.post("/import", status_code=201)
-async def import_invoice(
-    data: DocumentImport,
-    ctx: OrgContext = Depends(get_org_context),
-    db: AsyncSession = Depends(get_db),
-):
-    """Importe une facture depuis un JSON Factur-X extrait par l'IA."""
-    return await import_svc.import_as_invoice(
-        ctx.org_id, data.extracted_data, db,
-        client_id=data.client_id,
-        source_filename=data.source_filename,
-    )
 
 
 @router.post("/batch/archive")
