@@ -352,43 +352,79 @@ async def _purge_provider_models_from_litellm(
 ) -> int:
     """Supprime TOUS les modeles d'un provider dans LiteLLM.
 
-    Recupere la liste des modeles via /model/info, filtre par provider,
-    et supprime chacun par son ID interne LiteLLM.
+    Essaie plusieurs endpoints et formats d'ID car LiteLLM varie
+    selon les versions.
     """
     ll_provider = _litellm_provider(provider_type)
+    base = litellm_url.rstrip("/")
+    headers = {"Authorization": f"Bearer {litellm_key}"}
     deleted = 0
+
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
-            # Lister tous les modeles dans LiteLLM
-            resp = await client.get(
-                f"{litellm_url.rstrip('/')}/v1/model/info",
-                headers={"Authorization": f"Bearer {litellm_key}"},
-            )
-            if resp.status_code != 200:
-                _log.warning("LiteLLM /model/info erreur %s", resp.status_code)
+            # Essayer /model/info (sans /v1/) puis /v1/model/info
+            all_models = []
+            for endpoint in ["/model/info", "/v1/model/info"]:
+                resp = await client.get(f"{base}{endpoint}", headers=headers)
+                if resp.status_code == 200:
+                    all_models = resp.json().get("data", [])
+                    _log.info("LiteLLM %s : %d modeles trouves", endpoint, len(all_models))
+                    break
+
+            if not all_models:
+                _log.warning("LiteLLM : aucun modele trouve pour purge")
                 return 0
 
-            all_models = resp.json().get("data", [])
-
-            # Filtrer les modeles de ce provider
+            # Filtrer les modeles de ce provider et collecter tous les IDs possibles
+            to_delete = []
             for m in all_models:
-                model_name = m.get("litellm_params", {}).get("model", "")
+                litellm_model = m.get("litellm_params", {}).get("model", "")
+                model_name = m.get("model_name", "")
+
+                # Matcher par le prefixe provider dans litellm_params.model ou model_name
+                is_match = (
+                    litellm_model.startswith(f"{ll_provider}/")
+                    or model_name.startswith(f"{provider_type}/")
+                    or model_name.startswith(f"{ll_provider}/")
+                )
+                if not is_match:
+                    continue
+
+                # Collecter tous les identifiants possibles pour la suppression
+                ids_to_try = []
                 model_info_id = m.get("model_info", {}).get("id")
-                if model_name.startswith(f"{ll_provider}/") and model_info_id:
+                if model_info_id:
+                    ids_to_try.append(model_info_id)
+                if litellm_model:
+                    ids_to_try.append(litellm_model)
+                if model_name and model_name != litellm_model:
+                    ids_to_try.append(model_name)
+
+                to_delete.append({"display": litellm_model or model_name, "ids": ids_to_try})
+
+            _log.info("LiteLLM purge %s : %d modeles a supprimer", provider_type, len(to_delete))
+
+            # Supprimer chaque modele en essayant chaque ID
+            for item in to_delete:
+                success = False
+                for try_id in item["ids"]:
                     del_resp = await client.post(
-                        f"{litellm_url.rstrip('/')}/model/delete",
-                        json={"id": model_info_id},
-                        headers={"Authorization": f"Bearer {litellm_key}"},
+                        f"{base}/model/delete",
+                        json={"id": try_id},
+                        headers=headers,
                     )
                     if del_resp.status_code in (200, 201):
                         deleted += 1
-                    else:
-                        _log.warning("LiteLLM delete %s: %s", model_info_id, del_resp.status_code)
+                        success = True
+                        _log.info("LiteLLM supprime : %s (id=%s)", item["display"], try_id)
+                        break
+                if not success:
+                    _log.warning("LiteLLM echec suppression : %s (ids=%s)", item["display"], item["ids"])
+
     except Exception as exc:
         _log.warning("Erreur purge LiteLLM provider %s: %s", provider_type, exc)
 
-    if deleted:
-        _log.info("LiteLLM purge : %d modeles supprimes pour provider %s", deleted, provider_type)
+    _log.info("LiteLLM purge terminee : %d/%d modeles supprimes pour %s", deleted, len(to_delete) if 'to_delete' in dir() else 0, provider_type)
     return deleted
 
 
