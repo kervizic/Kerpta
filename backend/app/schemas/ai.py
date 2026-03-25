@@ -119,6 +119,7 @@ class AiConfigUpdate(BaseModel):
     ai_litellm_master_key: str | None = None
     ai_paddlex_url: str | None = Field(None, max_length=255)
     ai_features: dict | None = None
+    ai_extraction_prompt: str | None = None
 
 
 class AiConfigResponse(BaseModel):
@@ -127,6 +128,7 @@ class AiConfigResponse(BaseModel):
     has_master_key: bool
     ai_paddlex_url: str | None = None
     ai_features: dict | None
+    ai_extraction_prompt: str | None = None
     roles: AiRolesResponse
 
 

@@ -110,6 +110,22 @@ async def ocr_vlm(
     return result
 
 
+@router.post("/extract-document")
+async def extract_document(
+    file: UploadFile = File(...),
+    x_organization_id: UUID = Header(..., alias="X-Organization-Id"),
+    user_id: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Extrait les donnees d'un document via le modele VL et retourne le JSON Factur-X."""
+    _log.info("extract-document requete - fichier=%s, content_type=%s, org=%s", file.filename, file.content_type, x_organization_id)
+    await _require_ai_enabled(db, x_organization_id)
+    file_bytes = await file.read()
+    content_type = file.content_type or "image/jpeg"
+    result = await ai_svc.ocr_vlm(db, file_bytes, x_organization_id, user_id, content_type)
+    return result
+
+
 @router.post("/categorize", response_model=AiCategorizeResponse)
 async def categorize_entry(
     body: AiCategorizeRequest,

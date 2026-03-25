@@ -551,7 +551,7 @@ async def get_config(
         text("""
             SELECT ai_enabled, ai_litellm_base_url, ai_litellm_master_key, ai_features,
                    ai_role_vl_model_id, ai_role_instruct_model_id, ai_role_thinking_model_id,
-                   ai_paddlex_url
+                   ai_paddlex_url, ai_extraction_prompt
             FROM platform_config LIMIT 1
         """)
     )
@@ -564,6 +564,7 @@ async def get_config(
             has_master_key=bool(env_key),
             ai_paddlex_url=None,
             ai_features=None,
+            ai_extraction_prompt=None,
             roles=AiRolesResponse(),
         )
 
@@ -574,6 +575,7 @@ async def get_config(
         has_master_key=bool(row[2] or env_key),
         ai_paddlex_url=row[7],
         ai_features=row[3],
+        ai_extraction_prompt=row[8],
         roles=roles,
     )
 
@@ -601,6 +603,9 @@ async def update_config(
     if body.ai_features is not None:
         sets.append("ai_features = CAST(:features AS jsonb)")
         params["features"] = json.dumps(body.ai_features)
+    if body.ai_extraction_prompt is not None:
+        sets.append("ai_extraction_prompt = :extraction_prompt")
+        params["extraction_prompt"] = body.ai_extraction_prompt or None
     if not sets:
         return {"ok": True}
     sets.append("updated_at = now()")

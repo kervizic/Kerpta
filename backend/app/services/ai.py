@@ -29,7 +29,7 @@ async def _get_ai_config(db: AsyncSession) -> dict:
         text("""
             SELECT ai_enabled, ai_litellm_base_url, ai_litellm_master_key,
                    ai_role_vl_model_id, ai_role_instruct_model_id, ai_role_thinking_model_id,
-                   ai_features, ai_paddlex_url
+                   ai_features, ai_paddlex_url, ai_extraction_prompt
             FROM platform_config LIMIT 1
         """)
     )
@@ -45,6 +45,7 @@ async def _get_ai_config(db: AsyncSession) -> dict:
         "thinking_model_id": row[5],
         "features": row[6] or {},
         "paddlex_url": row[7],
+        "extraction_prompt": row[8],
     }
 
 
@@ -292,7 +293,7 @@ async def ocr(
         # Fusionner les resultats de chaque page
         result = _merge_paddlex_results(all_results)
     else:
-        file_bytes = _downscale_image(file_bytes, max_side=1500)
+        file_bytes = _downscale_image(file_bytes, max_side=1754)  # A4 150 DPI
         result = await _call_paddlex(paddlex_url, file_bytes, 1)
 
     duration = int((time.monotonic() - start) * 1000)
@@ -400,8 +401,8 @@ def _image_to_jpeg_b64(file_bytes: bytes, content_type: str) -> str:
     if img.mode in ("RGBA", "P"):
         img = img.convert("RGB")
     buf = io.BytesIO()
-    # Redimensionner si trop grand (max 1500px de cote)
-    max_side = 1500
+    # Redimensionner si trop grand (A4 150 DPI = 1240x1754)
+    max_side = 1754
     if max(img.size) > max_side:
         img.thumbnail((max_side, max_side))
     img.save(buf, format="JPEG", quality=80)
@@ -435,6 +436,9 @@ async def ocr_vlm(
         images_b64 = [_image_to_jpeg_b64(file_bytes, content_type)]
     _log.info("OCR-VLM %d page(s)", len(images_b64))
 
+    # Prompt configurable : utiliser celui de la config ou le fallback par defaut
+    extraction_prompt = config.get("extraction_prompt") or _VLM_EXTRACTION_PROMPT
+
     # Envoyer page par page pour eviter de surcharger le modele
     start = time.monotonic()
     total_tokens_in = 0
@@ -443,7 +447,7 @@ async def ocr_vlm(
     last_text = ""
 
     for i, img_b64 in enumerate(images_b64):
-        page_prompt = _VLM_EXTRACTION_PROMPT if i == 0 else (
+        page_prompt = extraction_prompt if i == 0 else (
             "Meme consignes. Extrais les donnees de cette page supplementaire. "
             "Retourne UNIQUEMENT le JSON."
         )

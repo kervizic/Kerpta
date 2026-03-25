@@ -110,3 +110,8 @@ class PaginatedQuotes(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class DocumentImport(BaseModel):
+    extracted_data: dict
+    source_filename: str | None = None
