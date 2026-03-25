@@ -59,15 +59,19 @@ def _calc_line(qty: Decimal, price: Decimal, vat_rate: Decimal) -> dict:
 
 
 def _extract_lines(data: dict) -> list[dict]:
-    """Extrait et normalise les lignes depuis le JSON Factur-X."""
-    raw_lines = data.get("lignes") or []
+    """Extrait et normalise les lignes depuis le JSON Factur-X.
+
+    Supporte le champ 'lignes' (format Factur-X original) et 'lines' (format frontend).
+    """
+    raw_lines = data.get("lignes") or data.get("lines") or []
+    _log.info("_extract_lines: %d lignes trouvees (cles dispo: %s)", len(raw_lines), list(data.keys()))
     lines = []
     for i, ln in enumerate(raw_lines):
-        qty = _safe_decimal(ln.get("quantite"), "1")
+        qty = _safe_decimal(ln.get("quantite") or ln.get("quantity"), "1")
         if qty <= 0:
             qty = Decimal("1")
-        price = _safe_decimal(ln.get("prix_unitaire_ht"), "0")
-        vat_rate = _safe_decimal(ln.get("taux_tva"), "0")
+        price = _safe_decimal(ln.get("prix_unitaire_ht") or ln.get("unit_price"), "0")
+        vat_rate = _safe_decimal(ln.get("taux_tva") or ln.get("vat_rate"), "0")
         # Limiter le taux TVA a 20% max (coherent avec les schemas existants)
         if vat_rate > Decimal("20"):
             vat_rate = Decimal("20")
@@ -78,7 +82,7 @@ def _extract_lines(data: dict) -> list[dict]:
             "reference": ln.get("reference"),
             "description": ln.get("designation") or ln.get("description"),
             "quantity": qty,
-            "unit": ln.get("unite"),
+            "unit": ln.get("unite") or ln.get("unit"),
             "unit_price": price,
             "vat_rate": vat_rate,
             "discount_percent": Decimal("0"),
@@ -139,12 +143,12 @@ async def suggest_client(
 
 async def _resolve_client_id(
     org_id: uuid.UUID, client_id: str | None, suggested_name: str | None, db: AsyncSession
-) -> str:
+) -> str | None:
     """Resout le client_id fourni par l'utilisateur.
 
-    Le client_id est OBLIGATOIRE - il est fourni par le frontend via
-    le combobox de selection. L'IA suggere un nom, mais c'est l'utilisateur
-    qui choisit le client existant ou en cree un manuellement.
+    - Si client_id est fourni et valide -> l'utiliser
+    - Si client_id est None mais suggested_name est trouve -> utiliser le suggested
+    - Si rien n'est trouve -> retourner None (brouillon sans client)
     """
     if client_id:
         # Verifier que le client existe dans l'org
@@ -156,10 +160,15 @@ async def _resolve_client_id(
             return client_id
         raise HTTPException(404, "Client introuvable")
 
-    raise HTTPException(
-        400,
-        f"Veuillez selectionner un client (suggere par l'IA : {suggested_name or 'inconnu'})"
-    )
+    # Tenter un auto-match par nom
+    if suggested_name:
+        suggested = await suggest_client(org_id, suggested_name, db)
+        if suggested:
+            _log.info("Client auto-matche par nom '%s' -> %s", suggested_name, suggested["id"])
+            return suggested["id"]
+
+    _log.info("Aucun client trouve (suggested_name=%s) - brouillon sans client", suggested_name)
+    return None
 
 
 async def _insert_lines(
@@ -553,12 +562,13 @@ async def import_as_quote(
     emetteur = parties.get("emetteur") or {}
     doc = extracted_data.get("document") or {}
 
-    # Client fourni par l'utilisateur (obligatoire)
+    # Resoudre le client (optionnel - brouillon sans client accepte)
     client_name = emetteur.get("designation")
     client_id = await _resolve_client_id(org_id, client_id, client_name, db)
 
     # Extraire les lignes
     lines = _extract_lines(extracted_data)
+    _log.info("import_as_quote: %d lignes extraites, client_id=%s", len(lines), client_id)
 
     # Calculer les totaux
     subtotal_ht = sum(ln["total_ht"] for ln in lines)
@@ -639,12 +649,13 @@ async def import_as_invoice(
     emetteur = parties.get("emetteur") or {}
     doc = extracted_data.get("document") or {}
 
-    # Client fourni par l'utilisateur (obligatoire)
+    # Resoudre le client (optionnel - brouillon sans client accepte)
     client_name = emetteur.get("designation")
     client_id = await _resolve_client_id(org_id, client_id, client_name, db)
 
     # Extraire les lignes
     lines = _extract_lines(extracted_data)
+    _log.info("import_as_invoice: %d lignes extraites, client_id=%s", len(lines), client_id)
 
     # Calculer les totaux
     subtotal_ht = sum(ln["total_ht"] for ln in lines)
@@ -735,12 +746,13 @@ async def import_as_order(
     emetteur = parties.get("emetteur") or {}
     doc = extracted_data.get("document") or {}
 
-    # Client fourni par l'utilisateur (obligatoire)
+    # Resoudre le client (optionnel - brouillon sans client accepte)
     client_name = emetteur.get("designation")
     client_id = await _resolve_client_id(org_id, client_id, client_name, db)
 
     # Extraire les lignes
     lines = _extract_lines(extracted_data)
+    _log.info("import_as_order: %d lignes extraites, client_id=%s", len(lines), client_id)
 
     # Calculer les totaux
     subtotal_ht = sum(ln["total_ht"] for ln in lines)
