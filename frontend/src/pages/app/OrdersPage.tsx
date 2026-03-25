@@ -62,6 +62,14 @@ interface OrderDetail extends Order {
   discount_value: number
   notes: string | null
   client_document_url: string | null
+  progress_total_pct: number | null
+  retention_pct: number | null
+  recurring_frequency: string | null
+  recurring_interval_days: number | null
+  recurring_day: number | null
+  recurring_start: string | null
+  recurring_end: string | null
+  recurring_next_date: string | null
   lines: OrderLine[]
   linked_quotes: LinkedDoc[]
   linked_invoices: LinkedDoc[]
@@ -532,7 +540,7 @@ function OrderDetailOverlay({
   const [recurrenceBillingDay, setRecurrenceBillingDay] = useState('')
 
   // Progress fields
-  const [progressInvoiced, setProgressInvoiced] = useState('0')
+  const progressInvoiced = order?.progress_total_pct != null ? String(order.progress_total_pct) : '0'
   const [progressRetention, setProgressRetention] = useState('0')
 
   // Load order data
