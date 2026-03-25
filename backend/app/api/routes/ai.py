@@ -123,6 +123,14 @@ async def extract_document(
     file_bytes = await file.read()
     content_type = file.content_type or "image/jpeg"
     result = await ai_svc.ocr_vlm(db, file_bytes, x_organization_id, user_id, content_type)
+
+    # Pre-matcher le client par le nom extrait
+    from app.services.document_import import suggest_client
+    emetteur_name = ((result.get("parties") or {}).get("emetteur") or {}).get("designation")
+    suggested = await suggest_client(x_organization_id, emetteur_name, db) if emetteur_name else None
+    if suggested:
+        result["suggested_client"] = suggested
+
     return result
 
 

@@ -114,4 +114,6 @@ class PaginatedQuotes(BaseModel):
 
 class DocumentImport(BaseModel):
     extracted_data: dict
+    client_id: str | None = None       # Client selectionne par l'utilisateur (obligatoire)
+    quote_ids: list[str] | None = None  # Devis a lier (pour les commandes)
     source_filename: str | None = None

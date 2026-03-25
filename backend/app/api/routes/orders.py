@@ -163,7 +163,10 @@ async def import_order(
 ):
     """Importe une commande depuis un JSON Factur-X extrait par l'IA."""
     return await import_svc.import_as_order(
-        ctx.org_id, data.extracted_data, db, data.source_filename,
+        ctx.org_id, data.extracted_data, db,
+        client_id=data.client_id,
+        quote_ids=data.quote_ids,
+        source_filename=data.source_filename,
     )
 
 

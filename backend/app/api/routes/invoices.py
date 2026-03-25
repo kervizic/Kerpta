@@ -126,7 +126,9 @@ async def import_invoice(
 ):
     """Importe une facture depuis un JSON Factur-X extrait par l'IA."""
     return await import_svc.import_as_invoice(
-        ctx.org_id, data.extracted_data, db, data.source_filename,
+        ctx.org_id, data.extracted_data, db,
+        client_id=data.client_id,
+        source_filename=data.source_filename,
     )
 
 

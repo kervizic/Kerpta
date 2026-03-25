@@ -109,62 +109,51 @@ def _build_notes(data: dict, source_filename: str | None = None) -> str:
     return "\n".join(parts) if parts else ""
 
 
-async def _find_or_create_client(
-    org_id: uuid.UUID, name: str, data: dict, db: AsyncSession
-) -> str:
-    """Cherche un client par nom, le cree si inexistant. Retourne le client_id."""
+async def suggest_client(
+    org_id: uuid.UUID, name: str, db: AsyncSession
+) -> dict | None:
+    """Cherche un client par nom (fuzzy) pour pre-selection dans le frontend."""
     if not name:
-        raise HTTPException(400, "Nom du client (parties.emetteur.designation) manquant dans les donnees extraites")
-
-    # Chercher par nom (case-insensitive)
+        return None
     result = await db.execute(
         text("""
-            SELECT id::text FROM clients
-            WHERE organization_id = :org_id AND LOWER(name) = LOWER(:name)
+            SELECT id::text, name FROM clients
+            WHERE organization_id = :org_id
+              AND (LOWER(name) = LOWER(:name) OR LOWER(name) LIKE LOWER(:pattern))
+            ORDER BY CASE WHEN LOWER(name) = LOWER(:name) THEN 0 ELSE 1 END
             LIMIT 1
         """),
-        {"org_id": str(org_id), "name": name},
+        {"org_id": str(org_id), "name": name, "pattern": f"%{name}%"},
     )
-    row = result.fetchone()
+    row = result.mappings().first()
     if row:
-        return row[0]
+        return {"id": row["id"], "name": row["name"]}
+    return None
 
-    # Creer le client
-    client_id = uuid.uuid4()
-    emetteur = (data.get("parties") or {}).get("emetteur") or {}
-    adresse = emetteur.get("adresse") or {}
-    identifiants = emetteur.get("identifiants") or {}
 
-    # Construire l'adresse au format attendu
-    address_parts = []
-    if adresse.get("rue"):
-        address_parts.append(adresse["rue"])
-    if adresse.get("code_postal") or adresse.get("ville"):
-        address_parts.append(
-            f"{adresse.get('code_postal', '')} {adresse.get('ville', '')}".strip()
+async def _resolve_client_id(
+    org_id: uuid.UUID, client_id: str | None, suggested_name: str | None, db: AsyncSession
+) -> str:
+    """Resout le client_id fourni par l'utilisateur.
+
+    Le client_id est OBLIGATOIRE - il est fourni par le frontend via
+    le combobox de selection. L'IA suggere un nom, mais c'est l'utilisateur
+    qui choisit le client existant ou en cree un manuellement.
+    """
+    if client_id:
+        # Verifier que le client existe dans l'org
+        result = await db.execute(
+            text("SELECT id::text FROM clients WHERE id = :cid AND organization_id = :org_id"),
+            {"cid": client_id, "org_id": str(org_id)},
         )
+        if result.fetchone():
+            return client_id
+        raise HTTPException(404, "Client introuvable")
 
-    await db.execute(
-        text("""
-            INSERT INTO clients (
-                id, organization_id, name, siret, vat_number,
-                billing_address, created_at, updated_at
-            ) VALUES (
-                :id, :org_id, :name, :siret, :vat,
-                :address, now(), now()
-            )
-        """),
-        {
-            "id": str(client_id),
-            "org_id": str(org_id),
-            "name": name,
-            "siret": identifiants.get("siret"),
-            "vat": identifiants.get("tva"),
-            "address": "\n".join(address_parts) if address_parts else None,
-        },
+    raise HTTPException(
+        400,
+        f"Veuillez selectionner un client (suggere par l'IA : {suggested_name or 'inconnu'})"
     )
-    _log.info("Client cree par import : %s (%s)", name, client_id)
-    return str(client_id)
 
 
 async def _insert_lines(
@@ -215,6 +204,7 @@ async def import_as_quote(
     org_id: uuid.UUID,
     extracted_data: dict,
     db: AsyncSession,
+    client_id: str | None = None,
     source_filename: str | None = None,
 ) -> dict:
     """Cree un devis brouillon depuis un JSON Factur-X extrait."""
@@ -224,9 +214,9 @@ async def import_as_quote(
     emetteur = parties.get("emetteur") or {}
     doc = extracted_data.get("document") or {}
 
-    # Trouver/creer le client
+    # Client fourni par l'utilisateur (obligatoire)
     client_name = emetteur.get("designation")
-    client_id = await _find_or_create_client(org_id, client_name, extracted_data, db)
+    client_id = await _resolve_client_id(org_id, client_id, client_name, db)
 
     # Extraire les lignes
     lines = _extract_lines(extracted_data)
@@ -301,6 +291,7 @@ async def import_as_invoice(
     org_id: uuid.UUID,
     extracted_data: dict,
     db: AsyncSession,
+    client_id: str | None = None,
     source_filename: str | None = None,
 ) -> dict:
     """Cree une facture brouillon depuis un JSON Factur-X extrait."""
@@ -310,9 +301,9 @@ async def import_as_invoice(
     emetteur = parties.get("emetteur") or {}
     doc = extracted_data.get("document") or {}
 
-    # Trouver/creer le client
+    # Client fourni par l'utilisateur (obligatoire)
     client_name = emetteur.get("designation")
-    client_id = await _find_or_create_client(org_id, client_name, extracted_data, db)
+    client_id = await _resolve_client_id(org_id, client_id, client_name, db)
 
     # Extraire les lignes
     lines = _extract_lines(extracted_data)
@@ -398,6 +389,8 @@ async def import_as_order(
     org_id: uuid.UUID,
     extracted_data: dict,
     db: AsyncSession,
+    client_id: str | None = None,
+    quote_ids: list[str] | None = None,
     source_filename: str | None = None,
 ) -> dict:
     """Cree une commande brouillon depuis un JSON Factur-X extrait."""
@@ -405,9 +398,9 @@ async def import_as_order(
     emetteur = parties.get("emetteur") or {}
     doc = extracted_data.get("document") or {}
 
-    # Trouver/creer le client
+    # Client fourni par l'utilisateur (obligatoire)
     client_name = emetteur.get("designation")
-    client_id = await _find_or_create_client(org_id, client_name, extracted_data, db)
+    client_id = await _resolve_client_id(org_id, client_id, client_name, db)
 
     # Extraire les lignes
     lines = _extract_lines(extracted_data)
@@ -461,6 +454,14 @@ async def import_as_order(
 
     # Inserer les lignes
     await _insert_lines("order_lines", "order_id", str(order_id), lines, db)
+
+    # Lier les devis si fournis
+    if quote_ids:
+        for qid in quote_ids:
+            await db.execute(
+                text("INSERT INTO order_quotes (order_id, quote_id) VALUES (:oid, :qid) ON CONFLICT DO NOTHING"),
+                {"oid": str(order_id), "qid": qid},
+            )
 
     await db.commit()
     _log.info("Commande importee : %s - %d lignes", order_id, len(lines))
