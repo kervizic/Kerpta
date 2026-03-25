@@ -4,8 +4,8 @@
 
 """Ajout colonnes tokens_in et tokens_out sur document_imports."""
 
-revision = "20260325_0022"
-down_revision = "20260325_0021"
+revision = "0022"
+down_revision = "0021"
 
 from alembic import op
 import sqlalchemy as sa
