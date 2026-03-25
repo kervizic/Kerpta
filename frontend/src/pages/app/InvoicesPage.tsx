@@ -6,7 +6,7 @@ import { useEffect, useState, useMemo, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Loader2, Send, Check, FileText, Plus, Trash2, Pencil, RefreshCw,
-  ShieldCheck, Lock, X, FileDown, Archive, ArchiveRestore,
+  ShieldCheck, Lock, X, FileDown, Archive, ArchiveRestore, Upload,
 } from 'lucide-react'
 import { orgGet, orgPost, orgPatch, orgDownload } from '@/lib/orgApi'
 import UnitCombobox from '@/components/app/UnitCombobox'
@@ -20,7 +20,8 @@ import DatePicker from '@/components/app/DatePicker'
 import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
 import MobileFilterPanel from '@/components/app/MobileFilterPanel'
 import PageLayout from '@/components/app/PageLayout'
-import { INPUT, SELECT, LINE_INPUT, LINE_SELECT, BTN, OVERLAY_BACKDROP, OVERLAY_PANEL, BADGE_COUNT, CARD } from '@/lib/formStyles'
+import ImportDocumentModal from '@/components/app/ImportDocumentModal'
+import { INPUT, SELECT, LINE_INPUT, LINE_SELECT, BTN, BTN_SECONDARY, OVERLAY_BACKDROP, OVERLAY_PANEL, BADGE_COUNT, CARD } from '@/lib/formStyles'
 import { fmtCurrency } from '@/lib/formatting'
 import { ApiError } from '@/lib/api'
 
@@ -194,6 +195,7 @@ function InvoicesList() {
   const openParam = new URLSearchParams(window.location.search).get('open')
   const [editId, setEditId] = useState<string | null>(openParam)
   const [showCreate, setShowCreate] = useState(false)
+  const [showImport, setShowImport] = useState(false)
   const [showMobileFilters, setShowMobileFilters] = useState(false)
 
   // Selection multiple + archivage
@@ -368,6 +370,12 @@ function InvoicesList() {
               )}
             </button>
             <button
+              onClick={() => setShowImport(true)}
+              className={BTN_SECONDARY}
+            >
+              <Upload className="w-4 h-4" /> <span className="hidden sm:inline">Importer</span>
+            </button>
+            <button
               onClick={() => setShowCreate(true)}
               className={BTN}
             >
@@ -525,6 +533,15 @@ function InvoicesList() {
             values={filters}
             onChange={updateFilter}
             onClose={() => setShowMobileFilters(false)}
+          />
+        )}
+
+        {/* Import IA */}
+        {showImport && (
+          <ImportDocumentModal
+            documentType="invoice"
+            onClose={() => setShowImport(false)}
+            onImported={() => { setShowImport(false); invalidate() }}
           />
         )}
     </PageLayout>

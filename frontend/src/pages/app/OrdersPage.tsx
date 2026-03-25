@@ -6,13 +6,14 @@ import { useEffect, useState, useMemo, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Loader2, X, Plus, FileText, Receipt, Archive, ArchiveRestore,
-  ShoppingCart, ChevronLeft, ChevronRight, Pencil,
+  ShoppingCart, ChevronLeft, ChevronRight, Pencil, Upload,
 } from 'lucide-react'
 import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
 import ClientCombobox from '@/components/app/ClientCombobox'
 import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
 import MobileFilterPanel from '@/components/app/MobileFilterPanel'
 import PageLayout from '@/components/app/PageLayout'
+import ImportDocumentModal from '@/components/app/ImportDocumentModal'
 import { BTN, BTN_SM, BTN_SECONDARY, CARD, INPUT, SELECT, TEXTAREA, LABEL, LINE_INPUT, LINE_SELECT, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER, BADGE_COUNT } from '@/lib/formStyles'
 import { fmtCurrency } from '@/lib/formatting'
 
@@ -138,6 +139,7 @@ const ORDER_FILTERS: FilterOption[] = [
 export default function OrdersPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
+  const [showImport, setShowImport] = useState(false)
   const [page, setPage] = useState(1)
   const [filters, setFilters] = useState<FilterValues>({})
   const [debouncedFilters, setDebouncedFilters] = useState<FilterValues>({})
@@ -285,6 +287,9 @@ export default function OrdersPage() {
               {activeFilterCount}
             </span>
           )}
+        </button>
+        <button onClick={() => setShowImport(true)} className={BTN_SECONDARY}>
+          <Upload className="w-4 h-4" /> <span className="hidden sm:inline">Importer</span>
         </button>
         <button onClick={() => setShowCreate(true)} className={BTN}>
           <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Nouvelle commande</span>
@@ -455,6 +460,15 @@ export default function OrdersPage() {
         <CreateOrderModal
           onClose={() => setShowCreate(false)}
           onCreated={() => { setShowCreate(false); invalidate() }}
+        />
+      )}
+
+      {/* Import IA */}
+      {showImport && (
+        <ImportDocumentModal
+          documentType="order"
+          onClose={() => setShowImport(false)}
+          onImported={() => { setShowImport(false); invalidate() }}
         />
       )}
     </PageLayout>

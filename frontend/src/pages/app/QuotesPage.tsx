@@ -5,7 +5,7 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Loader2, Send, Check, X, Copy, Plus, Trash2, RefreshCw, Pencil, FileDown, Archive, ArchiveRestore,
+  Loader2, Send, Check, X, Copy, Plus, Trash2, RefreshCw, Pencil, FileDown, Archive, ArchiveRestore, Upload,
 } from 'lucide-react'
 import { orgGet, orgPost, orgPatch, orgDownload } from '@/lib/orgApi'
 import UnitCombobox from '@/components/app/UnitCombobox'
@@ -18,7 +18,8 @@ import ClientPanel from '@/components/app/ClientPanel'
 import { CreateClientForm } from '@/pages/app/ClientsPage'
 import { ProductDetailModal } from '@/pages/app/CatalogPage'
 import PageLayout from '@/components/app/PageLayout'
-import { INPUT, SELECT, LINE_INPUT, LINE_SELECT, BTN, OVERLAY_BACKDROP, OVERLAY_PANEL, BADGE_COUNT, CARD } from '@/lib/formStyles'
+import ImportDocumentModal from '@/components/app/ImportDocumentModal'
+import { INPUT, SELECT, LINE_INPUT, LINE_SELECT, BTN, BTN_SECONDARY, OVERLAY_BACKDROP, OVERLAY_PANEL, BADGE_COUNT, CARD } from '@/lib/formStyles'
 import { fmtCurrency } from '@/lib/formatting'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -168,6 +169,7 @@ function QuotesList() {
   const [debouncedFilters, setDebouncedFilters] = useState<FilterValues>({})
   const [editId, setEditId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
+  const [showImport, setShowImport] = useState(false)
   const [showMobileFilters, setShowMobileFilters] = useState(false)
   const [docTypeLabels, setDocTypeLabels] = useState<Record<string, string>>(DOC_LABELS)
 
@@ -352,6 +354,12 @@ function QuotesList() {
               )}
             </button>
             <button
+              onClick={() => setShowImport(true)}
+              className={BTN_SECONDARY}
+            >
+              <Upload className="w-4 h-4" /> <span className="hidden sm:inline">Importer</span>
+            </button>
+            <button
               onClick={() => setShowCreate(true)}
               className={BTN}
             >
@@ -503,6 +511,15 @@ function QuotesList() {
             values={filters}
             onChange={updateFilter}
             onClose={() => setShowMobileFilters(false)}
+          />
+        )}
+
+        {/* Import IA */}
+        {showImport && (
+          <ImportDocumentModal
+            documentType="quote"
+            onClose={() => setShowImport(false)}
+            onImported={() => { setShowImport(false); invalidate() }}
           />
         )}
     </PageLayout>

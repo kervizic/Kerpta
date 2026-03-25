@@ -30,8 +30,10 @@ import {
   CheckCircle2,
   Monitor,
   Copy,
+  FileSearch,
+  RotateCcw,
 } from 'lucide-react'
-import { BTN_SM, BTN_SECONDARY, INPUT, SELECT, CARD, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER } from '@/lib/formStyles'
+import { BTN_SM, BTN_SECONDARY, INPUT, SELECT, CARD, TEXTAREA, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER } from '@/lib/formStyles'
 import PageLayout from '@/components/app/PageLayout'
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -65,6 +67,7 @@ interface AiConfig {
   has_master_key: boolean
   ai_paddlex_url: string | null
   ai_features: Record<string, boolean> | null
+  ai_extraction_prompt: string | null
   roles: { vl: AiModel | null; instruct: AiModel | null; thinking: AiModel | null }
 }
 
@@ -193,7 +196,7 @@ export default function ConfigAiPage() {
 
   // Sections ouvertes/fermees
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-    general: true, providers: true, models: true, roles: true, features: true, ocr: false, usage: true,
+    general: true, providers: true, models: true, roles: true, features: true, extraction: false, ocr: false, usage: true,
   })
 
   const toggleSection = (s: string) => setOpenSections((prev) => ({ ...prev, [s]: !prev[s] }))
@@ -224,6 +227,10 @@ export default function ConfigAiPage() {
 
   const invalidate = () => void qc.invalidateQueries({ queryKey: ['ai-config'] })
 
+  // Extraction prompt state
+  const [extractionPrompt, setExtractionPrompt] = useState('')
+  const [extractionPromptSaving, setExtractionPromptSaving] = useState(false)
+
   useEffect(() => {
     if (!config) return
     configForm.reset({
@@ -232,6 +239,7 @@ export default function ConfigAiPage() {
       litellmKey: '',
       paddlexUrl: config.ai_paddlex_url || '',
     })
+    setExtractionPrompt(config.ai_extraction_prompt || '')
   }, [config])
 
   if (isAdmin === null) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-kerpta" /></div>
@@ -286,6 +294,32 @@ export default function ConfigAiPage() {
     } catch {
       showToast('error', 'Erreur lors de la sauvegarde du role')
     }
+  }
+
+  async function saveExtractionPrompt() {
+    setExtractionPromptSaving(true)
+    try {
+      await adminClient.put('/ai/config', {
+        ai_extraction_prompt: extractionPrompt || null,
+      })
+      showToast('success', 'Prompt d\'extraction sauvegarde')
+      invalidate()
+    } catch {
+      showToast('error', 'Erreur lors de la sauvegarde du prompt')
+    } finally {
+      setExtractionPromptSaving(false)
+    }
+  }
+
+  function resetExtractionPrompt() {
+    setExtractionPrompt('')
+    // Save with null to reset to default server-side
+    adminClient.put('/ai/config', { ai_extraction_prompt: null })
+      .then(() => {
+        showToast('success', 'Prompt restaure par defaut')
+        invalidate()
+      })
+      .catch(() => showToast('error', 'Erreur lors de la restauration'))
   }
 
   async function testLitellm() {
@@ -662,7 +696,38 @@ export default function ConfigAiPage() {
         )}
       </section>
 
-      {/* Section 7 - Usage */}
+      {/* Section 7 - Extraction de documents */}
+      <section className={CARD + ' p-5'}>
+        {sectionHeader('extraction', 'Extraction de documents', <FileSearch className="w-4 h-4 text-gray-400" />)}
+        {openSections.extraction && (
+          <div className="space-y-4 pt-2">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Ce prompt est utilise par l'IA pour extraire les donnees structurees (Factur-X) a partir de documents PDF ou images.
+              Laissez vide pour utiliser le prompt par defaut du serveur.
+            </p>
+            <div>
+              <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Prompt d'extraction</label>
+              <textarea
+                className={TEXTAREA}
+                style={{ minHeight: '300px' }}
+                value={extractionPrompt}
+                onChange={e => setExtractionPrompt(e.target.value)}
+                placeholder="Laissez vide pour utiliser le prompt par defaut..."
+              />
+            </div>
+            <div className="flex gap-2">
+              <button onClick={resetExtractionPrompt} className={BTN_SECONDARY}>
+                <RotateCcw className="w-3.5 h-3.5" /> Restaurer le prompt par defaut
+              </button>
+              <button onClick={saveExtractionPrompt} className={BTN_SM} disabled={extractionPromptSaving}>
+                {extractionPromptSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Sauvegarder
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Section 8 - Usage */}
       <section className={CARD + ' p-5'}>
         {sectionHeader('usage', 'Usage (30 jours)', <BarChart3 className="w-4 h-4 text-gray-400" />)}
         {openSections.usage && usage && (
