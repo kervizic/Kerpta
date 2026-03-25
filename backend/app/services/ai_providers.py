@@ -15,19 +15,71 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 _log = logging.getLogger(__name__)
 
-# Modeles predefinis pour providers sans endpoint /v1/models
-_PREDEFINED_MODELS: dict[str, list[dict]] = {
-    "anthropic": [
-        {"model_id": "claude-opus-4-6", "display_name": "Claude Opus 4.6", "capabilities": ["chat", "thinking", "vision"], "context_window": 1000000},
-        {"model_id": "claude-sonnet-4-6", "display_name": "Claude Sonnet 4.6", "capabilities": ["chat", "thinking", "vision"], "context_window": 1000000},
-        {"model_id": "claude-haiku-4-5-20251001", "display_name": "Claude Haiku 4.5", "capabilities": ["chat", "thinking", "vision"], "context_window": 200000},
-    ],
-    "google": [
-        {"model_id": "gemini-2.5-pro", "display_name": "Gemini 2.5 Pro", "capabilities": ["chat", "vision", "thinking"], "context_window": 1000000},
-        {"model_id": "gemini-2.5-flash", "display_name": "Gemini 2.5 Flash", "capabilities": ["chat", "vision"], "context_window": 1000000},
-        {"model_id": "gemini-2.0-flash", "display_name": "Gemini 2.0 Flash", "capabilities": ["chat", "vision"], "context_window": 1000000},
-    ],
-}
+# Plus de liste hardcodee - les modeles sont recuperes dynamiquement via les APIs
+
+
+async def _fetch_anthropic_models(api_key: str) -> list[dict]:
+    """Recupere la liste des modeles depuis l'API Anthropic /v1/models."""
+    models = []
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(
+                "https://api.anthropic.com/v1/models",
+                headers={
+                    "x-api-key": api_key,
+                    "anthropic-version": "2023-06-01",
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            for m in data.get("data", []):
+                mid = m.get("id", "")
+                display = m.get("display_name") or mid
+                caps = ["chat", "vision"]
+                # Tous les modeles Claude 4+ supportent thinking
+                if any(kw in mid for kw in ("opus", "sonnet", "haiku-4")):
+                    caps.append("thinking")
+                ctx = m.get("max_input_tokens") or 200000
+                models.append({
+                    "model_id": mid,
+                    "display_name": display,
+                    "capabilities": caps,
+                    "context_window": ctx,
+                })
+    except Exception as exc:
+        _log.warning("Erreur fetch modeles Anthropic: %s", exc)
+    return models
+
+
+async def _fetch_google_models(api_key: str) -> list[dict]:
+    """Recupere la liste des modeles depuis l'API Google Generative AI."""
+    models = []
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(
+                f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}",
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            for m in data.get("models", []):
+                # L'ID est au format "models/gemini-2.5-pro" - on enleve le prefix
+                mid = m.get("name", "").replace("models/", "")
+                if not mid or "embedding" in mid:
+                    continue
+                display = m.get("displayName") or mid
+                caps = ["chat", "vision"]
+                if any(kw in mid for kw in ("pro", "ultra", "thinking")):
+                    caps.append("thinking")
+                ctx = m.get("inputTokenLimit") or 200000
+                models.append({
+                    "model_id": mid,
+                    "display_name": display,
+                    "capabilities": caps,
+                    "context_window": ctx,
+                })
+    except Exception as exc:
+        _log.warning("Erreur fetch modeles Google: %s", exc)
+    return models
 
 
 async def test_connection(
@@ -61,12 +113,21 @@ async def test_connection(
                 count = len(data.get("data", []))
                 return {"success": True, "message": f"Connecte - {count} modeles detectes", "models_found": count}
 
-            elif provider_type in ("anthropic", "google"):
-                # Pas de ping simple, on verifie juste que la cle est fournie
+            elif provider_type == "anthropic":
                 if not api_key:
                     return {"success": False, "message": "Cle API requise", "models_found": 0}
-                count = len(_PREDEFINED_MODELS.get(provider_type, []))
-                return {"success": True, "message": f"Cle API fournie - {count} modeles predefinis", "models_found": count}
+                models = await _fetch_anthropic_models(api_key)
+                if models:
+                    return {"success": True, "message": f"Connecte - {len(models)} modeles detectes", "models_found": len(models)}
+                return {"success": False, "message": "Impossible de recuperer les modeles - verifiez la cle API", "models_found": 0}
+
+            elif provider_type == "google":
+                if not api_key:
+                    return {"success": False, "message": "Cle API requise", "models_found": 0}
+                models = await _fetch_google_models(api_key)
+                if models:
+                    return {"success": True, "message": f"Connecte - {len(models)} modeles detectes", "models_found": len(models)}
+                return {"success": False, "message": "Impossible de recuperer les modeles - verifiez la cle API", "models_found": 0}
 
             else:
                 return {"success": False, "message": f"Type inconnu : {provider_type}", "models_found": 0}
@@ -146,8 +207,19 @@ async def sync_models(
                         "context_window": None,
                     })
 
-            elif provider_type in ("anthropic", "google"):
-                models_data = _PREDEFINED_MODELS.get(provider_type, [])
+            elif provider_type == "anthropic":
+                if not api_key:
+                    raise HTTPException(400, "Cle API Anthropic requise pour synchroniser")
+                models_data = await _fetch_anthropic_models(api_key)
+                if not models_data:
+                    raise HTTPException(502, "Impossible de recuperer les modeles Anthropic - verifiez la cle API")
+
+            elif provider_type == "google":
+                if not api_key:
+                    raise HTTPException(400, "Cle API Google requise pour synchroniser")
+                models_data = await _fetch_google_models(api_key)
+                if not models_data:
+                    raise HTTPException(502, "Impossible de recuperer les modeles Google - verifiez la cle API")
 
     except Exception as exc:
         _log.warning("Erreur sync modeles provider %s: %s", provider_id, exc)
