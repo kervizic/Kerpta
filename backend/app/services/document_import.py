@@ -215,6 +215,8 @@ async def create_import(
     model_used: str | None,
     duration_ms: int | None,
     db: AsyncSession,
+    tokens_in: int | None = None,
+    tokens_out: int | None = None,
 ) -> dict:
     """Cree un import en staging (status=pending).
 
@@ -227,9 +229,11 @@ async def create_import(
         text("""
             INSERT INTO document_imports
                 (id, organization_id, status, source_file_url, source_filename,
-                 extracted_json, confidence, model_used, extraction_duration_ms, created_at)
+                 extracted_json, confidence, model_used, extraction_duration_ms,
+                 tokens_in, tokens_out, created_at)
             VALUES (:id, :org_id, 'pending', :file_url, :filename,
-                    CAST(:extracted AS jsonb), :confidence, :model, :duration, :now)
+                    CAST(:extracted AS jsonb), :confidence, :model, :duration,
+                    :tin, :tout, :now)
         """),
         {
             "id": str(import_id),
@@ -240,6 +244,8 @@ async def create_import(
             "confidence": confidence,
             "model": model_used,
             "duration": duration_ms,
+            "tin": tokens_in,
+            "tout": tokens_out,
             "now": now,
         },
     )
@@ -265,7 +271,8 @@ async def get_import(
                    di.extracted_json, di.corrected_json,
                    di.client_id::text, di.target_type, di.target_id::text,
                    di.action, di.confidence, di.model_used,
-                   di.extraction_duration_ms, di.created_at, di.validated_at,
+                   di.extraction_duration_ms, di.tokens_in, di.tokens_out,
+                   di.created_at, di.validated_at,
                    c.name AS client_name
             FROM document_imports di
             LEFT JOIN clients c ON c.id = di.client_id
@@ -291,9 +298,11 @@ async def get_import(
         "confidence": float(row[10]) if row[10] is not None else None,
         "model_used": row[11],
         "extraction_duration_ms": row[12],
-        "created_at": str(row[13]) if row[13] else None,
-        "validated_at": str(row[14]) if row[14] else None,
-        "client_name": row[15],
+        "tokens_in": row[13],
+        "tokens_out": row[14],
+        "created_at": str(row[15]) if row[15] else None,
+        "validated_at": str(row[16]) if row[16] else None,
+        "client_name": row[17],
     }
 
 
@@ -306,7 +315,9 @@ async def list_imports(
     query = """
         SELECT di.id::text, di.status, di.source_filename,
                di.target_type, di.target_id::text, di.action,
-               di.confidence, di.model_used, di.created_at, di.validated_at,
+               di.confidence, di.model_used,
+               di.tokens_in, di.tokens_out, di.extraction_duration_ms,
+               di.created_at, di.validated_at,
                c.name AS client_name
         FROM document_imports di
         LEFT JOIN clients c ON c.id = di.client_id
@@ -331,9 +342,12 @@ async def list_imports(
             "action": r[5],
             "confidence": float(r[6]) if r[6] is not None else None,
             "model_used": r[7],
-            "created_at": str(r[8]) if r[8] else None,
-            "validated_at": str(r[9]) if r[9] else None,
-            "client_name": r[10],
+            "tokens_in": r[8],
+            "tokens_out": r[9],
+            "extraction_duration_ms": r[10],
+            "created_at": str(r[11]) if r[11] else None,
+            "validated_at": str(r[12]) if r[12] else None,
+            "client_name": r[13],
         }
         for r in result.fetchall()
     ]

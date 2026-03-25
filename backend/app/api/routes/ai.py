@@ -157,9 +157,14 @@ async def extract_document(
     duration_ms = result.pop("duration_ms", None)
     model_used = result.pop("model", None)
     result.pop("pages_count", None)
-    result.pop("tokens_in", None)
-    result.pop("tokens_out", None)
-    confidence = None  # le VLM ne retourne pas de score de confiance
+    tokens_in = result.pop("tokens_in", None)
+    tokens_out = result.pop("tokens_out", None)
+    confidence = None
+    if result.get("meta", {}).get("confiance") is not None:
+        try:
+            confidence = float(result["meta"]["confiance"])
+        except (ValueError, TypeError):
+            pass
 
     staging = await create_import(
         x_organization_id,
@@ -170,6 +175,8 @@ async def extract_document(
         model_used=model_used,
         duration_ms=duration_ms,
         db=db,
+        tokens_in=tokens_in,
+        tokens_out=tokens_out,
     )
 
     # Pre-matcher le client par le nom extrait
