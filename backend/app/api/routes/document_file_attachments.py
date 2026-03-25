@@ -11,7 +11,7 @@ from app.core.database import get_db
 from app.core.dependencies import OrgContext, get_org_context
 from app.services import document_attachments as doc_attach_svc
 
-router = APIRouter(prefix="/api/v1/attachments/files", tags=["Pieces jointes documents"])
+router = APIRouter(prefix="/api/v1/attachments", tags=["Pieces jointes documents"])
 
 
 @router.post("", status_code=201)
