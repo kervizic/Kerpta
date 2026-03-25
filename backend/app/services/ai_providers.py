@@ -18,9 +18,9 @@ _log = logging.getLogger(__name__)
 # Modeles predefinis pour providers sans endpoint /v1/models
 _PREDEFINED_MODELS: dict[str, list[dict]] = {
     "anthropic": [
-        {"model_id": "claude-opus-4-20250514", "display_name": "Claude Opus 4", "capabilities": ["chat", "thinking", "vision"], "context_window": 200000},
-        {"model_id": "claude-sonnet-4-20250514", "display_name": "Claude Sonnet 4", "capabilities": ["chat", "vision"], "context_window": 200000},
-        {"model_id": "claude-haiku-3-5-20241022", "display_name": "Claude 3.5 Haiku", "capabilities": ["chat"], "context_window": 200000},
+        {"model_id": "claude-opus-4-6", "display_name": "Claude Opus 4.6", "capabilities": ["chat", "thinking", "vision"], "context_window": 1000000},
+        {"model_id": "claude-sonnet-4-6", "display_name": "Claude Sonnet 4.6", "capabilities": ["chat", "thinking", "vision"], "context_window": 1000000},
+        {"model_id": "claude-haiku-4-5-20251001", "display_name": "Claude Haiku 4.5", "capabilities": ["chat", "thinking", "vision"], "context_window": 200000},
     ],
     "google": [
         {"model_id": "gemini-2.5-pro", "display_name": "Gemini 2.5 Pro", "capabilities": ["chat", "vision", "thinking"], "context_window": 1000000},
