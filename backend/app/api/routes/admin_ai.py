@@ -227,6 +227,26 @@ async def delete_provider(
     _admin: uuid_mod.UUID = Depends(require_platform_admin),
     db: AsyncSession = Depends(get_db),
 ):
+    from app.services.ai_providers import _purge_provider_models_from_litellm
+
+    # Charger le provider pour connaitre son type
+    row = (await db.execute(
+        text("SELECT type FROM ai_providers WHERE id = :id"),
+        {"id": str(provider_id)},
+    )).fetchone()
+
+    # Purger les modeles de LiteLLM
+    if row:
+        cfg_row = (await db.execute(
+            text("SELECT ai_litellm_base_url, ai_litellm_master_key FROM platform_config LIMIT 1")
+        )).fetchone()
+        litellm_url = cfg_row[0] if cfg_row else None
+        litellm_key = cfg_row[1] if cfg_row else None
+        if litellm_url and litellm_key:
+            await _purge_provider_models_from_litellm(litellm_url, litellm_key, row[0])
+
+    # Supprimer les modeles en base puis le provider
+    await db.execute(text("DELETE FROM ai_models WHERE provider_id = :id"), {"id": str(provider_id)})
     await db.execute(text("DELETE FROM ai_providers WHERE id = :id"), {"id": str(provider_id)})
     await db.commit()
 
