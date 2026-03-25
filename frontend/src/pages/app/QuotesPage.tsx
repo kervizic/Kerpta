@@ -359,7 +359,7 @@ function QuotesList() {
               onClick={() => setShowImport(true)}
               className={BTN_SECONDARY}
             >
-              <Upload className="w-4 h-4" /> <span className="hidden sm:inline">Importer</span>
+              <Upload className="w-4 h-4" /> <span className="hidden sm:inline">Import IA</span>
             </button>
             <button
               onClick={() => setShowCreate(true)}
