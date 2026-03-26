@@ -891,7 +891,13 @@ async def delete_import(
 
     file_url = row[0]
 
-    # Supprimer en base (CASCADE supprime les lignes)
+    # Supprimer les pieces jointes liees (FK sans CASCADE)
+    await db.execute(
+        text("DELETE FROM import_file_attachments WHERE import_id = :iid"),
+        {"iid": import_id},
+    )
+
+    # Supprimer en base (document_import_lines CASCADE, mais pas import_file_attachments)
     await db.execute(
         text("DELETE FROM document_imports WHERE id = :iid AND organization_id = :org_id"),
         {"iid": import_id, "org_id": str(org_id)},
