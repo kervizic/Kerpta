@@ -364,6 +364,7 @@ function ImportDetailOverlay({
   const [docOrderNumber, setDocOrderNumber] = useState('')
   const [saving, setSaving] = useState(false)
   const [rejecting, setRejecting] = useState(false)
+  const [showFile, setShowFile] = useState(false)
 
   const { data: detail, isLoading } = useQuery({
     queryKey: ['import-detail', importId],
@@ -426,9 +427,11 @@ function ImportDetailOverlay({
   const conf = detail ? confidenceBadge(detail.confidence) : null
   const st = detail ? (STATUS_LABELS[detail.status] || { label: detail.status, cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' }) : null
 
+  const fileUrl = detail?.source_file_url ? `/api/v1/imports/${importId}/file` : null
+
   return (
     <div className={OVERLAY_BACKDROP} onClick={onClose}>
-      <div className={OVERLAY_PANEL} onClick={(e) => e.stopPropagation()}>
+      <div className={`${OVERLAY_PANEL} ${showFile ? '!max-w-7xl' : ''}`} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className={OVERLAY_HEADER}>
           <div className="flex items-center gap-3 min-w-0">
@@ -439,9 +442,20 @@ function ImportDetailOverlay({
             {conf && <span className={`px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${conf.cls}`}>{conf.label}</span>}
             {st && <span className={`px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${st.cls}`}>{st.label}</span>}
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition text-gray-400">
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {fileUrl && (
+              <button
+                onClick={() => setShowFile(!showFile)}
+                className={`${BTN_SM} ${showFile ? 'bg-kerpta-50 dark:bg-kerpta-900/30' : ''}`}
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                {showFile ? 'Masquer' : 'Voir le fichier'}
+              </button>
+            )}
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition text-gray-400">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Contenu */}
@@ -450,7 +464,18 @@ function ImportDetailOverlay({
             <Loader2 className="w-8 h-8 animate-spin text-kerpta" />
           </div>
         ) : detail ? (
-          <div className="p-4 md:p-6 space-y-6">
+          <div className={`flex flex-col ${showFile ? 'lg:flex-row' : ''}`}>
+            {/* Fichier source (PDF viewer) */}
+            {showFile && fileUrl && (
+              <div className="lg:w-1/2 border-b lg:border-b-0 lg:border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+                <iframe
+                  src={fileUrl}
+                  className="w-full h-[50vh] lg:h-[80vh]"
+                  title="Fichier source"
+                />
+              </div>
+            )}
+          <div className={`${showFile ? 'lg:w-1/2 lg:overflow-y-auto lg:max-h-[80vh]' : 'w-full'} p-4 md:p-6 space-y-6`}>
             {/* Meta extraction */}
             <div className="flex flex-wrap gap-3 text-xs text-gray-500 dark:text-gray-400">
               {detail.model_used && (
@@ -705,6 +730,7 @@ function ImportDetailOverlay({
               <div className="flex-1" />
               <button onClick={onClose} className={BTN_SECONDARY}>Fermer</button>
             </div>
+          </div>
           </div>
         ) : null}
       </div>
