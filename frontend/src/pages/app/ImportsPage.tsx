@@ -353,6 +353,11 @@ function ImportDetailOverlay({
 }) {
   const [docType, setDocType] = useState<string>('')
   const [clientId, setClientId] = useState<string>('')
+  const [docNumber, setDocNumber] = useState('')
+  const [docDate, setDocDate] = useState('')
+  const [docDueDate, setDocDueDate] = useState('')
+  const [docRef, setDocRef] = useState('')
+  const [docOrderNumber, setDocOrderNumber] = useState('')
   const [saving, setSaving] = useState(false)
   const [rejecting, setRejecting] = useState(false)
 
@@ -366,6 +371,11 @@ function ImportDetailOverlay({
     if (detail) {
       setDocType(detail.extracted_doc_type || '')
       setClientId(detail.client_id || '')
+      setDocNumber(detail.extracted_doc_number || '')
+      setDocDate(detail.extracted_doc_date || '')
+      setDocDueDate(detail.extracted_doc_due_date || '')
+      setDocRef(detail.extracted_reference || '')
+      setDocOrderNumber(detail.extracted_order_number || '')
     }
   }, [detail])
 
@@ -378,6 +388,16 @@ function ImportDetailOverlay({
         action: 'create',
         target_type: targetType,
         client_id: clientId || null,
+        corrected_json: {
+          document: {
+            numero: docNumber || null,
+            date_emission: docDate || null,
+            date_echeance: docDueDate || null,
+            reference: docRef || null,
+            numero_commande: docOrderNumber || null,
+          },
+          meta: { type_document: docType || null },
+        },
       })
       onRefresh()
       onClose()
@@ -510,23 +530,23 @@ function ImportDetailOverlay({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className={LABEL}>Numero</label>
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{detail.extracted_doc_number || '-'}</span>
+                  <input className={INPUT} value={docNumber} onChange={e => setDocNumber(e.target.value)} disabled={detail.status !== 'pending'} placeholder="N. document" />
                 </div>
                 <div>
                   <label className={LABEL}>Date emission</label>
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{detail.extracted_doc_date || '-'}</span>
+                  <input className={INPUT} type="date" value={docDate} onChange={e => setDocDate(e.target.value)} disabled={detail.status !== 'pending'} />
                 </div>
                 <div>
                   <label className={LABEL}>Date echeance</label>
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{detail.extracted_doc_due_date || '-'}</span>
+                  <input className={INPUT} type="date" value={docDueDate} onChange={e => setDocDueDate(e.target.value)} disabled={detail.status !== 'pending'} />
                 </div>
                 <div>
                   <label className={LABEL}>Reference</label>
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{detail.extracted_reference || '-'}</span>
+                  <input className={INPUT} value={docRef} onChange={e => setDocRef(e.target.value)} disabled={detail.status !== 'pending'} placeholder="Reference" />
                 </div>
                 <div>
                   <label className={LABEL}>N. commande</label>
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{detail.extracted_order_number || '-'}</span>
+                  <input className={INPUT} value={docOrderNumber} onChange={e => setDocOrderNumber(e.target.value)} disabled={detail.status !== 'pending'} placeholder="N. commande" />
                 </div>
               </div>
             </div>
