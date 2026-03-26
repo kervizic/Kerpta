@@ -29,12 +29,6 @@ const DOC_LABELS: Record<string, string> = {
   invoice: 'facture',
   order: 'commande',
 }
-  acompte: 'invoice',
-  devis: 'quote',
-  pro_forma: 'quote',
-  bon_commande: 'order',
-  bon_livraison: 'order',
-}
 
 type Step = 'upload' | 'processing' | 'done' | 'error'
 
