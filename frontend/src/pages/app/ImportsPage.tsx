@@ -15,7 +15,7 @@ import MobileFilterPanel from '@/components/app/MobileFilterPanel'
 import PageLayout from '@/components/app/PageLayout'
 import ImportDocumentModal from '@/components/app/ImportDocumentModal'
 import {
-  BTN, BTN_SM, BTN_SECONDARY, BTN_DANGER, CARD, LABEL, SELECT,
+  BTN, BTN_SM, BTN_SECONDARY, BTN_DANGER, CARD, INPUT, LABEL, SELECT,
   OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER, BADGE_COUNT, SECTION,
 } from '@/lib/formStyles'
 import { fmtCurrency } from '@/lib/formatting'
