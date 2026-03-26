@@ -439,45 +439,37 @@ async def ocr_vlm(
     # Prompt configurable : utiliser celui de la config ou le fallback par defaut
     extraction_prompt = config.get("extraction_prompt") or _VLM_EXTRACTION_PROMPT
 
-    # Envoyer page par page pour eviter de surcharger le modele
+    # Construire UN SEUL message avec toutes les pages comme images
+    content: list[dict] = [
+        {"type": "text", "text": extraction_prompt},
+    ]
+    for img_b64 in images_b64:
+        content.append({
+            "type": "image_url",
+            "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"},
+        })
+    messages = [{"role": "user", "content": content}]
+
+    _log.info("OCR-VLM envoi %d page(s) en une requete (%s)", len(images_b64), model["litellm_name"])
     start = time.monotonic()
-    total_tokens_in = 0
-    total_tokens_out = 0
-    all_pages_results = []
-    last_text = ""
-
-    for i, img_b64 in enumerate(images_b64):
-        page_prompt = extraction_prompt if i == 0 else (
-            "Meme consignes. Extrais les donnees de cette page supplementaire. "
-            "Retourne UNIQUEMENT le JSON."
-        )
-        content: list[dict] = [
-            {"type": "text", "text": page_prompt},
-            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}},
-        ]
-        messages = [{"role": "user", "content": content}]
-
-        _log.info("OCR-VLM page %d/%d - appel LiteLLM (%s)", i + 1, len(images_b64), model["litellm_name"])
-        resp = await _call_litellm(
-            config["litellm_url"], config["litellm_key"],
-            model["litellm_name"], messages, max_tokens=4096, timeout=300.0,
-        )
-        _log.info("OCR-VLM page %d - reponse recue en %.1fs", i + 1, time.monotonic() - start)
-
-        usage = resp.get("usage", {})
-        total_tokens_in += usage.get("prompt_tokens", 0)
-        total_tokens_out += usage.get("completion_tokens", 0)
-
-        last_text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
-        parsed = _parse_vlm_json(last_text)
-        if parsed:
-            all_pages_results.append(parsed)
-
+    resp = await _call_litellm(
+        config["litellm_url"], config["litellm_key"],
+        model["litellm_name"], messages, max_tokens=4096, timeout=300.0,
+    )
     duration = int((time.monotonic() - start) * 1000)
+    _log.info("OCR-VLM reponse recue en %.1fs", duration / 1000)
+
+    usage = resp.get("usage", {})
+    total_tokens_in = usage.get("prompt_tokens", 0)
+    total_tokens_out = usage.get("completion_tokens", 0)
+
     await _log_usage(
         db, org_id, user_id, model["uuid"], "vl",
         total_tokens_in, total_tokens_out, duration,
     )
+
+    text = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+    result = _parse_vlm_json(text)
 
     meta = {
         "duration_ms": duration,
@@ -487,15 +479,9 @@ async def ocr_vlm(
         "model": model["litellm_name"],
     }
 
-    if not all_pages_results:
-        return {"raw_text": last_text, **meta}
+    if not result:
+        return {"raw_text": text, **meta}
 
-    result = all_pages_results[0]
-    # Fusionner les lignes des pages suivantes
-    for page_result in all_pages_results[1:]:
-        if "lignes" in page_result and page_result["lignes"]:
-            result.setdefault("lignes", [])
-            result["lignes"].extend(page_result["lignes"])
     result.update(meta)
     return result
 
