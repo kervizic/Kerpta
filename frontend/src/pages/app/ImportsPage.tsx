@@ -566,100 +566,104 @@ function ImportDetailOverlay({
               </div>
             )}
 
-            {/* Section Type de document */}
-            <div className={SECTION}>
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Type de document</h3>
-              <select
-                value={docType}
-                onChange={(e) => setDocType(e.target.value)}
-                className={SELECT}
-                disabled={detail.status === 'rejected'}
-              >
-                <option value="">-- Choisir --</option>
-                {DOC_TYPE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
+            {/* ── DONNEES IA (fond ambre subtil) ────────────────────────── */}
+            <div className="bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-800/30 rounded-xl p-4 md:p-5 space-y-4">
+              <div className="flex items-center gap-2 mb-1">
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                <h3 className="text-sm font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide">Detecte par l'IA</h3>
+              </div>
+
+              {/* Type detecte */}
+              <div>
+                <label className="block text-xs font-medium text-amber-600/80 dark:text-amber-500/80 mb-1">Type de document</label>
+                <span className="text-sm text-gray-900 dark:text-white">{DOC_TYPE_OPTIONS.find(o => o.value === detail.extracted_doc_type)?.label || detail.extracted_doc_type || '-'}</span>
+              </div>
+
+              {/* Emetteur + Destinataire cote a cote */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold text-amber-600/80 dark:text-amber-500/80 uppercase">Emetteur</h4>
+                  <div className="text-sm text-gray-800 dark:text-gray-200 font-medium">{detail.extracted_emetteur_name || '-'}</div>
+                  {(detail.extracted_emetteur_siret || detail.extracted_emetteur_siren) && (
+                    <div className="text-xs text-gray-500 dark:text-gray-400 font-mono">{detail.extracted_emetteur_siret || detail.extracted_emetteur_siren}</div>
+                  )}
+                  {detail.extracted_emetteur_tva && (
+                    <div className="text-xs text-gray-500 dark:text-gray-400 font-mono">TVA: {detail.extracted_emetteur_tva}</div>
+                  )}
+                  {detail.extracted_emetteur_address && (
+                    <div className="text-xs text-gray-500 dark:text-gray-400">{detail.extracted_emetteur_address}</div>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold text-amber-600/80 dark:text-amber-500/80 uppercase">Destinataire</h4>
+                  <div className="text-sm text-gray-800 dark:text-gray-200 font-medium">{detail.extracted_destinataire_name || '-'}</div>
+                  {(detail.extracted_destinataire_siret || detail.extracted_destinataire_siren) && (
+                    <div className="text-xs text-gray-500 dark:text-gray-400 font-mono">{detail.extracted_destinataire_siret || detail.extracted_destinataire_siren}</div>
+                  )}
+                  {detail.extracted_destinataire_tva && (
+                    <div className="text-xs text-gray-500 dark:text-gray-400 font-mono">TVA: {detail.extracted_destinataire_tva}</div>
+                  )}
+                  {detail.extracted_destinataire_address && (
+                    <div className="text-xs text-gray-500 dark:text-gray-400">{detail.extracted_destinataire_address}</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Doc detecte */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                <div>
+                  <span className="text-amber-600/80 dark:text-amber-500/80">Numero</span>
+                  <div className="text-gray-800 dark:text-gray-200">{detail.extracted_doc_number || '-'}</div>
+                </div>
+                <div>
+                  <span className="text-amber-600/80 dark:text-amber-500/80">Date</span>
+                  <div className="text-gray-800 dark:text-gray-200">{detail.extracted_doc_date || '-'}</div>
+                </div>
+                <div>
+                  <span className="text-amber-600/80 dark:text-amber-500/80">Echeance</span>
+                  <div className="text-gray-800 dark:text-gray-200">{detail.extracted_doc_due_date || '-'}</div>
+                </div>
+                <div>
+                  <span className="text-amber-600/80 dark:text-amber-500/80">Reference</span>
+                  <div className="text-gray-800 dark:text-gray-200">{detail.extracted_reference || '-'}</div>
+                </div>
+              </div>
             </div>
 
-            {/* Section Emetteur */}
+            {/* ── DONNEES UTILISATEUR (fond blanc, editables) ─────────── */}
             <div className={SECTION}>
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Emetteur</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Vos informations</h3>
+
+              {/* Type + Client */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label className={LABEL}>Nom (IA)</label>
+                  <label className={LABEL}>Type de document</label>
+                  <select
+                    value={docType}
+                    onChange={(e) => setDocType(e.target.value)}
+                    className={SELECT}
+                    disabled={detail.status === 'rejected'}
+                  >
+                    <option value="">-- Choisir --</option>
+                    {DOC_TYPE_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={LABEL}>Client</label>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-700 dark:text-gray-300">{detail.extracted_emetteur_name || '-'}</span>
-                    <Sparkles className="w-3 h-3 text-kerpta" />
+                    <ClientCombobox
+                      value={clientId}
+                      onChange={setClientId}
+                      disabled={detail.status === 'rejected'}
+                    />
+                    {clientId && <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />}
                   </div>
                 </div>
-                <div>
-                  <label className={LABEL}>SIRET / SIREN (IA)</label>
-                  <span className="text-sm text-gray-700 dark:text-gray-300 font-mono">
-                    {detail.extracted_emetteur_siret || detail.extracted_emetteur_siren || '-'}
-                  </span>
-                </div>
-                <div>
-                  <label className={LABEL}>N. TVA (IA)</label>
-                  <span className="text-sm text-gray-700 dark:text-gray-300 font-mono">
-                    {detail.extracted_emetteur_tva || '-'}
-                  </span>
-                </div>
-                <div className="md:col-span-3">
-                  <label className={LABEL}>Adresse (IA)</label>
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{detail.extracted_emetteur_address || '-'}</span>
-                </div>
               </div>
-            </div>
 
-            {/* Section Destinataire */}
-            <div className={SECTION}>
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Destinataire</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className={LABEL}>Nom (IA)</label>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-700 dark:text-gray-300">{detail.extracted_destinataire_name || '-'}</span>
-                    <Sparkles className="w-3 h-3 text-kerpta" />
-                  </div>
-                </div>
-                <div>
-                  <label className={LABEL}>SIRET / SIREN (IA)</label>
-                  <span className="text-sm text-gray-700 dark:text-gray-300 font-mono">
-                    {detail.extracted_destinataire_siret || detail.extracted_destinataire_siren || '-'}
-                  </span>
-                </div>
-                <div>
-                  <label className={LABEL}>N. TVA (IA)</label>
-                  <span className="text-sm text-gray-700 dark:text-gray-300 font-mono">
-                    {detail.extracted_destinataire_tva || '-'}
-                  </span>
-                </div>
-                <div className="md:col-span-3">
-                  <label className={LABEL}>Adresse (IA)</label>
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{detail.extracted_destinataire_address || '-'}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Section Associer le client */}
-            <div className={SECTION}>
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Associer le client</h3>
-              <div className="flex items-center gap-2">
-                <ClientCombobox
-                  value={clientId}
-                  onChange={setClientId}
-                  disabled={detail.status === 'rejected'}
-                />
-                {clientId && (
-                  <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
-                )}
-              </div>
-            </div>
-
-            {/* Section Document */}
-            <div className={SECTION}>
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Document</h3>
+              {/* Document */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className={LABEL}>Numero</label>
