@@ -43,7 +43,8 @@ async def list_imports(
             i for i in all_imports
             if s in (i.get("source_filename") or "").lower()
             or s in (i.get("client_name") or "").lower()
-            or s in (i.get("extracted_client_name") or "").lower()
+            or s in (i.get("extracted_emetteur_name") or "").lower()
+            or s in (i.get("extracted_destinataire_name") or "").lower()
             or s in (i.get("extracted_doc_number") or "").lower()
         ]
     total = len(all_imports)

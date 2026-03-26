@@ -225,33 +225,52 @@ async def _populate_structured_fields(
     Les colonnes structurees sont EN PLUS du JSON, pas a la place.
     """
     parties = extracted_json.get("parties") or {}
-    # Le CLIENT est le DESTINATAIRE (pas l'emetteur)
-    # L'emetteur c'est l'entreprise qui emet le document (nous)
+
+    # Emetteur
+    emetteur = parties.get("emetteur") or {}
+    emetteur_identifiants = emetteur.get("identifiants") or {}
+    emetteur_adresse = emetteur.get("adresse") or {}
+
+    # Destinataire
     destinataire = parties.get("destinataire") or {}
     dest_identifiants = destinataire.get("identifiants") or {}
     dest_adresse = destinataire.get("adresse") or {}
+
     doc = extracted_json.get("document") or {}
     meta = extracted_json.get("meta") or {}
     totaux = extracted_json.get("totaux") or {}
     paiement = extracted_json.get("paiement") or {}
 
-    # Construire l'adresse complete du client (destinataire)
-    addr_parts = [
+    # Construire l'adresse complete de l'emetteur
+    em_addr_parts = [
+        emetteur_adresse.get("rue"),
+        emetteur_adresse.get("code_postal") or emetteur_adresse.get("cp"),
+        emetteur_adresse.get("ville"),
+    ]
+    emetteur_address = " ".join(p for p in em_addr_parts if p) or None
+
+    # Construire l'adresse complete du destinataire
+    dest_addr_parts = [
         dest_adresse.get("rue"),
         dest_adresse.get("code_postal") or dest_adresse.get("cp"),
         dest_adresse.get("ville"),
     ]
-    client_address = " ".join(p for p in addr_parts if p) or None
+    destinataire_address = " ".join(p for p in dest_addr_parts if p) or None
 
     # Mettre a jour les colonnes structurees sur document_imports
     await db.execute(
         text("""
             UPDATE document_imports SET
-                extracted_client_name = :client_name,
-                extracted_client_siret = :client_siret,
-                extracted_client_siren = :client_siren,
-                extracted_client_tva = :client_tva,
-                extracted_client_address = :client_address,
+                extracted_emetteur_name = :emetteur_name,
+                extracted_emetteur_siret = :emetteur_siret,
+                extracted_emetteur_siren = :emetteur_siren,
+                extracted_emetteur_tva = :emetteur_tva,
+                extracted_emetteur_address = :emetteur_address,
+                extracted_destinataire_name = :dest_name,
+                extracted_destinataire_siret = :dest_siret,
+                extracted_destinataire_siren = :dest_siren,
+                extracted_destinataire_tva = :dest_tva,
+                extracted_destinataire_address = :dest_address,
                 extracted_doc_number = :doc_number,
                 extracted_doc_date = :doc_date,
                 extracted_doc_due_date = :doc_due_date,
@@ -268,11 +287,16 @@ async def _populate_structured_fields(
         """),
         {
             "import_id": str(import_id),
-            "client_name": destinataire.get("designation"),
-            "client_siret": dest_identifiants.get("siret"),
-            "client_siren": dest_identifiants.get("siren"),
-            "client_tva": dest_identifiants.get("tva"),
-            "client_address": client_address,
+            "emetteur_name": emetteur.get("designation"),
+            "emetteur_siret": emetteur_identifiants.get("siret"),
+            "emetteur_siren": emetteur_identifiants.get("siren"),
+            "emetteur_tva": emetteur_identifiants.get("tva"),
+            "emetteur_address": emetteur_address,
+            "dest_name": destinataire.get("designation"),
+            "dest_siret": dest_identifiants.get("siret"),
+            "dest_siren": dest_identifiants.get("siren"),
+            "dest_tva": dest_identifiants.get("tva"),
+            "dest_address": destinataire_address,
             "doc_number": doc.get("numero"),
             "doc_date": _safe_date(doc.get("date_emission")),
             "doc_due_date": _safe_date(doc.get("date_echeance")),
@@ -467,9 +491,13 @@ async def get_import(
                    di.extraction_duration_ms, di.tokens_in, di.tokens_out,
                    di.created_at, di.validated_at,
                    c.name AS client_name,
-                   di.extracted_client_name, di.extracted_client_siret,
-                   di.extracted_client_siren, di.extracted_client_tva,
-                   di.extracted_client_address, di.extracted_doc_number,
+                   di.extracted_emetteur_name, di.extracted_emetteur_siret,
+                   di.extracted_emetteur_siren, di.extracted_emetteur_tva,
+                   di.extracted_emetteur_address,
+                   di.extracted_destinataire_name, di.extracted_destinataire_siret,
+                   di.extracted_destinataire_siren, di.extracted_destinataire_tva,
+                   di.extracted_destinataire_address,
+                   di.extracted_doc_number,
                    di.extracted_doc_date, di.extracted_doc_due_date,
                    di.extracted_doc_type, di.extracted_total_ht,
                    di.extracted_total_tva, di.extracted_total_ttc,
@@ -508,12 +536,18 @@ async def get_import(
         "created_at": str(row["created_at"]) if row["created_at"] else None,
         "validated_at": str(row["validated_at"]) if row["validated_at"] else None,
         "client_name": row["client_name"],
-        # Colonnes structurees
-        "extracted_client_name": row["extracted_client_name"],
-        "extracted_client_siret": row["extracted_client_siret"],
-        "extracted_client_siren": row["extracted_client_siren"],
-        "extracted_client_tva": row["extracted_client_tva"],
-        "extracted_client_address": row["extracted_client_address"],
+        # Colonnes structurees - Emetteur
+        "extracted_emetteur_name": row["extracted_emetteur_name"],
+        "extracted_emetteur_siret": row["extracted_emetteur_siret"],
+        "extracted_emetteur_siren": row["extracted_emetteur_siren"],
+        "extracted_emetteur_tva": row["extracted_emetteur_tva"],
+        "extracted_emetteur_address": row["extracted_emetteur_address"],
+        # Colonnes structurees - Destinataire
+        "extracted_destinataire_name": row["extracted_destinataire_name"],
+        "extracted_destinataire_siret": row["extracted_destinataire_siret"],
+        "extracted_destinataire_siren": row["extracted_destinataire_siren"],
+        "extracted_destinataire_tva": row["extracted_destinataire_tva"],
+        "extracted_destinataire_address": row["extracted_destinataire_address"],
         "extracted_doc_number": row["extracted_doc_number"],
         "extracted_doc_date": str(row["extracted_doc_date"]) if row["extracted_doc_date"] else None,
         "extracted_doc_due_date": str(row["extracted_doc_due_date"]) if row["extracted_doc_due_date"] else None,
@@ -616,7 +650,8 @@ async def list_imports(
                di.tokens_in, di.tokens_out, di.extraction_duration_ms,
                di.created_at, di.validated_at,
                c.name AS client_name,
-               di.extracted_client_name, di.extracted_doc_number,
+               di.extracted_emetteur_name, di.extracted_destinataire_name,
+               di.extracted_doc_number,
                di.extracted_doc_type, di.extracted_total_ttc
         FROM document_imports di
         LEFT JOIN clients c ON c.id = di.client_id
@@ -647,10 +682,11 @@ async def list_imports(
             "created_at": str(r[11]) if r[11] else None,
             "validated_at": str(r[12]) if r[12] else None,
             "client_name": r[13],
-            "extracted_client_name": r[14],
-            "extracted_doc_number": r[15],
-            "extracted_doc_type": r[16],
-            "extracted_total_ttc": float(r[17]) if r[17] is not None else None,
+            "extracted_emetteur_name": r[14],
+            "extracted_destinataire_name": r[15],
+            "extracted_doc_number": r[16],
+            "extracted_doc_type": r[17],
+            "extracted_total_ttc": float(r[18]) if r[18] is not None else None,
         }
         for r in result.fetchall()
     ]

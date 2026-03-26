@@ -6,9 +6,10 @@ import { useEffect, useState, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Loader2, X, Upload, Sparkles, ChevronLeft, ChevronRight,
-  ExternalLink, CheckCircle2, Clock, XCircle, Brain, Trash2,
+  ExternalLink, CheckCircle2, Clock, XCircle, Brain, Trash2, Download,
 } from 'lucide-react'
 import { orgGet, orgPost, orgDelete, orgDownload } from '@/lib/orgApi'
+import { useAuthStore } from '@/stores/authStore'
 import ClientCombobox from '@/components/app/ClientCombobox'
 import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
 import MobileFilterPanel from '@/components/app/MobileFilterPanel'
@@ -27,11 +28,16 @@ interface ImportItem {
   source_filename: string | null
   source_file_url: string | null
   extracted_doc_type: string | null
-  extracted_client_name: string | null
-  extracted_client_siret: string | null
-  extracted_client_siren: string | null
-  extracted_client_tva: string | null
-  extracted_client_address: string | null
+  extracted_emetteur_name: string | null
+  extracted_emetteur_siret: string | null
+  extracted_emetteur_siren: string | null
+  extracted_emetteur_tva: string | null
+  extracted_emetteur_address: string | null
+  extracted_destinataire_name: string | null
+  extracted_destinataire_siret: string | null
+  extracted_destinataire_siren: string | null
+  extracted_destinataire_tva: string | null
+  extracted_destinataire_address: string | null
   extracted_doc_number: string | null
   extracted_doc_date: string | null
   extracted_doc_due_date: string | null
@@ -235,7 +241,7 @@ export default function ImportsPage() {
                       {DOC_TYPE_LABELS[item.extracted_doc_type ?? ''] || item.extracted_doc_type || '-'}
                     </td>
                     <td className="px-4 py-3 text-gray-600 dark:text-gray-400 truncate max-w-[160px]">
-                      {item.extracted_client_name || '-'}
+                      {item.extracted_destinataire_name || '-'}
                     </td>
                     <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200 whitespace-nowrap">
                       {item.extracted_total_ttc != null ? fmtCurrency(item.extracted_total_ttc) : '-'}
@@ -287,7 +293,7 @@ export default function ImportsPage() {
                   <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${conf.cls}`}>{conf.label}</span>
                 </div>
                 <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-0.5 pl-5">
-                  <span className="truncate">{item.extracted_client_name || '-'}</span>
+                  <span className="truncate">{item.extracted_destinataire_name || '-'}</span>
                   <span className="font-medium text-gray-900 dark:text-white">
                     {item.extracted_total_ttc != null ? fmtCurrency(item.extracted_total_ttc) : '-'}
                   </span>
@@ -356,6 +362,7 @@ function ImportDetailOverlay({
   onRefresh: () => void
 }) {
   const queryClient = useQueryClient()
+  const { isAdmin } = useAuthStore()
   const [docType, setDocType] = useState<string>('')
   const [clientId, setClientId] = useState<string>('')
   const [docNumber, setDocNumber] = useState('')
@@ -467,14 +474,23 @@ function ImportDetailOverlay({
           </div>
           <div className="flex items-center gap-2">
             {fileUrl && (
-              <button
-                onClick={loadFile}
-                disabled={fileLoading}
-                className={`${BTN_SM} ${showFile ? 'bg-kerpta-50 dark:bg-kerpta-900/30' : ''}`}
-              >
-                {fileLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
-                {showFile ? 'Masquer' : 'Voir le fichier'}
-              </button>
+              <>
+                <button
+                  onClick={loadFile}
+                  disabled={fileLoading}
+                  className={`${BTN_SM} ${showFile ? 'bg-kerpta-50 dark:bg-kerpta-900/30' : ''}`}
+                >
+                  {fileLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
+                  {showFile ? 'Masquer' : 'Voir le fichier'}
+                </button>
+                <button
+                  onClick={() => orgDownload(`/imports/${importId}/file`, detail?.source_filename || 'document')}
+                  className={BTN_SM}
+                  title="Telecharger le fichier source"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                </button>
+              </>
             )}
             <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition text-gray-400">
               <X className="w-5 h-5" />
@@ -510,31 +526,25 @@ function ImportDetailOverlay({
               </div>
             )}
           <div className={`${showFile ? 'lg:w-1/2 lg:overflow-y-auto lg:max-h-[80vh]' : 'w-full'} p-4 md:p-6 space-y-6`}>
-            {/* Meta extraction */}
-            <div className="flex flex-wrap gap-3 text-xs text-gray-500 dark:text-gray-400">
-              {detail.model_used && (
-                <span className="flex items-center gap-1">
-                  <Brain className="w-3.5 h-3.5" /> {detail.model_used}
-                </span>
-              )}
-              {detail.tokens_in != null && (
-                <span>Tokens in: {detail.tokens_in.toLocaleString('fr-FR')}</span>
-              )}
-              {detail.tokens_out != null && (
-                <span>Tokens out: {detail.tokens_out.toLocaleString('fr-FR')}</span>
-              )}
-              {detail.extraction_duration_ms != null && (
-                <span>{(detail.extraction_duration_ms / 1000).toFixed(1)}s</span>
-              )}
-              {detail.source_file_url && (
-                <button
-                  onClick={() => orgDownload(`/imports/${detail.id}/file`, detail.source_filename || 'fichier-source')}
-                  className="flex items-center gap-1 text-kerpta hover:underline cursor-pointer"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" /> Fichier source
-                </button>
-              )}
-            </div>
+            {/* Meta extraction - admin Kerpta uniquement */}
+            {isAdmin && (
+              <div className="flex flex-wrap gap-3 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 rounded-lg px-3 py-2">
+                {detail.model_used && (
+                  <span className="flex items-center gap-1">
+                    <Brain className="w-3.5 h-3.5" /> {detail.model_used}
+                  </span>
+                )}
+                {detail.tokens_in != null && (
+                  <span>Tokens in: {detail.tokens_in.toLocaleString('fr-FR')}</span>
+                )}
+                {detail.tokens_out != null && (
+                  <span>Tokens out: {detail.tokens_out.toLocaleString('fr-FR')}</span>
+                )}
+                {detail.extraction_duration_ms != null && (
+                  <span>{(detail.extraction_duration_ms / 1000).toFixed(1)}s</span>
+                )}
+              </div>
+            )}
 
             {/* Section Type de document */}
             <div className={SECTION}>
@@ -552,46 +562,78 @@ function ImportDetailOverlay({
               </select>
             </div>
 
-            {/* Section Client detecte */}
+            {/* Section Emetteur */}
             <div className={SECTION}>
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Client detecte</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Emetteur</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className={LABEL}>Nom (IA)</label>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-700 dark:text-gray-300">{detail.extracted_client_name || '-'}</span>
+                    <span className="text-sm text-gray-700 dark:text-gray-300">{detail.extracted_emetteur_name || '-'}</span>
                     <Sparkles className="w-3 h-3 text-kerpta" />
                   </div>
                 </div>
                 <div>
                   <label className={LABEL}>SIRET / SIREN (IA)</label>
                   <span className="text-sm text-gray-700 dark:text-gray-300 font-mono">
-                    {detail.extracted_client_siret || detail.extracted_client_siren || '-'}
+                    {detail.extracted_emetteur_siret || detail.extracted_emetteur_siren || '-'}
                   </span>
                 </div>
                 <div>
                   <label className={LABEL}>N. TVA (IA)</label>
                   <span className="text-sm text-gray-700 dark:text-gray-300 font-mono">
-                    {detail.extracted_client_tva || '-'}
+                    {detail.extracted_emetteur_tva || '-'}
                   </span>
                 </div>
                 <div className="md:col-span-3">
                   <label className={LABEL}>Adresse (IA)</label>
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{detail.extracted_client_address || '-'}</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-300">{detail.extracted_emetteur_address || '-'}</span>
                 </div>
               </div>
-              <div>
-                <label className={LABEL}>Associer un client Kerpta</label>
-                <div className="flex items-center gap-2">
-                  <ClientCombobox
-                    value={clientId}
-                    onChange={setClientId}
-                    disabled={detail.status === 'rejected'}
-                  />
-                  {clientId && (
-                    <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
-                  )}
+            </div>
+
+            {/* Section Destinataire */}
+            <div className={SECTION}>
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Destinataire</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className={LABEL}>Nom (IA)</label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-700 dark:text-gray-300">{detail.extracted_destinataire_name || '-'}</span>
+                    <Sparkles className="w-3 h-3 text-kerpta" />
+                  </div>
                 </div>
+                <div>
+                  <label className={LABEL}>SIRET / SIREN (IA)</label>
+                  <span className="text-sm text-gray-700 dark:text-gray-300 font-mono">
+                    {detail.extracted_destinataire_siret || detail.extracted_destinataire_siren || '-'}
+                  </span>
+                </div>
+                <div>
+                  <label className={LABEL}>N. TVA (IA)</label>
+                  <span className="text-sm text-gray-700 dark:text-gray-300 font-mono">
+                    {detail.extracted_destinataire_tva || '-'}
+                  </span>
+                </div>
+                <div className="md:col-span-3">
+                  <label className={LABEL}>Adresse (IA)</label>
+                  <span className="text-sm text-gray-700 dark:text-gray-300">{detail.extracted_destinataire_address || '-'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Section Associer le client */}
+            <div className={SECTION}>
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Associer le client</h3>
+              <div className="flex items-center gap-2">
+                <ClientCombobox
+                  value={clientId}
+                  onChange={setClientId}
+                  disabled={detail.status === 'rejected'}
+                />
+                {clientId && (
+                  <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
+                )}
               </div>
             </div>
 
