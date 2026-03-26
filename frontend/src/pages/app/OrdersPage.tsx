@@ -619,14 +619,21 @@ function OrderDetailOverlay({
 
   // Save
   async function handleSave() {
-    if (!clientId || !order) return
+    if (!order) return
     setSaving(true)
     try {
       await orgPatch(`/orders/${orderId}`, {
-        client_id: clientId,
+        client_id: clientId || null,
         client_reference: clientRef || null,
+        order_type_id: orderTypeId || null,
         issue_date: issueDate,
         delivery_date: deliveryDate || null,
+        recurring_frequency: billingMode === 'recurring' ? recurrenceFrequency : null,
+        recurring_interval_days: recurrenceFrequency === 'custom' ? parseInt(recurrenceCustomDays) || null : null,
+        recurring_day: recurrenceBillingDay ? parseInt(recurrenceBillingDay) : null,
+        recurring_start: recurrenceStartDate || null,
+        recurring_end: recurrenceEndDate || null,
+        retention_pct: billingMode === 'progress' ? parseFloat(progressRetention) || 0 : null,
         notes: notes || null,
         lines: lines
           .filter((l) => l.description.trim() || l.unit_price !== '0')
@@ -1081,7 +1088,7 @@ function OrderDetailOverlay({
             <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
               <AttachDocumentButton parentType="order" parentId={orderId} onAttached={() => setAttachRefresh(n => n + 1)} />
               {isEditable && (
-                <button onClick={handleSave} disabled={saving || !clientId} className={BTN}>
+                <button onClick={handleSave} disabled={saving} className={BTN}>
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                   Enregistrer
                 </button>
