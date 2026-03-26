@@ -26,6 +26,8 @@ export interface OrgMembership {
   org_logo_thumb: string | null
   role: string
   joined_at: string | null
+  /** Permissions calculees pour cet utilisateur dans cette org */
+  permissions?: string[]
 }
 
 interface AuthState {
@@ -37,11 +39,15 @@ interface AuthState {
   orgs: OrgMembership[] | null
   /** ID de l'organisation active */
   activeOrgId: string | null
+  /** Permissions de l'utilisateur pour l'org active (null = pas encore chargé) */
+  permissions: string[] | null
   login: (token: string, user: AuthUser) => void
   logout: () => void
   fetchMe: () => Promise<void>
   fetchOrgs: () => Promise<void>
   setActiveOrg: (orgId: string) => void
+  /** Vérifie si l'utilisateur a une permission donnée pour l'org active */
+  hasPermission: (perm: string) => boolean
 }
 
 const TOKEN_KEY = 'supabase_access_token'
@@ -64,18 +70,19 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   ...loadFromStorage(),
   isAdmin: null,
   orgs: null,
+  permissions: null,
 
   login(token, user) {
     localStorage.setItem(TOKEN_KEY, token)
     localStorage.setItem(USER_KEY, JSON.stringify(user))
-    set({ token, user, isAdmin: null, orgs: null })
+    set({ token, user, isAdmin: null, orgs: null, permissions: null })
   },
 
   logout() {
     localStorage.removeItem(TOKEN_KEY)
     localStorage.removeItem(USER_KEY)
     localStorage.removeItem(ACTIVE_ORG_KEY)
-    set({ token: null, user: null, isAdmin: null, orgs: null, activeOrgId: null })
+    set({ token: null, user: null, isAdmin: null, orgs: null, activeOrgId: null, permissions: null })
     navigate('/login')
   },
 
@@ -100,14 +107,23 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       const validActive = data.find((o) => o.org_id === activeOrgId)
       const newActiveId = validActive ? activeOrgId : (data[0]?.org_id ?? null)
       if (newActiveId) localStorage.setItem(ACTIVE_ORG_KEY, newActiveId)
-      set({ orgs: data, activeOrgId: newActiveId })
+      const activeOrg = data.find((o) => o.org_id === newActiveId)
+      set({ orgs: data, activeOrgId: newActiveId, permissions: activeOrg?.permissions ?? null })
     } catch {
-      set({ orgs: [] })
+      set({ orgs: [], permissions: null })
     }
   },
 
   setActiveOrg(orgId: string) {
     localStorage.setItem(ACTIVE_ORG_KEY, orgId)
-    set({ activeOrgId: orgId })
+    const { orgs } = get()
+    const org = orgs?.find((o) => o.org_id === orgId)
+    set({ activeOrgId: orgId, permissions: org?.permissions ?? null })
+  },
+
+  hasPermission(perm: string): boolean {
+    const { permissions } = get()
+    if (!permissions) return true // pas encore charge -> on autorise par defaut
+    return permissions.includes(perm)
   },
 }))

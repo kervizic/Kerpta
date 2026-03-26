@@ -6,7 +6,7 @@ import { useEffect, useState, useMemo, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Loader2, X, Plus, FileText, Receipt, Archive, ArchiveRestore,
-  ShoppingCart, ChevronLeft, ChevronRight, Pencil, Upload,
+  ShoppingCart, ChevronLeft, ChevronRight, Pencil, Upload, User, Users,
 } from 'lucide-react'
 import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
 import ClientCombobox from '@/components/app/ClientCombobox'
@@ -19,6 +19,7 @@ import AttachDocumentButton from '@/components/app/AttachDocumentButton'
 import AttachmentsList from '@/components/app/AttachmentsList'
 import { BTN, BTN_SM, BTN_SECONDARY, CARD, INPUT, SELECT, TEXTAREA, LABEL, LINE_INPUT, LINE_SELECT, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER, BADGE_COUNT } from '@/lib/formStyles'
 import { fmtCurrency } from '@/lib/formatting'
+import { useAuthStore } from '@/stores/authStore'
 
 // -- Types --------------------------------------------------------------------
 
@@ -149,6 +150,11 @@ export default function OrdersPage() {
   const [showMobileFilters, setShowMobileFilters] = useState(false)
   const [orderTypeFilter, setOrderTypeFilter] = useState<OrderTypeFilter>('all')
 
+  // Filtre "Mes documents / Tous" - commercial voit ses docs par defaut
+  const activeOrg = useAuthStore((s) => s.orgs?.find((o) => o.org_id === s.activeOrgId))
+  const defaultAssigned = activeOrg?.role === 'commercial' ? 'me' as const : 'all' as const
+  const [assignedFilter, setAssignedFilter] = useState<'me' | 'all'>(defaultAssigned)
+
   // Selection multiple + archivage
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [showArchived, setShowArchived] = useState(false)
@@ -170,7 +176,7 @@ export default function OrdersPage() {
   }, [filters])
 
   const { data: rawData, isLoading } = useQuery({
-    queryKey: ['orders', { page, filters: debouncedFilters, showArchived }],
+    queryKey: ['orders', { page, filters: debouncedFilters, showArchived, assignedFilter }],
     queryFn: () => {
       const params: Record<string, string | number | undefined> = { page, page_size: 25 }
       if (debouncedFilters.reference) params.search = debouncedFilters.reference as string
@@ -181,6 +187,7 @@ export default function OrdersPage() {
       const statusArr = debouncedFilters.status as string[] | undefined
       if (statusArr?.length === 1) params.status = statusArr[0]
       if (showArchived) params.archived = 'true'
+      if (assignedFilter === 'me') params.assigned_to = 'me'
       return orgGet<{ items: Order[]; total: number }>('/orders', params)
     },
   })
@@ -263,6 +270,19 @@ export default function OrdersPage() {
             </button>
           </div>
         )}
+        {/* Toggle Mes documents / Tous */}
+        <button
+          onClick={() => { setAssignedFilter((v) => v === 'me' ? 'all' : 'me'); setPage(1) }}
+          title={assignedFilter === 'me' ? 'Voir tous les documents' : 'Voir mes documents'}
+          className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition ${
+            assignedFilter === 'me'
+              ? 'border-kerpta-300 bg-kerpta-50 text-kerpta-700 dark:border-kerpta-600 dark:bg-kerpta-900/30 dark:text-kerpta-400'
+              : 'border-gray-200 text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700'
+          }`}
+        >
+          {assignedFilter === 'me' ? <User className="w-3.5 h-3.5 inline mr-1" /> : <Users className="w-3.5 h-3.5 inline mr-1" />}
+          {assignedFilter === 'me' ? 'Mes docs' : 'Tous'}
+        </button>
         {/* Toggle archives */}
         <button
           onClick={() => { setShowArchived((v) => !v); setPage(1) }}

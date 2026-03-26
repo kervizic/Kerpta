@@ -55,6 +55,7 @@ interface NavItem {
   href: string
   icon: ReactNode
   moduleKey?: string
+  permissionKey?: string
 }
 
 // Tableau de bord
@@ -64,21 +65,21 @@ const DASHBOARD_ITEM: NavItem = {
 
 // Items de la section "Ventes"
 const VENTE_ITEMS: NavItem[] = [
-  { label: 'Clients', href: '/app/clients', icon: <UserRound className="w-4 h-4" />, moduleKey: 'ventes.clients' },
-  { label: 'Catalogue', href: '/app/catalogue', icon: <Package className="w-4 h-4" />, moduleKey: 'ventes.catalogue' },
-  { label: 'Devis', href: '/app/devis', icon: <FileText className="w-4 h-4" />, moduleKey: 'ventes.devis' },
-  { label: 'Commandes', href: '/app/commandes', icon: <ShoppingCart className="w-4 h-4" />, moduleKey: 'ventes.commandes' },
-  { label: 'Factures', href: '/app/factures', icon: <Receipt className="w-4 h-4" />, moduleKey: 'ventes.factures' },
-  { label: 'Import IA', href: '/app/imports', icon: <Sparkles className="w-4 h-4" /> },
-  { label: 'Test IA', href: '/app/test-ai', icon: <BrainCircuit className="w-4 h-4" /> },
+  { label: 'Clients', href: '/app/clients', icon: <UserRound className="w-4 h-4" />, moduleKey: 'ventes.clients', permissionKey: 'quotes:read' },
+  { label: 'Catalogue', href: '/app/catalogue', icon: <Package className="w-4 h-4" />, moduleKey: 'ventes.catalogue', permissionKey: 'quotes:read' },
+  { label: 'Devis', href: '/app/devis', icon: <FileText className="w-4 h-4" />, moduleKey: 'ventes.devis', permissionKey: 'quotes:read' },
+  { label: 'Commandes', href: '/app/commandes', icon: <ShoppingCart className="w-4 h-4" />, moduleKey: 'ventes.commandes', permissionKey: 'orders:read' },
+  { label: 'Factures', href: '/app/factures', icon: <Receipt className="w-4 h-4" />, moduleKey: 'ventes.factures', permissionKey: 'invoices:read' },
+  { label: 'Import IA', href: '/app/imports', icon: <Sparkles className="w-4 h-4" />, permissionKey: 'imports:read' },
+  { label: 'Test IA', href: '/app/test-ai', icon: <BrainCircuit className="w-4 h-4" />, permissionKey: 'imports:read' },
 ]
 
 // Items de la section "Achats"
 const ACHAT_ITEMS: NavItem[] = [
-  { label: 'Fournisseurs', href: '/app/fournisseurs', icon: <Truck className="w-4 h-4" />, moduleKey: 'achats.fournisseurs' },
-  { label: 'Devis fournisseur', href: '/app/devis-fournisseur', icon: <FileText className="w-4 h-4" />, moduleKey: 'achats.devis' },
-  { label: 'Bons de commande', href: '/app/bons-commande', icon: <ClipboardList className="w-4 h-4" />, moduleKey: 'achats.bons_commande' },
-  { label: 'Factures fournisseur', href: '/app/achats', icon: <FileDown className="w-4 h-4" />, moduleKey: 'achats.factures' },
+  { label: 'Fournisseurs', href: '/app/fournisseurs', icon: <Truck className="w-4 h-4" />, moduleKey: 'achats.fournisseurs', permissionKey: 'purchases:read' },
+  { label: 'Devis fournisseur', href: '/app/devis-fournisseur', icon: <FileText className="w-4 h-4" />, moduleKey: 'achats.devis', permissionKey: 'purchases:read' },
+  { label: 'Bons de commande', href: '/app/bons-commande', icon: <ClipboardList className="w-4 h-4" />, moduleKey: 'achats.bons_commande', permissionKey: 'purchases:read' },
+  { label: 'Factures fournisseur', href: '/app/achats', icon: <FileDown className="w-4 h-4" />, moduleKey: 'achats.factures', permissionKey: 'purchases:read' },
 ]
 
 // Items de la section "RH"
@@ -90,10 +91,10 @@ const RH_ITEMS: NavItem[] = [
 
 // Items de la section "Comptabilité"
 const COMPTA_ITEMS: NavItem[] = [
-  { label: 'Journal', href: '/app/journal', icon: <BookOpen className="w-4 h-4" />, moduleKey: 'compta.journal' },
-  { label: 'Grand livre', href: '/app/grand-livre', icon: <Library className="w-4 h-4" />, moduleKey: 'compta.grand_livre' },
-  { label: 'Balance', href: '/app/balance', icon: <Scale className="w-4 h-4" />, moduleKey: 'compta.balance' },
-  { label: 'TVA', href: '/app/tva', icon: <Percent className="w-4 h-4" />, moduleKey: 'compta.tva' },
+  { label: 'Journal', href: '/app/journal', icon: <BookOpen className="w-4 h-4" />, moduleKey: 'compta.journal', permissionKey: 'accounting:read' },
+  { label: 'Grand livre', href: '/app/grand-livre', icon: <Library className="w-4 h-4" />, moduleKey: 'compta.grand_livre', permissionKey: 'accounting:read' },
+  { label: 'Balance', href: '/app/balance', icon: <Scale className="w-4 h-4" />, moduleKey: 'compta.balance', permissionKey: 'accounting:read' },
+  { label: 'TVA', href: '/app/tva', icon: <Percent className="w-4 h-4" />, moduleKey: 'compta.tva', permissionKey: 'accounting:read' },
 ]
 
 // Items de la section "Configuration" organisation (owner/admin)
@@ -295,12 +296,17 @@ function SectionAccordion({
   storageKey: string
 }) {
   const { isEnabled } = useModuleStore()
+  const hasPermission = useAuthStore((s) => s.hasPermission)
 
   // Section désactivée → masquée
   if (!isEnabled(sectionKey)) return null
 
-  // Filtrer les sous-items par module
-  const visibleItems = items.filter((i) => !i.moduleKey || isEnabled(i.moduleKey))
+  // Filtrer les sous-items par module et permission
+  const visibleItems = items.filter((i) => {
+    if (i.moduleKey && !isEnabled(i.moduleKey)) return false
+    if (i.permissionKey && !hasPermission(i.permissionKey)) return false
+    return true
+  })
   if (visibleItems.length === 0) return null
 
   const hasActive = visibleItems.some(

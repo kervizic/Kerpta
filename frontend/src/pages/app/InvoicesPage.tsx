@@ -6,7 +6,7 @@ import { useEffect, useState, useMemo, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Loader2, Send, Check, FileText, Plus, Trash2, Pencil, RefreshCw,
-  ShieldCheck, Lock, X, FileDown, Archive, ArchiveRestore, Upload,
+  ShieldCheck, Lock, X, FileDown, Archive, ArchiveRestore, Upload, User, Users,
 } from 'lucide-react'
 import { orgGet, orgPost, orgPatch, orgDownload } from '@/lib/orgApi'
 import UnitCombobox from '@/components/app/UnitCombobox'
@@ -26,6 +26,7 @@ import AttachmentsList from '@/components/app/AttachmentsList'
 import { INPUT, SELECT, LINE_INPUT, LINE_SELECT, BTN, BTN_SECONDARY, OVERLAY_BACKDROP, OVERLAY_PANEL, BADGE_COUNT, CARD } from '@/lib/formStyles'
 import { fmtCurrency } from '@/lib/formatting'
 import { ApiError } from '@/lib/api'
+import { useAuthStore } from '@/stores/authStore'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -200,6 +201,11 @@ function InvoicesList() {
   const [showImport, setShowImport] = useState(false)
   const [showMobileFilters, setShowMobileFilters] = useState(false)
 
+  // Filtre "Mes documents / Tous" - commercial voit ses docs par defaut
+  const activeOrg = useAuthStore((s) => s.orgs?.find((o) => o.org_id === s.activeOrgId))
+  const defaultAssigned = activeOrg?.role === 'commercial' ? 'me' as const : 'all' as const
+  const [assignedFilter, setAssignedFilter] = useState<'me' | 'all'>(defaultAssigned)
+
   // Selection multiple + archivage
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [showArchived, setShowArchived] = useState(false)
@@ -221,7 +227,7 @@ function InvoicesList() {
   }, [filters])
 
   const { data: rawData, isLoading: loading } = useQuery({
-    queryKey: ['invoices', { page, filters: debouncedFilters, showArchived }],
+    queryKey: ['invoices', { page, filters: debouncedFilters, showArchived, assignedFilter }],
     queryFn: () => {
       const params: Record<string, string | boolean | number | undefined> = { page }
       if (debouncedFilters.number) params.search = debouncedFilters.number as string
@@ -233,6 +239,7 @@ function InvoicesList() {
       const statusArr = debouncedFilters.status as string[] | undefined
       if (statusArr?.length === 1) params.status = statusArr[0]
       if (showArchived) params.archived = true
+      if (assignedFilter === 'me') params.assigned_to = 'me'
       return orgGet<{ items: Invoice[]; total: number }>('/invoices', params)
     },
   })
@@ -343,6 +350,19 @@ function InvoicesList() {
                 </button>
               </div>
             )}
+            {/* Toggle Mes documents / Tous */}
+            <button
+              onClick={() => { setAssignedFilter((v) => v === 'me' ? 'all' : 'me'); setPage(1) }}
+              title={assignedFilter === 'me' ? 'Voir tous les documents' : 'Voir mes documents'}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition ${
+                assignedFilter === 'me'
+                  ? 'border-kerpta-300 bg-kerpta-50 text-kerpta-700 dark:border-kerpta-600 dark:bg-kerpta-900/30 dark:text-kerpta-400'
+                  : 'border-gray-200 text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700'
+              }`}
+            >
+              {assignedFilter === 'me' ? <User className="w-3.5 h-3.5 inline mr-1" /> : <Users className="w-3.5 h-3.5 inline mr-1" />}
+              {assignedFilter === 'me' ? 'Mes docs' : 'Tous'}
+            </button>
             {/* Toggle archivées */}
             <button
               onClick={() => { setShowArchived((v) => !v); setPage(1) }}
