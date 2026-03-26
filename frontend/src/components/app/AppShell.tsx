@@ -24,6 +24,7 @@ const DocumentSettingsPage = lazy(() => import('@/pages/app/DocumentSettingsPage
 const StorageSettingsPage = lazy(() => import('@/pages/app/StorageSettingsPage'))
 const ConfigAiPage = lazy(() => import('@/pages/app/ConfigAiPage'))
 const TestAiPage = lazy(() => import('@/pages/app/TestAiPage'))
+const ImportsPage = lazy(() => import('@/pages/app/ImportsPage'))
 
 function PageSpinner() {
   return (
@@ -172,6 +173,8 @@ export default function AppShell() {
               <OrdersPage key={activeOrgId} />
             ) : path.startsWith('/app/contrats') ? (
               <ContractsPage key={activeOrgId} />
+            ) : path === '/app/imports' ? (
+              <ImportsPage key={activeOrgId} />
             ) : path === '/app/test-ai' ? (
               <TestAiPage key={activeOrgId} />
             ) : path === '/app/factures' ? (

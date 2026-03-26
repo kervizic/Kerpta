@@ -38,6 +38,7 @@ import {
   Moon,
   Sun,
   BrainCircuit,
+  Sparkles,
 } from 'lucide-react'
 import { navigate } from '@/hooks/useRoute'
 import { useAuthStore, type OrgMembership } from '@/stores/authStore'
@@ -68,6 +69,7 @@ const VENTE_ITEMS: NavItem[] = [
   { label: 'Devis', href: '/app/devis', icon: <FileText className="w-4 h-4" />, moduleKey: 'ventes.devis' },
   { label: 'Commandes', href: '/app/commandes', icon: <ShoppingCart className="w-4 h-4" />, moduleKey: 'ventes.commandes' },
   { label: 'Factures', href: '/app/factures', icon: <Receipt className="w-4 h-4" />, moduleKey: 'ventes.factures' },
+  { label: 'Import IA', href: '/app/imports', icon: <Sparkles className="w-4 h-4" /> },
   { label: 'Test IA', href: '/app/test-ai', icon: <BrainCircuit className="w-4 h-4" /> },
 ]
 
