@@ -374,15 +374,11 @@ async def _auto_match_client(
 
     client_id = None
 
-    # 1. Chercher par SIRET exact
+    # 1. Chercher par SIRET exact (14 chiffres)
     siret = dest_identifiants.get("siret")
     if siret:
         result = await db.execute(
-            text("""
-                SELECT id::text FROM clients
-                WHERE organization_id = :org_id AND siret = :siret
-                LIMIT 1
-            """),
+            text("SELECT id::text FROM clients WHERE organization_id = :org_id AND siret = :siret LIMIT 1"),
             {"org_id": str(org_id), "siret": siret},
         )
         row = result.fetchone()
@@ -390,7 +386,33 @@ async def _auto_match_client(
             client_id = row[0]
             _log.info("Client auto-matche par SIRET '%s' -> %s", siret, client_id)
 
-    # 2. Sinon par nom (fuzzy via suggest_client existant)
+    # 2. Sinon par SIREN (9 chiffres) - cherche les clients dont le SIRET commence par ce SIREN
+    if not client_id:
+        siren = dest_identifiants.get("siren")
+        if siren:
+            result = await db.execute(
+                text("SELECT id::text FROM clients WHERE organization_id = :org_id AND (siret LIKE :pattern OR siren = :siren) LIMIT 1"),
+                {"org_id": str(org_id), "pattern": f"{siren}%", "siren": siren},
+            )
+            row = result.fetchone()
+            if row:
+                client_id = row[0]
+                _log.info("Client auto-matche par SIREN '%s' -> %s", siren, client_id)
+
+    # 3. Sinon par N. TVA intracommunautaire
+    if not client_id:
+        tva = dest_identifiants.get("tva")
+        if tva:
+            result = await db.execute(
+                text("SELECT id::text FROM clients WHERE organization_id = :org_id AND vat_number = :tva LIMIT 1"),
+                {"org_id": str(org_id), "tva": tva},
+            )
+            row = result.fetchone()
+            if row:
+                client_id = row[0]
+                _log.info("Client auto-matche par TVA '%s' -> %s", tva, client_id)
+
+    # 4. Sinon par nom (fuzzy)
     if not client_id:
         client_name = destinataire.get("designation")
         if client_name:

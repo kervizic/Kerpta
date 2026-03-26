@@ -480,7 +480,7 @@ function ImportDetailOverlay({
   const fileUrl = detail?.source_file_url ? `/api/v1/imports/${importId}/file` : null
 
   return (
-    <div className={OVERLAY_BACKDROP} onClick={onClose}>
+    <div className={OVERLAY_BACKDROP} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className={`${OVERLAY_PANEL} ${showFile ? '!max-w-7xl' : ''}`} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className={OVERLAY_HEADER}>
