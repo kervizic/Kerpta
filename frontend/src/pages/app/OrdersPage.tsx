@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { orgGet, orgPost, orgPatch } from '@/lib/orgApi'
 import ClientCombobox from '@/components/app/ClientCombobox'
+import { CreateClientForm } from '@/pages/app/ClientsPage'
 import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
 import MobileFilterPanel from '@/components/app/MobileFilterPanel'
 import PageLayout from '@/components/app/PageLayout'
@@ -531,6 +532,7 @@ function OrderDetailOverlay({
   const [saving, setSaving] = useState(false)
   const [invoicing, setInvoicing] = useState(false)
   const [order, setOrder] = useState<OrderDetail | null>(null)
+  const [showNewClient, setShowNewClient] = useState(false)
   const [attachRefresh, setAttachRefresh] = useState(0)
 
   // Form state
@@ -668,6 +670,7 @@ function OrderDetailOverlay({
   const st = order ? (STATUS_LABELS[order.status] || { label: order.status, cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' }) : null
 
   return (
+    <>
     <div className={OVERLAY_BACKDROP} onClick={onClose}>
       <div className={OVERLAY_PANEL} onClick={e => e.stopPropagation()}>
         {/* Header */}
@@ -703,12 +706,20 @@ function OrderDetailOverlay({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className={LABEL}>Client</label>
-                <ClientCombobox
-                  value={clientId}
-                  onChange={(id: string) => setClientId(id)}
-                  className={INPUT}
-                  disabled={!isEditable}
-                />
+                <div className="flex items-center gap-1.5">
+                  <ClientCombobox
+                    value={clientId}
+                    onChange={(id: string) => setClientId(id)}
+                    onNewClient={() => setShowNewClient(true)}
+                    className={INPUT}
+                    disabled={!isEditable}
+                  />
+                  {clientId && (
+                    <button onClick={() => window.open(`/app/clients?id=${clientId}`, '_blank')} className="shrink-0 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition" title="Voir le client">
+                      <Pencil className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
+                    </button>
+                  )}
+                </div>
               </div>
               <div>
                 <label className={LABEL}>Reference BC client</label>
@@ -1122,6 +1133,18 @@ function OrderDetailOverlay({
         )}
       </div>
     </div>
+
+    {/* Modale creation client */}
+    {showNewClient && (
+      <CreateClientForm
+        onClose={() => setShowNewClient(false)}
+        onCreated={(id) => {
+          setShowNewClient(false)
+          setClientId(id)
+        }}
+      />
+    )}
+    </>
   )
 }
 
