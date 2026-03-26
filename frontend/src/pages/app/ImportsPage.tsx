@@ -755,8 +755,8 @@ function ImportDetailOverlay({
               </div>
             </div>
 
-            {/* Section Prompt / Reponse IA (accordeon) */}
-            {detail.prompt_sent && (
+            {/* Section Prompt / Reponse IA - admin Kerpta uniquement */}
+            {isAdmin && detail.prompt_sent && (
               <details className={SECTION}>
                 <summary className="text-sm font-semibold text-gray-900 dark:text-white cursor-pointer select-none">
                   Prompt / Reponse IA
