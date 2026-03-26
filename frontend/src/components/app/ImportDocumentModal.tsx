@@ -107,7 +107,6 @@ export default function ImportDocumentModal({ documentType, onClose, onImported 
         validateBody,
       )
 
-      setCreatedId(validateResp.target_id)
       setStep('done')
       onImported(validateResp.target_id)
     } catch (err: unknown) {
