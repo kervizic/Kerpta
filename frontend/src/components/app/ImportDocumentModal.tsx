@@ -37,6 +37,18 @@ const DOC_LABELS: Record<string, string> = {
   order: 'commande',
 }
 
+/** Mapping type document IA -> target_type pour la validation */
+const TYPE_TO_TARGET: Record<string, string> = {
+  facture: 'invoice',
+  avoir: 'invoice',
+  releve: 'invoice',
+  acompte: 'invoice',
+  devis: 'quote',
+  pro_forma: 'quote',
+  bon_commande: 'order',
+  bon_livraison: 'order',
+}
+
 type Step = 'upload' | 'processing' | 'done' | 'error'
 
 // -- Component ----------------------------------------------------------------
@@ -97,9 +109,13 @@ export default function ImportDocumentModal({ documentType, onClose, onImported 
       const extractResp = await orgClient.post<ExtractResponse>('/ai/extract-document', formData)
 
       // 2. Validation automatique - creer le brouillon
+      // Utiliser le type detecte par l'IA si disponible, sinon fallback sur le prop
+      const detectedType = (extractResp.extracted_json?.meta as Record<string, unknown>)?.type_document as string | undefined
+      const targetType = (detectedType && TYPE_TO_TARGET[detectedType]) || documentType
+
       const validateBody = {
         action: 'create',
-        target_type: documentType,
+        target_type: targetType,
         client_id: extractResp.suggested_client?.id || null,
       }
       const validateResp = await orgClient.post<ValidateResponse>(

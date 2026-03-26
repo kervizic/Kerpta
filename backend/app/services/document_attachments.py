@@ -172,6 +172,23 @@ async def list_attachments(
     ]
 
 
+async def get_attachment_url(
+    org_id: uuid.UUID,
+    attachment_id: str,
+    db: AsyncSession,
+) -> str | None:
+    """Recupere l'URL S3 d'une piece jointe."""
+    result = await db.execute(
+        text("""
+            SELECT file_url FROM import_file_attachments
+            WHERE id = :aid AND organization_id = :org_id
+        """),
+        {"aid": attachment_id, "org_id": str(org_id)},
+    )
+    row = result.fetchone()
+    return row[0] if row else None
+
+
 async def delete_attachment(
     org_id: uuid.UUID,
     attachment_id: str,

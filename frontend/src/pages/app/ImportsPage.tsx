@@ -8,7 +8,7 @@ import {
   Loader2, X, Upload, Sparkles, ChevronLeft, ChevronRight,
   ExternalLink, CheckCircle2, Clock, XCircle, Brain,
 } from 'lucide-react'
-import { orgGet, orgPost } from '@/lib/orgApi'
+import { orgGet, orgPost, orgDownload } from '@/lib/orgApi'
 import ClientCombobox from '@/components/app/ClientCombobox'
 import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
 import MobileFilterPanel from '@/components/app/MobileFilterPanel'
@@ -444,14 +444,12 @@ function ImportDetailOverlay({
                 <span>{(detail.extraction_duration_ms / 1000).toFixed(1)}s</span>
               )}
               {detail.source_file_url && (
-                <a
-                  href={detail.source_file_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-kerpta hover:underline"
+                <button
+                  onClick={() => orgDownload(`/imports/${detail.id}/file`, detail.source_filename || 'fichier-source')}
+                  className="flex items-center gap-1 text-kerpta hover:underline cursor-pointer"
                 >
                   <ExternalLink className="w-3.5 h-3.5" /> Fichier source
-                </a>
+                </button>
               )}
             </div>
 

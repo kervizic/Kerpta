@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { FileText, Trash2, Download, Loader2, Sparkles } from 'lucide-react'
-import { orgGet, orgDelete } from '@/lib/orgApi'
+import { orgGet, orgDelete, orgDownload } from '@/lib/orgApi'
 import { LABEL } from '@/lib/formStyles'
 
 interface Attachment {
@@ -100,15 +100,13 @@ export default function AttachmentsList({ parentType, parentId, refreshKey }: At
                 {formatFileSize(att.file_size)} - {formatDate(att.created_at)}
               </div>
             </div>
-            <a
-              href={att.file_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-1.5 text-gray-400 hover:text-kerpta transition rounded"
+            <button
+              onClick={() => orgDownload(`/attachments/${att.id}/file`, att.filename || 'piece-jointe')}
+              className="p-1.5 text-gray-400 hover:text-kerpta transition rounded cursor-pointer"
               title="Telecharger"
             >
               <Download className="w-4 h-4" />
-            </a>
+            </button>
             <button
               onClick={() => handleDelete(att.id)}
               disabled={deletingId === att.id}

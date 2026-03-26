@@ -425,3 +425,46 @@ async def upload_document(
     adapter = S3Adapter(s3_config)
     url = adapter.upload(file_bytes, full_path, content_type=content_type)
     return url
+
+
+async def generate_presigned_url(
+    file_url: str,
+    db: AsyncSession,
+    *,
+    expires_in: int = 3600,
+) -> str | None:
+    """Genere une URL presignee pour un fichier S3 a partir de son URL stockee.
+
+    Extrait le chemin S3 depuis l'URL complete (tout ce qui suit le bucket name),
+    puis genere une URL temporaire signee.
+
+    Returns:
+        URL presignee ou None si pas de config S3.
+    """
+    s3_config = await _get_platform_s3_config(db)
+    if not s3_config:
+        return None
+
+    bucket = s3_config.get("bucket", "")
+    # Extraire le chemin S3 depuis l'URL complete
+    # Format : https://endpoint/bucket/chemin/fichier.pdf
+    if bucket and f"/{bucket}/" in file_url:
+        s3_key = file_url.split(f"/{bucket}/", 1)[1]
+    elif bucket and f"{bucket}.s3" in file_url:
+        # Format AWS : https://bucket.s3.region.amazonaws.com/chemin/fichier.pdf
+        from urllib.parse import urlparse
+        parsed = urlparse(file_url)
+        s3_key = parsed.path.lstrip("/")
+    else:
+        # Fallback : tout ce qui vient apres le schema et le host
+        from urllib.parse import urlparse
+        parsed = urlparse(file_url)
+        # Enlever le premier segment (bucket name) du path
+        path = parsed.path.lstrip("/")
+        if path.startswith(bucket + "/"):
+            s3_key = path[len(bucket) + 1:]
+        else:
+            s3_key = path
+
+    adapter = S3Adapter(s3_config)
+    return adapter.generate_presigned_url(s3_key, expires_in=expires_in)

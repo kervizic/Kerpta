@@ -123,6 +123,28 @@ class S3Adapter:
             _log.error("S3 delete échoué : %s — %s", key, e)
             return False
 
+    def generate_presigned_url(self, remote_path: str, expires_in: int = 3600) -> str:
+        """Genere une URL presignee pour telecharger un fichier depuis S3.
+
+        Args:
+            remote_path: chemin dans le bucket
+            expires_in: duree de validite en secondes (defaut 1h)
+
+        Returns:
+            URL presignee temporaire
+        """
+        key = remote_path.lstrip("/")
+        try:
+            url = self._client.generate_presigned_url(
+                'get_object',
+                Params={'Bucket': self.bucket, 'Key': key},
+                ExpiresIn=expires_in,
+            )
+            return url
+        except (ClientError, BotoCoreError) as e:
+            _log.error("S3 presigned URL echouee : %s — %s", key, e)
+            raise RuntimeError(f"Presigned URL echouee : {e}") from e
+
     def exists(self, remote_path: str) -> bool:
         """Vérifie l'existence d'un fichier sur S3."""
         key = remote_path.lstrip("/")

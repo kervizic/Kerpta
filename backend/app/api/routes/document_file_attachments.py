@@ -4,12 +4,14 @@
 
 """Routes API - Pieces jointes universelles de documents (import_file_attachments)."""
 
-from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import OrgContext, get_org_context
 from app.services import document_attachments as doc_attach_svc
+from app.services import storage as storage_svc
 
 router = APIRouter(prefix="/api/v1/attachments", tags=["Pieces jointes documents"])
 
@@ -48,6 +50,26 @@ async def list_attachments(
     return await doc_attach_svc.list_attachments(
         ctx.org_id, parent_type, parent_id, db,
     )
+
+
+@router.get("/{attachment_id}/file")
+async def get_attachment_file(
+    attachment_id: str,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    """Redirige vers une URL presignee S3 pour telecharger une piece jointe."""
+    attachments = await doc_attach_svc.get_attachment_url(
+        ctx.org_id, attachment_id, db,
+    )
+    if not attachments:
+        raise HTTPException(404, "Piece jointe introuvable")
+
+    presigned = await storage_svc.generate_presigned_url(attachments, db)
+    if not presigned:
+        raise HTTPException(500, "Impossible de generer l'URL de telechargement")
+
+    return RedirectResponse(url=presigned, status_code=302)
 
 
 @router.delete("/{attachment_id}")
