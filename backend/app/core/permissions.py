@@ -5,16 +5,34 @@
 from typing import Final
 
 ALL_PERMISSIONS: Final = [
+    # Ventes
     "quotes:read",
     "quotes:write",
     "invoices:read",
     "invoices:write",
+    "orders:read",
+    "orders:write",
+    # Achats
+    "purchases:read",
+    "purchases:write",
+    # RH / Paie
     "payroll:self",
     "payroll:manage",
+    # Notes de frais
     "expenses:submit",
     "expenses:validate",
+    # Comptabilite
     "accounting:read",
     "accounting:write",
+    # Import IA + Documents
+    "imports:read",
+    "imports:write",
+    "documents:read",
+    "documents:write",
+    # Tresorerie
+    "treasury:read",
+    "treasury:write",
+    # Administration
     "members:manage",
     "org:manage",
 ]
@@ -26,22 +44,39 @@ ROLE_PERMISSIONS: Final[dict[str, list[str]]] = {
         "quotes:write",
         "invoices:read",
         "invoices:write",
+        "orders:read",
+        "orders:write",
+        "purchases:read",
+        "purchases:write",
         "payroll:self",
         "payroll:manage",
         "expenses:submit",
         "expenses:validate",
         "accounting:read",
         "accounting:write",
+        "imports:read",
+        "imports:write",
+        "documents:read",
+        "documents:write",
+        "treasury:read",
+        "treasury:write",
     ],
     "commercial": [
         "quotes:read",
         "quotes:write",
         "invoices:read",
         "invoices:write",
+        "orders:read",
+        "orders:write",
+        "imports:read",
+        "imports:write",
+        "documents:read",
+        "documents:write",
     ],
     "employee": [
         "payroll:self",
         "expenses:submit",
+        "documents:read",
     ],
 }
 

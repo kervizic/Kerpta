@@ -296,7 +296,7 @@ async def get_order(
 
 
 async def create_order(
-    org_id: uuid.UUID, data: OrderCreate, db: AsyncSession
+    org_id: uuid.UUID, user_id: uuid.UUID, data: OrderCreate, db: AsyncSession
 ) -> dict:
     """Cree une commande manuelle (source=manual ou client_document)."""
     order_id = uuid.uuid4()
@@ -329,7 +329,7 @@ async def create_order(
                 issue_date, delivery_date,
                 subtotal_ht, total_vat, total_ttc,
                 discount_type, discount_value,
-                notes, created_at, updated_at
+                notes, assigned_to, created_at, updated_at
             ) VALUES (
                 :id, :org_id, :client_id, :contract_id,
                 :order_type_id, :billing_mode,
@@ -337,7 +337,7 @@ async def create_order(
                 :issue_date, :delivery_date,
                 :ht, :vat, :ttc,
                 :disc_type, :disc_val,
-                :notes, now(), now()
+                :notes, :assigned_to, now(), now()
             )
         """),
         {
@@ -357,6 +357,7 @@ async def create_order(
             "disc_type": data.discount_type,
             "disc_val": str(data.discount_value),
             "notes": data.notes,
+            "assigned_to": str(user_id),
         },
     )
 
@@ -429,7 +430,8 @@ async def create_from_quote(
         text("""
             SELECT id::text, client_id::text, contract_id::text,
                    subtotal_ht, total_vat, total_ttc,
-                   discount_type, discount_value, issue_date
+                   discount_type, discount_value, issue_date,
+                   assigned_to::text
             FROM quotes
             WHERE id = :qid AND organization_id = :org_id
         """),
@@ -448,13 +450,13 @@ async def create_from_quote(
                 client_reference, source, status,
                 issue_date, subtotal_ht, total_vat, total_ttc,
                 discount_type, discount_value,
-                created_at, updated_at
+                assigned_to, created_at, updated_at
             ) VALUES (
                 :oid, :org_id, :client_id, :contract_id,
                 :client_ref, :source, 'confirmed',
                 :issue_date, :ht, :vat, :ttc,
                 :disc_type, :disc_val,
-                now(), now()
+                :assigned_to, now(), now()
             )
         """),
         {
@@ -470,6 +472,7 @@ async def create_from_quote(
             "ttc": str(quote[5]),
             "disc_type": quote[6],
             "disc_val": str(quote[7]),
+            "assigned_to": quote[9],
         },
     )
 

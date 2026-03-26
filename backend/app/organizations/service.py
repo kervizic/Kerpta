@@ -54,6 +54,7 @@ async def get_user_memberships(user_id: uuid.UUID, db: AsyncSession) -> list[dic
                 o.logo_url               AS org_logo_url,
                 ol.logo_thumb_b64        AS org_logo_thumb,
                 om.role,
+                om.custom_permissions,
                 om.joined_at
             FROM organization_memberships om
             JOIN organizations o ON o.id = om.organization_id
@@ -63,7 +64,14 @@ async def get_user_memberships(user_id: uuid.UUID, db: AsyncSession) -> list[dic
         """),
         {"uid": str(user_id)},
     )
-    return [dict(row._mapping) for row in result.fetchall()]
+    from app.core.permissions import get_permissions
+
+    rows = []
+    for row in result.fetchall():
+        d = dict(row._mapping)
+        d["permissions"] = get_permissions(d["role"], d.pop("custom_permissions", None))
+        rows.append(d)
+    return rows
 
 
 async def create_organization(

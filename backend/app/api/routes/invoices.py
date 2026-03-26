@@ -12,7 +12,7 @@ from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.dependencies import OrgContext, get_org_context
+from app.core.dependencies import OrgContext, get_org_context, require_permission
 from app.schemas.invoices import (
     InvoiceCreate,
     InvoiceDetailOut,
@@ -40,6 +40,7 @@ async def list_invoices(
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=100),
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("invoices:read")),
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.list_invoices(
@@ -57,6 +58,7 @@ async def list_invoices(
 async def create_invoice(
     data: InvoiceCreate,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("invoices:write")),
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.create_invoice(ctx.org_id, ctx.user_id, data, db)
@@ -66,6 +68,7 @@ async def create_invoice(
 async def get_invoice(
     invoice_id: str,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("invoices:read")),
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.get_invoice(ctx.org_id, invoice_id, db)
@@ -76,6 +79,7 @@ async def update_invoice(
     invoice_id: str,
     data: InvoiceUpdate,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("invoices:write")),
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.update_invoice(ctx.org_id, invoice_id, data, db)
@@ -85,6 +89,7 @@ async def update_invoice(
 async def validate_invoice(
     invoice_id: str,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("invoices:write")),
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.validate_invoice(ctx.org_id, invoice_id, db)
@@ -94,6 +99,7 @@ async def validate_invoice(
 async def send_invoice(
     invoice_id: str,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("invoices:write")),
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.send_invoice(ctx.org_id, invoice_id, db)
@@ -103,6 +109,7 @@ async def send_invoice(
 async def mark_paid(
     invoice_id: str,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("invoices:write")),
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.mark_paid(ctx.org_id, invoice_id, db)
@@ -112,6 +119,7 @@ async def mark_paid(
 async def create_credit_note(
     invoice_id: str,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("invoices:write")),
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.create_credit_note(ctx.org_id, ctx.user_id, invoice_id, db)
@@ -122,6 +130,7 @@ async def batch_archive_invoices(
     ids: list[str] = Body(..., embed=True),
     archive: bool = Body(True, embed=True),
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("invoices:write")),
     db: AsyncSession = Depends(get_db),
 ):
     """Archive ou désarchive un lot de factures."""
@@ -132,6 +141,7 @@ async def batch_archive_invoices(
 async def batch_download_invoice_pdf(
     ids: list[str] = Body(..., embed=True),
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("invoices:read")),
     db: AsyncSession = Depends(get_db),
 ):
     """Télécharge les PDF d'un lot de factures (ZIP si plusieurs)."""
@@ -171,6 +181,7 @@ async def get_invoice_pdf(
     proforma: bool = False,
     download: bool = False,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("invoices:read")),
     db: AsyncSession = Depends(get_db),
 ):
     """Génère et retourne le PDF de la facture."""
@@ -192,6 +203,7 @@ async def get_invoice_pdf(
 async def get_invoice_import_data(
     invoice_id: str,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("invoices:read")),
     db: AsyncSession = Depends(get_db),
 ):
     """Donnees d'import IA structurees liees a cette facture."""

@@ -14,6 +14,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.dependencies import require_permission
 from app.core.security import get_current_user_id
 from app.schemas.ai import (
     AiCategorizeRequest,
@@ -82,6 +83,7 @@ async def ocr_invoice(
     file: UploadFile = File(...),
     x_organization_id: UUID = Header(..., alias="X-Organization-Id"),
     user_id: UUID = Depends(get_current_user_id),
+    _perm=Depends(require_permission("imports:write")),
     db: AsyncSession = Depends(get_db),
 ):
     """OCR via PaddleX Serving - retourne le resultat brut PaddleX."""
@@ -98,6 +100,7 @@ async def ocr_vlm(
     file: UploadFile = File(...),
     x_organization_id: UUID = Header(..., alias="X-Organization-Id"),
     user_id: UUID = Depends(get_current_user_id),
+    _perm=Depends(require_permission("imports:write")),
     db: AsyncSession = Depends(get_db),
 ):
     """OCR via le modele VL (Vision-Language) configure dans LiteLLM."""
@@ -115,6 +118,7 @@ async def extract_document(
     file: UploadFile = File(...),
     x_organization_id: UUID = Header(..., alias="X-Organization-Id"),
     user_id: UUID = Depends(get_current_user_id),
+    _perm=Depends(require_permission("imports:write")),
     db: AsyncSession = Depends(get_db),
 ):
     """Extrait les donnees d'un document via le modele VL.
@@ -180,6 +184,7 @@ async def extract_document(
         tokens_in=tokens_in,
         tokens_out=tokens_out,
         prompt_sent=prompt_sent,
+        assigned_to=user_id,
     )
 
     # Pre-matcher le client par le nom extrait

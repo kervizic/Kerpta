@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.dependencies import OrgContext, get_org_context
+from app.core.dependencies import OrgContext, get_org_context, require_permission
 from app.schemas.clients import (
     ClientCreate,
     ClientDetailOut,
@@ -29,6 +29,7 @@ async def list_clients(
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=100),
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("quotes:read")),
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.list_clients(
@@ -40,6 +41,7 @@ async def list_clients(
 async def create_client(
     data: ClientCreate,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("quotes:write")),
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.create_client(ctx.org_id, data, db)
@@ -49,6 +51,7 @@ async def create_client(
 async def get_client(
     client_id: str,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("quotes:read")),
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.get_client(ctx.org_id, client_id, db)
@@ -59,6 +62,7 @@ async def update_client(
     client_id: str,
     data: ClientUpdate,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("quotes:write")),
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.update_client(ctx.org_id, client_id, data, db)
@@ -68,6 +72,7 @@ async def update_client(
 async def delete_client(
     client_id: str,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("quotes:write")),
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.delete_client(ctx.org_id, client_id, db)
@@ -77,6 +82,7 @@ async def delete_client(
 async def get_client_quotes(
     client_id: str,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("quotes:read")),
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.get_client_quotes(ctx.org_id, client_id, db)
@@ -86,6 +92,7 @@ async def get_client_quotes(
 async def get_client_invoices(
     client_id: str,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("quotes:read")),
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.get_client_invoices(ctx.org_id, client_id, db)
@@ -95,6 +102,7 @@ async def get_client_invoices(
 async def get_client_contracts(
     client_id: str,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("quotes:read")),
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.get_client_contracts(ctx.org_id, client_id, db)
@@ -107,6 +115,7 @@ async def get_client_contracts(
 async def list_contacts(
     client_id: str,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("quotes:read")),
     db: AsyncSession = Depends(get_db),
 ):
     return await contacts_svc.list_contacts(ctx.org_id, client_id, db)
@@ -117,6 +126,7 @@ async def create_contact(
     client_id: str,
     data: ContactCreate,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("quotes:write")),
     db: AsyncSession = Depends(get_db),
 ):
     return await contacts_svc.create_contact(ctx.org_id, client_id, data, db)
@@ -128,6 +138,7 @@ async def update_contact(
     contact_id: str,
     data: ContactUpdate,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("quotes:write")),
     db: AsyncSession = Depends(get_db),
 ):
     return await contacts_svc.update_contact(ctx.org_id, client_id, contact_id, data, db)
@@ -138,6 +149,7 @@ async def delete_contact(
     client_id: str,
     contact_id: str,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("quotes:write")),
     db: AsyncSession = Depends(get_db),
 ):
     await contacts_svc.delete_contact(ctx.org_id, client_id, contact_id, db)

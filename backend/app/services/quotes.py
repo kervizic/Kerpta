@@ -166,14 +166,14 @@ async def create_quote(
                 bpu_source_id, billing_profile_id, status, issue_date, expiry_date,
                 currency, subtotal_ht, total_vat, total_ttc,
                 discount_type, discount_value, notes, footer,
-                signature_status, created_at, updated_at
+                signature_status, assigned_to, created_at, updated_at
             ) VALUES (
                 :id, :org_id, :client_id, :number, :doc_type,
                 :show_qty, :contract_id, :is_avenant, :avenant_number,
                 :bpu_source_id, :billing_profile_id, 'draft', :issue_date, :expiry_date,
                 'EUR', :subtotal_ht, :total_vat, :total_ttc,
                 :discount_type, :discount_value, :notes, :footer,
-                'none', now(), now()
+                'none', :assigned_to, now(), now()
             )
         """),
         {
@@ -197,6 +197,7 @@ async def create_quote(
             "discount_value": str(data.discount_value),
             "notes": data.notes,
             "footer": data.footer,
+            "assigned_to": str(user_id),
         },
     )
 

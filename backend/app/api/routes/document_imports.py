@@ -10,7 +10,7 @@ from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.dependencies import OrgContext, get_org_context
+from app.core.dependencies import OrgContext, get_org_context, require_permission
 from app.services import document_import as import_svc
 from app.services import storage as storage_svc
 
@@ -32,6 +32,7 @@ async def list_imports(
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=100),
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("imports:read")),
     db: AsyncSession = Depends(get_db),
 ):
     """Liste les imports IA, filtrable par statut et recherche."""
@@ -57,6 +58,7 @@ async def list_imports(
 async def get_import(
     import_id: str,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("imports:read")),
     db: AsyncSession = Depends(get_db),
 ):
     """Detail d'un import."""
@@ -68,6 +70,7 @@ async def validate_import(
     import_id: str,
     body: ValidateImportBody,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("imports:write")),
     db: AsyncSession = Depends(get_db),
 ):
     """Valide un import : cree le document ou attache le fichier."""
@@ -97,6 +100,7 @@ async def update_import(
     import_id: str,
     body: UpdateImportBody,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("imports:write")),
     db: AsyncSession = Depends(get_db),
 ):
     """Met a jour les champs editables d'un import."""
@@ -107,6 +111,7 @@ async def update_import(
 async def get_import_lines(
     import_id: str,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("imports:read")),
     db: AsyncSession = Depends(get_db),
 ):
     """Lignes extraites d'un import avec leur statut de matching."""
@@ -119,6 +124,7 @@ async def get_import_lines(
 async def reject_import(
     import_id: str,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("imports:write")),
     db: AsyncSession = Depends(get_db),
 ):
     """Rejette un import."""
@@ -129,6 +135,7 @@ async def reject_import(
 async def delete_import(
     import_id: str,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("imports:write")),
     db: AsyncSession = Depends(get_db),
 ):
     """Supprime un import et ses lignes (cascade)."""
@@ -139,6 +146,7 @@ async def delete_import(
 async def get_import_file(
     import_id: str,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("imports:read")),
     db: AsyncSession = Depends(get_db),
 ):
     """Telecharge le fichier source d'un import depuis S3 et le sert en proxy."""

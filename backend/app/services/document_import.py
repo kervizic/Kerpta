@@ -446,6 +446,7 @@ async def create_import(
     tokens_in: int | None = None,
     tokens_out: int | None = None,
     prompt_sent: str | None = None,
+    assigned_to: uuid.UUID | None = None,
 ) -> dict:
     """Cree un import en staging (status=pending).
 
@@ -460,10 +461,10 @@ async def create_import(
             INSERT INTO document_imports
                 (id, organization_id, status, source_file_url, source_filename,
                  extracted_json, confidence, model_used, extraction_duration_ms,
-                 tokens_in, tokens_out, prompt_sent, created_at)
+                 tokens_in, tokens_out, prompt_sent, assigned_to, created_at)
             VALUES (:id, :org_id, 'pending', :file_url, :filename,
                     CAST(:extracted AS jsonb), :confidence, :model, :duration,
-                    :tin, :tout, :prompt, :now)
+                    :tin, :tout, :prompt, :assigned_to, :now)
         """),
         {
             "id": str(import_id),
@@ -477,6 +478,7 @@ async def create_import(
             "tin": tokens_in,
             "tout": tokens_out,
             "prompt": prompt_sent,
+            "assigned_to": str(assigned_to) if assigned_to else None,
             "now": now,
         },
     )

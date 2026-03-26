@@ -202,7 +202,7 @@ async def create_invoice(
                 currency, subtotal_ht, total_vat, total_ttc,
                 amount_paid, discount_type, discount_value,
                 payment_terms, payment_method, bank_details,
-                notes, footer, created_at, updated_at
+                notes, footer, assigned_to, created_at, updated_at
             ) VALUES (
                 :id, :org_id, :client_id, :client_name,
                 :proforma_number,
@@ -213,7 +213,7 @@ async def create_invoice(
                 'EUR', :ht, :vat, :ttc,
                 0, :disc_type, :disc_val,
                 :terms, :method, CAST(:bank AS jsonb),
-                :notes, :footer, now(), now()
+                :notes, :footer, :assigned_to, now(), now()
             )
         """),
         {
@@ -240,6 +240,7 @@ async def create_invoice(
             "purchase_order_number": data.purchase_order_number,
             "notes": data.notes,
             "footer": data.footer,
+            "assigned_to": str(user_id),
         },
     )
 

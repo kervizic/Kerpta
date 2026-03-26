@@ -9,7 +9,7 @@ from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.dependencies import OrgContext, get_org_context
+from app.core.dependencies import OrgContext, get_org_context, require_permission
 from app.services import document_attachments as doc_attach_svc
 from app.services import storage as storage_svc
 
@@ -22,6 +22,7 @@ async def upload_attachment(
     parent_type: str = Form(..., description="quote, invoice ou order"),
     parent_id: str = Form(..., description="UUID du document parent"),
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("documents:write")),
     db: AsyncSession = Depends(get_db),
 ):
     """Upload une piece jointe et la rattache a un document."""
@@ -44,6 +45,7 @@ async def list_attachments(
     parent_type: str = Query(..., description="quote, invoice ou order"),
     parent_id: str = Query(..., description="UUID du document parent"),
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("documents:read")),
     db: AsyncSession = Depends(get_db),
 ):
     """Liste les pieces jointes d'un document."""
@@ -56,6 +58,7 @@ async def list_attachments(
 async def get_attachment_file(
     attachment_id: str,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("documents:read")),
     db: AsyncSession = Depends(get_db),
 ):
     """Telecharge une piece jointe depuis S3 et la sert en proxy."""
@@ -82,6 +85,7 @@ async def get_attachment_file(
 async def delete_attachment(
     attachment_id: str,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("documents:write")),
     db: AsyncSession = Depends(get_db),
 ):
     """Supprime une piece jointe."""

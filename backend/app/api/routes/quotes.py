@@ -12,7 +12,7 @@ from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.dependencies import OrgContext, get_org_context
+from app.core.dependencies import OrgContext, get_org_context, require_permission
 from app.schemas.quotes import PaginatedQuotes, QuoteCreate, QuoteDetailOut, QuoteUpdate
 from app.services import quotes as svc
 from app.services import pdf as pdf_svc
@@ -35,6 +35,7 @@ async def list_quotes(
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=100),
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("quotes:read")),
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.list_quotes(
@@ -52,6 +53,7 @@ async def list_quotes(
 async def create_quote(
     data: QuoteCreate,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("quotes:write")),
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.create_quote(ctx.org_id, ctx.user_id, data, db)
@@ -61,6 +63,7 @@ async def create_quote(
 async def get_quote(
     quote_id: str,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("quotes:read")),
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.get_quote(ctx.org_id, quote_id, db)
@@ -71,6 +74,7 @@ async def update_quote(
     quote_id: str,
     data: QuoteUpdate,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("quotes:write")),
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.update_quote(ctx.org_id, quote_id, data, db)
@@ -80,6 +84,7 @@ async def update_quote(
 async def send_quote(
     quote_id: str,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("quotes:write")),
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.send_quote(ctx.org_id, quote_id, db)
@@ -90,6 +95,7 @@ async def accept_quote(
     quote_id: str,
     client_reference: str | None = Body(None, embed=True),
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("quotes:write")),
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.accept_quote(
@@ -102,6 +108,7 @@ async def invoice_quote(
     quote_id: str,
     client_reference: str | None = Body(None, embed=True),
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("quotes:write")),
     db: AsyncSession = Depends(get_db),
 ):
     """Accepte le devis, cree une commande et une facture en une seule action."""
@@ -114,6 +121,7 @@ async def invoice_quote(
 async def refuse_quote(
     quote_id: str,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("quotes:write")),
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.refuse_quote(ctx.org_id, quote_id, db)
@@ -123,6 +131,7 @@ async def refuse_quote(
 async def duplicate_quote(
     quote_id: str,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("quotes:write")),
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.duplicate_quote(ctx.org_id, quote_id, db)
@@ -132,6 +141,7 @@ async def duplicate_quote(
 async def convert_to_contract(
     quote_id: str,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("quotes:write")),
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.convert_to_contract(ctx.org_id, ctx.user_id, quote_id, db)
@@ -142,6 +152,7 @@ async def batch_archive_quotes(
     ids: list[str] = Body(..., embed=True),
     archive: bool = Body(True, embed=True),
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("quotes:write")),
     db: AsyncSession = Depends(get_db),
 ):
     """Archive ou désarchive un lot de devis."""
@@ -152,6 +163,7 @@ async def batch_archive_quotes(
 async def batch_download_pdf(
     ids: list[str] = Body(..., embed=True),
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("quotes:read")),
     db: AsyncSession = Depends(get_db),
 ):
     """Télécharge les PDF d'un lot de devis (ZIP si plusieurs, PDF direct si un seul)."""
@@ -192,6 +204,7 @@ async def get_quote_pdf(
     quote_id: str,
     download: bool = False,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("quotes:read")),
     db: AsyncSession = Depends(get_db),
 ):
     """Génère et retourne le PDF du devis."""
@@ -217,6 +230,7 @@ async def get_quote_pdf(
 async def get_quote_import_data(
     quote_id: str,
     ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("quotes:read")),
     db: AsyncSession = Depends(get_db),
 ):
     """Donnees d'import IA structurees liees a ce devis."""

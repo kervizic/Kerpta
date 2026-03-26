@@ -38,9 +38,10 @@ class OrgMembershipOut(BaseModel):
     org_siret: str | None
     org_siren: str | None
     org_logo_url: str | None
-    # Miniature 64×64 px (data URI base64) — pour la sidebar, chargée avec le membership
+    # Miniature 64×64 px (data URI base64) — pour la sidebar, chargee avec le membership
     org_logo_thumb: str | None = None
     role: str
+    permissions: list[str] = []
     joined_at: datetime | None
 
 
