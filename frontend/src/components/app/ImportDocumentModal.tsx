@@ -24,24 +24,11 @@ interface ExtractResponse {
   suggested_client: { id: string; name: string } | null
 }
 
-interface ValidateResponse {
-  status: string
-  action: string
-  target_type: string
-  target_id: string
-}
-
 const DOC_LABELS: Record<string, string> = {
   quote: 'devis',
   invoice: 'facture',
   order: 'commande',
 }
-
-/** Mapping type document IA -> target_type pour la validation */
-const TYPE_TO_TARGET: Record<string, string> = {
-  facture: 'invoice',
-  avoir: 'invoice',
-  releve: 'invoice',
   acompte: 'invoice',
   devis: 'quote',
   pro_forma: 'quote',
