@@ -225,19 +225,21 @@ async def _populate_structured_fields(
     Les colonnes structurees sont EN PLUS du JSON, pas a la place.
     """
     parties = extracted_json.get("parties") or {}
-    emetteur = parties.get("emetteur") or {}
-    identifiants = emetteur.get("identifiants") or {}
-    adresse = emetteur.get("adresse") or {}
+    # Le CLIENT est le DESTINATAIRE (pas l'emetteur)
+    # L'emetteur c'est l'entreprise qui emet le document (nous)
+    destinataire = parties.get("destinataire") or {}
+    dest_identifiants = destinataire.get("identifiants") or {}
+    dest_adresse = destinataire.get("adresse") or {}
     doc = extracted_json.get("document") or {}
     meta = extracted_json.get("meta") or {}
     totaux = extracted_json.get("totaux") or {}
     paiement = extracted_json.get("paiement") or {}
 
-    # Construire l'adresse complete
+    # Construire l'adresse complete du client (destinataire)
     addr_parts = [
-        adresse.get("rue"),
-        adresse.get("cp"),
-        adresse.get("ville"),
+        dest_adresse.get("rue"),
+        dest_adresse.get("code_postal") or dest_adresse.get("cp"),
+        dest_adresse.get("ville"),
     ]
     client_address = " ".join(p for p in addr_parts if p) or None
 
@@ -266,10 +268,10 @@ async def _populate_structured_fields(
         """),
         {
             "import_id": str(import_id),
-            "client_name": emetteur.get("designation"),
-            "client_siret": identifiants.get("siret"),
-            "client_siren": identifiants.get("siren"),
-            "client_tva": identifiants.get("tva"),
+            "client_name": destinataire.get("designation"),
+            "client_siret": dest_identifiants.get("siret"),
+            "client_siren": dest_identifiants.get("siren"),
+            "client_tva": dest_identifiants.get("tva"),
             "client_address": client_address,
             "doc_number": doc.get("numero"),
             "doc_date": _safe_date(doc.get("date_emission")),
@@ -342,13 +344,14 @@ async def _auto_match_client(
     Stocke le client_id matche dans document_imports.client_id.
     """
     parties = extracted_json.get("parties") or {}
-    emetteur = parties.get("emetteur") or {}
-    identifiants = emetteur.get("identifiants") or {}
+    # Le CLIENT est le DESTINATAIRE (pas l'emetteur)
+    destinataire = parties.get("destinataire") or {}
+    dest_identifiants = destinataire.get("identifiants") or {}
 
     client_id = None
 
     # 1. Chercher par SIRET exact
-    siret = identifiants.get("siret")
+    siret = dest_identifiants.get("siret")
     if siret:
         result = await db.execute(
             text("""
@@ -365,7 +368,7 @@ async def _auto_match_client(
 
     # 2. Sinon par nom (fuzzy via suggest_client existant)
     if not client_id:
-        client_name = emetteur.get("designation")
+        client_name = destinataire.get("designation")
         if client_name:
             suggested = await suggest_client(org_id, client_name, db)
             if suggested:
@@ -820,7 +823,7 @@ async def reject_import(
         text("""
             UPDATE document_imports
             SET status = 'rejected', validated_at = :now
-            WHERE id = :iid AND organization_id = :org_id AND status = 'pending'
+            WHERE id = :iid AND organization_id = :org_id AND status != 'rejected'
         """),
         {
             "iid": import_id,
@@ -892,7 +895,8 @@ async def import_as_quote(
     from app.services.numbering import generate_number
 
     parties = extracted_data.get("parties") or {}
-    emetteur = parties.get("emetteur") or {}
+    # Le CLIENT est le DESTINATAIRE (l'emetteur c'est nous)
+    emetteur = parties.get("destinataire") or {}
     doc = extracted_data.get("document") or {}
 
     # Resoudre le client (optionnel - brouillon sans client accepte)
@@ -979,7 +983,8 @@ async def import_as_invoice(
     from app.services.numbering import generate_number
 
     parties = extracted_data.get("parties") or {}
-    emetteur = parties.get("emetteur") or {}
+    # Le CLIENT est le DESTINATAIRE (l'emetteur c'est nous)
+    emetteur = parties.get("destinataire") or {}
     doc = extracted_data.get("document") or {}
 
     # Resoudre le client (optionnel - brouillon sans client accepte)
@@ -1076,7 +1081,8 @@ async def import_as_order(
 ) -> dict:
     """Cree une commande brouillon depuis un JSON Factur-X extrait."""
     parties = extracted_data.get("parties") or {}
-    emetteur = parties.get("emetteur") or {}
+    # Le CLIENT est le DESTINATAIRE (l'emetteur c'est nous)
+    emetteur = parties.get("destinataire") or {}
     doc = extracted_data.get("document") or {}
 
     # Resoudre le client (optionnel - brouillon sans client accepte)

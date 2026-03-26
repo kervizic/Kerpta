@@ -183,7 +183,8 @@ async def extract_document(
     )
 
     # Pre-matcher le client par le nom extrait
-    emetteur_name = ((result.get("parties") or {}).get("emetteur") or {}).get("designation")
+    # Le CLIENT est le DESTINATAIRE (l'emetteur c'est nous)
+    emetteur_name = ((result.get("parties") or {}).get("destinataire") or {}).get("designation")
     suggested = await suggest_client(x_organization_id, emetteur_name, db) if emetteur_name else None
 
     return {
