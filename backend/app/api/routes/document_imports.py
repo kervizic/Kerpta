@@ -6,7 +6,7 @@
 
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import RedirectResponse
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -109,14 +109,20 @@ async def get_import_file(
     ctx: OrgContext = Depends(get_org_context),
     db: AsyncSession = Depends(get_db),
 ):
-    """Redirige vers une URL presignee S3 pour le fichier source d'un import."""
+    """Telecharge le fichier source d'un import depuis S3 et le sert en proxy."""
     detail = await import_svc.get_import(ctx.org_id, import_id, db)
     file_url = detail.get("source_file_url")
     if not file_url:
         raise HTTPException(404, "Aucun fichier source pour cet import")
 
-    presigned = await storage_svc.generate_presigned_url(file_url, db)
-    if not presigned:
-        raise HTTPException(500, "Impossible de generer l'URL de telechargement")
+    filename = detail.get("source_filename") or "document"
+    file_bytes = await storage_svc.download_document(file_url, db)
+    if not file_bytes:
+        raise HTTPException(404, "Fichier introuvable sur le stockage")
 
-    return RedirectResponse(url=presigned, status_code=302)
+    content_type = "application/pdf" if filename.lower().endswith(".pdf") else "application/octet-stream"
+    return Response(
+        content=file_bytes,
+        media_type=content_type,
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )

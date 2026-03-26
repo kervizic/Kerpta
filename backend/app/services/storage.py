@@ -427,6 +427,31 @@ async def upload_document(
     return url
 
 
+async def download_document(
+    file_url: str,
+    db: AsyncSession,
+) -> bytes | None:
+    """Telecharge un document depuis S3 a partir de son URL stockee.
+
+    Returns:
+        Les octets du fichier, ou None si pas de stockage configure.
+    """
+    s3_config = await _get_platform_s3_config(db)
+    if not s3_config:
+        return None
+
+    # Extraire le chemin S3 depuis l'URL
+    # URL format: https://endpoint/bucket/path/to/file
+    bucket = s3_config.get("bucket", "")
+    if bucket and f"/{bucket}/" in file_url:
+        remote_path = file_url.split(f"/{bucket}/", 1)[1]
+    else:
+        remote_path = file_url.rsplit("/", 1)[-1]
+
+    adapter = S3Adapter(s3_config)
+    return adapter.download(remote_path)
+
+
 async def generate_presigned_url(
     file_url: str,
     db: AsyncSession,
