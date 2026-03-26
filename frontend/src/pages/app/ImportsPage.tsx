@@ -29,6 +29,8 @@ interface ImportItem {
   extracted_doc_type: string | null
   extracted_client_name: string | null
   extracted_client_siret: string | null
+  extracted_client_siren: string | null
+  extracted_client_tva: string | null
   extracted_client_address: string | null
   extracted_doc_number: string | null
   extracted_doc_date: string | null
@@ -492,7 +494,7 @@ function ImportDetailOverlay({
             {/* Section Client detecte */}
             <div className={SECTION}>
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Client detecte</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div>
                   <label className={LABEL}>Nom (IA)</label>
                   <div className="flex items-center gap-2">
@@ -501,10 +503,18 @@ function ImportDetailOverlay({
                   </div>
                 </div>
                 <div>
-                  <label className={LABEL}>SIRET (IA)</label>
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{detail.extracted_client_siret || '-'}</span>
+                  <label className={LABEL}>SIRET / SIREN (IA)</label>
+                  <span className="text-sm text-gray-700 dark:text-gray-300 font-mono">
+                    {detail.extracted_client_siret || detail.extracted_client_siren || '-'}
+                  </span>
                 </div>
-                <div className="md:col-span-2">
+                <div>
+                  <label className={LABEL}>N. TVA (IA)</label>
+                  <span className="text-sm text-gray-700 dark:text-gray-300 font-mono">
+                    {detail.extracted_client_tva || '-'}
+                  </span>
+                </div>
+                <div className="md:col-span-3">
                   <label className={LABEL}>Adresse (IA)</label>
                   <span className="text-sm text-gray-700 dark:text-gray-300">{detail.extracted_client_address || '-'}</span>
                 </div>
