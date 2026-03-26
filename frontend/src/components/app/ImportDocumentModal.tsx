@@ -47,7 +47,6 @@ export default function ImportDocumentModal({ documentType, onClose, onImported 
   const [preview, setPreview] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [chrono, setChrono] = useState(0)
-  const [createdId, setCreatedId] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   // Live chrono during processing
