@@ -243,7 +243,7 @@ export default function ImportsPage() {
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${st.cls}`}>{st.label}</span>
                     </td>
                     <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                      {item.created_at ? new Date(item.created_at).toLocaleDateString('fr-FR') : '-'}
+                      {item.created_at ? new Date(item.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
                     </td>
                   </tr>
                 )
@@ -480,7 +480,7 @@ function ImportDetailOverlay({
                 value={docType}
                 onChange={(e) => setDocType(e.target.value)}
                 className={SELECT}
-                disabled={detail.status !== 'pending'}
+                disabled={detail.status === 'rejected'}
               >
                 <option value="">-- Choisir --</option>
                 {DOC_TYPE_OPTIONS.map((o) => (
@@ -515,7 +515,7 @@ function ImportDetailOverlay({
                   <ClientCombobox
                     value={clientId}
                     onChange={setClientId}
-                    disabled={detail.status !== 'pending'}
+                    disabled={detail.status === 'rejected'}
                   />
                   {clientId && (
                     <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
@@ -530,23 +530,23 @@ function ImportDetailOverlay({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className={LABEL}>Numero</label>
-                  <input className={INPUT} value={docNumber} onChange={e => setDocNumber(e.target.value)} disabled={detail.status !== 'pending'} placeholder="N. document" />
+                  <input className={INPUT} value={docNumber} onChange={e => setDocNumber(e.target.value)} disabled={detail.status === 'rejected'} placeholder="N. document" />
                 </div>
                 <div>
                   <label className={LABEL}>Date emission</label>
-                  <input className={INPUT} type="date" value={docDate} onChange={e => setDocDate(e.target.value)} disabled={detail.status !== 'pending'} />
+                  <input className={INPUT} type="date" value={docDate} onChange={e => setDocDate(e.target.value)} disabled={detail.status === 'rejected'} />
                 </div>
                 <div>
                   <label className={LABEL}>Date echeance</label>
-                  <input className={INPUT} type="date" value={docDueDate} onChange={e => setDocDueDate(e.target.value)} disabled={detail.status !== 'pending'} />
+                  <input className={INPUT} type="date" value={docDueDate} onChange={e => setDocDueDate(e.target.value)} disabled={detail.status === 'rejected'} />
                 </div>
                 <div>
                   <label className={LABEL}>Reference</label>
-                  <input className={INPUT} value={docRef} onChange={e => setDocRef(e.target.value)} disabled={detail.status !== 'pending'} placeholder="Reference" />
+                  <input className={INPUT} value={docRef} onChange={e => setDocRef(e.target.value)} disabled={detail.status === 'rejected'} placeholder="Reference" />
                 </div>
                 <div>
                   <label className={LABEL}>N. commande</label>
-                  <input className={INPUT} value={docOrderNumber} onChange={e => setDocOrderNumber(e.target.value)} disabled={detail.status !== 'pending'} placeholder="N. commande" />
+                  <input className={INPUT} value={docOrderNumber} onChange={e => setDocOrderNumber(e.target.value)} disabled={detail.status === 'rejected'} placeholder="N. commande" />
                 </div>
               </div>
             </div>
