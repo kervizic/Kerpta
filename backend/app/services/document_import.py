@@ -875,6 +875,43 @@ async def reject_import(
     return {"status": "rejected"}
 
 
+async def update_import(
+    org_id: uuid.UUID,
+    import_id: str,
+    updates: dict,
+    db: AsyncSession,
+) -> dict:
+    """Met a jour les champs editables d'un import."""
+    # Mapping champs frontend -> colonnes DB
+    field_map = {
+        "doc_type": "extracted_doc_type",
+        "client_id": "client_id",
+        "doc_number": "extracted_doc_number",
+        "doc_date": "extracted_doc_date",
+        "doc_due_date": "extracted_doc_due_date",
+        "reference": "extracted_reference",
+        "order_number": "extracted_order_number",
+    }
+
+    sets = []
+    params: dict = {"iid": import_id, "org_id": str(org_id)}
+    for key, value in updates.items():
+        col = field_map.get(key)
+        if not col:
+            continue
+        sets.append(f"{col} = :{key}")
+        params[key] = value
+
+    if not sets:
+        return {"updated": False}
+
+    query = f"UPDATE document_imports SET {', '.join(sets)} WHERE id = :iid AND organization_id = :org_id"
+    await db.execute(text(query), params)
+    await db.commit()
+
+    return {"updated": True}
+
+
 async def delete_import(
     org_id: uuid.UUID,
     import_id: str,

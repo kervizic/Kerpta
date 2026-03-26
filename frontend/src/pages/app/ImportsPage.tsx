@@ -8,7 +8,7 @@ import {
   Loader2, X, Upload, Sparkles, ChevronLeft, ChevronRight,
   ExternalLink, CheckCircle2, Clock, XCircle, Brain, Trash2, Download,
 } from 'lucide-react'
-import { orgGet, orgPost, orgDelete, orgDownload } from '@/lib/orgApi'
+import { orgGet, orgPost, orgPatch, orgDelete, orgDownload } from '@/lib/orgApi'
 import { useAuthStore } from '@/stores/authStore'
 import ClientCombobox from '@/components/app/ClientCombobox'
 import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
@@ -442,6 +442,26 @@ function ImportDetailOverlay({
     setSaving(false)
   }
 
+  async function handleSave() {
+    setSaving(true)
+    try {
+      await orgPatch(`/imports/${importId}`, {
+        doc_type: docType || undefined,
+        client_id: clientId || undefined,
+        doc_number: docNumber || undefined,
+        doc_date: docDate || undefined,
+        doc_due_date: docDueDate || undefined,
+        reference: docRef || undefined,
+        order_number: docOrderNumber || undefined,
+      })
+      queryClient.invalidateQueries({ queryKey: ['import-detail', importId] })
+      onRefresh()
+    } catch {
+      alert('Erreur lors de la sauvegarde')
+    }
+    setSaving(false)
+  }
+
   async function handleReject() {
     setRejecting(true)
     try {
@@ -780,6 +800,10 @@ function ImportDetailOverlay({
 
             {/* Actions */}
             <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+              <button onClick={handleSave} disabled={saving} className={BTN_SECONDARY}>
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                Enregistrer
+              </button>
               {detail.status === 'pending' && (
                 <button onClick={handleValidate} disabled={saving || !docType} className={BTN}>
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}

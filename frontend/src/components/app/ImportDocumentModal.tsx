@@ -103,28 +103,14 @@ export default function ImportDocumentModal({ documentType, onClose, onImported 
     setError('')
 
     try {
-      // 1. Upload + extraction IA
+      // Upload + extraction IA -> reste en staging (pending)
       const formData = new FormData()
       formData.append('file', file)
-      const extractResp = await orgClient.post<ExtractResponse>('/ai/extract-document', formData)
+      await orgClient.post<ExtractResponse>('/ai/extract-document', formData)
 
-      // 2. Validation automatique - creer le brouillon
-      // Utiliser le type detecte par l'IA si disponible, sinon fallback sur le prop
-      const detectedType = (extractResp.extracted_json?.meta as Record<string, unknown>)?.type_document as string | undefined
-      const targetType = (detectedType && TYPE_TO_TARGET[detectedType]) || documentType
-
-      const validateBody = {
-        action: 'create',
-        target_type: targetType,
-        client_id: extractResp.suggested_client?.id || null,
-      }
-      const validateResp = await orgClient.post<ValidateResponse>(
-        `/imports/${extractResp.import_id}/validate`,
-        validateBody,
-      )
-
+      // Pas de validation automatique - l'utilisateur valide depuis Import IA
       setStep('done')
-      onImported(validateResp.target_id)
+      onImported('')
     } catch (err: unknown) {
       const msg = (err as { data?: { detail?: string } })?.data?.detail || "Erreur lors de l'import"
       setError(String(msg))

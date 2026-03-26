@@ -82,6 +82,27 @@ async def validate_import(
     )
 
 
+class UpdateImportBody(BaseModel):
+    doc_type: str | None = None
+    client_id: str | None = None
+    doc_number: str | None = None
+    doc_date: str | None = None
+    doc_due_date: str | None = None
+    reference: str | None = None
+    order_number: str | None = None
+
+
+@router.patch("/{import_id}")
+async def update_import(
+    import_id: str,
+    body: UpdateImportBody,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    """Met a jour les champs editables d'un import."""
+    return await import_svc.update_import(ctx.org_id, import_id, body.model_dump(exclude_none=True), db)
+
+
 @router.get("/{import_id}/lines")
 async def get_import_lines(
     import_id: str,
