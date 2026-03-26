@@ -355,6 +355,7 @@ function ImportDetailOverlay({
   onClose: () => void
   onRefresh: () => void
 }) {
+  const queryClient = useQueryClient()
   const [docType, setDocType] = useState<string>('')
   const [clientId, setClientId] = useState<string>('')
   const [docNumber, setDocNumber] = useState('')
@@ -417,7 +418,7 @@ function ImportDetailOverlay({
     try {
       await orgPost(`/imports/${importId}/reject`, {})
       onRefresh()
-      onClose()
+      queryClient.invalidateQueries({ queryKey: ['import-detail', importId] })
     } catch {
       /* */
     }
@@ -704,13 +705,13 @@ function ImportDetailOverlay({
 
             {/* Actions */}
             <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-              {detail.status !== 'rejected' && (
+              {detail.status === 'pending' && (
                 <button onClick={handleValidate} disabled={saving || !docType} className={BTN}>
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                  {detail.status === 'validated' ? 'Re-valider' : 'Valider et creer'}
+                  Valider et creer
                 </button>
               )}
-              {detail.status !== 'rejected' && (
+              {detail.status === 'pending' && (
                 <button onClick={handleReject} disabled={rejecting} className={BTN_DANGER}>
                   {rejecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
                   Rejeter
@@ -718,10 +719,14 @@ function ImportDetailOverlay({
               )}
               <button
                 onClick={async () => {
-                  if (!confirm('Supprimer cet import ?')) return
-                  await orgDelete(`/imports/${importId}`)
-                  onRefresh()
-                  onClose()
+                  if (!confirm('Supprimer definitivement cet import et son fichier source ?')) return
+                  try {
+                    await orgDelete(`/imports/${importId}`)
+                    onRefresh()
+                    onClose()
+                  } catch {
+                    alert('Erreur lors de la suppression')
+                  }
                 }}
                 className={BTN_DANGER}
               >
