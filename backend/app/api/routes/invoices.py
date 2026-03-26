@@ -21,6 +21,7 @@ from app.schemas.invoices import (
 )
 from app.services import invoices as svc
 from app.services import pdf as pdf_svc
+from app.services import document_import as import_svc
 
 router = APIRouter(prefix="/api/v1/invoices", tags=["invoices"])
 
@@ -185,3 +186,16 @@ async def get_invoice_pdf(
         media_type="application/pdf",
         headers={"Content-Disposition": f'{disposition}; filename="{filename}"'},
     )
+
+
+@router.get("/{invoice_id}/import-data")
+async def get_invoice_import_data(
+    invoice_id: str,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    """Donnees d'import IA structurees liees a cette facture."""
+    data = await import_svc.get_import_data_for_target(ctx.org_id, "invoice", invoice_id, db)
+    if data is None:
+        return {"import": None}
+    return {"import": data}

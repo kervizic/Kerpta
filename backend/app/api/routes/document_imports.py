@@ -62,6 +62,18 @@ async def validate_import(
     )
 
 
+@router.get("/{import_id}/lines")
+async def get_import_lines(
+    import_id: str,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    """Lignes extraites d'un import avec leur statut de matching."""
+    # Verifier que l'import appartient a l'organisation
+    await import_svc.get_import(ctx.org_id, import_id, db)
+    return await import_svc.get_import_lines(import_id, db)
+
+
 @router.post("/{import_id}/reject")
 async def reject_import(
     import_id: str,

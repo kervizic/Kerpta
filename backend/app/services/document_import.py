@@ -212,6 +212,176 @@ async def _insert_lines(
         )
 
 
+# ── Populate structured fields ───────────────────────────────────────────────
+
+
+async def _populate_structured_fields(
+    import_id: uuid.UUID,
+    extracted_json: dict,
+    db: AsyncSession,
+) -> None:
+    """Parse le JSON Factur-X et remplit les colonnes structurees + lignes.
+
+    Les colonnes structurees sont EN PLUS du JSON, pas a la place.
+    """
+    parties = extracted_json.get("parties") or {}
+    emetteur = parties.get("emetteur") or {}
+    identifiants = emetteur.get("identifiants") or {}
+    adresse = emetteur.get("adresse") or {}
+    doc = extracted_json.get("document") or {}
+    meta = extracted_json.get("meta") or {}
+    totaux = extracted_json.get("totaux") or {}
+    paiement = extracted_json.get("paiement") or {}
+
+    # Construire l'adresse complete
+    addr_parts = [
+        adresse.get("rue"),
+        adresse.get("cp"),
+        adresse.get("ville"),
+    ]
+    client_address = " ".join(p for p in addr_parts if p) or None
+
+    # Mettre a jour les colonnes structurees sur document_imports
+    await db.execute(
+        text("""
+            UPDATE document_imports SET
+                extracted_client_name = :client_name,
+                extracted_client_siret = :client_siret,
+                extracted_client_siren = :client_siren,
+                extracted_client_tva = :client_tva,
+                extracted_client_address = :client_address,
+                extracted_doc_number = :doc_number,
+                extracted_doc_date = :doc_date,
+                extracted_doc_due_date = :doc_due_date,
+                extracted_doc_type = :doc_type,
+                extracted_total_ht = :total_ht,
+                extracted_total_tva = :total_tva,
+                extracted_total_ttc = :total_ttc,
+                extracted_iban = :iban,
+                extracted_payment_mode = :payment_mode,
+                extracted_currency = :currency,
+                extracted_reference = :reference,
+                extracted_order_number = :order_number
+            WHERE id = :import_id
+        """),
+        {
+            "import_id": str(import_id),
+            "client_name": emetteur.get("designation"),
+            "client_siret": identifiants.get("siret"),
+            "client_siren": identifiants.get("siren"),
+            "client_tva": identifiants.get("tva"),
+            "client_address": client_address,
+            "doc_number": doc.get("numero"),
+            "doc_date": _safe_date(doc.get("date_emission")),
+            "doc_due_date": _safe_date(doc.get("date_echeance")),
+            "doc_type": meta.get("type_document"),
+            "total_ht": str(_safe_decimal(totaux.get("total_ht"))) if totaux.get("total_ht") is not None else None,
+            "total_tva": str(_safe_decimal(totaux.get("total_tva"))) if totaux.get("total_tva") is not None else None,
+            "total_ttc": str(_safe_decimal(totaux.get("total_ttc"))) if totaux.get("total_ttc") is not None else None,
+            "iban": paiement.get("iban"),
+            "payment_mode": paiement.get("mode"),
+            "currency": meta.get("devise"),
+            "reference": doc.get("reference"),
+            "order_number": doc.get("numero_commande"),
+        },
+    )
+
+    # Inserer les lignes dans document_import_lines
+    raw_lines = extracted_json.get("lignes") or extracted_json.get("lines") or []
+    for i, ln in enumerate(raw_lines):
+        qty = _safe_decimal(ln.get("quantite") or ln.get("quantity"))
+        price = _safe_decimal(ln.get("prix_unitaire_ht") or ln.get("unit_price"))
+        vat_rate = _safe_decimal(ln.get("taux_tva") or ln.get("vat_rate"))
+        total_ht = _safe_decimal(ln.get("total_ht"))
+        total_ttc = _safe_decimal(ln.get("total_ttc"))
+
+        await db.execute(
+            text("""
+                INSERT INTO document_import_lines
+                    (import_id, position, extracted_reference,
+                     extracted_designation, extracted_description,
+                     extracted_quantity, extracted_unit,
+                     extracted_unit_price, extracted_vat_rate,
+                     extracted_total_ht, extracted_total_ttc)
+                VALUES
+                    (:import_id, :pos, :ref,
+                     :designation, :description,
+                     :qty, :unit,
+                     :price, :vat_rate,
+                     :total_ht, :total_ttc)
+            """),
+            {
+                "import_id": str(import_id),
+                "pos": i,
+                "ref": ln.get("reference"),
+                "designation": ln.get("designation"),
+                "description": ln.get("description"),
+                "qty": str(qty) if ln.get("quantite") or ln.get("quantity") else None,
+                "unit": ln.get("unite") or ln.get("unit"),
+                "price": str(price) if ln.get("prix_unitaire_ht") or ln.get("unit_price") else None,
+                "vat_rate": str(vat_rate) if ln.get("taux_tva") or ln.get("vat_rate") else None,
+                "total_ht": str(total_ht) if ln.get("total_ht") else None,
+                "total_ttc": str(total_ttc) if ln.get("total_ttc") else None,
+            },
+        )
+
+    _log.info(
+        "_populate_structured_fields: %s - %d lignes inserees",
+        import_id, len(raw_lines),
+    )
+
+
+async def _auto_match_client(
+    org_id: uuid.UUID,
+    import_id: uuid.UUID,
+    extracted_json: dict,
+    db: AsyncSession,
+) -> str | None:
+    """Auto-match du client par SIRET exact puis par nom fuzzy.
+
+    Stocke le client_id matche dans document_imports.client_id.
+    """
+    parties = extracted_json.get("parties") or {}
+    emetteur = parties.get("emetteur") or {}
+    identifiants = emetteur.get("identifiants") or {}
+
+    client_id = None
+
+    # 1. Chercher par SIRET exact
+    siret = identifiants.get("siret")
+    if siret:
+        result = await db.execute(
+            text("""
+                SELECT id::text FROM clients
+                WHERE organization_id = :org_id AND siret = :siret
+                LIMIT 1
+            """),
+            {"org_id": str(org_id), "siret": siret},
+        )
+        row = result.fetchone()
+        if row:
+            client_id = row[0]
+            _log.info("Client auto-matche par SIRET '%s' -> %s", siret, client_id)
+
+    # 2. Sinon par nom (fuzzy via suggest_client existant)
+    if not client_id:
+        client_name = emetteur.get("designation")
+        if client_name:
+            suggested = await suggest_client(org_id, client_name, db)
+            if suggested:
+                client_id = suggested["id"]
+                _log.info("Client auto-matche par nom '%s' -> %s", client_name, client_id)
+
+    # 3. Stocker le client_id dans document_imports
+    if client_id:
+        await db.execute(
+            text("UPDATE document_imports SET client_id = :cid WHERE id = :iid"),
+            {"cid": client_id, "iid": str(import_id)},
+        )
+
+    return client_id
+
+
 # ── Staging : CRUD des imports IA ────────────────────────────────────────────
 
 
@@ -230,6 +400,7 @@ async def create_import(
     """Cree un import en staging (status=pending).
 
     Appele par la route extract-document apres extraction IA.
+    Remplit aussi les colonnes structurees et auto-matche le client.
     """
     import_id = uuid.uuid4()
     now = datetime.now(timezone.utc)
@@ -258,13 +429,21 @@ async def create_import(
             "now": now,
         },
     )
+
+    # Remplir les colonnes structurees depuis le JSON
+    await _populate_structured_fields(import_id, extracted_json, db)
+
+    # Auto-match du client (SIRET puis nom)
+    matched_client_id = await _auto_match_client(org_id, import_id, extracted_json, db)
+
     await db.commit()
 
-    _log.info("Import cree : %s (source=%s)", import_id, source_filename)
+    _log.info("Import cree : %s (source=%s, client=%s)", import_id, source_filename, matched_client_id)
     return {
         "import_id": str(import_id),
         "status": "pending",
         "extracted_json": extracted_json,
+        "client_id": matched_client_id,
     }
 
 
@@ -273,7 +452,7 @@ async def get_import(
     import_id: str,
     db: AsyncSession,
 ) -> dict:
-    """Recupere le detail d'un import."""
+    """Recupere le detail d'un import avec colonnes structurees et lignes."""
     result = await db.execute(
         text("""
             SELECT di.id::text, di.status, di.source_file_url, di.source_filename,
@@ -282,37 +461,140 @@ async def get_import(
                    di.action, di.confidence, di.model_used,
                    di.extraction_duration_ms, di.tokens_in, di.tokens_out,
                    di.created_at, di.validated_at,
-                   c.name AS client_name
+                   c.name AS client_name,
+                   di.extracted_client_name, di.extracted_client_siret,
+                   di.extracted_client_siren, di.extracted_client_tva,
+                   di.extracted_client_address, di.extracted_doc_number,
+                   di.extracted_doc_date, di.extracted_doc_due_date,
+                   di.extracted_doc_type, di.extracted_total_ht,
+                   di.extracted_total_tva, di.extracted_total_ttc,
+                   di.extracted_iban, di.extracted_payment_mode,
+                   di.extracted_currency, di.extracted_reference,
+                   di.extracted_order_number
             FROM document_imports di
             LEFT JOIN clients c ON c.id = di.client_id
             WHERE di.id = :iid AND di.organization_id = :org_id
         """),
         {"iid": import_id, "org_id": str(org_id)},
     )
-    row = result.fetchone()
+    row = result.mappings().first()
     if not row:
         raise HTTPException(404, "Import introuvable")
 
+    # Charger les lignes
+    lines = await get_import_lines(import_id, db)
+
     return {
-        "id": row[0],
-        "status": row[1],
-        "source_file_url": row[2],
-        "source_filename": row[3],
-        "extracted_json": row[4],
-        "corrected_json": row[5],
-        "client_id": row[6],
-        "target_type": row[7],
-        "target_id": row[8],
-        "action": row[9],
-        "confidence": float(row[10]) if row[10] is not None else None,
-        "model_used": row[11],
-        "extraction_duration_ms": row[12],
-        "tokens_in": row[13],
-        "tokens_out": row[14],
-        "created_at": str(row[15]) if row[15] else None,
-        "validated_at": str(row[16]) if row[16] else None,
-        "client_name": row[17],
+        "id": row["id"],
+        "status": row["status"],
+        "source_file_url": row["source_file_url"],
+        "source_filename": row["source_filename"],
+        "extracted_json": row["extracted_json"],
+        "corrected_json": row["corrected_json"],
+        "client_id": row["client_id"],
+        "target_type": row["target_type"],
+        "target_id": row["target_id"],
+        "action": row["action"],
+        "confidence": float(row["confidence"]) if row["confidence"] is not None else None,
+        "model_used": row["model_used"],
+        "extraction_duration_ms": row["extraction_duration_ms"],
+        "tokens_in": row["tokens_in"],
+        "tokens_out": row["tokens_out"],
+        "created_at": str(row["created_at"]) if row["created_at"] else None,
+        "validated_at": str(row["validated_at"]) if row["validated_at"] else None,
+        "client_name": row["client_name"],
+        # Colonnes structurees
+        "extracted_client_name": row["extracted_client_name"],
+        "extracted_client_siret": row["extracted_client_siret"],
+        "extracted_client_siren": row["extracted_client_siren"],
+        "extracted_client_tva": row["extracted_client_tva"],
+        "extracted_client_address": row["extracted_client_address"],
+        "extracted_doc_number": row["extracted_doc_number"],
+        "extracted_doc_date": str(row["extracted_doc_date"]) if row["extracted_doc_date"] else None,
+        "extracted_doc_due_date": str(row["extracted_doc_due_date"]) if row["extracted_doc_due_date"] else None,
+        "extracted_doc_type": row["extracted_doc_type"],
+        "extracted_total_ht": float(row["extracted_total_ht"]) if row["extracted_total_ht"] is not None else None,
+        "extracted_total_tva": float(row["extracted_total_tva"]) if row["extracted_total_tva"] is not None else None,
+        "extracted_total_ttc": float(row["extracted_total_ttc"]) if row["extracted_total_ttc"] is not None else None,
+        "extracted_iban": row["extracted_iban"],
+        "extracted_payment_mode": row["extracted_payment_mode"],
+        "extracted_currency": row["extracted_currency"],
+        "extracted_reference": row["extracted_reference"],
+        "extracted_order_number": row["extracted_order_number"],
+        # Lignes extraites
+        "lines": lines,
     }
+
+
+async def get_import_lines(
+    import_id: str,
+    db: AsyncSession,
+) -> list[dict]:
+    """Recupere les lignes d'un import avec leur statut de matching."""
+    result = await db.execute(
+        text("""
+            SELECT id::text, position, extracted_reference,
+                   extracted_designation, extracted_description,
+                   extracted_quantity, extracted_unit,
+                   extracted_unit_price, extracted_vat_rate,
+                   extracted_total_ht, extracted_total_ttc,
+                   matched_line_id::text, match_confidence, match_status,
+                   created_at
+            FROM document_import_lines
+            WHERE import_id = :iid
+            ORDER BY position
+        """),
+        {"iid": import_id},
+    )
+    return [
+        {
+            "id": r["id"],
+            "position": r["position"],
+            "extracted_reference": r["extracted_reference"],
+            "extracted_designation": r["extracted_designation"],
+            "extracted_description": r["extracted_description"],
+            "extracted_quantity": float(r["extracted_quantity"]) if r["extracted_quantity"] is not None else None,
+            "extracted_unit": r["extracted_unit"],
+            "extracted_unit_price": float(r["extracted_unit_price"]) if r["extracted_unit_price"] is not None else None,
+            "extracted_vat_rate": float(r["extracted_vat_rate"]) if r["extracted_vat_rate"] is not None else None,
+            "extracted_total_ht": float(r["extracted_total_ht"]) if r["extracted_total_ht"] is not None else None,
+            "extracted_total_ttc": float(r["extracted_total_ttc"]) if r["extracted_total_ttc"] is not None else None,
+            "matched_line_id": r["matched_line_id"],
+            "match_confidence": float(r["match_confidence"]) if r["match_confidence"] is not None else None,
+            "match_status": r["match_status"],
+            "created_at": str(r["created_at"]) if r["created_at"] else None,
+        }
+        for r in result.mappings().fetchall()
+    ]
+
+
+async def get_import_data_for_target(
+    org_id: uuid.UUID,
+    target_type: str,
+    target_id: str,
+    db: AsyncSession,
+) -> dict | None:
+    """Recupere les donnees d'import structurees liees a un document cible.
+
+    Cherche le document_imports lie via target_id.
+    Utilisee par l'overlay pour afficher les annotations IA.
+    """
+    result = await db.execute(
+        text("""
+            SELECT id::text FROM document_imports
+            WHERE organization_id = :org_id
+              AND target_type = :ttype
+              AND target_id = :tid
+            ORDER BY created_at DESC
+            LIMIT 1
+        """),
+        {"org_id": str(org_id), "ttype": target_type, "tid": target_id},
+    )
+    row = result.fetchone()
+    if not row:
+        return None
+
+    return await get_import(org_id, row[0], db)
 
 
 async def list_imports(

@@ -16,6 +16,7 @@ from app.core.dependencies import OrgContext, get_org_context
 from app.schemas.quotes import PaginatedQuotes, QuoteCreate, QuoteDetailOut, QuoteUpdate
 from app.services import quotes as svc
 from app.services import pdf as pdf_svc
+from app.services import document_import as import_svc
 
 router = APIRouter(prefix="/api/v1/quotes", tags=["quotes"])
 
@@ -210,3 +211,16 @@ async def get_quote_pdf(
         media_type="application/pdf",
         headers={"Content-Disposition": f'{disposition}; filename="{filename}"'},
     )
+
+
+@router.get("/{quote_id}/import-data")
+async def get_quote_import_data(
+    quote_id: str,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    """Donnees d'import IA structurees liees a ce devis."""
+    data = await import_svc.get_import_data_for_target(ctx.org_id, "quote", quote_id, db)
+    if data is None:
+        return {"import": None}
+    return {"import": data}

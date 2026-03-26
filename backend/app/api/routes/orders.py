@@ -11,6 +11,7 @@ from app.core.database import get_db
 from app.core.dependencies import OrgContext, get_org_context
 from app.schemas.order import OrderCreate, OrderDetailOut, OrderTypeCreate, OrderTypeUpdate, OrderUpdate
 from app.services import orders as svc
+from app.services import document_import as import_svc
 
 router = APIRouter(prefix="/api/v1/orders", tags=["orders"])
 
@@ -151,6 +152,23 @@ async def restore_order(
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.restore_order(ctx.org_id, order_id, db)
+
+
+@router.get("/{order_id}/import-data")
+async def get_order_import_data(
+    order_id: str,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    """Donnees d'import IA structurees liees a cette commande.
+
+    Retourne les colonnes structurees + les lignes extraites.
+    Utilisee par l'overlay pour afficher les annotations IA.
+    """
+    data = await import_svc.get_import_data_for_target(ctx.org_id, "order", order_id, db)
+    if data is None:
+        return {"import": None}
+    return {"import": data}
 
 
 @router.post("/batch/archive")
