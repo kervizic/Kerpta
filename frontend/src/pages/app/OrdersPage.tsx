@@ -678,7 +678,7 @@ function OrderDetailOverlay({
 
   return (
     <>
-    <div className={OVERLAY_BACKDROP} onClick={onClose}>
+    <div className={OVERLAY_BACKDROP} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className={OVERLAY_PANEL} onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className={`${OVERLAY_HEADER} rounded-t-2xl`}>
@@ -1204,7 +1204,7 @@ function CreateOrderModal({ onClose, onCreated }: { onClose: () => void; onCreat
   }
 
   return (
-    <div className={OVERLAY_BACKDROP} onClick={onClose}>
+    <div className={OVERLAY_BACKDROP} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className={OVERLAY_PANEL + ' max-w-lg p-6'} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Nouvelle commande</h3>

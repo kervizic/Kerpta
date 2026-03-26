@@ -104,7 +104,7 @@ export default function ImportDocumentModal({ documentType, onClose, onImported 
   const docLabel = DOC_LABELS[documentType]
 
   return (
-    <div className={OVERLAY_BACKDROP} onClick={onClose}>
+    <div className={OVERLAY_BACKDROP} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className={`${OVERLAY_PANEL} max-w-lg`} onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className={OVERLAY_HEADER}>

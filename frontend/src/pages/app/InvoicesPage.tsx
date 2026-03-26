@@ -880,7 +880,7 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
 
   if (loading) {
     if (onClose) return (
-      <div className={OVERLAY_BACKDROP} onClick={onClose}>
+      <div className={OVERLAY_BACKDROP} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
         <div className={`${OVERLAY_PANEL} flex justify-center py-16`} onClick={(e) => e.stopPropagation()}>
           <Loader2 className="w-6 h-6 animate-spin text-kerpta" />
         </div>

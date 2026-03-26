@@ -719,7 +719,7 @@ export function CreateClientForm({ onClose, onCreated }: { onClose?: () => void;
   )
 
   return (
-    <div className={OVERLAY_BACKDROP} onClick={onClose}>
+    <div className={OVERLAY_BACKDROP} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className={`${OVERLAY_PANEL} px-3 md:px-6 py-4 md:py-6`} onClick={(e) => e.stopPropagation()}>
         {formBody}
       </div>
