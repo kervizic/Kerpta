@@ -26,11 +26,28 @@ class ValidateImportBody(BaseModel):
 @router.get("")
 async def list_imports(
     status: str | None = Query(None, description="Filtrer par statut (pending, validated, rejected)"),
+    search: str | None = Query(None, description="Recherche texte (nom fichier, client)"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=100),
     ctx: OrgContext = Depends(get_org_context),
     db: AsyncSession = Depends(get_db),
 ):
-    """Liste les imports IA, filtrable par statut."""
-    return await import_svc.list_imports(ctx.org_id, status, db)
+    """Liste les imports IA, filtrable par statut et recherche."""
+    all_imports = await import_svc.list_imports(ctx.org_id, status, db)
+    # Filtre recherche cote serveur
+    if search:
+        s = search.lower()
+        all_imports = [
+            i for i in all_imports
+            if s in (i.get("source_filename") or "").lower()
+            or s in (i.get("client_name") or "").lower()
+            or s in (i.get("extracted_client_name") or "").lower()
+            or s in (i.get("extracted_doc_number") or "").lower()
+        ]
+    total = len(all_imports)
+    start = (page - 1) * page_size
+    items = all_imports[start:start + page_size]
+    return {"items": items, "total": total}
 
 
 @router.get("/{import_id}")

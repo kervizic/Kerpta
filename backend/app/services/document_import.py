@@ -609,7 +609,9 @@ async def list_imports(
                di.confidence, di.model_used,
                di.tokens_in, di.tokens_out, di.extraction_duration_ms,
                di.created_at, di.validated_at,
-               c.name AS client_name
+               c.name AS client_name,
+               di.extracted_client_name, di.extracted_doc_number,
+               di.extracted_doc_type, di.extracted_total_ttc
         FROM document_imports di
         LEFT JOIN clients c ON c.id = di.client_id
         WHERE di.organization_id = :org_id
@@ -639,6 +641,10 @@ async def list_imports(
             "created_at": str(r[11]) if r[11] else None,
             "validated_at": str(r[12]) if r[12] else None,
             "client_name": r[13],
+            "extracted_client_name": r[14],
+            "extracted_doc_number": r[15],
+            "extracted_doc_type": r[16],
+            "extracted_total_ttc": float(r[17]) if r[17] is not None else None,
         }
         for r in result.fetchall()
     ]
