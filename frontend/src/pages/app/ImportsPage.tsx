@@ -6,9 +6,9 @@ import { useEffect, useState, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Loader2, X, Upload, Sparkles, ChevronLeft, ChevronRight,
-  ExternalLink, CheckCircle2, Clock, XCircle, Brain,
+  ExternalLink, CheckCircle2, Clock, XCircle, Brain, Trash2,
 } from 'lucide-react'
-import { orgGet, orgPost, orgDownload } from '@/lib/orgApi'
+import { orgGet, orgPost, orgDelete, orgDownload } from '@/lib/orgApi'
 import ClientCombobox from '@/components/app/ClientCombobox'
 import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/components/app/ColumnFilter'
 import MobileFilterPanel from '@/components/app/MobileFilterPanel'
@@ -43,6 +43,8 @@ interface ImportItem {
   extracted_iban: string | null
   extracted_payment_mode: string | null
   extracted_currency: string | null
+  extracted_json: Record<string, unknown> | null
+  prompt_sent: string | null
   confidence: number | null
   model_used: string | null
   tokens_in: number | null
@@ -652,30 +654,57 @@ function ImportDetailOverlay({
               </div>
             </div>
 
+            {/* Section Prompt / Reponse IA (accordeon) */}
+            {detail.prompt_sent && (
+              <details className={SECTION}>
+                <summary className="text-sm font-semibold text-gray-900 dark:text-white cursor-pointer select-none">
+                  Prompt / Reponse IA
+                </summary>
+                <div className="mt-3 space-y-3">
+                  <div>
+                    <label className={LABEL}>Prompt envoye</label>
+                    <pre className="text-xs bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 rounded-lg p-3 overflow-auto max-h-48 whitespace-pre-wrap font-mono">
+                      {detail.prompt_sent}
+                    </pre>
+                  </div>
+                  <div>
+                    <label className={LABEL}>Reponse IA (JSON)</label>
+                    <pre className="text-xs bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 rounded-lg p-3 overflow-auto max-h-48 whitespace-pre-wrap font-mono">
+                      {JSON.stringify(detail.extracted_json, null, 2)}
+                    </pre>
+                  </div>
+                </div>
+              </details>
+            )}
+
             {/* Actions */}
-            {detail.status === 'pending' && (
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-                <button onClick={onClose} className={BTN_SECONDARY}>
-                  Fermer
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+              {detail.status !== 'rejected' && (
+                <button onClick={handleValidate} disabled={saving || !docType} className={BTN}>
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                  {detail.status === 'validated' ? 'Re-valider' : 'Valider et creer'}
                 </button>
+              )}
+              {detail.status !== 'rejected' && (
                 <button onClick={handleReject} disabled={rejecting} className={BTN_DANGER}>
                   {rejecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
                   Rejeter
                 </button>
-                <button onClick={handleValidate} disabled={saving || !docType} className={BTN}>
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                  Valider et creer
-                </button>
-              </div>
-            )}
-
-            {detail.status !== 'pending' && (
-              <div className="flex justify-end pt-2 border-t border-gray-200 dark:border-gray-700">
-                <button onClick={onClose} className={BTN_SECONDARY}>
-                  Fermer
-                </button>
-              </div>
-            )}
+              )}
+              <button
+                onClick={async () => {
+                  if (!confirm('Supprimer cet import ?')) return
+                  await orgDelete(`/imports/${importId}`)
+                  onRefresh()
+                  onClose()
+                }}
+                className={BTN_DANGER}
+              >
+                <Trash2 className="w-4 h-4" /> Supprimer
+              </button>
+              <div className="flex-1" />
+              <button onClick={onClose} className={BTN_SECONDARY}>Fermer</button>
+            </div>
           </div>
         ) : null}
       </div>

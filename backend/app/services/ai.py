@@ -477,6 +477,8 @@ async def ocr_vlm(
         "tokens_in": total_tokens_in,
         "tokens_out": total_tokens_out,
         "model": model["litellm_name"],
+        "prompt_sent": extraction_prompt,
+        "raw_response": text,
     }
 
     if not result:

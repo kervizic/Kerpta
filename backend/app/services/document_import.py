@@ -396,6 +396,7 @@ async def create_import(
     db: AsyncSession,
     tokens_in: int | None = None,
     tokens_out: int | None = None,
+    prompt_sent: str | None = None,
 ) -> dict:
     """Cree un import en staging (status=pending).
 
@@ -410,10 +411,10 @@ async def create_import(
             INSERT INTO document_imports
                 (id, organization_id, status, source_file_url, source_filename,
                  extracted_json, confidence, model_used, extraction_duration_ms,
-                 tokens_in, tokens_out, created_at)
+                 tokens_in, tokens_out, prompt_sent, created_at)
             VALUES (:id, :org_id, 'pending', :file_url, :filename,
                     CAST(:extracted AS jsonb), :confidence, :model, :duration,
-                    :tin, :tout, :now)
+                    :tin, :tout, :prompt, :now)
         """),
         {
             "id": str(import_id),
@@ -426,6 +427,7 @@ async def create_import(
             "duration": duration_ms,
             "tin": tokens_in,
             "tout": tokens_out,
+            "prompt": prompt_sent,
             "now": now,
         },
     )
@@ -470,7 +472,7 @@ async def get_import(
                    di.extracted_total_tva, di.extracted_total_ttc,
                    di.extracted_iban, di.extracted_payment_mode,
                    di.extracted_currency, di.extracted_reference,
-                   di.extracted_order_number
+                   di.extracted_order_number, di.prompt_sent
             FROM document_imports di
             LEFT JOIN clients c ON c.id = di.client_id
             WHERE di.id = :iid AND di.organization_id = :org_id
@@ -521,6 +523,7 @@ async def get_import(
         "extracted_currency": row["extracted_currency"],
         "extracted_reference": row["extracted_reference"],
         "extracted_order_number": row["extracted_order_number"],
+        "prompt_sent": row["prompt_sent"],
         # Lignes extraites
         "lines": lines,
     }
@@ -831,6 +834,48 @@ async def reject_import(
 
     _log.info("Import rejete : %s", import_id)
     return {"status": "rejected"}
+
+
+async def delete_import(
+    org_id: uuid.UUID,
+    import_id: str,
+    db: AsyncSession,
+) -> dict:
+    """Supprime un import, ses lignes (CASCADE) et le fichier source sur S3."""
+    # Recuperer l'URL du fichier source avant suppression
+    row = (await db.execute(
+        text("SELECT source_file_url FROM document_imports WHERE id = :iid AND organization_id = :org_id"),
+        {"iid": import_id, "org_id": str(org_id)},
+    )).fetchone()
+    if not row:
+        raise HTTPException(404, "Import introuvable")
+
+    file_url = row[0]
+
+    # Supprimer en base (CASCADE supprime les lignes)
+    await db.execute(
+        text("DELETE FROM document_imports WHERE id = :iid AND organization_id = :org_id"),
+        {"iid": import_id, "org_id": str(org_id)},
+    )
+    await db.commit()
+
+    # Supprimer le fichier source sur S3
+    if file_url:
+        try:
+            from app.services import storage as storage_svc
+            from app.storage.s3 import S3Adapter
+            s3_config = await storage_svc._get_platform_s3_config(db)
+            if s3_config:
+                bucket = s3_config.get("bucket", "")
+                if bucket and f"/{bucket}/" in file_url:
+                    remote_path = file_url.split(f"/{bucket}/", 1)[1]
+                    adapter = S3Adapter(s3_config)
+                    adapter.delete(remote_path)
+        except Exception as exc:
+            _log.warning("Suppression fichier S3 echouee : %s", exc)
+
+    _log.info("Import supprime : %s", import_id)
+    return {"deleted": True}
 
 
 # ── Import as Quote ─────────────────────────────────────────────────────────

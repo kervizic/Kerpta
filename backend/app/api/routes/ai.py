@@ -159,6 +159,8 @@ async def extract_document(
     result.pop("pages_count", None)
     tokens_in = result.pop("tokens_in", None)
     tokens_out = result.pop("tokens_out", None)
+    prompt_sent = result.pop("prompt_sent", None)
+    result.pop("raw_response", None)  # pas dans extracted_json (trop volumineux)
     confidence = None
     if result.get("meta", {}).get("confiance") is not None:
         try:
@@ -177,6 +179,7 @@ async def extract_document(
         db=db,
         tokens_in=tokens_in,
         tokens_out=tokens_out,
+        prompt_sent=prompt_sent,
     )
 
     # Pre-matcher le client par le nom extrait

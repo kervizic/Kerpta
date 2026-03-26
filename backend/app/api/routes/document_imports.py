@@ -103,6 +103,16 @@ async def reject_import(
     return await import_svc.reject_import(ctx.org_id, import_id, db)
 
 
+@router.delete("/{import_id}")
+async def delete_import(
+    import_id: str,
+    ctx: OrgContext = Depends(get_org_context),
+    db: AsyncSession = Depends(get_db),
+):
+    """Supprime un import et ses lignes (cascade)."""
+    return await import_svc.delete_import(ctx.org_id, import_id, db)
+
+
 @router.get("/{import_id}/file")
 async def get_import_file(
     import_id: str,
