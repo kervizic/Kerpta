@@ -324,9 +324,9 @@ function LineMapperRow({
   const sourceBadge = isMapped ? SOURCE_BADGES[mapping!.source] : null
 
   return (
-    <div className="rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+    <div className="rounded-lg border border-gray-200 dark:border-gray-700">
       {/* AI row - read only */}
-      <div className="bg-indigo-50 dark:bg-indigo-900/20 border-b border-indigo-200 dark:border-indigo-800 p-3">
+      <div className="bg-indigo-50 dark:bg-indigo-900/20 border-b border-indigo-200 dark:border-indigo-800 p-3 rounded-t-lg">
         <div className="flex items-center gap-2 flex-wrap">
           <Sparkles className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
           <span className="text-sm font-medium text-gray-900 dark:text-white flex-1 min-w-0 truncate">
@@ -357,7 +357,7 @@ function LineMapperRow({
       </div>
 
       {/* Mapping row */}
-      <div className="bg-white dark:bg-gray-800 p-3">
+      <div className="bg-white dark:bg-gray-800 p-3 rounded-b-lg">
         {!isMapped ? (
           <LineSearchDropdown
             clientId={clientId}
