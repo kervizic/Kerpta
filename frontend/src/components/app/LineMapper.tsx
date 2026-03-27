@@ -272,6 +272,7 @@ export default function LineMapper({ importLines, clientId, onLinesReady }: Line
           onApplyCatalog={(p, isClient) => applyCatalogProduct(line.position, p, line, isClient)}
           onApplyQuoteLine={(ql) => applyQuoteLine(line.position, ql)}
           onUpdateField={(field, value) => updateMapping(line.position, { [field]: value })}
+          onReset={() => updateMapping(line.position, { mapped: false })}
         />
       ))}
 
@@ -306,6 +307,7 @@ function LineMapperRow({
   onApplyCatalog,
   onApplyQuoteLine,
   onUpdateField,
+  onReset,
 }: {
   line: ImportLine
   mapping: LineMappingState | undefined
@@ -314,6 +316,7 @@ function LineMapperRow({
   onApplyCatalog: (product: CatalogProduct, isClientVariant: boolean) => void
   onApplyQuoteLine: (ql: QuoteLineResult) => void
   onUpdateField: (field: string, value: string | number) => void
+  onReset: () => void
 }) {
   const conf = confidenceBadge(line.match_confidence)
   const totalHt = (line.extracted_quantity ?? 0) * (line.extracted_unit_price ?? 0)
@@ -378,9 +381,9 @@ function LineMapperRow({
               )}
               <div className="flex-1" />
               <button
-                onClick={onApplyFree}
+                onClick={onReset}
                 className="text-[10px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition"
-                title="Repasser en saisie libre"
+                title="Revenir a la recherche"
               >
                 Modifier source
               </button>
