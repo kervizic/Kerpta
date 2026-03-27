@@ -49,6 +49,24 @@ async def list_quotes(
     )
 
 
+@router.get("/lines")
+async def search_quote_lines(
+    client_id: str | None = None,
+    search: str | None = None,
+    status: str | None = None,
+    page_size: int = Query(20, ge=1, le=100),
+    ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("quotes:read")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Recherche des lignes de devis d'un client (pour le mapping d'import)."""
+    return await svc.search_quote_lines(
+        ctx.org_id, db,
+        client_id=client_id, search=search, status=status,
+        page_size=page_size,
+    )
+
+
 @router.post("", status_code=201)
 async def create_quote(
     data: QuoteCreate,

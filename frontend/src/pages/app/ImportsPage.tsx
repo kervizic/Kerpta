@@ -6,7 +6,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Loader2, X, Upload, Sparkles, ChevronLeft, ChevronRight,
-  ExternalLink, CheckCircle2, Clock, XCircle, Brain, Trash2, Download,
+  ExternalLink, CheckCircle2, XCircle, Brain, Trash2, Download,
   Package, UserRound, ChevronDown, ChevronUp, Check,
 } from 'lucide-react'
 import { orgGet, orgPost, orgPatch, orgDelete, orgDownload } from '@/lib/orgApi'
@@ -17,6 +17,7 @@ import MobileFilterPanel from '@/components/app/MobileFilterPanel'
 import PageLayout from '@/components/app/PageLayout'
 import ImportDocumentModal from '@/components/app/ImportDocumentModal'
 import ProductAutocomplete, { type AutocompleteProduct } from '@/components/app/ProductAutocomplete'
+import LineMapper, { type MappedLine } from '@/components/app/LineMapper'
 import {
   BTN, BTN_SM, BTN_SECONDARY, BTN_DANGER, CARD, INPUT, LABEL, SELECT,
   OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER, BADGE_COUNT, SECTION,
@@ -68,10 +69,13 @@ interface ImportItem {
 }
 
 interface ImportLine {
+  id?: string
   position: number
   extracted_designation: string | null
+  extracted_description: string | null
   extracted_reference: string | null
   extracted_quantity: number | null
+  extracted_unit: string | null
   extracted_unit_price: number | null
   extracted_vat_rate: number | null
   extracted_total_ht: number | null
@@ -442,6 +446,7 @@ function ImportDetailOverlay({
   const [showFile, setShowFile] = useState(false)
   const [fileBlobUrl, setFileBlobUrl] = useState<string | null>(null)
   const [fileLoading, setFileLoading] = useState(false)
+  const [mappedLines, setMappedLines] = useState<MappedLine[] | null>(null)
 
   // -- Catalogue import state
   const [showCatalog, setShowCatalog] = useState(false)
@@ -564,20 +569,36 @@ function ImportDetailOverlay({
     setSaving(true)
     try {
       const targetType = docTypeToTarget(docType || detail.extracted_doc_type || 'bon_commande')
+      const corrected: Record<string, unknown> = {
+        document: {
+          numero: docNumber || null,
+          date_emission: docDate || null,
+          date_echeance: docDueDate || null,
+          reference: docRef || null,
+          numero_commande: docOrderNumber || null,
+        },
+        meta: { type_document: docType || null },
+      }
+      // Include mapped lines if available
+      if (mappedLines) {
+        corrected.lignes = mappedLines.map((ml, i) => ({
+          position: i,
+          source: ml.source,
+          source_id: ml.source_id,
+          description: ml.description,
+          quantite: ml.quantity,
+          unite: ml.unit,
+          prix_unitaire_ht: ml.unit_price,
+          taux_tva: ml.vat_rate,
+          remise_pourcent: ml.discount_percent,
+          product_id: ml.product_id,
+        }))
+      }
       await orgPost(`/imports/${importId}/validate`, {
         action: 'create',
         target_type: targetType,
         client_id: clientId || null,
-        corrected_json: {
-          document: {
-            numero: docNumber || null,
-            date_emission: docDate || null,
-            date_echeance: docDueDate || null,
-            reference: docRef || null,
-            numero_commande: docOrderNumber || null,
-          },
-          meta: { type_document: docType || null },
-        },
+        corrected_json: corrected,
       })
       onRefresh()
       onClose()
@@ -833,61 +854,34 @@ function ImportDetailOverlay({
               </div>
             </div>
 
-            {/* Section Lignes */}
+            {/* Section Lignes - LineMapper */}
             {detail.lines && detail.lines.length > 0 && (
               <div className={SECTION}>
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
                   Lignes ({detail.lines.length})
+                  {mappedLines && (
+                    <span className="ml-2 px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">
+                      Mappees
+                    </span>
+                  )}
                 </h3>
-                <div className="overflow-x-auto -mx-4 md:-mx-6 px-4 md:px-6">
-                  <table className="w-full text-xs min-w-[640px]">
-                    <thead>
-                      <tr className="border-b border-gray-200 dark:border-gray-600 text-left">
-                        <th className="px-2 py-2 text-gray-400 dark:text-gray-500 font-semibold uppercase w-[60px]">Conf.</th>
-                        <th className="px-2 py-2 text-gray-400 dark:text-gray-500 font-semibold uppercase">Designation</th>
-                        <th className="px-2 py-2 text-gray-400 dark:text-gray-500 font-semibold uppercase text-right w-[60px]">Qte</th>
-                        <th className="px-2 py-2 text-gray-400 dark:text-gray-500 font-semibold uppercase text-right w-[80px]">PU HT</th>
-                        <th className="px-2 py-2 text-gray-400 dark:text-gray-500 font-semibold uppercase text-right w-[60px]">TVA%</th>
-                        <th className="px-2 py-2 text-gray-400 dark:text-gray-500 font-semibold uppercase text-right w-[90px]">Total HT</th>
-                        <th className="px-2 py-2 text-gray-400 dark:text-gray-500 font-semibold uppercase text-center w-[70px]">Match</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {detail.lines.map((line, idx) => {
-                        const lc = confidenceBadge(line.match_confidence)
-                        return (
-                          <tr key={idx} className="border-b border-gray-50 dark:border-gray-700">
-                            <td className="px-2 py-2">
-                              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${lc.cls}`}>{lc.label}</span>
-                            </td>
-                            <td className="px-2 py-2 text-gray-700 dark:text-gray-300">{line.extracted_designation || '-'}</td>
-                            <td className="px-2 py-2 text-right text-gray-700 dark:text-gray-300">{line.extracted_quantity ?? '-'}</td>
-                            <td className="px-2 py-2 text-right text-gray-700 dark:text-gray-300">
-                              {line.extracted_unit_price != null ? fmtCurrency(line.extracted_unit_price) : '-'}
-                            </td>
-                            <td className="px-2 py-2 text-right text-gray-700 dark:text-gray-300">
-                              {line.extracted_vat_rate != null ? `${line.extracted_vat_rate}%` : '-'}
-                            </td>
-                            <td className="px-2 py-2 text-right text-gray-700 dark:text-gray-300">
-                              {line.extracted_total_ht != null ? fmtCurrency(line.extracted_total_ht) : '-'}
-                            </td>
-                            <td className="px-2 py-2 text-center">
-                              {line.match_status === 'matched' ? (
-                                <CheckCircle2 className="w-4 h-4 text-green-500 mx-auto" />
-                              ) : line.match_status === 'pending' ? (
-                                <Clock className="w-4 h-4 text-yellow-500 mx-auto" />
-                              ) : line.match_status === 'unmatched' ? (
-                                <XCircle className="w-4 h-4 text-red-400 mx-auto" />
-                              ) : (
-                                <span className="text-gray-400">-</span>
-                              )}
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                <LineMapper
+                  importLines={detail.lines.map((l) => ({
+                    id: l.id || String(l.position),
+                    position: l.position,
+                    extracted_designation: l.extracted_designation,
+                    extracted_description: l.extracted_description,
+                    extracted_reference: l.extracted_reference,
+                    extracted_quantity: l.extracted_quantity,
+                    extracted_unit: l.extracted_unit,
+                    extracted_unit_price: l.extracted_unit_price,
+                    extracted_vat_rate: l.extracted_vat_rate,
+                    extracted_total_ht: l.extracted_total_ht,
+                    match_confidence: l.match_confidence,
+                  }))}
+                  clientId={clientId || null}
+                  onLinesReady={(lines) => setMappedLines(lines)}
+                />
               </div>
             )}
 

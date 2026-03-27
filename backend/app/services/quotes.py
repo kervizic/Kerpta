@@ -30,6 +30,65 @@ def _calc_line(line: QuoteLineIn) -> dict:
     return {"total_ht": total_ht, "total_vat": total_vat}
 
 
+async def search_quote_lines(
+    org_id: uuid.UUID,
+    db: AsyncSession,
+    *,
+    client_id: str | None = None,
+    search: str | None = None,
+    status: str | None = None,
+    page_size: int = 20,
+) -> dict:
+    """Recherche des lignes de devis d'un client pour le mapping d'import."""
+    conditions = ["q.organization_id = :org_id", "q.is_archived = false"]
+    params: dict = {"org_id": str(org_id)}
+
+    if client_id:
+        conditions.append("q.client_id = :client_id")
+        params["client_id"] = client_id
+
+    if status:
+        # Support multi-statut separe par virgules (ex: "accepted,sent")
+        statuses = [s.strip() for s in status.split(",") if s.strip()]
+        if len(statuses) == 1:
+            conditions.append("q.status = :status")
+            params["status"] = statuses[0]
+        elif statuses:
+            placeholders = ", ".join(f":st_{i}" for i in range(len(statuses)))
+            conditions.append(f"q.status IN ({placeholders})")
+            for i, s in enumerate(statuses):
+                params[f"st_{i}"] = s
+
+    if search:
+        conditions.append(
+            "(ql.description ILIKE :search OR ql.reference ILIKE :search "
+            "OR q.number ILIKE :search)"
+        )
+        params["search"] = f"%{search}%"
+
+    where = " AND ".join(conditions)
+    params["limit"] = page_size
+
+    result = await db.execute(
+        text(f"""
+            SELECT ql.id::text AS line_id, ql.position, ql.reference,
+                   ql.description, ql.quantity, ql.unit,
+                   ql.unit_price, ql.vat_rate, ql.discount_percent,
+                   ql.total_ht, ql.product_id::text,
+                   q.id::text AS quote_id, q.number AS quote_number,
+                   q.status AS quote_status
+            FROM quote_lines ql
+            JOIN quotes q ON q.id = ql.quote_id
+            WHERE {where}
+            ORDER BY q.issue_date DESC, q.number DESC, ql.position
+            LIMIT :limit
+        """),
+        params,
+    )
+    rows = [dict(r._mapping) for r in result.fetchall()]
+    return {"items": rows}
+
+
 async def list_quotes(
     org_id: uuid.UUID,
     db: AsyncSession,
