@@ -8,11 +8,24 @@ Telecharge le fichier depuis S3, appelle ocr_vlm, remplit les colonnes
 structurees et auto-matche le client.
 """
 
+import asyncio
 import logging
 
 from app.tasks.celery_app import celery
 
 _log = logging.getLogger(__name__)
+
+# Un seul event loop par worker Celery (reutilise entre les taches)
+_worker_loop: asyncio.AbstractEventLoop | None = None
+
+
+def _get_worker_loop() -> asyncio.AbstractEventLoop:
+    """Retourne l'event loop du worker, le cree si necessaire."""
+    global _worker_loop
+    if _worker_loop is None or _worker_loop.is_closed():
+        _worker_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(_worker_loop)
+    return _worker_loop
 
 
 @celery.task(
@@ -23,14 +36,8 @@ _log = logging.getLogger(__name__)
 )
 def extract_document_task(self, import_id: str, org_id: str, user_id: str):
     """Extraction IA asynchrone d'un document importe."""
-    import asyncio
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        loop.run_until_complete(_extract_document_async(self, import_id, org_id, user_id))
-    finally:
-        loop.close()
+    loop = _get_worker_loop()
+    loop.run_until_complete(_extract_document_async(self, import_id, org_id, user_id))
 
 
 async def _extract_document_async(task, import_id: str, org_id: str, user_id: str):
