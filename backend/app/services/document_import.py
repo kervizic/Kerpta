@@ -968,12 +968,21 @@ async def update_import(
         "order_number": "extracted_order_number",
     }
 
+    # Champs de type date a convertir (asyncpg attend un objet date, pas une str)
+    date_fields = {"doc_date", "doc_due_date"}
+
     sets = []
     params: dict = {"iid": import_id, "org_id": str(org_id)}
     for key, value in updates.items():
         col = field_map.get(key)
         if not col:
             continue
+        # Convertir les dates string en objets date Python
+        if key in date_fields and isinstance(value, str) and value:
+            from datetime import date as date_type
+            value = date_type.fromisoformat(value)
+        elif key in date_fields and not value:
+            value = None
         sets.append(f"{col} = :{key}")
         params[key] = value
 

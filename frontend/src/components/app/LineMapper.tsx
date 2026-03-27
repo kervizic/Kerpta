@@ -386,9 +386,10 @@ function LineMapperRow({
               </button>
             </div>
 
-            {/* Editable fields */}
+            {/* Editable fields with labels */}
             <div className="grid grid-cols-12 gap-2">
               <div className="col-span-12 md:col-span-5">
+                <label className="text-[10px] text-gray-400 dark:text-gray-500 mb-0.5 block">Description</label>
                 <input
                   className={LINE_INPUT}
                   value={mapping!.description}
@@ -397,6 +398,7 @@ function LineMapperRow({
                 />
               </div>
               <div className="col-span-3 md:col-span-2">
+                <label className="text-[10px] text-gray-400 dark:text-gray-500 mb-0.5 block">Quantite</label>
                 <input
                   className={LINE_INPUT + ' text-right'}
                   type="number"
@@ -407,6 +409,7 @@ function LineMapperRow({
                 />
               </div>
               <div className="col-span-3 md:col-span-1">
+                <label className="text-[10px] text-gray-400 dark:text-gray-500 mb-0.5 block">Unite</label>
                 <input
                   className={LINE_INPUT}
                   value={mapping!.unit}
@@ -415,6 +418,7 @@ function LineMapperRow({
                 />
               </div>
               <div className="col-span-3 md:col-span-2">
+                <label className="text-[10px] text-gray-400 dark:text-gray-500 mb-0.5 block">PU HT</label>
                 <input
                   className={LINE_INPUT + ' text-right'}
                   type="number"
@@ -425,6 +429,7 @@ function LineMapperRow({
                 />
               </div>
               <div className="col-span-3 md:col-span-2">
+                <label className="text-[10px] text-gray-400 dark:text-gray-500 mb-0.5 block">TVA %</label>
                 <input
                   className={LINE_INPUT + ' text-right'}
                   type="number"
