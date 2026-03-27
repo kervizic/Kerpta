@@ -61,11 +61,27 @@ async def _extract_document_async(task, import_id: str, org_id: str, user_id: st
 
     async with async_session_factory() as db:
         try:
+            # 0. Verifier que l'import n'est pas deja traite (idempotence)
+            check = await db.execute(
+                text("""
+                    SELECT extraction_status FROM document_imports
+                    WHERE id = :iid AND organization_id = :org_id
+                """),
+                {"iid": import_id, "org_id": org_id},
+            )
+            check_row = check.fetchone()
+            if not check_row:
+                _log.warning("Import %s introuvable, tache ignoree", import_id)
+                return
+            if check_row[0] == 'done':
+                _log.info("Import %s deja extrait, tache ignoree (idempotence)", import_id)
+                return
+
             # 1. Mettre extraction_status = 'extracting'
             await db.execute(
                 text("""
                     UPDATE document_imports
-                    SET extraction_status = 'extracting'
+                    SET extraction_status = 'extracting', error_message = NULL
                     WHERE id = :iid
                 """),
                 {"iid": import_id},
