@@ -7,6 +7,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Loader2, X, Upload, Sparkles, ChevronLeft, ChevronRight,
   ExternalLink, CheckCircle2, Clock, XCircle, Brain, Trash2, Download,
+  Package, UserRound, ChevronDown, ChevronUp, Check,
 } from 'lucide-react'
 import { orgGet, orgPost, orgPatch, orgDelete, orgDownload } from '@/lib/orgApi'
 import { useAuthStore } from '@/stores/authStore'
@@ -15,6 +16,7 @@ import ColumnFilterHeader, { type FilterValues, type FilterOption } from '@/comp
 import MobileFilterPanel from '@/components/app/MobileFilterPanel'
 import PageLayout from '@/components/app/PageLayout'
 import ImportDocumentModal from '@/components/app/ImportDocumentModal'
+import ProductAutocomplete, { type AutocompleteProduct } from '@/components/app/ProductAutocomplete'
 import {
   BTN, BTN_SM, BTN_SECONDARY, BTN_DANGER, CARD, INPUT, LABEL, SELECT,
   OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER, BADGE_COUNT, SECTION,
@@ -66,12 +68,31 @@ interface ImportItem {
 interface ImportLine {
   position: number
   extracted_designation: string | null
+  extracted_reference: string | null
   extracted_quantity: number | null
   extracted_unit_price: number | null
   extracted_vat_rate: number | null
   extracted_total_ht: number | null
   match_confidence: number | null
   match_status: string | null
+}
+
+// -- Types Import Catalogue ---------------------------------------------------
+
+type CatalogAction = 'create_client' | 'create_catalog' | 'link_existing' | 'skip'
+
+interface LineAction {
+  line_id: number // position de la ligne
+  action: CatalogAction
+  existing_product_id?: string
+  search_text: string // texte de recherche pour ProductAutocomplete
+}
+
+interface CatalogSuggestion {
+  line_id: number
+  product_id: string
+  product_name: string
+  confidence: number
 }
 
 // -- Constantes ---------------------------------------------------------------
@@ -376,6 +397,14 @@ function ImportDetailOverlay({
   const [fileBlobUrl, setFileBlobUrl] = useState<string | null>(null)
   const [fileLoading, setFileLoading] = useState(false)
 
+  // -- Catalogue import state
+  const [showCatalog, setShowCatalog] = useState(false)
+  const [catalogClientId, setCatalogClientId] = useState('')
+  const [lineActions, setLineActions] = useState<LineAction[]>([])
+  const [suggestions, setSuggestions] = useState<CatalogSuggestion[]>([])
+  const [catalogSaving, setCatalogSaving] = useState(false)
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false)
+
   async function loadFile() {
     if (fileBlobUrl) { setShowFile(!showFile); return }
     setFileLoading(true)
@@ -406,13 +435,83 @@ function ImportDetailOverlay({
     if (detail) {
       setDocType(detail.extracted_doc_type || '')
       setClientId(detail.client_id || '')
+      setCatalogClientId(detail.client_id || '')
       setDocNumber(detail.extracted_doc_number || '')
       setDocDate(detail.extracted_doc_date || '')
       setDocDueDate(detail.extracted_doc_due_date || '')
       setDocRef(detail.extracted_reference || '')
       setDocOrderNumber(detail.extracted_order_number || '')
+      // Initialiser les actions par ligne
+      if (detail.lines?.length) {
+        setLineActions(detail.lines.map((l) => ({
+          line_id: l.position,
+          action: 'create_client' as CatalogAction,
+          search_text: '',
+        })))
+      }
     }
   }, [detail])
+
+  // Charger les suggestions de matching quand la section catalogue est ouverte
+  useEffect(() => {
+    if (!showCatalog || !catalogClientId || !detail) return
+    let cancelled = false
+    async function load() {
+      setSuggestionsLoading(true)
+      try {
+        const data = await orgGet<{ suggestions: CatalogSuggestion[] }>(
+          `/imports/${importId}/catalog-suggestions`,
+          { client_id: catalogClientId },
+        )
+        if (!cancelled) setSuggestions(data.suggestions ?? [])
+      } catch {
+        if (!cancelled) setSuggestions([])
+      }
+      if (!cancelled) setSuggestionsLoading(false)
+    }
+    void load()
+    return () => { cancelled = true }
+  }, [showCatalog, catalogClientId, importId, detail])
+
+  function updateLineAction(position: number, patch: Partial<LineAction>) {
+    setLineActions((prev) =>
+      prev.map((la) => la.line_id === position ? { ...la, ...patch } : la),
+    )
+  }
+
+  function setAllActions(action: CatalogAction) {
+    setLineActions((prev) =>
+      prev.map((la) => ({ ...la, action, existing_product_id: undefined, search_text: '' })),
+    )
+  }
+
+  function acceptSuggestion(lineId: number, suggestion: CatalogSuggestion) {
+    updateLineAction(lineId, {
+      action: 'link_existing',
+      existing_product_id: suggestion.product_id,
+      search_text: suggestion.product_name,
+    })
+  }
+
+  async function handleCatalogImport() {
+    setCatalogSaving(true)
+    try {
+      await orgPost(`/imports/${importId}/catalog`, {
+        client_id: catalogClientId || null,
+        line_actions: lineActions.map((la) => ({
+          line_id: la.line_id,
+          action: la.action,
+          existing_product_id: la.action === 'link_existing' ? la.existing_product_id : undefined,
+        })),
+      })
+      queryClient.invalidateQueries({ queryKey: ['import-detail', importId] })
+      onRefresh()
+      setShowCatalog(false)
+    } catch {
+      alert('Erreur lors de l\'import catalogue')
+    }
+    setCatalogSaving(false)
+  }
 
   async function handleValidate() {
     if (!detail) return
@@ -743,6 +842,165 @@ function ImportDetailOverlay({
                     </tbody>
                   </table>
                 </div>
+              </div>
+            )}
+
+            {/* Bouton Import catalogue */}
+            {detail.lines && detail.lines.length > 0 && (
+              <div className="space-y-0">
+                <button
+                  onClick={() => setShowCatalog(!showCatalog)}
+                  className={BTN + ' w-full'}
+                >
+                  <Package className="w-4 h-4" />
+                  Importer dans le catalogue
+                  {showCatalog ? <ChevronUp className="w-4 h-4 ml-auto" /> : <ChevronDown className="w-4 h-4 ml-auto" />}
+                </button>
+
+                {/* Section Import catalogue */}
+                {showCatalog && (
+                  <div className={`${SECTION} mt-3 space-y-4`}>
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Import catalogue</h3>
+
+                    {/* Selecteur client */}
+                    <div>
+                      <label className={LABEL}>Client associe</label>
+                      <ClientCombobox
+                        value={catalogClientId}
+                        onChange={setCatalogClientId}
+                      />
+                    </div>
+
+                    {/* Tableau des lignes */}
+                    <div className="overflow-x-auto -mx-4 md:-mx-6 px-4 md:px-6">
+                      <table className="w-full text-xs min-w-[900px]">
+                        <thead>
+                          <tr className="border-b border-gray-200 dark:border-gray-600 text-left">
+                            <th className="px-2 py-2 text-gray-400 dark:text-gray-500 font-semibold uppercase">Designation IA</th>
+                            <th className="px-2 py-2 text-gray-400 dark:text-gray-500 font-semibold uppercase w-[100px]">Ref</th>
+                            <th className="px-2 py-2 text-gray-400 dark:text-gray-500 font-semibold uppercase text-right w-[80px]">PU HT</th>
+                            <th className="px-2 py-2 text-gray-400 dark:text-gray-500 font-semibold uppercase w-[170px]">Action</th>
+                            <th className="px-2 py-2 text-gray-400 dark:text-gray-500 font-semibold uppercase w-[200px]">Article existant</th>
+                            <th className="px-2 py-2 text-gray-400 dark:text-gray-500 font-semibold uppercase w-[160px]">Suggestion</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {detail.lines.map((line) => {
+                            const la = lineActions.find((a) => a.line_id === line.position)
+                            const sug = suggestions.find((s) => s.line_id === line.position)
+                            return (
+                              <tr key={line.position} className="border-b border-gray-50 dark:border-gray-700">
+                                {/* Designation IA */}
+                                <td className="px-2 py-2">
+                                  <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded px-2 py-1 text-gray-700 dark:text-gray-300 truncate max-w-[250px]" title={line.extracted_designation || ''}>
+                                    {line.extracted_designation || '-'}
+                                  </div>
+                                </td>
+                                {/* Ref */}
+                                <td className="px-2 py-2">
+                                  <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded px-2 py-1 text-gray-700 dark:text-gray-300 font-mono text-[10px]">
+                                    {line.extracted_reference || '-'}
+                                  </div>
+                                </td>
+                                {/* PU HT */}
+                                <td className="px-2 py-2 text-right">
+                                  <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded px-2 py-1 text-gray-700 dark:text-gray-300 text-right">
+                                    {line.extracted_unit_price != null ? fmtCurrency(line.extracted_unit_price) : '-'}
+                                  </div>
+                                </td>
+                                {/* Action */}
+                                <td className="px-2 py-2">
+                                  <select
+                                    value={la?.action ?? 'create_client'}
+                                    onChange={(e) => updateLineAction(line.position, {
+                                      action: e.target.value as CatalogAction,
+                                      existing_product_id: undefined,
+                                      search_text: '',
+                                    })}
+                                    className={SELECT + ' !h-[30px] !text-xs !px-2 !py-1'}
+                                  >
+                                    <option value="create_client">Article client</option>
+                                    <option value="create_catalog">Catalogue general</option>
+                                    <option value="link_existing">Lier a un existant</option>
+                                    <option value="skip">Ignorer</option>
+                                  </select>
+                                </td>
+                                {/* Article existant */}
+                                <td className="px-2 py-2">
+                                  {la?.action === 'link_existing' ? (
+                                    <ProductAutocomplete
+                                      value={la.search_text}
+                                      onChange={(text) => updateLineAction(line.position, { search_text: text })}
+                                      onSelect={(p: AutocompleteProduct) => updateLineAction(line.position, {
+                                        existing_product_id: p.id,
+                                        search_text: p.name,
+                                      })}
+                                      clientId={catalogClientId || null}
+                                      className={INPUT + ' !h-[30px] !text-xs !px-2 !py-1'}
+                                      placeholder="Rechercher un article..."
+                                    />
+                                  ) : (
+                                    <span className="text-gray-300 dark:text-gray-600 text-[10px]">-</span>
+                                  )}
+                                </td>
+                                {/* Suggestion */}
+                                <td className="px-2 py-2">
+                                  {suggestionsLoading ? (
+                                    <Loader2 className="w-3 h-3 animate-spin text-gray-400" />
+                                  ) : sug ? (
+                                    <div className="flex items-center gap-1">
+                                      <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 truncate max-w-[100px]" title={sug.product_name}>
+                                        Match: {sug.product_name}
+                                      </span>
+                                      <button
+                                        onClick={() => acceptSuggestion(line.position, sug)}
+                                        className="p-0.5 rounded hover:bg-green-100 dark:hover:bg-green-900/30 transition"
+                                        title="Accepter la suggestion"
+                                      >
+                                        <Check className="w-3.5 h-3.5 text-green-600" />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <span className="text-gray-300 dark:text-gray-600 text-[10px]">-</span>
+                                  )}
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Boutons actions en masse + validation */}
+                    <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                      <button onClick={() => setAllActions('create_client')} className={BTN_SM}>
+                        <UserRound className="w-3.5 h-3.5" />
+                        Tout en article client
+                      </button>
+                      <button onClick={() => setAllActions('create_catalog')} className={BTN_SM}>
+                        <Package className="w-3.5 h-3.5" />
+                        Tout au catalogue
+                      </button>
+                      <div className="flex-1" />
+                      <button
+                        onClick={handleCatalogImport}
+                        disabled={catalogSaving}
+                        className={BTN}
+                      >
+                        {catalogSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                        Valider l'import
+                      </button>
+                    </div>
+
+                    {/* Legende badges */}
+                    <div className="flex flex-wrap gap-2 text-[10px]">
+                      <span className="px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-400 font-medium">Article client</span>
+                      <span className="px-1.5 py-0.5 rounded-full bg-kerpta-100 text-kerpta-700 dark:bg-kerpta-900/40 dark:text-kerpta-400 font-medium">Catalogue</span>
+                      <span className="px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 font-medium">Lie</span>
+                      <span className="px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 font-medium">Ignore</span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
