@@ -71,7 +71,6 @@ const VENTE_ITEMS: NavItem[] = [
   { label: 'Commandes', href: '/app/commandes', icon: <ShoppingCart className="w-4 h-4" />, moduleKey: 'ventes.commandes', permissionKey: 'orders:read' },
   { label: 'Factures', href: '/app/factures', icon: <Receipt className="w-4 h-4" />, moduleKey: 'ventes.factures', permissionKey: 'invoices:read' },
   { label: 'Import IA', href: '/app/imports', icon: <Sparkles className="w-4 h-4" />, permissionKey: 'imports:read' },
-  { label: 'Test IA', href: '/app/test-ai', icon: <BrainCircuit className="w-4 h-4" />, permissionKey: 'imports:read' },
 ]
 
 // Items de la section "Achats"
