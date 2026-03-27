@@ -71,6 +71,7 @@ def _extract_lines(data: dict) -> list[dict]:
         if qty <= 0:
             qty = Decimal("1")
         price = _safe_decimal(ln.get("prix_unitaire_ht") or ln.get("unit_price"), "0")
+        montant_ht_doc = _safe_decimal(ln.get("montant_ht") or ln.get("total_ht"), "0")
         vat_rate = _safe_decimal(ln.get("taux_tva") or ln.get("vat_rate"), "0")
         # Limiter le taux TVA a 20% max (coherent avec les schemas existants)
         if vat_rate > Decimal("20"):
@@ -328,13 +329,15 @@ async def _populate_structured_fields(
                      extracted_designation, extracted_description,
                      extracted_quantity, extracted_unit,
                      extracted_unit_price, extracted_vat_rate,
-                     extracted_total_ht, extracted_total_ttc)
+                     extracted_total_ht, extracted_total_ttc,
+                     match_confidence)
                 VALUES
                     (:import_id, :pos, :ref,
                      :designation, :description,
                      :qty, :unit,
                      :price, :vat_rate,
-                     :total_ht, :total_ttc)
+                     :total_ht, :total_ttc,
+                     :confidence)
             """),
             {
                 "import_id": str(import_id),
@@ -346,8 +349,9 @@ async def _populate_structured_fields(
                 "unit": ln.get("unite") or ln.get("unit"),
                 "price": str(price) if ln.get("prix_unitaire_ht") or ln.get("unit_price") else None,
                 "vat_rate": str(vat_rate) if ln.get("taux_tva") or ln.get("vat_rate") else None,
-                "total_ht": str(total_ht) if ln.get("total_ht") else None,
-                "total_ttc": str(total_ttc) if ln.get("total_ttc") else None,
+                "total_ht": str(total_ht) if ln.get("montant_ht") or ln.get("total_ht") else None,
+                "total_ttc": str(total_ttc) if ln.get("montant_ttc") or ln.get("total_ttc") else None,
+                "confidence": float(ln.get("confiance")) if ln.get("confiance") is not None else None,
             },
         )
 
