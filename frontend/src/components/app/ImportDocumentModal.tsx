@@ -1,8 +1,8 @@
-// Kerpta - Import IA simplifie : upload -> extraction -> creation brouillon
+// Kerpta - Import IA : upload asynchrone via Celery
 // Copyright (C) 2026 Emmanuel Kervizic
 // Licence : AGPL-3.0 - https://www.gnu.org/licenses/agpl-3.0.html
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { Upload, FileText, Loader2, X, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { orgClient } from '@/lib/api'
 import {
@@ -20,8 +20,7 @@ interface ImportDocumentModalProps {
 
 interface ExtractResponse {
   import_id: string
-  extracted_json: Record<string, unknown>
-  suggested_client: { id: string; name: string } | null
+  status: string
 }
 
 const DOC_LABELS: Record<string, string> = {
@@ -30,7 +29,7 @@ const DOC_LABELS: Record<string, string> = {
   order: 'commande',
 }
 
-type Step = 'upload' | 'processing' | 'done' | 'error'
+type Step = 'upload' | 'uploading' | 'done' | 'error'
 
 // -- Component ----------------------------------------------------------------
 
@@ -39,16 +38,7 @@ export default function ImportDocumentModal({ documentType, onClose, onImported 
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [error, setError] = useState('')
-  const [chrono, setChrono] = useState(0)
   const fileRef = useRef<HTMLInputElement>(null)
-
-  // Live chrono during processing
-  useEffect(() => {
-    if (step !== 'processing') { setChrono(0); return }
-    const start = performance.now()
-    const id = setInterval(() => setChrono(Math.round(performance.now() - start)), 100)
-    return () => clearInterval(id)
-  }, [step])
 
   // -- File handling ----------------------------------------------------------
 
@@ -76,24 +66,22 @@ export default function ImportDocumentModal({ documentType, onClose, onImported 
     if (f) setFileFromInput(f)
   }
 
-  // -- Processing: extract + validate ----------------------------------------
+  // -- Upload: envoie le fichier, Celery fait l'extraction -------------------
 
   async function runImport() {
     if (!file) return
-    setStep('processing')
+    setStep('uploading')
     setError('')
 
     try {
-      // Upload + extraction IA -> reste en staging (pending)
       const formData = new FormData()
       formData.append('file', file)
       await orgClient.post<ExtractResponse>('/ai/extract-document', formData)
 
-      // Pas de validation automatique - l'utilisateur valide depuis Import IA
       setStep('done')
       onImported('')
     } catch (err: unknown) {
-      const msg = (err as { data?: { detail?: string } })?.data?.detail || "Erreur lors de l'import"
+      const msg = (err as { data?: { detail?: string } })?.data?.detail || "Erreur lors de l'envoi"
       setError(String(msg))
       setStep('error')
     }
@@ -164,15 +152,12 @@ export default function ImportDocumentModal({ documentType, onClose, onImported 
             </div>
           )}
 
-          {/* -- Processing ------------------------------------------------ */}
-          {step === 'processing' && (
+          {/* -- Uploading (envoi en cours) --------------------------------- */}
+          {step === 'uploading' && (
             <div className="flex flex-col items-center gap-4 py-12">
               <Loader2 className="w-10 h-10 animate-spin text-kerpta" />
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Import en cours... {(chrono / 1000).toFixed(1)}s
-              </p>
-              <p className="text-xs text-gray-400 dark:text-gray-500">
-                Extraction IA et creation du {docLabel} brouillon
+                Envoi du fichier...
               </p>
             </div>
           )}
@@ -181,11 +166,11 @@ export default function ImportDocumentModal({ documentType, onClose, onImported 
           {step === 'done' && (
             <div className="flex flex-col items-center gap-4 py-8">
               <CheckCircle2 className="w-12 h-12 text-green-500" />
-              <p className="text-sm text-gray-700 dark:text-gray-300">
-                {docLabel.charAt(0).toUpperCase() + docLabel.slice(1)} brouillon cree avec succes.
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Document envoye !
               </p>
-              <p className="text-xs text-gray-400 dark:text-gray-500">
-                Cliquez dessus dans la liste pour le modifier.
+              <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
+                L'extraction IA est en cours. Retrouvez le resultat dans Import IA.
               </p>
               <button onClick={onClose} className={BTN_SECONDARY}>
                 Fermer

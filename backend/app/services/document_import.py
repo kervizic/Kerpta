@@ -438,6 +438,47 @@ async def _auto_match_client(
 # ── Staging : CRUD des imports IA ────────────────────────────────────────────
 
 
+async def create_import_async(
+    org_id: uuid.UUID,
+    source_file_url: str | None,
+    source_filename: str | None,
+    assigned_to: uuid.UUID | None,
+    db: AsyncSession,
+) -> dict:
+    """Cree un import en staging pour extraction asynchrone (extraction_status='uploading').
+
+    Appele par la route extract-document avant de lancer la tache Celery.
+    Le JSON et les colonnes structurees seront remplis par le worker.
+    """
+    import_id = uuid.uuid4()
+    now = datetime.now(timezone.utc)
+
+    await db.execute(
+        text("""
+            INSERT INTO document_imports
+                (id, organization_id, status, extraction_status,
+                 source_file_url, source_filename, assigned_to, created_at)
+            VALUES (:id, :org_id, 'pending', 'uploading',
+                    :file_url, :filename, :assigned_to, :now)
+        """),
+        {
+            "id": str(import_id),
+            "org_id": str(org_id),
+            "file_url": source_file_url,
+            "filename": source_filename,
+            "assigned_to": str(assigned_to) if assigned_to else None,
+            "now": now,
+        },
+    )
+    await db.commit()
+
+    _log.info("Import async cree : %s (source=%s)", import_id, source_filename)
+    return {
+        "import_id": str(import_id),
+        "status": "uploading",
+    }
+
+
 async def create_import(
     org_id: uuid.UUID,
     extracted_json: dict,
@@ -531,7 +572,8 @@ async def get_import(
                    di.extracted_total_tva, di.extracted_total_ttc,
                    di.extracted_iban, di.extracted_payment_mode,
                    di.extracted_currency, di.extracted_reference,
-                   di.extracted_order_number, di.prompt_sent
+                   di.extracted_order_number, di.prompt_sent,
+                   di.extraction_status, di.error_message
             FROM document_imports di
             LEFT JOIN clients c ON c.id = di.client_id
             WHERE di.id = :iid AND di.organization_id = :org_id
@@ -589,6 +631,8 @@ async def get_import(
         "extracted_reference": row["extracted_reference"],
         "extracted_order_number": row["extracted_order_number"],
         "prompt_sent": row["prompt_sent"],
+        "extraction_status": row["extraction_status"],
+        "error_message": row["error_message"],
         # Lignes extraites
         "lines": lines,
     }
@@ -680,7 +724,8 @@ async def list_imports(
                c.name AS client_name,
                di.extracted_emetteur_name, di.extracted_destinataire_name,
                di.extracted_doc_number,
-               di.extracted_doc_type, di.extracted_total_ttc
+               di.extracted_doc_type, di.extracted_total_ttc,
+               di.extraction_status, di.error_message
         FROM document_imports di
         LEFT JOIN clients c ON c.id = di.client_id
         WHERE di.organization_id = :org_id
@@ -715,6 +760,8 @@ async def list_imports(
             "extracted_doc_number": r[16],
             "extracted_doc_type": r[17],
             "extracted_total_ttc": float(r[18]) if r[18] is not None else None,
+            "extraction_status": r[19],
+            "error_message": r[20],
         }
         for r in result.fetchall()
     ]

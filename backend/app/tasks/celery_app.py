@@ -25,6 +25,7 @@ celery = Celery(
         # "app.tasks.pdf",
         # "app.tasks.ocr",
         "app.tasks.recurring_invoices",
+        "app.tasks.extract_document",
     ],
 )
 

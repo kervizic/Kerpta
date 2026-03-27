@@ -121,18 +121,19 @@ async def extract_document(
     _perm=Depends(require_permission("imports:write")),
     db: AsyncSession = Depends(get_db),
 ):
-    """Extrait les donnees d'un document via le modele VL.
+    """Upload un document et lance l'extraction IA asynchrone via Celery.
 
-    Stocke le resultat dans le staging (document_imports) et uploade
-    le fichier source sur S3. Retourne l'import_id + le JSON extrait.
+    1. Upload le fichier sur S3
+    2. Cree un import en staging (extraction_status='uploading')
+    3. Lance la tache Celery extract_document_task
+    4. Retourne immediatement l'import_id + status
     """
     _log.info("extract-document requete - fichier=%s, content_type=%s, org=%s", file.filename, file.content_type, x_organization_id)
     await _require_ai_enabled(db, x_organization_id)
     file_bytes = await file.read()
     content_type = file.content_type or "image/jpeg"
-    result = await ai_svc.ocr_vlm(db, file_bytes, x_organization_id, user_id, content_type)
 
-    # Uploader le fichier source sur S3
+    # 1. Uploader le fichier source sur S3
     from app.services import storage as storage_svc
     from app.storage.utils import sanitize_filename
     import uuid as _uuid
@@ -153,49 +154,32 @@ async def extract_document(
         )
     except Exception as exc:
         _log.warning("Upload fichier source echoue : %s", exc)
+        raise HTTPException(500, f"Erreur upload fichier : {exc}")
 
-    # Creer l'import dans le staging
-    from app.services.document_import import create_import, suggest_client
+    # 2. Creer l'import dans le staging avec extraction_status='uploading'
+    from app.services.document_import import create_import_async
 
-    # Extraire les metadonnees de l'extraction (ne pas stocker dans extracted_json)
-    duration_ms = result.pop("duration_ms", None)
-    model_used = result.pop("model", None)
-    result.pop("pages_count", None)
-    tokens_in = result.pop("tokens_in", None)
-    tokens_out = result.pop("tokens_out", None)
-    prompt_sent = result.pop("prompt_sent", None)
-    result.pop("raw_response", None)  # pas dans extracted_json (trop volumineux)
-    confidence = None
-    if result.get("meta", {}).get("confiance") is not None:
-        try:
-            confidence = float(result["meta"]["confiance"])
-        except (ValueError, TypeError):
-            pass
-
-    staging = await create_import(
+    staging = await create_import_async(
         x_organization_id,
-        extracted_json=result,
         source_file_url=source_file_url,
         source_filename=file.filename,
-        confidence=confidence,
-        model_used=model_used,
-        duration_ms=duration_ms,
-        db=db,
-        tokens_in=tokens_in,
-        tokens_out=tokens_out,
-        prompt_sent=prompt_sent,
         assigned_to=user_id,
+        db=db,
     )
 
-    # Pre-matcher le client par le nom extrait
-    # Le CLIENT est le DESTINATAIRE (l'emetteur c'est nous)
-    emetteur_name = ((result.get("parties") or {}).get("destinataire") or {}).get("designation")
-    suggested = await suggest_client(x_organization_id, emetteur_name, db) if emetteur_name else None
+    # 3. Lancer la tache Celery
+    from app.tasks.extract_document import extract_document_task
+    extract_document_task.delay(
+        staging["import_id"],
+        str(x_organization_id),
+        str(user_id),
+    )
+    _log.info("Tache Celery lancee pour import %s", staging["import_id"])
 
+    # 4. Retourner immediatement
     return {
         "import_id": staging["import_id"],
-        "extracted_json": result,
-        "suggested_client": suggested,
+        "status": "uploading",
     }
 
 

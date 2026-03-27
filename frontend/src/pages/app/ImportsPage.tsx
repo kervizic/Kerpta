@@ -59,6 +59,8 @@ interface ImportItem {
   tokens_out: number | null
   extraction_duration_ms: number | null
   status: string
+  extraction_status: string | null
+  error_message: string | null
   target_type: string | null
   client_id: string | null
   created_at: string
@@ -132,6 +134,20 @@ function confidenceBadge(confidence: number | null) {
   return { label: `${pct}%`, cls: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400' }
 }
 
+/** Badge de statut en tenant compte de extraction_status */
+function extractionBadge(item: ImportItem): { label: string; cls: string; isExtracting: boolean } {
+  const es = item.extraction_status
+  if (es === 'uploading' || es === 'extracting') {
+    return { label: 'Extraction en cours...', cls: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400', isExtracting: true }
+  }
+  if (es === 'error') {
+    return { label: 'Erreur', cls: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400', isExtracting: false }
+  }
+  // extraction_status === 'done' -> affichage normal du status utilisateur
+  const st = STATUS_LABELS[item.status] || { label: item.status, cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' }
+  return { ...st, isExtracting: false }
+}
+
 // -- Filtres ------------------------------------------------------------------
 
 const IMPORT_FILTERS: FilterOption[] = [
@@ -178,6 +194,16 @@ export default function ImportsPage() {
       return orgGet<{ items: ImportItem[]; total: number }>('/imports', params)
     },
   })
+
+  // Auto-refresh si des imports sont en cours d'extraction
+  const hasExtracting = (rawData?.items ?? []).some(
+    (i) => i.extraction_status === 'uploading' || i.extraction_status === 'extracting'
+  )
+  useEffect(() => {
+    if (!hasExtracting) return
+    const id = setInterval(() => { void qc.invalidateQueries({ queryKey: ['imports'] }) }, 5000)
+    return () => clearInterval(id)
+  }, [hasExtracting, qc])
 
   // Filtre statut multi-select cote client
   const statusArr = debouncedFilters.status as string[] | undefined
@@ -244,34 +270,45 @@ export default function ImportsPage() {
               <tr><td colSpan={7} className="py-12 text-center text-gray-400 dark:text-gray-500 text-sm">Aucun import trouve</td></tr>
             ) : (
               imports.map((item) => {
-                const st = STATUS_LABELS[item.status] || { label: item.status, cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' }
+                const eb = extractionBadge(item)
                 const conf = confidenceBadge(item.confidence)
                 return (
                   <tr
                     key={item.id}
-                    onClick={() => setSelectedId(item.id)}
-                    className="border-b border-gray-50 dark:border-gray-700 hover:bg-kerpta-50/50 dark:hover:bg-kerpta-900/30 cursor-pointer transition"
+                    onClick={() => { if (!eb.isExtracting) setSelectedId(item.id) }}
+                    className={`border-b border-gray-50 dark:border-gray-700 transition ${eb.isExtracting ? 'opacity-60' : 'hover:bg-kerpta-50/50 dark:hover:bg-kerpta-900/30 cursor-pointer'}`}
                   >
                     <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">
                       <div className="flex items-center gap-2 max-w-[200px]">
-                        <Sparkles className="w-3.5 h-3.5 text-kerpta shrink-0" />
+                        {eb.isExtracting ? (
+                          <Loader2 className="w-3.5 h-3.5 text-blue-500 animate-spin shrink-0" />
+                        ) : (
+                          <Sparkles className="w-3.5 h-3.5 text-kerpta shrink-0" />
+                        )}
                         <span className="truncate">{item.source_filename || '-'}</span>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">
-                      {DOC_TYPE_LABELS[item.extracted_doc_type ?? ''] || item.extracted_doc_type || '-'}
+                      {eb.isExtracting ? '-' : (DOC_TYPE_LABELS[item.extracted_doc_type ?? ''] || item.extracted_doc_type || '-')}
                     </td>
                     <td className="px-4 py-3 text-gray-600 dark:text-gray-400 truncate max-w-[160px]">
-                      {item.extracted_destinataire_name || '-'}
+                      {eb.isExtracting ? '-' : (item.extracted_destinataire_name || '-')}
                     </td>
                     <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200 whitespace-nowrap">
-                      {item.extracted_total_ttc != null ? fmtCurrency(item.extracted_total_ttc) : '-'}
+                      {eb.isExtracting ? '-' : (item.extracted_total_ttc != null ? fmtCurrency(item.extracted_total_ttc) : '-')}
                     </td>
                     <td className="px-4 py-3 text-center whitespace-nowrap">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${conf.cls}`}>{conf.label}</span>
+                      {eb.isExtracting ? '-' : (
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${conf.cls}`}>{conf.label}</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${st.cls}`}>{st.label}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${eb.cls}`}>{eb.label}</span>
+                      {item.extraction_status === 'error' && item.error_message && (
+                        <span className="block text-[10px] text-red-500 dark:text-red-400 mt-0.5 truncate max-w-[180px]" title={item.error_message}>
+                          {item.error_message}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">
                       {item.created_at ? new Date(item.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
@@ -292,23 +329,32 @@ export default function ImportsPage() {
           <div className="py-12 text-center text-gray-400 dark:text-gray-500 text-sm">Aucun import trouve</div>
         ) : (
           imports.map((item) => {
-            const st = STATUS_LABELS[item.status] || { label: item.status, cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' }
+            const eb = extractionBadge(item)
             const conf = confidenceBadge(item.confidence)
             return (
               <div
                 key={item.id}
-                onClick={() => setSelectedId(item.id)}
-                className={`${CARD} p-4 cursor-pointer hover:border-kerpta-200 dark:hover:border-kerpta-700 transition active:bg-kerpta-50/50 dark:active:bg-kerpta-900/30`}
+                onClick={() => { if (!eb.isExtracting) setSelectedId(item.id) }}
+                className={`${CARD} p-4 transition ${eb.isExtracting ? 'opacity-60' : 'cursor-pointer hover:border-kerpta-200 dark:hover:border-kerpta-700 active:bg-kerpta-50/50 dark:active:bg-kerpta-900/30'}`}
               >
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-2 min-w-0">
-                    <Sparkles className="w-3.5 h-3.5 text-kerpta shrink-0" />
+                    {eb.isExtracting ? (
+                      <Loader2 className="w-3.5 h-3.5 text-blue-500 animate-spin shrink-0" />
+                    ) : (
+                      <Sparkles className="w-3.5 h-3.5 text-kerpta shrink-0" />
+                    )}
                     <span className="font-medium text-sm text-gray-900 dark:text-white truncate">
                       {item.source_filename || '-'}
                     </span>
                   </div>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${st.cls}`}>{st.label}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${eb.cls}`}>{eb.label}</span>
                 </div>
+                {item.extraction_status === 'error' && item.error_message && (
+                  <p className="text-[10px] text-red-500 dark:text-red-400 pl-5 mb-1 truncate" title={item.error_message}>
+                    {item.error_message}
+                  </p>
+                )}
                 <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 pl-5">
                   <span>{DOC_TYPE_LABELS[item.extracted_doc_type ?? ''] || '-'}</span>
                   <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${conf.cls}`}>{conf.label}</span>
