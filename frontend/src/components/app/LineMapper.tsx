@@ -3,10 +3,10 @@
 // Licence : AGPL-3.0 - https://www.gnu.org/licenses/agpl-3.0.html
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Search, Check, Sparkles, FileText, Package, UserRound, PenLine, ChevronDown } from 'lucide-react'
+import { Search, Check, Sparkles, FileText, Package, UserRound, PenLine } from 'lucide-react'
 import { orgGet } from '@/lib/orgApi'
 import { fmtCurrency } from '@/lib/formatting'
-import { INPUT, LINE_INPUT, BTN, BTN_SM, LABEL } from '@/lib/formStyles'
+import { INPUT, LINE_INPUT, BTN, BTN_SM } from '@/lib/formStyles'
 
 // -- Types --------------------------------------------------------------------
 
@@ -357,7 +357,6 @@ function LineMapperRow({
       <div className="bg-white dark:bg-gray-800 p-3">
         {!isMapped ? (
           <LineSearchDropdown
-            line={line}
             clientId={clientId}
             onSelectCatalog={onApplyCatalog}
             onSelectQuoteLine={onApplyQuoteLine}
@@ -446,13 +445,11 @@ function LineMapperRow({
 // -- Search dropdown ----------------------------------------------------------
 
 function LineSearchDropdown({
-  line,
   clientId,
   onSelectCatalog,
   onSelectQuoteLine,
   onSelectFree,
 }: {
-  line: ImportLine
   clientId: string | null
   onSelectCatalog: (product: CatalogProduct, isClientVariant: boolean) => void
   onSelectQuoteLine: (ql: QuoteLineResult) => void
