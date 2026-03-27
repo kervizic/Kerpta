@@ -12,9 +12,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.dependencies import OrgContext, get_org_context, require_permission
 from app.services import document_import as import_svc
+from app.services import import_to_catalog as catalog_svc
 from app.services import storage as storage_svc
 
 router = APIRouter(prefix="/api/v1/imports", tags=["Imports IA"])
+
+
+class LineAction(BaseModel):
+    line_id: str
+    action: str  # create_client, create_catalog, link_existing, skip
+    existing_product_id: str | None = None
+
+
+class ImportToCatalogRequest(BaseModel):
+    client_id: str | None = None
+    line_actions: list[LineAction]
 
 
 class ValidateImportBody(BaseModel):
@@ -165,4 +177,38 @@ async def get_import_file(
         content=file_bytes,
         media_type=content_type,
         headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
+
+
+@router.post("/{import_id}/catalog")
+async def import_to_catalog(
+    import_id: str,
+    body: ImportToCatalogRequest,
+    ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("imports:write")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Importe les lignes selectionnees dans le catalogue produits."""
+    return await catalog_svc.import_lines_to_catalog(
+        org_id=ctx.org_id,
+        import_id=import_id,
+        client_id=body.client_id,
+        line_actions=[la.model_dump() for la in body.line_actions],
+        db=db,
+    )
+
+
+@router.get("/{import_id}/catalog-suggestions")
+async def get_catalog_suggestions(
+    import_id: str,
+    client_id: str | None = Query(None, description="ID client pour filtrer les suggestions"),
+    ctx: OrgContext = Depends(get_org_context),
+    _perm=Depends(require_permission("imports:read")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Retourne les suggestions de matching pour chaque ligne."""
+    return await catalog_svc.auto_match_products(
+        org_id=ctx.org_id,
+        import_id=import_id,
+        db=db,
     )
