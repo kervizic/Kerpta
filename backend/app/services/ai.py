@@ -308,12 +308,14 @@ _VLM_EXTRACTION_PROMPT = """Tu es un extracteur de donnees comptables universel.
 REGLES STRICTES :
 Valeur non trouvee = null
 Montants = float 2 decimales - TOUJOURS lire la valeur dans le document, ne jamais recalculer
+SEPARATEURS FRANCAIS : en France, la virgule (,) est le separateur decimal et le point (.) ou l'espace est le separateur de milliers. Exemples : "1.250,00" = 1250.00, "20,000" = 20.0 (pas 20000), "1 250,50" = 1250.50, "580,00" = 580.00. Dans le JSON retourne, utiliser le point comme separateur decimal (format JSON standard).
 Dates = YYYY-MM-DD
 Chaque produit/service = une entree dans "lignes", meme si fusionne visuellement dans le document
 Les lignes TOTAL, SOUS-TOTAL, CUMUL ne sont PAS des lignes
 Identifiant fiscal : mettre la valeur trouvee dans le champ correspondant - SIREN (9 chiffres) dans "siren", SIRET (14 chiffres) dans "siret", les deux si les deux sont presents
 "designation" = libelle court tel qu'ecrit dans le document - "description" = texte long ou complementaire si present
 "confiance" globale et par ligne = certitude entre 0 et 1 - baisser si fusion de lignes suspectee, OCR douteux ou donnees reconstituees
+COHERENCE : verifier que quantite x prix_unitaire_ht = montant_ht (a l'arrondi pres). Si ca ne colle pas, baisser la confiance de la ligne.
 {
   "meta": {
     "type_document": "facture|avoir|releve|devis|bon_livraison|bon_commande|pro_forma|acompte",
