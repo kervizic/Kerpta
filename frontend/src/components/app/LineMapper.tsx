@@ -3,10 +3,10 @@
 // Licence : AGPL-3.0 - https://www.gnu.org/licenses/agpl-3.0.html
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Search, Check, Sparkles, FileText, Package, UserRound, PenLine } from 'lucide-react'
+import { Search, Check, Sparkles, FileText, Package, UserRound, PenLine, Loader2 } from 'lucide-react'
 import { orgGet } from '@/lib/orgApi'
 import { fmtCurrency } from '@/lib/formatting'
-import { INPUT, LINE_INPUT, BTN, BTN_SM } from '@/lib/formStyles'
+import { INPUT, LINE_INPUT, BTN, BTN_SM, BTN_SECONDARY } from '@/lib/formStyles'
 
 // -- Types --------------------------------------------------------------------
 
@@ -119,10 +119,127 @@ const SOURCE_BADGES: Record<string, { label: string; cls: string }> = {
   free: { label: 'Saisie libre', cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' },
 }
 
+// -- Types devis --------------------------------------------------------------
+
+interface QuoteListItem {
+  id: string
+  number: string
+  status: string
+  client_name: string | null
+  subtotal_ht: number
+  total_ttc: number
+  issue_date: string
+}
+
+interface QuoteDetail {
+  id: string
+  number: string
+  lines: QuoteDetailLine[]
+}
+
+interface QuoteDetailLine {
+  id: string
+  position: number
+  reference: string | null
+  description: string | null
+  quantity: number
+  unit: string | null
+  unit_price: number
+  vat_rate: number
+  discount_percent: number
+  total_ht: number
+  product_id: string | null
+}
+
+// -- Auto-matching lignes IA <-> lignes devis --------------------------------
+
+function autoMatchQuoteLines(importLines: ImportLine[], quoteLines: QuoteDetailLine[], quoteNumber: string): Record<number, LineMappingState> {
+  const result: Record<number, LineMappingState> = {}
+  const usedQuoteLines = new Set<number>()
+
+  for (const il of importLines) {
+    let bestMatch: QuoteDetailLine | null = null
+    let bestScore = 0
+
+    for (const ql of quoteLines) {
+      if (usedQuoteLines.has(ql.position)) continue
+
+      let score = 0
+      // Match par reference exacte (le plus fiable)
+      if (il.extracted_reference && ql.reference &&
+          il.extracted_reference.toLowerCase().trim() === ql.reference.toLowerCase().trim()) {
+        score += 100
+      }
+      // Match par designation/description (mots communs)
+      const ilWords = (il.extracted_designation || il.extracted_description || '').toLowerCase().split(/\s+/).filter(w => w.length > 2)
+      const qlWords = (ql.description || '').toLowerCase().split(/\s+/).filter(w => w.length > 2)
+      if (ilWords.length > 0 && qlWords.length > 0) {
+        const common = ilWords.filter(w => qlWords.some(qw => qw.includes(w) || w.includes(qw)))
+        score += (common.length / Math.max(ilWords.length, qlWords.length)) * 50
+      }
+      // Match par prix unitaire (a 5% pres)
+      if (il.extracted_unit_price != null && ql.unit_price != null && ql.unit_price > 0) {
+        const ratio = Math.abs(il.extracted_unit_price - ql.unit_price) / ql.unit_price
+        if (ratio < 0.05) score += 30
+        else if (ratio < 0.15) score += 15
+      }
+      // Match par quantite exacte
+      if (il.extracted_quantity != null && ql.quantity != null && il.extracted_quantity === ql.quantity) {
+        score += 10
+      }
+
+      if (score > bestScore) {
+        bestScore = score
+        bestMatch = ql
+      }
+    }
+
+    if (bestMatch && bestScore >= 20) {
+      usedQuoteLines.add(bestMatch.position)
+      result[il.position] = {
+        mapped: true,
+        source: 'quote_line',
+        source_id: bestMatch.id,
+        source_label: `${quoteNumber} L${bestMatch.position + 1}`,
+        description: bestMatch.description || '',
+        quantity: bestMatch.quantity,
+        unit: bestMatch.unit || 'u',
+        unit_price: bestMatch.unit_price,
+        vat_rate: bestMatch.vat_rate,
+        discount_percent: bestMatch.discount_percent ?? 0,
+        product_id: bestMatch.product_id,
+      }
+    } else {
+      // Pas de match - saisie libre avec valeurs IA
+      result[il.position] = {
+        mapped: true,
+        source: 'free',
+        source_id: null,
+        source_label: null,
+        description: il.extracted_designation || il.extracted_description || '',
+        quantity: il.extracted_quantity ?? 1,
+        unit: il.extracted_unit || 'u',
+        unit_price: il.extracted_unit_price ?? 0,
+        vat_rate: il.extracted_vat_rate ?? 20,
+        discount_percent: 0,
+        product_id: null,
+      }
+    }
+  }
+
+  return result
+}
+
 // -- Composant principal ------------------------------------------------------
 
 export default function LineMapper({ importLines, clientId, onLinesReady }: LineMapperProps) {
   const [mappings, setMappings] = useState<Record<number, LineMappingState>>({})
+  const [showQuoteSearch, setShowQuoteSearch] = useState(false)
+  const [quoteSearchQuery, setQuoteSearchQuery] = useState('')
+  const [quoteResults, setQuoteResults] = useState<QuoteListItem[]>([])
+  const [quoteLoading, setQuoteLoading] = useState(false)
+  const quoteDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const quoteSearchRef = useRef<HTMLDivElement>(null)
 
   // Initialize mappings from import lines
   useEffect(() => {
@@ -191,6 +308,66 @@ export default function LineMapper({ importLines, clientId, onLinesReady }: Line
     }
     setMappings(updated)
   }
+
+  // -- Recherche et import devis -----------------------------------------------
+
+  function searchQuotes(q: string) {
+    setQuoteSearchQuery(q)
+    if (quoteDebounceRef.current) clearTimeout(quoteDebounceRef.current)
+    if (q.trim().length < 1 && !clientId) {
+      setQuoteResults([])
+      return
+    }
+    quoteDebounceRef.current = setTimeout(async () => {
+      setQuoteLoading(true)
+      try {
+        const params: Record<string, string> = { page_size: '10', status: 'accepted,sent,draft' }
+        if (clientId) params.client_id = clientId
+        if (q.trim()) params.search = q.trim()
+        const res = await orgGet<{ items: QuoteListItem[] }>('/quotes', params)
+        setQuoteResults(res.items ?? [])
+      } catch {
+        setQuoteResults([])
+      } finally {
+        setQuoteLoading(false)
+      }
+    }, 300)
+  }
+
+  async function applyQuoteToAll(quote: QuoteListItem) {
+    setShowQuoteSearch(false)
+    setQuoteSearchQuery('')
+    setQuoteResults([])
+    try {
+      const detail = await orgGet<QuoteDetail>(`/quotes/${quote.id}`)
+      if (detail.lines && detail.lines.length > 0) {
+        const matched = autoMatchQuoteLines(importLines, detail.lines, detail.number)
+        setMappings(matched)
+      }
+    } catch {
+      // Fallback : saisie libre
+      applyFreeAll()
+    }
+  }
+
+  // Fermer dropdown devis au clic exterieur
+  useEffect(() => {
+    if (!showQuoteSearch) return
+    function handle(e: MouseEvent) {
+      if (quoteSearchRef.current && !quoteSearchRef.current.contains(e.target as Node)) {
+        setShowQuoteSearch(false)
+      }
+    }
+    document.addEventListener('mousedown', handle)
+    return () => document.removeEventListener('mousedown', handle)
+  }, [showQuoteSearch])
+
+  // Charger les devis du client quand on ouvre la recherche
+  useEffect(() => {
+    if (showQuoteSearch && clientId) {
+      searchQuotes('')
+    }
+  }, [showQuoteSearch, clientId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function applyCatalogProduct(position: number, product: CatalogProduct, line: ImportLine, isClientVariant: boolean) {
     updateMapping(position, {
@@ -262,6 +439,74 @@ export default function LineMapper({ importLines, clientId, onLinesReady }: Line
 
   return (
     <div className="space-y-3">
+      {/* Actions de masse en haut */}
+      <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-gray-200 dark:border-gray-700">
+        <button onClick={applyFreeAll} className={BTN_SM}>
+          <PenLine className="w-3.5 h-3.5" />
+          Tout en saisie libre
+        </button>
+
+        {/* Importer un devis */}
+        <div ref={quoteSearchRef} className="relative">
+          <button
+            onClick={() => {
+              if (!clientId) return
+              setShowQuoteSearch(!showQuoteSearch)
+            }}
+            className={BTN_SM}
+            disabled={!clientId}
+            title={clientId ? 'Mapper les lignes depuis un devis' : 'Selectionnez un client d\'abord'}
+          >
+            <FileText className="w-3.5 h-3.5" />
+            Importer un devis
+          </button>
+
+          {showQuoteSearch && (
+            <div className="absolute z-50 top-full left-0 mt-1 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
+              <div className="p-2 border-b border-gray-100 dark:border-gray-700">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    className={INPUT + ' pl-8 !h-[32px] !text-xs'}
+                    value={quoteSearchQuery}
+                    onChange={(e) => searchQuotes(e.target.value)}
+                    placeholder="Rechercher un devis..."
+                    autoFocus
+                    autoComplete="off"
+                  />
+                </div>
+              </div>
+              <div className="max-h-48 overflow-y-auto">
+                {quoteLoading ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                  </div>
+                ) : quoteResults.length === 0 ? (
+                  <div className="px-3 py-3 text-xs text-gray-400 text-center">Aucun devis trouve</div>
+                ) : (
+                  quoteResults.map((q) => (
+                    <div
+                      key={q.id}
+                      onMouseDown={(e) => { e.preventDefault(); applyQuoteToAll(q) }}
+                      className="px-3 py-2 text-xs cursor-pointer hover:bg-kerpta-50 dark:hover:bg-kerpta-900/20 transition border-b border-gray-50 dark:border-gray-700/50 last:border-0"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-gray-800 dark:text-gray-200">{q.number}</span>
+                        <span className="text-gray-500 dark:text-gray-400">{fmtCurrency(q.subtotal_ht)} HT</span>
+                      </div>
+                      {q.client_name && (
+                        <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{q.client_name} - {q.issue_date}</div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
       {importLines.map((line) => (
         <LineMapperRow
           key={line.position}
@@ -278,10 +523,6 @@ export default function LineMapper({ importLines, clientId, onLinesReady }: Line
 
       {/* Bottom actions */}
       <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-gray-200 dark:border-gray-700">
-        <button onClick={applyFreeAll} className={BTN_SM}>
-          <PenLine className="w-3.5 h-3.5" />
-          Tout en saisie libre
-        </button>
         <div className="flex-1" />
         <button
           onClick={handleApply}
