@@ -24,7 +24,13 @@ _log = logging.getLogger(__name__)
 def extract_document_task(self, import_id: str, org_id: str, user_id: str):
     """Extraction IA asynchrone d'un document importe."""
     import asyncio
-    asyncio.run(_extract_document_async(self, import_id, org_id, user_id))
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(_extract_document_async(self, import_id, org_id, user_id))
+    finally:
+        loop.close()
 
 
 async def _extract_document_async(task, import_id: str, org_id: str, user_id: str):
