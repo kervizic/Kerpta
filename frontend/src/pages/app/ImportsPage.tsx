@@ -823,6 +823,7 @@ function ImportDetailOverlay({
                       value={clientId}
                       onChange={setClientId}
                       disabled={detail.status === 'rejected'}
+                      className={INPUT}
                     />
                     {clientId && <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />}
                   </div>
@@ -847,10 +848,12 @@ function ImportDetailOverlay({
                   <label className={LABEL}>Reference</label>
                   <input className={INPUT} value={docRef} onChange={e => setDocRef(e.target.value)} disabled={detail.status === 'rejected'} placeholder="Reference" />
                 </div>
-                <div>
-                  <label className={LABEL}>N. commande</label>
-                  <input className={INPUT} value={docOrderNumber} onChange={e => setDocOrderNumber(e.target.value)} disabled={detail.status === 'rejected'} placeholder="N. commande" />
-                </div>
+                {docType !== 'bon_commande' && (
+                  <div>
+                    <label className={LABEL}>N. commande</label>
+                    <input className={INPUT} value={docOrderNumber} onChange={e => setDocOrderNumber(e.target.value)} disabled={detail.status === 'rejected'} placeholder="N. commande" />
+                  </div>
+                )}
               </div>
             </div>
 
