@@ -6,7 +6,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { Search, Check, Sparkles, FileText, Package, UserRound, PenLine, Loader2 } from 'lucide-react'
 import { orgGet } from '@/lib/orgApi'
 import { fmtCurrency } from '@/lib/formatting'
-import { INPUT, LINE_INPUT, BTN, BTN_SM, BTN_SECONDARY } from '@/lib/formStyles'
+import { INPUT, LINE_INPUT, BTN, BTN_SM } from '@/lib/formStyles'
 
 // -- Types --------------------------------------------------------------------
 
