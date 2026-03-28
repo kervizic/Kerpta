@@ -19,6 +19,9 @@ export const LINE_INPUT = 'w-full h-[30px] px-2 py-1 text-xs border border-gray-
 /** Select de ligne de document — même hauteur que LINE_INPUT */
 export const LINE_SELECT = `${LINE_INPUT} bg-white dark:bg-gray-800`
 
+/** Label de ligne de document (plus petit que LABEL, pour les editeurs inline) */
+export const LINE_LABEL = 'text-[10px] text-gray-400 dark:text-gray-500 mb-0.5 block'
+
 // ─── Boutons ──────────────────────────────────────────────────────────────
 
 /** Bouton principal (outlined kerpta) — utiliser pour toutes les actions principales */
@@ -35,6 +38,15 @@ export const BTN_DANGER = 'inline-flex items-center justify-center gap-1.5 px-4 
 
 /** Bouton danger petit */
 export const BTN_DANGER_SM = 'inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition disabled:opacity-50 border border-red-400 text-red-600 bg-white hover:bg-red-50 dark:bg-gray-800 dark:text-red-400 dark:hover:bg-red-900/20'
+
+/** Bouton texte kerpta (lien, action secondaire inline) */
+export const BTN_LINK = 'text-[10px] text-kerpta hover:text-kerpta-600 dark:text-kerpta-400 dark:hover:text-kerpta-300 transition inline-flex items-center gap-0.5'
+
+/** Bouton texte gris (reinitialiser, annuler discret) */
+export const BTN_LINK_GRAY = 'text-[10px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition inline-flex items-center gap-1'
+
+/** Bouton icone fermeture (X dans les modales, overlays) */
+export const BTN_CLOSE = 'p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
 
 // ─── Overlays ─────────────────────────────────────────────────────────────
 
@@ -62,6 +74,9 @@ export const LABEL = 'block text-xs font-semibold text-gray-600 dark:text-gray-4
 
 /** Textarea multi-lignes (notes, mentions legales, pied de page) */
 export const TEXTAREA = 'w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-kerpta-400 transition resize-y'
+
+/** Dropdown menu positionne (autocomplete, suggestions) */
+export const DROPDOWN = 'absolute z-50 top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-72 overflow-y-auto'
 
 /** Badge compteur (notification, filtre actif) */
 export const BADGE_COUNT = 'bg-kerpta text-white text-[9px] font-bold rounded-full flex items-center justify-center'

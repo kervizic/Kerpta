@@ -107,6 +107,7 @@ class UpdateImportBody(BaseModel):
     doc_due_date: str | None = None
     reference: str | None = None
     order_number: str | None = None
+    corrected_json: dict | None = None
 
 
 @router.patch("/{import_id}")

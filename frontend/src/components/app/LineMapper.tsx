@@ -6,7 +6,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { Search, Check, Sparkles, FileText, Package, UserRound, PenLine, Loader2, ChevronRight, Plus, X } from 'lucide-react'
 import { orgGet } from '@/lib/orgApi'
 import { fmtCurrency } from '@/lib/formatting'
-import { INPUT, LINE_INPUT, BTN, BTN_SM } from '@/lib/formStyles'
+import { INPUT, LINE_INPUT, LINE_SELECT, BTN, BTN_SM, BTN_LINK, BTN_LINK_GRAY, DROPDOWN, LINE_LABEL } from '@/lib/formStyles'
 
 // -- Types publiques ----------------------------------------------------------
 
@@ -233,8 +233,8 @@ function autoMatchQuoteLines(importLines: ImportLine[], quoteLines: QuoteDetailL
 
 export default function LineMapper({ importLines, clientId, onLinesReady }: LineMapperProps) {
   const [mappings, setMappings] = useState<Record<number, LineMappingState>>({})
-  const [applied, setApplied] = useState(false)
-  const [lastAppliedSnapshot, setLastAppliedSnapshot] = useState<string>('')
+  const [mappingsVersion, setMappingsVersion] = useState(0)
+  const [appliedVersion, setAppliedVersion] = useState(-1)
   const [showQuoteSearch, setShowQuoteSearch] = useState(false)
   const [quoteSearchQuery, setQuoteSearchQuery] = useState('')
   const [quotesWithLines, setQuotesWithLines] = useState<QuoteWithLines[]>([])
@@ -257,7 +257,7 @@ export default function LineMapper({ importLines, clientId, onLinesReady }: Line
   }, [importLines]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function updateMapping(position: number, patch: Partial<LineMappingState>) {
-    setApplied(false)
+    setMappingsVersion((v) => v + 1)
     setMappings((prev) => ({
       ...prev,
       [position]: { ...prev[position], ...patch },
@@ -265,6 +265,7 @@ export default function LineMapper({ importLines, clientId, onLinesReady }: Line
   }
 
   function updateSub(position: number, subId: string, patch: Partial<SubMapping>) {
+    setMappingsVersion((v) => v + 1)
     setMappings((prev) => {
       const m = prev[position]
       if (!m) return prev
@@ -279,6 +280,7 @@ export default function LineMapper({ importLines, clientId, onLinesReady }: Line
   }
 
   function removeSub(position: number, subId: string) {
+    setMappingsVersion((v) => v + 1)
     setMappings((prev) => {
       const m = prev[position]
       if (!m) return prev
@@ -295,6 +297,7 @@ export default function LineMapper({ importLines, clientId, onLinesReady }: Line
   }
 
   function addSubToLine(position: number, sub: SubMapping) {
+    setMappingsVersion((v) => v + 1)
     setMappings((prev) => {
       const m = prev[position] || { mapped: false, subs: [] }
       return {
@@ -315,6 +318,7 @@ export default function LineMapper({ importLines, clientId, onLinesReady }: Line
   }
 
   function applyFreeAll() {
+    setMappingsVersion((v) => v + 1)
     const updated: Record<number, LineMappingState> = {}
     for (const line of importLines) {
       updated[line.position] = {
@@ -365,6 +369,7 @@ export default function LineMapper({ importLines, clientId, onLinesReady }: Line
   async function applyQuoteToAll(quote: QuoteWithLines) {
     setShowQuoteSearch(false)
     setQuoteSearchQuery('')
+    setMappingsVersion((v) => v + 1)
     if (quote.lines.length > 0) {
       const matched = autoMatchQuoteLines(importLines, quote.lines, quote.number, quote.id)
       setMappings(matched)
@@ -468,21 +473,12 @@ export default function LineMapper({ importLines, clientId, onLinesReady }: Line
         }
       }
     }
-    const snapshot = JSON.stringify(lines)
-    setLastAppliedSnapshot(snapshot)
-    setApplied(true)
+    setAppliedVersion(mappingsVersion)
     onLinesReady(lines)
   }
 
   const allMapped = importLines.every((il) => mappings[il.position]?.mapped)
-  // Verifier si les mappings ont change depuis le dernier apply
-  const currentSnapshot = allMapped ? JSON.stringify(
-    importLines.flatMap((il) => {
-      const m = mappings[il.position]
-      return m?.subs ?? []
-    })
-  ) : ''
-  const hasChanges = !applied || currentSnapshot !== lastAppliedSnapshot
+  const hasChanges = appliedVersion !== mappingsVersion
 
   const statusLabel: Record<string, string> = {
     draft: 'Brouillon',
@@ -622,7 +618,7 @@ export default function LineMapper({ importLines, clientId, onLinesReady }: Line
           title={!allMapped ? 'Toutes les lignes doivent etre mappees' : !hasChanges ? 'Deja applique' : ''}
         >
           <Check className="w-4 h-4" />
-          {applied && !hasChanges ? 'Applique' : `Appliquer (${importLines.filter((il) => mappings[il.position]?.mapped).length}/${importLines.length})`}
+          {!hasChanges && appliedVersion >= 0 ? 'Applique' : `Appliquer (${importLines.filter((il) => mappings[il.position]?.mapped).length}/${importLines.length})`}
         </button>
       </div>
     </div>
@@ -718,7 +714,7 @@ function LineMapperRow({
               <div className="flex-1" />
               <button
                 onClick={() => setShowAddSearch(!showAddSearch)}
-                className="text-[10px] text-kerpta hover:text-kerpta-600 dark:text-kerpta-400 dark:hover:text-kerpta-300 transition flex items-center gap-0.5"
+                className={BTN_LINK}
                 title="Ajouter un article a cette ligne"
               >
                 <Plus className="w-3 h-3" />
@@ -726,7 +722,7 @@ function LineMapperRow({
               </button>
               <button
                 onClick={onReset}
-                className="text-[10px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition"
+                className={BTN_LINK_GRAY}
                 title="Revenir a la recherche"
               >
                 Reinitialiser
@@ -816,7 +812,7 @@ function LineMapperRow({
                   {/* Editable fields */}
                   <div className="grid grid-cols-12 gap-2">
                     <div className="col-span-12 md:col-span-5">
-                      <label className="text-[10px] text-gray-400 dark:text-gray-500 mb-0.5 block">Description</label>
+                      <label className={LINE_LABEL}>Description</label>
                       <input
                         className={LINE_INPUT}
                         value={sub.description}
@@ -825,7 +821,7 @@ function LineMapperRow({
                       />
                     </div>
                     <div className="col-span-3 md:col-span-2">
-                      <label className="text-[10px] text-gray-400 dark:text-gray-500 mb-0.5 block">Quantite</label>
+                      <label className={LINE_LABEL}>Quantite</label>
                       <input
                         className={LINE_INPUT + ' text-right'}
                         type="number"
@@ -835,7 +831,7 @@ function LineMapperRow({
                       />
                     </div>
                     <div className="col-span-3 md:col-span-1">
-                      <label className="text-[10px] text-gray-400 dark:text-gray-500 mb-0.5 block">Unite</label>
+                      <label className={LINE_LABEL}>Unite</label>
                       <input
                         className={LINE_INPUT}
                         value={sub.unit}
@@ -843,7 +839,7 @@ function LineMapperRow({
                       />
                     </div>
                     <div className="col-span-3 md:col-span-2">
-                      <label className="text-[10px] text-gray-400 dark:text-gray-500 mb-0.5 block">PU HT</label>
+                      <label className={LINE_LABEL}>PU HT</label>
                       <input
                         className={LINE_INPUT + ' text-right'}
                         type="number"
@@ -853,9 +849,9 @@ function LineMapperRow({
                       />
                     </div>
                     <div className="col-span-3 md:col-span-2">
-                      <label className="text-[10px] text-gray-400 dark:text-gray-500 mb-0.5 block">TVA %</label>
+                      <label className={LINE_LABEL}>TVA %</label>
                       <select
-                        className={LINE_INPUT + ' text-right'}
+                        className={LINE_SELECT + ' text-right'}
                         value={String(sub.vat_rate)}
                         onChange={(e) => onUpdateSub(sub.id, 'vat_rate', parseFloat(e.target.value) || 0)}
                       >
@@ -1055,7 +1051,7 @@ function LineSearchDropdown({
       </div>
 
       {open && (hasContent || true) && (
-        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-72 overflow-y-auto">
+        <div className={DROPDOWN}>
 
           {/* Section Devis - groupes par devis */}
           {quoteGroups.size > 0 && (
@@ -1198,7 +1194,7 @@ function LineSearchDropdown({
       {!open && (
         <button
           onClick={onSelectFree}
-          className="mt-1.5 text-[10px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition flex items-center gap-1"
+          className={BTN_LINK_GRAY + ' mt-1.5'}
         >
           <PenLine className="w-3 h-3" />
           Utiliser les valeurs IA directement

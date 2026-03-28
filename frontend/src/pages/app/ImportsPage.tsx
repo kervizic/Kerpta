@@ -19,7 +19,7 @@ import ImportDocumentModal from '@/components/app/ImportDocumentModal'
 import ProductAutocomplete, { type AutocompleteProduct } from '@/components/app/ProductAutocomplete'
 import LineMapper, { type MappedLine } from '@/components/app/LineMapper'
 import {
-  BTN, BTN_SM, BTN_SECONDARY, BTN_DANGER, CARD, INPUT, LABEL, SELECT,
+  BTN, BTN_SM, BTN_SECONDARY, BTN_DANGER, BTN_CLOSE, CARD, INPUT, LINE_INPUT, LABEL, SELECT, LINE_SELECT,
   OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER, BADGE_COUNT, SECTION,
 } from '@/lib/formStyles'
 import { fmtCurrency } from '@/lib/formatting'
@@ -617,7 +617,8 @@ function ImportDetailOverlay({
   async function handleSave() {
     setSaving(true)
     try {
-      await orgPatch(`/imports/${importId}`, {
+      // Construire le corrected_json avec les lignes mappees si disponibles
+      const patchBody: Record<string, unknown> = {
         doc_type: docType || undefined,
         client_id: clientId || undefined,
         doc_number: docNumber || undefined,
@@ -625,7 +626,33 @@ function ImportDetailOverlay({
         doc_due_date: docDueDate || undefined,
         reference: docRef || undefined,
         order_number: docOrderNumber || undefined,
-      })
+      }
+      if (mappedLines && mappedLines.length > 0) {
+        patchBody.corrected_json = {
+          document: {
+            numero: docNumber || null,
+            date_emission: docDate || null,
+            date_echeance: docDueDate || null,
+            reference: docRef || null,
+            numero_commande: docOrderNumber || null,
+          },
+          meta: { type_document: docType || null },
+          lignes: mappedLines.map((ml, i) => ({
+            position: i,
+            source: ml.source,
+            source_id: ml.source_id,
+            quote_id: ml.quote_id,
+            description: ml.description,
+            quantite: ml.quantity,
+            unite: ml.unit,
+            prix_unitaire_ht: ml.unit_price,
+            taux_tva: ml.vat_rate,
+            remise_pourcent: ml.discount_percent,
+            product_id: ml.product_id,
+          })),
+        }
+      }
+      await orgPatch(`/imports/${importId}`, patchBody)
       queryClient.invalidateQueries({ queryKey: ['import-detail', importId] })
       onRefresh()
     } catch {
@@ -684,7 +711,7 @@ function ImportDetailOverlay({
                 </button>
               </>
             )}
-            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition text-gray-400">
+            <button onClick={onClose} className={BTN_CLOSE}>
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -966,7 +993,7 @@ function ImportDetailOverlay({
                                       existing_product_id: undefined,
                                       search_text: '',
                                     })}
-                                    className={SELECT + ' !h-[30px] !text-xs !px-2 !py-1'}
+                                    className={LINE_SELECT}
                                   >
                                     <option value="create_client">Article client</option>
                                     <option value="create_catalog">Catalogue general</option>
@@ -985,7 +1012,7 @@ function ImportDetailOverlay({
                                         search_text: p.name,
                                       })}
                                       clientId={catalogClientId || null}
-                                      className={INPUT + ' !h-[30px] !text-xs !px-2 !py-1'}
+                                      className={LINE_INPUT}
                                       placeholder="Rechercher un article..."
                                     />
                                   ) : (

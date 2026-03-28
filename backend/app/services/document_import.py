@@ -975,6 +975,14 @@ async def update_import(
 
     sets = []
     params: dict = {"iid": import_id, "org_id": str(org_id)}
+
+    # Traitement special pour corrected_json (stocke dans extracted_json)
+    corrected_json = updates.pop("corrected_json", None)
+    if corrected_json is not None:
+        import json as _json
+        sets.append("corrected_json = CAST(:corrected_json AS jsonb)")
+        params["corrected_json"] = _json.dumps(corrected_json)
+
     for key, value in updates.items():
         col = field_map.get(key)
         if not col:
