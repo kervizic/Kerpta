@@ -594,11 +594,17 @@ function ImportDetailOverlay({
           product_id: ml.product_id,
         }))
       }
+      // Extraire les quote_ids uniques depuis les lignes mappees depuis des devis
+      const quoteIds = mappedLines
+        ? [...new Set(mappedLines.filter(ml => ml.source === 'quote_line' && ml.quote_id).map(ml => ml.quote_id!))]
+        : null
+
       await orgPost(`/imports/${importId}/validate`, {
         action: 'create',
         target_type: targetType,
         client_id: clientId || null,
         corrected_json: corrected,
+        quote_ids: quoteIds && quoteIds.length > 0 ? quoteIds : null,
       })
       onRefresh()
       onClose()

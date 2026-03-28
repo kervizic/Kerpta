@@ -35,6 +35,7 @@ class ValidateImportBody(BaseModel):
     target_id: str | None = None
     client_id: str | None = None
     corrected_json: dict | None = None
+    quote_ids: list[str] | None = None
 
 
 @router.get("")
@@ -94,6 +95,7 @@ async def validate_import(
         corrected_json=body.corrected_json,
         db=db,
         target_id=body.target_id,
+        quote_ids=body.quote_ids,
     )
 
 

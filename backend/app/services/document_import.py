@@ -777,6 +777,7 @@ async def validate_import(
     db: AsyncSession,
     *,
     target_id: str | None = None,
+    quote_ids: list[str] | None = None,
 ) -> dict:
     """Valide un import : cree le document ou attache le fichier source.
 
@@ -831,6 +832,7 @@ async def validate_import(
             doc = await import_as_order(
                 org_id, final_json, db,
                 client_id=client_id,
+                quote_ids=quote_ids,
                 source_filename=source_filename,
             )
             created_target_id = doc["id"]

@@ -28,6 +28,7 @@ export interface MappedLine {
   source: 'catalog' | 'client_product' | 'quote_line' | 'free'
   source_id: string | null
   source_label: string | null
+  quote_id: string | null
   description: string
   quantity: number
   unit: string
@@ -104,6 +105,7 @@ interface SubMapping {
   source: MappedLine['source']
   source_id: string | null
   source_label: string | null
+  quote_id: string | null
   description: string
   quantity: number
   unit: string
@@ -146,6 +148,7 @@ function makeFreeSub(line: ImportLine): SubMapping {
     source: 'free',
     source_id: null,
     source_label: null,
+    quote_id: null,
     description: line.extracted_designation || line.extracted_description || '',
     quantity: line.extracted_quantity ?? 1,
     unit: line.extracted_unit || 'u',
@@ -156,12 +159,13 @@ function makeFreeSub(line: ImportLine): SubMapping {
   }
 }
 
-function makeQuoteLineSub(ql: QuoteDetailLine, quoteNumber: string): SubMapping {
+function makeQuoteLineSub(ql: QuoteDetailLine, quoteNumber: string, quoteId: string): SubMapping {
   return {
     id: nextSubId(),
     source: 'quote_line',
     source_id: ql.id,
     source_label: `${quoteNumber} L${ql.position + 1}`,
+    quote_id: quoteId,
     description: ql.description || '',
     quantity: ql.quantity,
     unit: ql.unit || 'u',
@@ -174,7 +178,7 @@ function makeQuoteLineSub(ql: QuoteDetailLine, quoteNumber: string): SubMapping 
 
 // -- Auto-matching lignes IA <-> lignes devis --------------------------------
 
-function autoMatchQuoteLines(importLines: ImportLine[], quoteLines: QuoteDetailLine[], quoteNumber: string): Record<number, LineMappingState> {
+function autoMatchQuoteLines(importLines: ImportLine[], quoteLines: QuoteDetailLine[], quoteNumber: string, quoteId: string): Record<number, LineMappingState> {
   const result: Record<number, LineMappingState> = {}
   const usedQuoteLines = new Set<number>()
 
@@ -213,7 +217,7 @@ function autoMatchQuoteLines(importLines: ImportLine[], quoteLines: QuoteDetailL
       usedQuoteLines.add(bestMatch.position)
       result[il.position] = {
         mapped: true,
-        subs: [makeQuoteLineSub(bestMatch, quoteNumber)],
+        subs: [makeQuoteLineSub(bestMatch, quoteNumber, quoteId)],
       }
     } else {
       result[il.position] = {
@@ -229,6 +233,8 @@ function autoMatchQuoteLines(importLines: ImportLine[], quoteLines: QuoteDetailL
 
 export default function LineMapper({ importLines, clientId, onLinesReady }: LineMapperProps) {
   const [mappings, setMappings] = useState<Record<number, LineMappingState>>({})
+  const [applied, setApplied] = useState(false)
+  const [lastAppliedSnapshot, setLastAppliedSnapshot] = useState<string>('')
   const [showQuoteSearch, setShowQuoteSearch] = useState(false)
   const [quoteSearchQuery, setQuoteSearchQuery] = useState('')
   const [quotesWithLines, setQuotesWithLines] = useState<QuoteWithLines[]>([])
@@ -251,6 +257,7 @@ export default function LineMapper({ importLines, clientId, onLinesReady }: Line
   }, [importLines]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function updateMapping(position: number, patch: Partial<LineMappingState>) {
+    setApplied(false)
     setMappings((prev) => ({
       ...prev,
       [position]: { ...prev[position], ...patch },
@@ -359,15 +366,15 @@ export default function LineMapper({ importLines, clientId, onLinesReady }: Line
     setShowQuoteSearch(false)
     setQuoteSearchQuery('')
     if (quote.lines.length > 0) {
-      const matched = autoMatchQuoteLines(importLines, quote.lines, quote.number)
+      const matched = autoMatchQuoteLines(importLines, quote.lines, quote.number, quote.id)
       setMappings(matched)
     } else {
       applyFreeAll()
     }
   }
 
-  function applyQuoteLineToPosition(position: number, ql: QuoteDetailLine, quoteNumber: string) {
-    addSubToLine(position, makeQuoteLineSub(ql, quoteNumber))
+  function applyQuoteLineToPosition(position: number, ql: QuoteDetailLine, quoteNumber: string, quoteId: string) {
+    addSubToLine(position, makeQuoteLineSub(ql, quoteNumber, quoteId))
   }
 
   // Fermer dropdown devis au clic exterieur
@@ -395,6 +402,7 @@ export default function LineMapper({ importLines, clientId, onLinesReady }: Line
       source: isClientVariant ? 'client_product' : 'catalog',
       source_id: product.id,
       source_label: product.reference || product.name,
+      quote_id: null,
       description: product.description || product.name,
       quantity: line.extracted_quantity ?? 1,
       unit: product.unit || 'u',
@@ -411,6 +419,7 @@ export default function LineMapper({ importLines, clientId, onLinesReady }: Line
       source: 'quote_line',
       source_id: ql.line_id,
       source_label: `${ql.quote_number} L${ql.position + 1}`,
+      quote_id: ql.quote_id,
       description: ql.description || '',
       quantity: ql.quantity,
       unit: ql.unit || 'u',
@@ -431,6 +440,7 @@ export default function LineMapper({ importLines, clientId, onLinesReady }: Line
           source: 'free',
           source_id: null,
           source_label: null,
+          quote_id: null,
           description: il.extracted_designation || il.extracted_description || '',
           quantity: il.extracted_quantity ?? 1,
           unit: il.extracted_unit || 'u',
@@ -446,6 +456,7 @@ export default function LineMapper({ importLines, clientId, onLinesReady }: Line
             source: sub.source,
             source_id: sub.source_id,
             source_label: sub.source_label,
+            quote_id: sub.quote_id,
             description: sub.description,
             quantity: sub.quantity,
             unit: sub.unit,
@@ -457,10 +468,21 @@ export default function LineMapper({ importLines, clientId, onLinesReady }: Line
         }
       }
     }
+    const snapshot = JSON.stringify(lines)
+    setLastAppliedSnapshot(snapshot)
+    setApplied(true)
     onLinesReady(lines)
   }
 
   const allMapped = importLines.every((il) => mappings[il.position]?.mapped)
+  // Verifier si les mappings ont change depuis le dernier apply
+  const currentSnapshot = allMapped ? JSON.stringify(
+    importLines.flatMap((il) => {
+      const m = mappings[il.position]
+      return m?.subs ?? []
+    })
+  ) : ''
+  const hasChanges = !applied || currentSnapshot !== lastAppliedSnapshot
 
   const statusLabel: Record<string, string> = {
     draft: 'Brouillon',
@@ -553,7 +575,7 @@ export default function LineMapper({ importLines, clientId, onLinesReady }: Line
                                 e.preventDefault()
                                 // Ajouter cette ligne au premier import non-mappe, ou au premier
                                 const target = importLines.find((il) => !mappings[il.position]?.mapped) || importLines[0]
-                                if (target) applyQuoteLineToPosition(target.position, ql, q.number)
+                                if (target) applyQuoteLineToPosition(target.position, ql, q.number, q.id)
                               }}
                               className="px-3 py-1.5 pl-9 text-xs cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 transition flex items-center gap-2"
                             >
@@ -595,12 +617,12 @@ export default function LineMapper({ importLines, clientId, onLinesReady }: Line
         <div className="flex-1" />
         <button
           onClick={handleApply}
-          disabled={!allMapped}
+          disabled={!allMapped || !hasChanges}
           className={BTN}
-          title={allMapped ? '' : 'Toutes les lignes doivent etre mappees'}
+          title={!allMapped ? 'Toutes les lignes doivent etre mappees' : !hasChanges ? 'Deja applique' : ''}
         >
           <Check className="w-4 h-4" />
-          Appliquer ({importLines.filter((il) => mappings[il.position]?.mapped).length}/{importLines.length})
+          {applied && !hasChanges ? 'Applique' : `Appliquer (${importLines.filter((il) => mappings[il.position]?.mapped).length}/${importLines.length})`}
         </button>
       </div>
     </div>
@@ -722,6 +744,7 @@ function LineMapperRow({
                       source: isClient ? 'client_product' : 'catalog',
                       source_id: p.id,
                       source_label: p.reference || p.name,
+                      quote_id: null,
                       description: p.description || p.name,
                       quantity: line.extracted_quantity ?? 1,
                       unit: p.unit || 'u',
@@ -738,6 +761,7 @@ function LineMapperRow({
                       source: 'quote_line',
                       source_id: ql.line_id,
                       source_label: `${ql.quote_number} L${ql.position + 1}`,
+                      quote_id: ql.quote_id,
                       description: ql.description || '',
                       quantity: ql.quantity,
                       unit: ql.unit || 'u',
@@ -830,13 +854,20 @@ function LineMapperRow({
                     </div>
                     <div className="col-span-3 md:col-span-2">
                       <label className="text-[10px] text-gray-400 dark:text-gray-500 mb-0.5 block">TVA %</label>
-                      <input
+                      <select
                         className={LINE_INPUT + ' text-right'}
-                        type="number"
-                        step="any"
-                        value={sub.vat_rate}
+                        value={String(sub.vat_rate)}
                         onChange={(e) => onUpdateSub(sub.id, 'vat_rate', parseFloat(e.target.value) || 0)}
-                      />
+                      >
+                        <option value="0">0%</option>
+                        <option value="2.1">2.1%</option>
+                        <option value="5.5">5.5%</option>
+                        <option value="10">10%</option>
+                        <option value="20">20%</option>
+                        {![0, 2.1, 5.5, 10, 20].includes(sub.vat_rate) && (
+                          <option value={String(sub.vat_rate)}>{sub.vat_rate}%</option>
+                        )}
+                      </select>
                     </div>
                   </div>
                 </div>
@@ -898,8 +929,8 @@ function LineSearchDropdown({
       try {
         const promises: Promise<void>[] = []
 
-        // Catalogue general (min 2 chars)
-        if (q.trim().length >= 2) {
+        // Catalogue general (min 1 char)
+        if (q.trim().length >= 1) {
           promises.push(
             orgGet<{ items: CatalogProduct[] }>('/catalog/products', {
               search: q,
@@ -913,7 +944,7 @@ function LineSearchDropdown({
 
         // Articles client (min 2 chars) + lignes devis (toujours)
         if (clientId) {
-          if (q.trim().length >= 2) {
+          if (q.trim().length >= 1) {
             promises.push(
               orgGet<{ items: CatalogProduct[] }>('/catalog/products', {
                 search: q,
@@ -980,13 +1011,14 @@ function LineSearchDropdown({
     }
   }
 
-  function handleSelectQuoteFull(group: { quoteNumber: string; lines: QuoteLineResult[] }) {
+  function handleSelectQuoteFull(group: { quoteId: string; quoteNumber: string; lines: QuoteLineResult[] }) {
     if (!onSelectQuoteFull) return
     const subs: SubMapping[] = group.lines.map((ql) => ({
       id: nextSubId(),
       source: 'quote_line' as const,
       source_id: ql.line_id,
       source_label: `${group.quoteNumber} L${ql.position + 1}`,
+      quote_id: group.quoteId,
       description: ql.description || '',
       quantity: ql.quantity,
       unit: ql.unit || 'u',
