@@ -23,7 +23,7 @@ import PageLayout from '@/components/app/PageLayout'
 import ImportDocumentModal from '@/components/app/ImportDocumentModal'
 import AttachDocumentButton from '@/components/app/AttachDocumentButton'
 import AttachmentsList from '@/components/app/AttachmentsList'
-import { INPUT, SELECT, LINE_INPUT, LINE_SELECT, BTN, BTN_SECONDARY, OVERLAY_BACKDROP, OVERLAY_PANEL, BADGE_COUNT, CARD } from '@/lib/formStyles'
+import { INPUT, SELECT, LINE_INPUT, LINE_SELECT, BTN, BTN_SECONDARY, BTN_CLOSE, OVERLAY_BACKDROP, OVERLAY_PANEL, BADGE_COUNT, CARD } from '@/lib/formStyles'
 import { fmtCurrency } from '@/lib/formatting'
 import { ApiError } from '@/lib/api'
 import { useAuthStore } from '@/stores/authStore'
@@ -923,8 +923,8 @@ function InvoiceFormPage({ invoiceId, onClose }: { invoiceId?: string; onClose?:
             )}
           </div>
           {onClose && (
-            <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
-              <X className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+            <button onClick={onClose} className={BTN_CLOSE}>
+              <X className="w-5 h-5" />
             </button>
           )}
         </div>

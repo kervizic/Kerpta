@@ -17,7 +17,7 @@ import PageLayout from '@/components/app/PageLayout'
 import ImportDocumentModal from '@/components/app/ImportDocumentModal'
 import AttachDocumentButton from '@/components/app/AttachDocumentButton'
 import AttachmentsList from '@/components/app/AttachmentsList'
-import { BTN, BTN_SM, BTN_SECONDARY, CARD, INPUT, SELECT, TEXTAREA, LABEL, LINE_INPUT, LINE_SELECT, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER, BADGE_COUNT } from '@/lib/formStyles'
+import { BTN, BTN_SM, BTN_SECONDARY, BTN_CLOSE, CARD, INPUT, SELECT, TEXTAREA, LABEL, LINE_INPUT, LINE_SELECT, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER, BADGE_COUNT } from '@/lib/formStyles'
 import { fmtCurrency } from '@/lib/formatting'
 import { useAuthStore } from '@/stores/authStore'
 
@@ -718,8 +718,8 @@ function OrderDetailOverlay({
               </span>
             )}
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded ml-3">
-            <X className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+          <button onClick={onClose} className={BTN_CLOSE + ' ml-3'}>
+            <X className="w-5 h-5" />
           </button>
         </div>
 
@@ -1228,8 +1228,8 @@ function CreateOrderModal({ onClose, onCreated }: { onClose: () => void; onCreat
       <div className={OVERLAY_PANEL + ' max-w-lg p-6'} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Nouvelle commande</h3>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
-            <X className="w-5 h-5 text-gray-400" />
+          <button onClick={onClose} className={BTN_CLOSE}>
+            <X className="w-5 h-5" />
           </button>
         </div>
 
