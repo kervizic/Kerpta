@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Emmanuel Kervizic
 // Licence : AGPL-3.0 - https://www.gnu.org/licenses/agpl-3.0.html
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Loader2, X, Upload, Sparkles, ChevronLeft, ChevronRight,
@@ -314,8 +314,13 @@ export default function ImportsPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                      {item.created_at ? new Date(item.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
+                    <td className="px-4 py-3 text-gray-500 dark:text-gray-400">
+                      {item.created_at ? (
+                        <div className="text-xs leading-tight">
+                          <div>{new Date(item.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</div>
+                          <div className="text-gray-400 dark:text-gray-500">{new Date(item.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</div>
+                        </div>
+                      ) : '-'}
                     </td>
                   </tr>
                 )
@@ -614,10 +619,13 @@ function ImportDetailOverlay({
     setSaving(false)
   }
 
-  async function handleSave() {
-    setSaving(true)
+  // Auto-save debounce : sauvegarde automatique a chaque modification
+  const autoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const initialLoadDone = useRef(false)
+
+  const doAutoSave = useCallback(async () => {
+    if (!importId || !detail || detail.status === 'rejected') return
     try {
-      // Construire le corrected_json avec les lignes mappees si disponibles
       const patchBody: Record<string, unknown> = {
         doc_type: docType || undefined,
         client_id: clientId || undefined,
@@ -654,12 +662,24 @@ function ImportDetailOverlay({
       }
       await orgPatch(`/imports/${importId}`, patchBody)
       queryClient.invalidateQueries({ queryKey: ['import-detail', importId] })
-      onRefresh()
     } catch {
-      alert('Erreur lors de la sauvegarde')
+      // Silencieux - pas d'alerte pour l'auto-save
     }
-    setSaving(false)
-  }
+  }, [importId, detail, docType, clientId, docNumber, docDate, docDueDate, docRef, docOrderNumber, mappedLines, queryClient])
+
+  // Declencher auto-save a chaque changement (debounce 800ms)
+  useEffect(() => {
+    if (!initialLoadDone.current) {
+      // Ne pas auto-save au premier render (chargement initial des donnees)
+      if (detail) initialLoadDone.current = true
+      return
+    }
+    if (autoSaveRef.current) clearTimeout(autoSaveRef.current)
+    autoSaveRef.current = setTimeout(() => {
+      void doAutoSave()
+    }, 800)
+    return () => { if (autoSaveRef.current) clearTimeout(autoSaveRef.current) }
+  }, [docType, clientId, docNumber, docDate, docDueDate, docRef, docOrderNumber, mappedLines]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleReject() {
     setRejecting(true)
@@ -1138,10 +1158,6 @@ function ImportDetailOverlay({
 
             {/* Actions */}
             <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-              <button onClick={handleSave} disabled={saving} className={BTN_SECONDARY}>
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                Enregistrer
-              </button>
               {detail.status === 'pending' && (
                 <button onClick={handleValidate} disabled={saving || !docType} className={BTN}>
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}

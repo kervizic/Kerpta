@@ -6,7 +6,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { Search, Check, Sparkles, FileText, Package, UserRound, PenLine, Loader2, ChevronRight, Plus, X } from 'lucide-react'
 import { orgGet } from '@/lib/orgApi'
 import { fmtCurrency } from '@/lib/formatting'
-import { INPUT, LINE_INPUT, LINE_SELECT, BTN, BTN_SM, BTN_LINK, BTN_LINK_GRAY, DROPDOWN, LINE_LABEL } from '@/lib/formStyles'
+import { INPUT, LINE_INPUT, LINE_SELECT, BTN_SM, BTN_LINK, BTN_LINK_GRAY, DROPDOWN, LINE_LABEL } from '@/lib/formStyles'
 
 // -- Types publiques ----------------------------------------------------------
 
@@ -233,8 +233,6 @@ function autoMatchQuoteLines(importLines: ImportLine[], quoteLines: QuoteDetailL
 
 export default function LineMapper({ importLines, clientId, onLinesReady }: LineMapperProps) {
   const [mappings, setMappings] = useState<Record<number, LineMappingState>>({})
-  const [mappingsVersion, setMappingsVersion] = useState(0)
-  const [appliedVersion, setAppliedVersion] = useState(-1)
   const [showQuoteSearch, setShowQuoteSearch] = useState(false)
   const [quoteSearchQuery, setQuoteSearchQuery] = useState('')
   const [quotesWithLines, setQuotesWithLines] = useState<QuoteWithLines[]>([])
@@ -257,7 +255,6 @@ export default function LineMapper({ importLines, clientId, onLinesReady }: Line
   }, [importLines]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function updateMapping(position: number, patch: Partial<LineMappingState>) {
-    setMappingsVersion((v) => v + 1)
     setMappings((prev) => ({
       ...prev,
       [position]: { ...prev[position], ...patch },
@@ -265,7 +262,6 @@ export default function LineMapper({ importLines, clientId, onLinesReady }: Line
   }
 
   function updateSub(position: number, subId: string, patch: Partial<SubMapping>) {
-    setMappingsVersion((v) => v + 1)
     setMappings((prev) => {
       const m = prev[position]
       if (!m) return prev
@@ -280,7 +276,6 @@ export default function LineMapper({ importLines, clientId, onLinesReady }: Line
   }
 
   function removeSub(position: number, subId: string) {
-    setMappingsVersion((v) => v + 1)
     setMappings((prev) => {
       const m = prev[position]
       if (!m) return prev
@@ -297,7 +292,6 @@ export default function LineMapper({ importLines, clientId, onLinesReady }: Line
   }
 
   function addSubToLine(position: number, sub: SubMapping) {
-    setMappingsVersion((v) => v + 1)
     setMappings((prev) => {
       const m = prev[position] || { mapped: false, subs: [] }
       return {
@@ -318,7 +312,6 @@ export default function LineMapper({ importLines, clientId, onLinesReady }: Line
   }
 
   function applyFreeAll() {
-    setMappingsVersion((v) => v + 1)
     const updated: Record<number, LineMappingState> = {}
     for (const line of importLines) {
       updated[line.position] = {
@@ -369,7 +362,6 @@ export default function LineMapper({ importLines, clientId, onLinesReady }: Line
   async function applyQuoteToAll(quote: QuoteWithLines) {
     setShowQuoteSearch(false)
     setQuoteSearchQuery('')
-    setMappingsVersion((v) => v + 1)
     if (quote.lines.length > 0) {
       const matched = autoMatchQuoteLines(importLines, quote.lines, quote.number, quote.id)
       setMappings(matched)
@@ -400,6 +392,45 @@ export default function LineMapper({ importLines, clientId, onLinesReady }: Line
       void loadClientQuotes('')
     }
   }, [showQuoteSearch, clientId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-propager les lignes mappees au parent a chaque changement
+  const propagateRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    if (propagateRef.current) clearTimeout(propagateRef.current)
+    propagateRef.current = setTimeout(() => {
+      const lines: MappedLine[] = []
+      for (const il of importLines) {
+        const m = mappings[il.position]
+        if (!m || !m.mapped || m.subs.length === 0) {
+          // Non mappe - ne pas inclure (le parent verra null)
+          continue
+        } else {
+          for (const sub of m.subs) {
+            lines.push({
+              source: sub.source,
+              source_id: sub.source_id,
+              source_label: sub.source_label,
+              quote_id: sub.quote_id,
+              description: sub.description,
+              quantity: sub.quantity,
+              unit: sub.unit,
+              unit_price: sub.unit_price,
+              vat_rate: sub.vat_rate,
+              discount_percent: sub.discount_percent,
+              product_id: sub.product_id,
+            })
+          }
+        }
+      }
+      // Propager seulement si au moins une ligne est mappee
+      if (lines.length > 0) {
+        onLinesReady(lines)
+      } else {
+        onLinesReady([])
+      }
+    }, 150)
+    return () => { if (propagateRef.current) clearTimeout(propagateRef.current) }
+  }, [mappings, importLines]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function applyCatalogProduct(position: number, product: CatalogProduct, line: ImportLine, isClientVariant: boolean) {
     addSubToLine(position, {
@@ -435,50 +466,7 @@ export default function LineMapper({ importLines, clientId, onLinesReady }: Line
     })
   }
 
-  function handleApply() {
-    const lines: MappedLine[] = []
-    for (const il of importLines) {
-      const m = mappings[il.position]
-      if (!m || !m.mapped || m.subs.length === 0) {
-        // Unmapped - saisie libre par defaut
-        lines.push({
-          source: 'free',
-          source_id: null,
-          source_label: null,
-          quote_id: null,
-          description: il.extracted_designation || il.extracted_description || '',
-          quantity: il.extracted_quantity ?? 1,
-          unit: il.extracted_unit || 'u',
-          unit_price: il.extracted_unit_price ?? 0,
-          vat_rate: il.extracted_vat_rate ?? 20,
-          discount_percent: 0,
-          product_id: null,
-        })
-      } else {
-        // Plusieurs sous-lignes possibles par ligne IA
-        for (const sub of m.subs) {
-          lines.push({
-            source: sub.source,
-            source_id: sub.source_id,
-            source_label: sub.source_label,
-            quote_id: sub.quote_id,
-            description: sub.description,
-            quantity: sub.quantity,
-            unit: sub.unit,
-            unit_price: sub.unit_price,
-            vat_rate: sub.vat_rate,
-            discount_percent: sub.discount_percent,
-            product_id: sub.product_id,
-          })
-        }
-      }
-    }
-    setAppliedVersion(mappingsVersion)
-    onLinesReady(lines)
-  }
-
-  const allMapped = importLines.every((il) => mappings[il.position]?.mapped)
-  const hasChanges = appliedVersion !== mappingsVersion
+  const mappedCount = importLines.filter((il) => mappings[il.position]?.mapped).length
 
   const statusLabel: Record<string, string> = {
     draft: 'Brouillon',
@@ -608,19 +596,13 @@ export default function LineMapper({ importLines, clientId, onLinesReady }: Line
         />
       ))}
 
-      {/* Bottom actions */}
-      <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-gray-200 dark:border-gray-700">
-        <div className="flex-1" />
-        <button
-          onClick={handleApply}
-          disabled={!allMapped || !hasChanges}
-          className={BTN}
-          title={!allMapped ? 'Toutes les lignes doivent etre mappees' : !hasChanges ? 'Deja applique' : ''}
-        >
-          <Check className="w-4 h-4" />
-          {!hasChanges && appliedVersion >= 0 ? 'Applique' : `Appliquer (${importLines.filter((il) => mappings[il.position]?.mapped).length}/${importLines.length})`}
-        </button>
-      </div>
+      {/* Status bar */}
+      {mappedCount > 0 && (
+        <div className="flex items-center gap-2 pt-2 text-xs text-gray-500 dark:text-gray-400">
+          <Check className="w-3.5 h-3.5 text-green-500" />
+          {mappedCount}/{importLines.length} ligne{mappedCount > 1 ? 's' : ''} mappee{mappedCount > 1 ? 's' : ''}
+        </div>
+      )}
     </div>
   )
 }
