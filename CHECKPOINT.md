@@ -110,3 +110,66 @@
 
 ## Bugs/problemes en cours
 - Quote IDs : code frontend envoie les quote_ids, mais pas encore teste end-to-end
+
+---
+
+# Checkpoint - 2026-04-10 (session 4 - refonte architecture execution)
+
+## Decision architecturale majeure
+
+Refonte complete de la chaine documentaire Devis → Facture. Les commandes, bons de livraison, attachements et situations d'avancement sont unifies dans un seul concept : **documents d'execution**.
+
+### Probleme identifie
+- Les commandes (orders), situations et attachements (type de devis) vivaient dans 3 endroits distincts avec 3 logiques de facturation differentes
+- Les "attachements" etaient un type de devis, alors que c'est un document d'execution terrain
+- Pas de notion de bon de livraison (BL)
+- Pas de liens entre documents du meme niveau (commande <-> BL)
+
+### Architecture adoptee : 3 niveaux
+1. **Engagement** : devis, BPU, contrats, avenants (inchange)
+2. **Execution** : table unifiee `execution_documents` avec 4 types (order, delivery, work_report, progress)
+3. **Facturation** : factures, avoirs (inchange)
+
+### Principes cles
+- Les 4 types de documents d'execution sont des **pairs** (pas de hierarchie parent-enfant)
+- Liens horizontaux via table `execution_links` (fulfills / consolidates)
+- Liens verticaux : source_quote_id, contract_id, invoice_id
+- Un seul mecanisme de facturation pour tous les types
+- Pre-remplissage intelligent "Creer depuis..." (quantites restantes, % precedents)
+- Facturation avec regroupement optionnel (global / par avenant / par lot)
+- Types activables par organisation via `enabled_exec_types` JSONB
+- Referentiel de lignes du contrat = devis initial + avenants
+
+### Tables a creer
+- `execution_documents` (remplace orders + situations)
+- `execution_lines` (remplace order_lines + situation_lines)
+- `execution_links` (nouveau — liens entre pairs)
+
+### Tables a supprimer
+- `orders`, `order_lines`, `order_types`
+- `order_quotes`, `order_invoices` (tables de jonction)
+- `situations`, `situation_lines`
+
+### Modifications
+- `quotes` : retrait du type `attachement` des document_type
+- `invoices` : `situation_id` remplace par `execution_document_id`
+- `organizations` : ajout `enabled_exec_types` JSONB
+
+## Fichiers crees/modifies
+- docs/Agent/18 - Documents d'Execution.md (CREE — spec complete)
+- docs/Humain/18 - Documents d'Execution.md (CREE — guide utilisateur)
+- docs/Agent/01 - Vision & Modules.md (menu Vente, section devis, section commandes)
+- docs/Agent/15 - Contrats & Situations.md (redirection vers spec 18, mise a jour relations)
+- CLAUDE.md (domaine metier, docs)
+- docs/Agent/PROMPT-CLAUDE-CODE-EXECUTIONS.md (CREE — prompt implementation)
+- CHECKPOINT.md (ce fichier)
+
+## Prochaines etapes
+- Implementer la refonte (PROMPT-CLAUDE-CODE-EXECUTIONS.md)
+- Migration Alembic : supprimer anciennes tables, creer nouvelles
+- Adapter le frontend : page Suivi unifiee
+- Implementer module IA (PROMPT-CLAUDE-CODE-IA.md)
+- Tests : coverage 80% sur les services
+
+## Bugs/problemes en cours
+- Quote IDs : code frontend envoie les quote_ids, mais pas encore teste end-to-end

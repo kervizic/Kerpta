@@ -1,26 +1,28 @@
 # Contrats & Situations d'avancement
 
+> **IMPORTANT — Refonte architecture :** Les situations d'avancement, les commandes et les attachements sont désormais unifiés dans le concept de **documents d'exécution**. Voir `18 - Documents d'Execution.md` pour la nouvelle architecture complète. Ce document reste valable pour la partie **contrats** (enveloppe, avenants, budget) mais les sections sur les situations sont remplacées par la spec 18.
+
 ## Vue d'ensemble
 
-Le module Contrats de Kerpta repose sur le concept d'**enveloppe légère** : un contrat regroupe des devis, des avenants et des situations sans avoir de lignes propres. Sa valeur totale est calculée dynamiquement depuis les documents rattachés.
+Le module Contrats de Kerpta repose sur le concept d'**enveloppe légère** : un contrat regroupe des devis et des avenants sans avoir de lignes propres. Sa valeur totale est calculée dynamiquement depuis les documents rattachés.
 
-La vue **Commandes & Contrats** dans le menu Vente affiche de façon unifiée les BC (bons de commande reçus) et les contrats — filtrés par type. Fonctionnellement, un BC est un contrat de type `purchase_order`.
+Les contrats sont accessibles depuis le menu Vente → Contrats. Les documents d'exécution (commandes, BL, attachements, situations) sont dans Vente → Suivi.
 
 ---
 
 ## Schéma BDD
 
-Voir `Agent/02 - Base de Données.md` pour les tables `contracts`, `situations`, `situation_lines`, et les colonnes ajoutées à `quotes`, `invoices`, `client_purchase_orders`.
+Voir `Agent/02 - Base de Données.md` pour la table `contracts`, et `Agent/18 - Documents d'Execution.md` pour les tables `execution_documents`, `execution_lines`, `execution_links` (remplacent les anciennes `situations`, `situation_lines`, `orders`, `order_lines`).
 
 **Relations clés :**
 
 ```
 contracts
-  ├── quotes (contract_id FK)          — devis, BPU, attachements, avenants
-  ├── client_purchase_orders (contract_id FK)  — BC liés (optionnel)
-  ├── situations (contract_id FK)      — situations d'avancement
-  │     └── situation_lines (situation_id FK)  — détail par ligne de BPU
-  └── invoices (contract_id FK)        — factures directes ou de situation
+  ├── quotes (contract_id FK)              — devis, BPU, avenants
+  ├── execution_documents (contract_id FK) — commandes, BL, attachements, situations
+  │     └── execution_lines                — lignes (quantites OU % avancement)
+  │     └── execution_links                — liens entre docs d'execution pairs
+  └── invoices (contract_id FK)            — factures generees
 ```
 
 ---
@@ -64,9 +66,10 @@ Un contrat peut avoir plusieurs devis attachés (`quotes.contract_id`). Les type
 | `document_type` | `is_avenant` | Usage |
 |---|---|---|
 | `bpu` | false | Bordereau de Prix Unitaires — référentiel de prix du contrat. Stocké aussi dans `contracts.bpu_quote_id` |
-| `attachement` | false | Détail d'exécution sur une période, valorisé depuis le BPU |
 | `devis` | false | Devis standard lié au contrat (contrats à prix fixe) |
 | `devis` | true | **Avenant** (`avenant_number` auto-incrémenté par contrat) |
+
+> Le type `attachement` a été retiré des devis. Les attachements sont désormais des documents d'exécution (`exec_type = work_report`). Voir `18 - Documents d'Execution.md`.
 
 **Règles de numérotation :** tous restent `DV-YYYY-NNNN` — l'intitulé affiché change selon `document_type` et `is_avenant`.
 

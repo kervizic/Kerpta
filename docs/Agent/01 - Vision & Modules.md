@@ -13,8 +13,9 @@ Positionnement : interface aussi simple que Google Search ou un iPhone — une a
 💼  Vente
     ├── Clients
     ├── Catalogue          (articles & services)
-    ├── Devis              (DV / BPU / Attachement — filtrés par document_type)
-    ├── Commandes & Contrats  (BC + Contrats — même section, filtre par type)
+    ├── Devis              (DV / BPU — engagement pre-vente)
+    ├── Suivi              (Commandes / BL / Attachements / Situations — docs d'execution unifies)
+    ├── Contrats           (enveloppes avec devis, avenants, budget)
     └── Factures & Avoirs
 
 🛒  Achat
@@ -108,7 +109,7 @@ Document commercial adressé à un client avant toute commande ou contrat.
 - Validité par défaut : 30 jours (paramétrable)
 - Un devis converti est verrouillé (immuable)
 
-**Intitulé configurable :** chaque document peut avoir un intitulé choisi parmi une liste configurable par organisation. Liste par défaut : `["Devis", "Attachement", "BPU"]`. L'organisation peut ajouter ou retirer des intitulés depuis les Paramètres. Stocké dans `organizations.quote_document_types JSONB`.
+**Intitulé configurable :** chaque document peut avoir un intitulé choisi parmi une liste configurable par organisation. Liste par défaut : `["Devis", "BPU"]`. L'organisation peut ajouter ou retirer des intitulés depuis les Paramètres. Stocké dans `organizations.quote_document_types JSONB`.
 
 **Types de devis et lien aux contrats :**
 
@@ -116,8 +117,9 @@ Document commercial adressé à un client avant toute commande ou contrat.
 |---|---|---|
 | `devis` | Devis standard, prestation ou fourniture | Optionnel (`contract_id` nullable) |
 | `bpu` | Bordereau de Prix Unitaires — tarification sans quantités | Devient le référentiel de prix du contrat (`bpu_source_id`) |
-| `attachement` | Détail d'exécution sur une période, valorisé depuis le BPU | Obligatoire (`contract_id` non null) |
 | `avenant` | Modification d'un contrat existant (`is_avenant = true`) | Obligatoire (`contract_id` + `avenant_number`) |
+
+> **Note :** le type `attachement` a été retiré des devis. Les attachements sont désormais des documents d'exécution (voir `18 - Documents d'Execution.md`).
 
 **Mode BPU — champ unique :**
 `show_quantity` (défaut `true`) : si `false`, la colonne quantité **et** tous les totaux (ligne + globaux) sont masqués. Sans quantité les montants n'ont pas de sens — les deux sont donc liés à ce seul champ. Seul le prix unitaire HT par prestation est affiché.
@@ -144,15 +146,23 @@ Document commercial adressé à un client avant toute commande ou contrat.
 
 **Mentions obligatoires (art. L441-9 Code de commerce) :** numéro unique, date émission, date prestation, identité vendeur (SIRET + TVA), identité acheteur, description, quantité, PU HT, taux TVA, total HT/TVA/TTC, échéance, pénalités de retard, indemnité forfaitaire 40€.
 
-### Bons de commande clients
+### Documents d'exécution (Suivi)
 
-Document reçu d'un client qui confirme une commande, généralement émis par le client en réponse à un devis accepté. Sert de référence pour la facturation.
+Architecture unifiée pour tous les documents intermédiaires entre l'engagement (devis) et la facturation. Voir `18 - Documents d'Execution.md` pour la spec complète.
 
-- Numérotation : `BC-YYYY-NNNN` (Bon de Commande client)
-- Statuts : `received → confirmed → invoiced / cancelled`
-- Lié à un devis amont (optionnel)
-- Génère une facture en 1 clic — la facture référence le numéro BC du client via `invoices.purchase_order_id`
-- Mentions sur la facture issue du BC : numéro BC client, date réception BC, référence devis associé
+**4 types, même table `execution_documents` :**
+- **Commande** (`order`, BC-YYYY-NNNN) : confirmation de commande client
+- **Bon de livraison** (`delivery`, BL-YYYY-NNNN) : preuve de livraison de marchandises
+- **Attachement** (`work_report`, AT-YYYY-NNNN) : relevé terrain des quantités exécutées (BTP)
+- **Situation** (`progress`, SA-YYYY-NNNN) : avancement cumulé en % (contrats long terme, BTP)
+
+**Principes :**
+- Tous au même niveau (pas de hiérarchie parent-enfant)
+- Chacun peut indépendamment déclencher une facture
+- Liens horizontaux entre pairs via `execution_links` (fulfills / consolidates)
+- Liens verticaux vers devis source (`source_quote_id`), contrat (`contract_id`), facture (`invoice_id`)
+- Types activables par organisation via `enabled_exec_types` JSONB
+- Pré-remplissage intelligent : "Créer depuis..." copie les lignes avec calcul des quantités restantes/% précédents
 
 ### Achats fournisseurs
 
@@ -336,15 +346,11 @@ Disponible sur les **factures clients** et les **fiches de paie**.
 - Statuts : `active` → `reconciled` (supprimé à la validation du rapprochement) / `expired` (si date d'échéance dépassée)
 - Libellé SEPA limité à 140 caractères — format : `{N° facture} {Raison sociale client tronquée}`
 
-### Contrats & Commandes
+### Contrats
 
-Un contrat dans Kerpta est une **enveloppe légère** qui regroupe des devis, des avenants et des situations. Il n'a pas de lignes propres — sa valeur découle des documents qui lui sont rattachés.
+Un contrat dans Kerpta est une **enveloppe légère** qui regroupe des devis et des avenants. Il n'a pas de lignes propres — sa valeur découle des documents qui lui sont rattachés. Les documents d'exécution (commandes, BL, attachements, situations) sont dans la page **Suivi** (voir section ci-dessus) et liés au contrat via `contract_id`.
 
-**Principe :** un BC (commande client reçue) et un contrat sont fonctionnellement identiques — la différence est le type. La même vue "Commandes & Contrats" les affiche ensemble, filtrables par type.
-
-**Numérotation :**
-- Contrat : `CT-YYYY-NNNN`
-- Bon de commande client : `BC-YYYY-NNNN`
+**Numérotation :** `CT-YYYY-NNNN`
 
 **Statuts :** `draft → active → completed / terminated / cancelled`
 
@@ -352,7 +358,6 @@ Un contrat dans Kerpta est une **enveloppe légère** qui regroupe des devis, de
 
 | Type | Usage |
 |---|---|
-| `purchase_order` | Commande client reçue (BC) — simple commande ponctuelle |
 | `fixed_price` | Contrat à prix fixe — devis accepté, facturation directe |
 | `progress_billing` | Contrat à facturation à l'avancement (BTP, chantiers) — situations par étapes |
 | `recurring` | Contrat récurrent (abonnement, prestation mensuelle) |
@@ -364,10 +369,13 @@ Un contrat dans Kerpta est une **enveloppe légère** qui regroupe des devis, de
 ```
 Contrat CT-2026-0001  (enveloppe)
   ├── Devis DV-2026-0010  (BPU ou devis initial — bpu_source_id)
-  ├── Devis DV-2026-0011  (Attachement 1)
   ├── Devis DV-2026-0012  (Avenant n°1 — is_avenant = true, avenant_number = 1)
-  ├── Situation 1           (Facture de situation FA-2026-0020 générée à la validation)
-  └── Situation 2           (Facture de situation FA-2026-0021 générée à la validation)
+  │
+  └── Documents d'exécution liés (dans Suivi) :
+        ├── AT-2026-0001  (Attachement — relevé terrain)
+        ├── AT-2026-0002  (Attachement — relevé terrain)
+        ├── SA-2026-0001  (Situation — consolide les attachements → FA-2026-0020)
+        └── SA-2026-0002  (Situation → FA-2026-0021)
 ```
 
 **Champs clés :**

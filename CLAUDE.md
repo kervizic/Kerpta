@@ -63,11 +63,20 @@ SaaS comptable web francais pour TPE/independants. AGPL-3.0.
 
 ## Domaine metier
 
-- Numerotation : PF-YYYY-NNNN (proforma), FA-YYYY-NNNN (factures), AV-YYYY-NNNN (avoirs), DV-YYYY-NNNN (devis), BC-YYYY-NNNN (commandes), BL-YYYY-NNNN (livraisons)
+- Numerotation : PF-YYYY-NNNN (proforma), FA-YYYY-NNNN (factures), AV-YYYY-NNNN (avoirs), DV-YYYY-NNNN (devis), CT-YYYY-NNNN (contrats), BC-YYYY-NNNN (commandes), BL-YYYY-NNNN (bons de livraison), AT-YYYY-NNNN (attachements), SA-YYYY-NNNN (situations)
 - Documents fournisseurs : pas de prefixe interne, numerotation du fournisseur conservee
+- Architecture documentaire a 3 niveaux :
+  - Engagement : Devis / BPU / Contrats / Avenants
+  - Execution : Commandes / BL / Attachements / Situations (table unifiee `execution_documents`)
+  - Facturation : Factures / Avoirs
+- Chaine : Engagement -> Execution -> Facture (l'execution est toujours creee, transparente si facturation directe)
+- Documents d'execution : 4 types (`order`, `delivery`, `work_report`, `progress`), activables par org
+- Liens entre docs d'execution : table `execution_links` (pairs, pas de hierarchie)
+- Facturation depuis n'importe quel doc d'execution valide, avec regroupement optionnel (global/par avenant/par lot)
 - Factur-X EN 16931 obligatoire pour toute facture generee
 - TVA : 0, 2.1, 5.5, 10, 20 - Devise : EUR uniquement
-- Modules activables/desactivables par org : quotes, invoices, purchase_orders, purchases, expenses, payroll, accounting, esignature
+- Modules activables/desactivables par org : quotes, invoices, orders, purchases, expenses, payroll, accounting, esignature, ai
+- IA : 3 roles (VL/Instruct/Thinking), config super-admin uniquement, LiteLLM proxy, providers generiques
 
 ## Securite
 
@@ -83,7 +92,9 @@ SaaS comptable web francais pour TPE/independants. AGPL-3.0.
 
 ## Docs
 
-- Specs techniques : `docs/Agent/` (01-17 + 00 contexte)
+- Specs techniques : `docs/Agent/` (01-18 + 00 contexte + PCG-2026)
+- **18 - Documents d'Execution.md** : architecture unifiee commandes/BL/attachements/situations
+- Prompts implementation : `docs/Agent/PROMPT-CLAUDE-CODE-*.md`
 - Ne mettre a jour docs/ que si une decision devie des specs existantes
 
 ## Structure
