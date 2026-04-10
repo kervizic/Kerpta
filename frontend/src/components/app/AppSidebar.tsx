@@ -68,7 +68,8 @@ const VENTE_ITEMS: NavItem[] = [
   { label: 'Clients', href: '/app/clients', icon: <UserRound className="w-4 h-4" />, moduleKey: 'ventes.clients', permissionKey: 'quotes:read' },
   { label: 'Catalogue', href: '/app/catalogue', icon: <Package className="w-4 h-4" />, moduleKey: 'ventes.catalogue', permissionKey: 'quotes:read' },
   { label: 'Devis', href: '/app/devis', icon: <FileText className="w-4 h-4" />, moduleKey: 'ventes.devis', permissionKey: 'quotes:read' },
-  { label: 'Commandes', href: '/app/commandes', icon: <ShoppingCart className="w-4 h-4" />, moduleKey: 'ventes.commandes', permissionKey: 'orders:read' },
+  { label: 'Suivi', href: '/app/suivi', icon: <ClipboardList className="w-4 h-4" />, moduleKey: 'ventes.commandes', permissionKey: 'orders:read' },
+  { label: 'Contrats', href: '/app/contrats', icon: <Briefcase className="w-4 h-4" />, moduleKey: 'ventes.contrats', permissionKey: 'contracts:read' },
   { label: 'Factures', href: '/app/factures', icon: <Receipt className="w-4 h-4" />, moduleKey: 'ventes.factures', permissionKey: 'invoices:read' },
   { label: 'Import IA', href: '/app/imports', icon: <Sparkles className="w-4 h-4" />, permissionKey: 'imports:read' },
 ]
