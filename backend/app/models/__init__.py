@@ -17,7 +17,7 @@ from app.models.product import (  # noqa: F401
 )
 from app.models.quote import Quote, QuoteLine  # noqa: F401
 from app.models.invoice import Invoice, InvoiceLine, Payment  # noqa: F401
-from app.models.order import Order, OrderLine, order_quotes, order_invoices  # noqa: F401
+from app.models.execution import ExecutionDocument, ExecutionLine, ExecutionLink  # noqa: F401
 from app.models.purchase import (  # noqa: F401
     SupplierQuote,
     SupplierQuoteLine,
@@ -29,7 +29,7 @@ from app.models.purchase import (  # noqa: F401
 from app.models.accounting import JournalEntry, JournalEntryLine, TaxDeclaration  # noqa: F401
 from app.models.payroll import Employee, Payslip  # noqa: F401
 from app.models.expense import Expense  # noqa: F401
-from app.models.contract import Contract, Situation, SituationLine  # noqa: F401
+from app.models.contract import Contract  # noqa: F401
 from app.models.platform import (  # noqa: F401
     PlatformConfig,
     PlatformAdminLog,

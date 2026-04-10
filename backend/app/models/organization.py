@@ -80,7 +80,10 @@ class Organization(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         nullable=True,
     )
     quote_document_types: Mapped[list] = mapped_column(
-        JSONB, default=lambda: ["Devis", "Attachement", "BPU"], nullable=False
+        JSONB, default=lambda: ["Devis", "BPU"], nullable=False
+    )
+    enabled_exec_types: Mapped[list] = mapped_column(
+        JSONB, default=lambda: ["order"], nullable=False
     )
 
     # Modules

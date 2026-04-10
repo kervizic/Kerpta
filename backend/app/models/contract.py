@@ -1,4 +1,4 @@
-# Kerpta — Application comptable web française
+# Kerpta — Application comptable web francaise
 # Copyright (C) 2026 Emmanuel Kervizic
 # Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
@@ -7,7 +7,6 @@ from datetime import datetime
 
 from sqlalchemy import (
     Boolean,
-    CheckConstraint,
     Date,
     DateTime,
     ForeignKey,
@@ -15,7 +14,6 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
-    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -25,11 +23,11 @@ from app.models.base import TimestampUpdateMixin, UUIDPrimaryKeyMixin
 
 
 class Contract(Base, UUIDPrimaryKeyMixin, TimestampUpdateMixin):
-    """Contrat — enveloppe légère regroupant devis, avenants et situations.
+    """Contrat - enveloppe legere regroupant devis, avenants et documents d'execution.
 
     Types : purchase_order | fixed_price | progress_billing | recurring
             | employment | nda | other
-    Numérotation : CT-YYYY-NNNN (ou BCR-YYYY-NNNN pour purchase_order).
+    Numerotation : CT-YYYY-NNNN (ou BCR-YYYY-NNNN pour purchase_order).
     """
 
     __tablename__ = "contracts"
@@ -76,90 +74,13 @@ class Contract(Base, UUIDPrimaryKeyMixin, TimestampUpdateMixin):
         back_populates="contract",
         order_by="Quote.created_at",
     )
-    situations: Mapped[list["Situation"]] = relationship(
+    execution_documents: Mapped[list["ExecutionDocument"]] = relationship(
+        foreign_keys="ExecutionDocument.contract_id",
         back_populates="contract",
-        cascade="all, delete-orphan",
-        order_by="Situation.situation_number",
+        order_by="ExecutionDocument.created_at",
     )
     invoices: Mapped[list["Invoice"]] = relationship(
         foreign_keys="Invoice.contract_id",
         back_populates="contract",
         order_by="Invoice.created_at",
     )
-
-
-class Situation(Base, UUIDPrimaryKeyMixin, TimestampUpdateMixin):
-    """Situation d'avancement — facturation progressive d'un contrat.
-
-    Chaque situation est cumulative depuis le début du contrat.
-    """
-
-    __tablename__ = "situations"
-
-    organization_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
-    )
-    contract_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("contracts.id", ondelete="CASCADE"), nullable=False
-    )
-    bpu_quote_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("quotes.id", ondelete="RESTRICT"), nullable=False
-    )
-    situation_number: Mapped[int] = mapped_column(Integer, nullable=False)
-    period_label: Mapped[str] = mapped_column(String(255), nullable=False)
-    status: Mapped[str] = mapped_column(
-        String(20), default="draft", nullable=False
-    )  # draft/invoiced/paid
-    cumulative_total: Mapped[float] = mapped_column(Numeric(15, 2), default=0, nullable=False)
-    previously_invoiced: Mapped[float] = mapped_column(Numeric(15, 2), default=0, nullable=False)
-    invoice_amount: Mapped[float] = mapped_column(Numeric(15, 2), default=0, nullable=False)
-    invoice_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("invoices.id", ondelete="SET NULL"), nullable=True
-    )
-
-    __table_args__ = (
-        UniqueConstraint("contract_id", "situation_number"),
-    )
-
-    # Relations
-    contract: Mapped["Contract"] = relationship(back_populates="situations")
-    invoice: Mapped["Invoice | None"] = relationship(
-        foreign_keys=[invoice_id], back_populates="situation_source"
-    )
-    lines: Mapped[list["SituationLine"]] = relationship(
-        back_populates="situation", cascade="all, delete-orphan"
-    )
-
-
-class SituationLine(Base, UUIDPrimaryKeyMixin):
-    """Ligne de situation — détail par ligne de BPU."""
-
-    __tablename__ = "situation_lines"
-
-    situation_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("situations.id", ondelete="CASCADE"), nullable=False
-    )
-    quote_line_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("quote_lines.id", ondelete="RESTRICT"), nullable=False
-    )
-    total_contract: Mapped[float] = mapped_column(Numeric(15, 2), nullable=False)
-    previous_completion_percent: Mapped[float] = mapped_column(
-        Numeric(5, 2), default=0, nullable=False
-    )
-    completion_percent: Mapped[float] = mapped_column(
-        Numeric(5, 2), default=0, nullable=False
-    )
-    cumulative_amount: Mapped[float] = mapped_column(Numeric(15, 2), default=0, nullable=False)
-    previously_invoiced: Mapped[float] = mapped_column(Numeric(15, 2), default=0, nullable=False)
-    line_invoice_amount: Mapped[float] = mapped_column(Numeric(15, 2), default=0, nullable=False)
-
-    __table_args__ = (
-        CheckConstraint("completion_percent BETWEEN 0 AND 100", name="check_completion"),
-        CheckConstraint(
-            "completion_percent >= previous_completion_percent", name="check_cumulative"
-        ),
-    )
-
-    # Relations
-    situation: Mapped["Situation"] = relationship(back_populates="lines")
-    quote_line: Mapped["QuoteLine"] = relationship()

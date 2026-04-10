@@ -30,12 +30,12 @@ class Invoice(Base, UUIDPrimaryKeyMixin, TimestampUpdateMixin):
     # Note : purchase_order_id supprime (migration 0017) — remplace par table order_invoices
     # Le champ purchase_order_number (texte libre) est conserve pour l'affichage PDF
 
-    # Lien contrat et situation
+    # Lien contrat et document d'execution
     contract_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("contracts.id", ondelete="SET NULL"), nullable=True
     )
-    situation_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("situations.id", ondelete="SET NULL"), nullable=True
+    execution_document_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("execution_documents.id", ondelete="SET NULL"), nullable=True
     )
     is_situation: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     situation_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -111,8 +111,8 @@ class Invoice(Base, UUIDPrimaryKeyMixin, TimestampUpdateMixin):
     contract: Mapped["Contract | None"] = relationship(
         foreign_keys=[contract_id], back_populates="invoices"
     )
-    situation_source: Mapped["Situation | None"] = relationship(
-        foreign_keys=[situation_id], back_populates="invoice"
+    execution_source: Mapped["ExecutionDocument | None"] = relationship(
+        foreign_keys=[execution_document_id], back_populates="invoice"
     )
     lines: Mapped[list["InvoiceLine"]] = relationship(
         back_populates="invoice",
