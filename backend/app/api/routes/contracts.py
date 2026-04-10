@@ -1,8 +1,8 @@
-# Kerpta — Application comptable web française
+# Kerpta — Application comptable web francaise
 # Copyright (C) 2026 Emmanuel Kervizic
 # Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
-"""Routes API — Contrats."""
+"""Routes API - Contrats."""
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,9 +16,8 @@ from app.schemas.contracts import (
     ContractUpdate,
     PaginatedContracts,
 )
-from app.schemas.situations import SituationCreate, SituationOut
 from app.services import contracts as contract_svc
-from app.services import situations as situation_svc
+from app.services import executions as exec_svc
 
 router = APIRouter(prefix="/api/v1/contracts", tags=["contracts"])
 
@@ -95,23 +94,19 @@ async def get_contract_budget(
     return await contract_svc.get_contract_budget(ctx.org_id, contract_id, db)
 
 
-# ── Situations imbriquées ────────────────────────────────────────────────────
-
-
-@router.get("/{contract_id}/situations", response_model=list[SituationOut])
-async def list_situations(
+@router.get("/{contract_id}/executions")
+async def list_contract_executions(
     contract_id: str,
+    exec_type: str | None = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=100),
     ctx: OrgContext = Depends(get_org_context),
     db: AsyncSession = Depends(get_db),
 ):
-    return await situation_svc.list_situations(ctx.org_id, contract_id, db)
-
-
-@router.post("/{contract_id}/situations", status_code=201)
-async def create_situation(
-    contract_id: str,
-    data: SituationCreate,
-    ctx: OrgContext = Depends(get_org_context),
-    db: AsyncSession = Depends(get_db),
-):
-    return await situation_svc.create_situation(ctx.org_id, contract_id, data, db)
+    """Liste les documents d'execution lies a ce contrat."""
+    return await exec_svc.list_executions(
+        ctx.org_id, db,
+        contract_id=contract_id,
+        exec_type=exec_type,
+        page=page, page_size=page_size,
+    )

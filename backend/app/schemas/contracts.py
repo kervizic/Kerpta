@@ -65,7 +65,7 @@ class ContractDetailOut(ContractOut):
     remaining: Decimal = Decimal("0")
     progress_percent: Decimal = Decimal("0")
     quote_count: int = 0
-    situation_count: int = 0
+    execution_count: int = 0
     invoice_count: int = 0
 
 
