@@ -448,13 +448,15 @@ async def accept_quote(
     db: AsyncSession,
     *,
     client_reference: str | None = None,
-    create_order: bool = True,
+    create_execution: bool = True,
+    exec_type: str = "order",
 ) -> dict:
-    """Marque un devis comme accepte et cree une commande automatiquement.
+    """Marque un devis comme accepte et cree un document d'execution.
 
     Args:
         client_reference: reference BC du client (optionnel).
-        create_order: si True (defaut), cree une commande liee au devis.
+        create_execution: si True (defaut), cree un doc d'execution lie au devis.
+        exec_type: type de doc d'execution a creer (order par defaut).
     """
     result = await db.execute(
         text("""
@@ -473,17 +475,29 @@ async def accept_quote(
     if contract_id:
         await _update_contract_budget(contract_id, db)
 
-    # Toujours creer une commande (tracabilite + ref BC client)
-    # Le module commandes controle uniquement la visibilite dans le menu
-    order_id = None
-    if create_order:
-        from app.services.orders import create_from_quote
-        order_id = await create_from_quote(
-            org_id, quote_id, "quote_validation", client_reference, db,
+    # Creer un document d'execution (tracabilite)
+    execution_id = None
+    if create_execution:
+        from app.services.executions import create_from_quote
+        from app.schemas.execution import ExecutionFromQuote
+
+        # Obtenir user_id depuis le devis (assigned_to ou un UUID par defaut)
+        user_result = await db.execute(
+            text("SELECT assigned_to::text FROM quotes WHERE id = :qid"),
+            {"qid": quote_id},
         )
+        user_row = user_result.fetchone()
+        user_id = uuid.UUID(user_row[0]) if user_row and user_row[0] else uuid.UUID(int=0)
+
+        exec_data = ExecutionFromQuote(
+            exec_type=exec_type,
+            client_reference=client_reference,
+        )
+        exec_result = await create_from_quote(org_id, user_id, quote_id, exec_data, db)
+        execution_id = exec_result.get("id")
 
     await db.commit()
-    return {"status": "accepted", "order_id": order_id}
+    return {"status": "accepted", "execution_id": execution_id}
 
 
 async def invoice_quote(
@@ -493,30 +507,35 @@ async def invoice_quote(
     *,
     client_reference: str | None = None,
 ) -> dict:
-    """Accepte le devis et cree une facture.
+    """Accepte le devis, cree un document d'execution et le facture.
 
-    Si le module commandes est active : cree commande + facture.
-    Si le module commandes est desactive : cree la facture directement.
     Retourne l'ID de la facture creee pour redirection frontend.
     """
-    # 1. Accepter le devis + creer la commande (toujours)
+    from app.services.executions import invoice_execution, validate_execution
+    from app.schemas.execution import ExecutionInvoiceRequest
+
+    # 1. Accepter le devis + creer le document d'execution
     result = await accept_quote(
         org_id, quote_id, db,
         client_reference=client_reference,
-        create_order=True,
+        create_execution=True,
     )
-    order_id = result.get("order_id")
-    if not order_id:
-        raise HTTPException(500, "La commande n'a pas ete creee")
+    execution_id = result.get("execution_id")
+    if not execution_id:
+        raise HTTPException(500, "Le document d'execution n'a pas ete cree")
 
-    # 2. Facturer la commande
-    from app.services.orders import invoice_order
-    invoice_result = await invoice_order(org_id, order_id, db)
+    # 2. Valider le document d'execution
+    await validate_execution(org_id, execution_id, uuid.UUID(int=0), db)
+
+    # 3. Facturer le document d'execution
+    invoice_result = await invoice_execution(
+        org_id, execution_id, ExecutionInvoiceRequest(), db
+    )
 
     return {
         "status": "invoiced",
-        "order_id": order_id,
-        "invoice_id": invoice_result["invoice_id"],
+        "execution_id": execution_id,
+        "invoice_id": invoice_result["invoices"][0]["invoice_id"],
     }
 
 

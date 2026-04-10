@@ -132,7 +132,7 @@ async def get_contract(
                    ct.signed_pdf_url, ct.notes,
                    ct.created_at, ct.updated_at,
                    (SELECT COUNT(*) FROM quotes q WHERE q.contract_id = ct.id) AS quote_count,
-                   (SELECT COUNT(*) FROM situations s WHERE s.contract_id = ct.id) AS situation_count,
+                   (SELECT COUNT(*) FROM execution_documents ed WHERE ed.contract_id = ct.id) AS execution_count,
                    (SELECT COUNT(*) FROM invoices i WHERE i.contract_id = ct.id) AS invoice_count
             FROM contracts ct
             LEFT JOIN clients c ON c.id = ct.client_id
@@ -264,8 +264,8 @@ async def update_contract_totals(contract_id: str, db: AsyncSession) -> None:
                     WHERE contract_id = :cid AND status = 'accepted'
                 ), 0),
                 total_invoiced = COALESCE((
-                    SELECT SUM(total_ttc) FROM invoices
-                    WHERE contract_id = :cid AND status != 'cancelled'
+                    SELECT SUM(subtotal_ht) FROM execution_documents
+                    WHERE contract_id = :cid AND status = 'invoiced'
                 ), 0),
                 updated_at = now()
             WHERE id = :cid

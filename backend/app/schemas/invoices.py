@@ -43,6 +43,9 @@ class InvoiceCreate(BaseModel):
     client_id: str
     quote_id: str | None = None
     contract_id: str | None = None
+    execution_document_id: str | None = None
+    is_situation: bool = False
+    situation_number: int | None = None
     issue_date: date
     due_date: date | None = None
     payment_terms: int = 30
