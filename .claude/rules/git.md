@@ -12,7 +12,22 @@
 - Phase normale : feature/xxx ou fix/xxx depuis develop
 - Jamais de push direct sur main ou develop
 
-## Deploiement
-- Le hook PostToolUse detecte `git push` et deploie automatiquement sur le VPS
-- Seuls les services modifies sont rebuildes (backend/ -> api+worker, frontend/ -> frontend)
+## Deploiement VPS
+- Le deploy est ENTIEREMENT gere par Claude (toi)
+- Apres chaque push sur beta : se connecter au VPS et deployer
+- Commande de deploy sur le VPS :
+  ```
+  ssh [VPS] "cd /opt/kerpta && git pull origin beta && docker compose up -d --build"
+  ```
+- Rebuild selectif : seuls les services modifies sont rebuildes
+  - Modif backend/ -> rebuild api + worker
+  - Modif frontend/ -> rebuild frontend
+  - Modif docker-compose ou .env -> rebuild tout
 - Ne pas relancer LiteLLM sauf si sa config change
+- Apres deploy : verifier que les conteneurs tournent (`docker ps`)
+- Si erreur de migration : lire les logs (`docker logs kerpta-api-1 --tail 50`)
+
+## Verification post-deploy
+- Verifier que l'API repond : `curl -s https://[domain]/health`
+- Si migration Alembic : verifier les logs du conteneur api
+- Si modif frontend : verifier que la page charge correctement
