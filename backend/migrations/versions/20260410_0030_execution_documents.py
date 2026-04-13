@@ -22,17 +22,27 @@ from sqlalchemy.dialects.postgresql import UUID, JSONB
 
 def upgrade() -> None:
     # ── 0. Supprimer les FK qui pointent vers les tables a dropper ──────────
-    op.drop_constraint("invoices_situation_id_fkey", "invoices", type_="foreignkey")
-    op.drop_column("invoices", "situation_id")
+    # Utilise IF EXISTS car la FK peut avoir ete deja droppee par une tentative precedente
+    conn = op.get_bind()
+    conn.execute(sa.text(
+        "ALTER TABLE invoices DROP CONSTRAINT IF EXISTS invoices_situation_id_fkey"
+    ))
+    conn.execute(sa.text(
+        "ALTER TABLE invoices DROP CONSTRAINT IF EXISTS fk_invoices_situation_id"
+    ))
+    # Supprimer la colonne situation_id si elle existe encore
+    conn.execute(sa.text(
+        "ALTER TABLE invoices DROP COLUMN IF EXISTS situation_id"
+    ))
 
     # ── 1. Supprimer les anciennes tables (ordre FK) ────────────────────────
-    op.drop_table("situation_lines")
-    op.drop_table("situations")
-    op.drop_table("order_invoices")
-    op.drop_table("order_quotes")
-    op.drop_table("order_lines")
-    op.drop_table("orders")
-    op.drop_table("order_types")
+    conn.execute(sa.text("DROP TABLE IF EXISTS situation_lines CASCADE"))
+    conn.execute(sa.text("DROP TABLE IF EXISTS situations CASCADE"))
+    conn.execute(sa.text("DROP TABLE IF EXISTS order_invoices CASCADE"))
+    conn.execute(sa.text("DROP TABLE IF EXISTS order_quotes CASCADE"))
+    conn.execute(sa.text("DROP TABLE IF EXISTS order_lines CASCADE"))
+    conn.execute(sa.text("DROP TABLE IF EXISTS orders CASCADE"))
+    conn.execute(sa.text("DROP TABLE IF EXISTS order_types CASCADE"))
 
     # ── 2. Creer execution_documents ────────────────────────────────────────
     op.create_table(
