@@ -165,11 +165,51 @@ Refonte complete de la chaine documentaire Devis → Facture. Les commandes, bon
 - CHECKPOINT.md (ce fichier)
 
 ## Prochaines etapes
-- Implementer la refonte (PROMPT-CLAUDE-CODE-EXECUTIONS.md)
-- Migration Alembic : supprimer anciennes tables, creer nouvelles
-- Adapter le frontend : page Suivi unifiee
+- ~~Implementer la refonte (PROMPT-CLAUDE-CODE-EXECUTIONS.md)~~ FAIT (session 5)
+- ~~Migration Alembic : supprimer anciennes tables, creer nouvelles~~ FAIT (session 5)
+- ~~Adapter le frontend : page Suivi unifiee~~ FAIT (session 5)
 - Implementer module IA (PROMPT-CLAUDE-CODE-IA.md)
 - Tests : coverage 80% sur les services
 
 ## Bugs/problemes en cours
 - Quote IDs : code frontend envoie les quote_ids, mais pas encore teste end-to-end
+
+---
+
+# Checkpoint - 2026-04-11 (session 5 - refonte execution_documents + optimisation Claude)
+
+## Ce qui a ete fait
+
+### Refonte complete documents d'execution (7 etapes)
+1. **Migration Alembic 0030** : supprime 7 tables (orders, order_lines, order_types, order_quotes, order_invoices, situations, situation_lines), cree 3 tables (execution_documents, execution_lines, execution_links). Modifie invoices (execution_document_id) et organizations (enabled_exec_types)
+2. **Modeles SQLAlchemy** : ExecutionDocument, ExecutionLine, ExecutionLink. Mise a jour Invoice, Contract, Organization
+3. **Schemas Pydantic** : 8 input + 6 output
+4. **Service metier executions.py** (780 lignes) : numerotation par type (BC/BL/AT/SA), calculs Decimal, CRUD complet, pre-remplissage depuis devis/execution/contrat, facturation modes global/by_origin, liens horizontaux, chaine documentaire
+5. **Routes API** : 16 endpoints sous /api/v1/executions
+6. **Frontend ExecutionsPage.tsx** : liste filtrable par type/statut, overlay detail + creation, responsive
+7. **Tests** : 17 tests unitaires calculs financiers
+8. **Nettoyage** : 7 anciens fichiers supprimes
+
+### Optimisation instructions Claude
+- ~/.claude/CLAUDE.md : role lead dev/chef de projet, Emmanuel = client
+- CLAUDE.md projet : posture, checklist avant de coder
+- .claude/rules/ : architecture, git (deploy VPS), testing (VPS only), agents.md (NOUVEAU)
+
+### Deploy VPS confirme
+- SSH : user `claude`, cle `~/.ssh/kerpta_deploy`, priorite kerpta.fr, backup Tailscale 100.118.236.48
+- Migration 0030 appliquee, API et worker Up
+
+## Problemes rencontres et resolus
+1. **FK situation_id** bloquait le DROP TABLE situations -> dropper la FK en premier
+2. **Etat partiel migration** -> rendre idempotente avec IF EXISTS + CASCADE
+3. **SSH fail2ban** -> utiliser IP Tailscale en backup
+4. **User SSH** = `claude` (pas deploy/kerpta/debian)
+
+## Prochaines etapes
+- Adapter QuotesPage (retirer type attachement, bouton "Accepter" propose les types execution)
+- Adapter ContractsPage (onglet "Suivi" avec execution_documents du contrat)
+- Adapter InvoicesPage (afficher type + numero execution source)
+- Rebuild frontend sur VPS pour tester la page Suivi
+- Implementer module IA (PROMPT-CLAUDE-CODE-IA.md)
+- Tests : atteindre 80% coverage
+- Bug quote_ids toujours pas teste end-to-end
