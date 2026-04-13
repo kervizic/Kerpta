@@ -1,5 +1,14 @@
 # Regles de test - Kerpta
 
+## Execution des tests
+- Les tests tournent UNIQUEMENT sur le VPS (dans Docker) ou dans GitHub Actions (CI)
+- NE JAMAIS lancer pytest ou vitest en local - pas d'environnement installe
+- Pour lancer les tests : pusher le code, puis executer via SSH sur le VPS :
+  ```
+  ssh [VPS] "cd /opt/kerpta && docker compose exec api pytest tests/ -v"
+  ```
+- Ou verifier les resultats dans GitHub Actions apres un push
+
 ## Backend (pytest)
 - Coverage minimum 80% sur tous les fichiers `services/`
 - Tests obligatoires pour tout calcul financier (TVA, totaux, cotisations, arrondis)
