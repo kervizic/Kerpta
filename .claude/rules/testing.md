@@ -5,7 +5,7 @@
 - NE JAMAIS lancer pytest ou vitest en local - pas d'environnement installe
 - Pour lancer les tests : pusher le code, puis executer via SSH sur le VPS :
   ```
-  ssh -i ~/.ssh/kerpta_deploy kerpta@kerpta.fr "cd /opt/kerpta && docker compose exec api pytest tests/ -v"
+  ssh -i ~/.ssh/kerpta_deploy claude@100.118.236.48 "cd /opt/kerpta && docker compose exec api pytest tests/ -v"
   ```
 - Ou verifier les resultats dans GitHub Actions apres un push
 
