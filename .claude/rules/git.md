@@ -15,9 +15,10 @@
 ## Deploiement VPS
 - Le deploy est ENTIEREMENT gere par Claude (toi)
 - Apres chaque push sur beta : se connecter au VPS et deployer
+- VPS : kerpta.fr (164.132.49.26), user `deploy`, cle `~/.ssh/kerpta_deploy`, chemin `/opt/kerpta`
 - Commande de deploy sur le VPS :
   ```
-  ssh [VPS] "cd /opt/kerpta && git pull origin beta && docker compose up -d --build"
+  ssh -i ~/.ssh/kerpta_deploy deploy@kerpta.fr "cd /opt/kerpta && git pull origin beta && docker compose up -d --build"
   ```
 - Rebuild selectif : seuls les services modifies sont rebuildes
   - Modif backend/ -> rebuild api + worker
