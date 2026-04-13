@@ -180,7 +180,7 @@ export default function ExecutionsPage() {
   // ── Rendu ──────────────────────────────────────────────────────────────
 
   return (
-    <PageLayout title="Suivi" subtitle="Documents d'execution">
+    <PageLayout icon={<FileText className="w-5 h-5" />} title="Suivi" subtitle="Documents d'execution">
       {/* Barre de filtres */}
       <div className="flex flex-col md:flex-row md:items-center gap-3 mb-4">
         {/* Onglets type */}
