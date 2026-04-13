@@ -2,9 +2,9 @@
 // Copyright (C) 2026 Emmanuel Kervizic
 // Licence : AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
 
-import { useState, useEffect, useCallback, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { orgGet, orgPost, orgPatch, orgDelete } from '@/lib/orgApi'
+import { orgGet, orgPost, orgDelete } from '@/lib/orgApi'
 import { useAuthStore } from '@/stores/authStore'
 import { BTN, BTN_SM, BTN_SECONDARY, BTN_DANGER_SM, BTN_CLOSE, INPUT, SELECT, LINE_INPUT, LINE_SELECT, LABEL, OVERLAY_BACKDROP, OVERLAY_PANEL, OVERLAY_HEADER, CARD, SECTION, TEXTAREA } from '@/lib/formStyles'
 import { Plus, Search, X, ChevronRight, Archive, Check, FileText, Trash2, Copy, ArrowRight } from 'lucide-react'
@@ -87,13 +87,6 @@ const TYPE_LABELS: Record<string, string> = {
   progress: 'Situation',
 }
 
-const TYPE_PREFIXES: Record<string, string> = {
-  order: 'BC',
-  delivery: 'BL',
-  work_report: 'AT',
-  progress: 'SA',
-}
-
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Brouillon',
   validated: 'Valide',
@@ -131,11 +124,10 @@ export default function ExecutionsPage() {
   // Overlays
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
-  const [createType, setCreateType] = useState<string>('order')
 
   // ── Liste ──────────────────────────────────────────────────────────────
 
-  const { data: listData, isLoading } = useQuery({
+  const { data: listData, isLoading } = useQuery<{ items: Execution[]; total: number; total_pages: number }>({
     queryKey: ['executions', activeOrgId, typeFilter, statusFilter, search, page],
     queryFn: () => orgGet(`/api/v1/executions?${new URLSearchParams({
       ...(typeFilter ? { exec_type: typeFilter } : {}),
@@ -148,12 +140,11 @@ export default function ExecutionsPage() {
   })
 
   const items: Execution[] = listData?.items ?? []
-  const total = listData?.total ?? 0
   const totalPages = listData?.total_pages ?? 0
 
   // ── Detail ─────────────────────────────────────────────────────────────
 
-  const { data: detail } = useQuery({
+  const { data: detail } = useQuery<ExecutionDetail>({
     queryKey: ['execution', selectedId],
     queryFn: () => orgGet(`/api/v1/executions/${selectedId}`),
     enabled: !!selectedId,
@@ -689,7 +680,7 @@ function ExecutionCreatePanel({
           {/* Client */}
           <div>
             <label className={LABEL}>Client</label>
-            <ClientCombobox value={clientId} onChange={setClientId} />
+            <ClientCombobox value={clientId ?? ''} onChange={setClientId} />
           </div>
 
           {/* Reference client */}
