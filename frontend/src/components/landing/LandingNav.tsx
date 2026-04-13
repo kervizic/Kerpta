@@ -28,10 +28,7 @@ export function LandingNav() {
         {/* Liens + bouton connexion */}
         <div className="flex items-center gap-4">
           <a href="#features" className="hidden sm:block text-sm text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-white transition">
-            Fonctionnalités
-          </a>
-          <a href="#pricing" className="hidden sm:block text-sm text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-white transition">
-            Tarifs
+            Fonctionnalites
           </a>
           <a href="#open-source" className="hidden sm:block text-sm text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-white transition">
             Installation
@@ -45,6 +42,11 @@ export function LandingNav() {
             <Github className="w-4 h-4" />
             <span>GitHub</span>
           </a>
+
+          {/* Badge beta */}
+          <span className="hidden sm:inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-amber-50 text-amber-600 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20">
+            Beta
+          </span>
 
           {/* Bouton Se connecter */}
           <button

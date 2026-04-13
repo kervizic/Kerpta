@@ -1,5 +1,5 @@
 // Kerpta — Section Hero de la page vitrine
-import { ArrowRight, Github, Star } from 'lucide-react'
+import { ArrowRight, Github, Star, Construction } from 'lucide-react'
 import { BTN_LANDING } from '@/lib/formStyles'
 
 interface Cta { label: string; href: string }
@@ -19,7 +19,7 @@ export function LandingHero({ content }: { content: Record<string, unknown> }) {
   const title = c.title ?? 'La comptabilité française,\nenfin open source'
   const subtitle = c.subtitle ?? 'Hébergez chez vous — vos données restent les vôtres.'
   const badge = c.badge ?? 'AGPL-3.0 · 100 % gratuit'
-  const ctaPrimary = c.cta_primary ?? { label: 'Commencer', href: '#open-source' }
+  const ctaPrimary = c.cta_primary ?? { label: 'Voir sur GitHub', href: 'https://github.com/kervizic/kerpta' }
   const ctaSecondary = c.cta_secondary ?? { label: 'GitHub', href: 'https://github.com/kervizic/kerpta' }
   const stats: Stat[] = (c.stats as Stat[]) ?? []
 
@@ -42,10 +42,18 @@ export function LandingHero({ content }: { content: Record<string, unknown> }) {
       />
 
       <div className="max-w-4xl mx-auto text-center">
+        {/* Bandeau beta */}
+        <div className="inline-flex items-center gap-2 px-5 py-2 rounded-xl border border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300 text-sm font-medium mb-6">
+          <Construction className="w-4 h-4" />
+          Application en cours de developpement - beta privee
+        </div>
+
         {/* Badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-kerpta-200 bg-kerpta-50 text-kerpta-600 dark:border-kerpta/30 dark:bg-kerpta/10 dark:text-kerpta-300 text-sm font-medium mb-8">
-          <Star className="w-3.5 h-3.5 fill-kerpta text-kerpta dark:fill-kerpta-400 dark:text-kerpta-400" />
-          {badge}
+        <div className="flex justify-center mb-8">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-kerpta-200 bg-kerpta-50 text-kerpta-600 dark:border-kerpta/30 dark:bg-kerpta/10 dark:text-kerpta-300 text-sm font-medium">
+            <Star className="w-3.5 h-3.5 fill-kerpta text-kerpta dark:fill-kerpta-400 dark:text-kerpta-400" />
+            {badge}
+          </div>
         </div>
 
         {/* Titre */}
@@ -65,8 +73,12 @@ export function LandingHero({ content }: { content: Record<string, unknown> }) {
         </h1>
 
         {/* Sous-titre */}
-        <p className="text-xl text-gray-500 dark:text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
+        <p className="text-xl text-gray-500 dark:text-slate-400 max-w-2xl mx-auto mb-4 leading-relaxed">
           {subtitle}
+        </p>
+        <p className="text-base text-gray-400 dark:text-slate-500 max-w-xl mx-auto mb-10 leading-relaxed">
+          Kerpta est en cours de developpement. L'inscription sera bientot disponible.
+          En attendant, le code source est accessible sur GitHub.
         </p>
 
         {/* CTAs */}
