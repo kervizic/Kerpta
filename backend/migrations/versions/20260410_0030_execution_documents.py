@@ -21,6 +21,10 @@ from sqlalchemy.dialects.postgresql import UUID, JSONB
 
 
 def upgrade() -> None:
+    # ── 0. Supprimer les FK qui pointent vers les tables a dropper ──────────
+    op.drop_constraint("invoices_situation_id_fkey", "invoices", type_="foreignkey")
+    op.drop_column("invoices", "situation_id")
+
     # ── 1. Supprimer les anciennes tables (ordre FK) ────────────────────────
     op.drop_table("situation_lines")
     op.drop_table("situations")
@@ -121,7 +125,7 @@ def upgrade() -> None:
     op.create_index("ix_exec_links_a", "execution_links", ["execution_a_id"])
     op.create_index("ix_exec_links_b", "execution_links", ["execution_b_id"])
 
-    # ── 5. Modifier invoices ────────────────────────────────────────────────
+    # ── 5. Modifier invoices (ajouter execution_document_id) ──────────────
     op.add_column(
         "invoices",
         sa.Column(
@@ -131,9 +135,6 @@ def upgrade() -> None:
             nullable=True,
         ),
     )
-    # Supprimer la FK situation_id
-    op.drop_constraint("invoices_situation_id_fkey", "invoices", type_="foreignkey")
-    op.drop_column("invoices", "situation_id")
 
     # ── 6. Modifier organizations ───────────────────────────────────────────
     op.add_column(
