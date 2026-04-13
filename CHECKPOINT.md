@@ -213,3 +213,40 @@ Refonte complete de la chaine documentaire Devis → Facture. Les commandes, bon
 - Implementer module IA (PROMPT-CLAUDE-CODE-IA.md)
 - Tests : atteindre 80% coverage
 - Bug quote_ids toujours pas teste end-to-end
+
+---
+
+# Checkpoint - 2026-04-13 (session 6 - site vitrine beta + fix TS)
+
+## Ce qui a ete fait
+
+### Site vitrine - mode beta
+- Bandeau "Application en cours de developpement - beta privee" ajoute dans LandingHero (icone Construction, style amber)
+- Badge "Beta" ajoute dans LandingNav
+- Texte explicatif sous le sous-titre : "Kerpta est en cours de developpement. L'inscription sera bientot disponible."
+- CTA principal change de "Commencer" vers "Voir sur GitHub"
+- Lien "Tarifs" retire de la navbar (pas pertinent en phase beta)
+
+### Fix erreurs TypeScript dans ExecutionsPage.tsx
+- Imports inutilises supprimes (useEffect, useCallback, orgPatch)
+- Constante TYPE_PREFIXES et state createType inutilises supprimes
+- Retours useQuery types correctement (liste + detail)
+- Prop icon ajoutee a PageLayout (obligatoire depuis la refonte)
+- Type string | null corrige pour ClientCombobox
+
+## Problemes rencontres et resolus
+1. **Build frontend cassait** - les erreurs TS dans ExecutionsPage existaient deja mais empechaient le build Docker. Corrigees pour debloquer le deploy.
+2. **Cache Docker** - apres le push, `docker compose up -d --build frontend` utilisait le cache. Resolution : `docker compose build --no-cache frontend` pour forcer le rebuild.
+
+## Fichiers modifies
+- frontend/src/components/landing/LandingHero.tsx (bandeau beta + texte + CTA)
+- frontend/src/components/landing/LandingNav.tsx (badge beta, retrait lien tarifs)
+- frontend/src/pages/app/ExecutionsPage.tsx (fix erreurs TS)
+
+## Prochaines etapes
+- Adapter QuotesPage (retirer type attachement, bouton "Accepter" propose les types execution)
+- Adapter ContractsPage (onglet "Suivi" avec execution_documents du contrat)
+- Adapter InvoicesPage (afficher type + numero execution source)
+- Implementer module IA (PROMPT-CLAUDE-CODE-IA.md)
+- Tests : atteindre 80% coverage
+- Bug quote_ids toujours pas teste end-to-end
